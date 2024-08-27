@@ -1,0 +1,348 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+<meta name="generator" content="pdoc3 0.11.1">
+<title>src.biology_benchmark.tasks.kabr API documentation</title>
+<meta name="description" content="Kenyan Animal Behavior Recognition (KABR) …">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin-bottom:1em}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => {
+hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+hljs.highlightAll();
+})</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>src.biology_benchmark.tasks.kabr</code></h1>
+</header>
+<section id="section-intro">
+<h1 id="kenyan-animal-behavior-recognition-kabr">Kenyan Animal Behavior Recognition (KABR)</h1>
+<p>KABR is a video recognition task (<a href="https://openaccess.thecvf.com/content/WACV2024W/CV4Smalls/papers/Kholiavchenko_KABR_In-Situ_Dataset_for_Kenyan_Animal_Behavior_Recognition_From_Drone_WACVW_2024_paper.pdf">paper</a>, <a href="https://kabrdata.xyz/">website</a>, <a href="https://huggingface.co/datasets/imageomics/KABR">Huggingface</a>) where the model predicts Kenyan animal behavior in short video segments.</p>
+<p>This can be framed as a classification task: given a short video segment of a single animal, which behavior is most common within the segment?</p>
+<p>While specialized architectures exist, we train a simple nearest-centroid classifier <a href="https://arxiv.org/abs/1911.04623">which works well with few-shot tasks</a> over video representations.
+We get video representations by embedding each frame of the video and taking the mean over the batch dimension.</p>
+<h2 id="data">Data</h2>
+<p>To download the data, you need to use the dataset download script:</p>
+<ol>
+<li>Copy-paste the <a href="https://huggingface.co/datasets/imageomics/KABR/raw/main/download.py">download script</a> to your data directory, like <code>/local/scratch/datasets/KABR/download.py</code>.</li>
+<li>Run <code>python download.py</code>. It doesn't have any requirements beyond the python standard library.</li>
+</ol>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-functions">Functions</h2>
+<dl>
+<dt id="src.biology_benchmark.tasks.kabr.aggregate_frames"><code class="name flex">
+<span>def <span class="ident">aggregate_frames</span></span>(<span>args: <a title="src.biology_benchmark.tasks.kabr.Args" href="#src.biology_benchmark.tasks.kabr.Args">Args</a>, features: jaxtyping.Float[Tensor, 'batch']) ‑> jaxtyping.Float[Tensor, 'batch']</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="src.biology_benchmark.tasks.kabr.aggregate_labels"><code class="name flex">
+<span>def <span class="ident">aggregate_labels</span></span>(<span>args: <a title="src.biology_benchmark.tasks.kabr.Args" href="#src.biology_benchmark.tasks.kabr.Args">Args</a>, labels: jaxtyping.Float[Tensor, 'batch']) ‑> jaxtyping.Float[Tensor, 'batch']</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="src.biology_benchmark.tasks.kabr.batched_idx"><code class="name flex">
+<span>def <span class="ident">batched_idx</span></span>(<span>total_size: int, batch_size: int) ‑> collections.abc.Iterator[tuple[int, int]]</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="src.biology_benchmark.tasks.kabr.get_features"><code class="name flex">
+<span>def <span class="ident">get_features</span></span>(<span>args: <a title="src.biology_benchmark.tasks.kabr.Args" href="#src.biology_benchmark.tasks.kabr.Args">Args</a>, model: biology_benchmark.models.interfaces.VisionModel, dataloader) ‑> tuple[jaxtyping.Float[Tensor, 'batch'], jaxtyping.Float[Tensor, 'batch']]</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="src.biology_benchmark.tasks.kabr.l2_normalize"><code class="name flex">
+<span>def <span class="ident">l2_normalize</span></span>(<span>features: jaxtyping.Float[ndarray, 'batch']) ‑> jaxtyping.Float[Tensor, 'batch']</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="src.biology_benchmark.tasks.kabr.main"><code class="name flex">
+<span>def <span class="ident">main</span></span>(<span>args: <a title="src.biology_benchmark.tasks.kabr.Args" href="#src.biology_benchmark.tasks.kabr.Args">Args</a>)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="src.biology_benchmark.tasks.kabr.simpleshot"><code class="name flex">
+<span>def <span class="ident">simpleshot</span></span>(<span>args: <a title="src.biology_benchmark.tasks.kabr.Args" href="#src.biology_benchmark.tasks.kabr.Args">Args</a>, x_features: jaxtyping.Float[ndarray, 'batch'], x_labels, y_features, y_labels) ‑> jaxtyping.Float[ndarray, '']</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Applies simpleshot to the video clips. We assign each clip the majority label.</p></div>
+</dd>
+</dl>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="src.biology_benchmark.tasks.kabr.Args"><code class="flex name class">
+<span>class <span class="ident">Args</span></span>
+<span>(</span><span>seed: int = 42, model: biology_benchmark.models.Params = &lt;factory&gt;, dataset_dir: str = '', batch_size: int = 2048, n_workers: int = 4, device: Literal['cpu', 'cuda'] = 'cpu')</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Args(seed: int = 42, model: biology_benchmark.models.Params = <factory>, dataset_dir: str = '', batch_size: int = 2048, n_workers: int = 4, device: Literal['cpu', 'cuda'] = 'cpu')</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@dataclasses.dataclass
+class Args:
+    seed: int = 42
+    &#34;&#34;&#34;random seed.&#34;&#34;&#34;
+    model: models.Params = dataclasses.field(default_factory=lambda: models.Params())
+
+    dataset_dir: str = &#34;&#34;
+    &#34;&#34;&#34;dataset directory; where you downloaded KABR to.&#34;&#34;&#34;
+    batch_size: int = 2048
+    &#34;&#34;&#34;batch size for linear model.&#34;&#34;&#34;
+    n_workers: int = 4
+    &#34;&#34;&#34;number of dataloader worker processes.&#34;&#34;&#34;
+
+    device: typing.Literal[&#34;cpu&#34;, &#34;cuda&#34;] = &#34;cpu&#34;</code></pre>
+</details>
+<h3>Class variables</h3>
+<dl>
+<dt id="src.biology_benchmark.tasks.kabr.Args.batch_size"><code class="name">var <span class="ident">batch_size</span> : int</code></dt>
+<dd>
+<div class="desc"><p>batch size for linear model.</p></div>
+</dd>
+<dt id="src.biology_benchmark.tasks.kabr.Args.dataset_dir"><code class="name">var <span class="ident">dataset_dir</span> : str</code></dt>
+<dd>
+<div class="desc"><p>dataset directory; where you downloaded KABR to.</p></div>
+</dd>
+<dt id="src.biology_benchmark.tasks.kabr.Args.device"><code class="name">var <span class="ident">device</span> : Literal['cpu', 'cuda']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="src.biology_benchmark.tasks.kabr.Args.model"><code class="name">var <span class="ident">model</span> : biology_benchmark.models.Params</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="src.biology_benchmark.tasks.kabr.Args.n_workers"><code class="name">var <span class="ident">n_workers</span> : int</code></dt>
+<dd>
+<div class="desc"><p>number of dataloader worker processes.</p></div>
+</dd>
+<dt id="src.biology_benchmark.tasks.kabr.Args.seed"><code class="name">var <span class="ident">seed</span> : int</code></dt>
+<dd>
+<div class="desc"><p>random seed.</p></div>
+</dd>
+</dl>
+</dd>
+<dt id="src.biology_benchmark.tasks.kabr.Kabr"><code class="flex name class">
+<span>class <span class="ident">Kabr</span></span>
+<span>(</span><span>path, split: str, transform=None, seed: int = 42)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Clips of at most 90 frames in Charades format with each frame stored as an image.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Kabr(torch.utils.data.Dataset):
+    &#34;&#34;&#34;
+    Clips of at most 90 frames in Charades format with each frame stored as an image.
+    &#34;&#34;&#34;
+
+    def __init__(self, path, split: str, transform=None, seed: int = 42):
+        self.path = path
+        self.split = split
+        self.transform = transform
+        self.seed = seed
+
+        self.rng = np.random.default_rng(seed=seed)
+
+        self.n_frames = 16
+        self.n_every = 5
+
+        # Load videos
+        #############
+
+        frames, labels = {}, {}
+
+        if not os.path.exists(self.path) or not os.path.isdir(self.path):
+            msg = f&#34;Path &#39;{self.path}&#39; doesn&#39;t exist. Did you download the KABR dataset? See the docstring at the top of this file for instructions. If you did download it, pass the path as --dataset-dir PATH&#34;
+            logger.critical(msg)
+            raise RuntimeError(msg)
+
+        with open(os.path.join(self.path, &#34;annotation&#34;, f&#34;{split}.csv&#34;)) as fd:
+            reader = csv.reader(fd, delimiter=&#34; &#34;)
+            next(reader)  # skip headers
+            for _, video_id, frame_id, path, label in reader:
+                video_id = int(video_id)
+                frame_id = int(frame_id)
+                label = int(label)
+
+                if video_id not in frames:
+                    frames[video_id] = []
+                if video_id not in labels:
+                    labels[video_id] = []
+
+                if frame_id &gt; len(frames[video_id]) + 1:
+                    raise ValueError(f&#34;Video {video_id} is missing a frame.&#34;)
+
+                path = os.path.join(self.path, &#34;dataset&#34;, &#34;image&#34;, path)
+                frames[video_id].append(path)
+                labels[video_id].append(label)
+
+        self.videos = [
+            Video(video_id, frames[video_id], labels[video_id])
+            for video_id in frames.keys()
+            if len(frames[video_id]) &gt;= self.n_frames
+        ]
+
+    def __getitem__(self, i) -&gt; tuple[list[object], list[int]]:
+        &#34;&#34;&#34;
+        Returns 16 frames and their labels sampled every 5 frames from a clip. The start of the clip is uniformly sampled. If there are fewer
+        &#34;&#34;&#34;
+        n_every = self.n_every
+
+        video = self.videos[i]
+
+        while len(video.frames) &lt; ((self.n_frames - 1) * n_every + 1):
+            n_every -= 1
+
+        if n_every &lt;= 0:
+            print(n_every, len(video.frames), ((self.n_frames - 1) * n_every + 1))
+        assert n_every &gt;= 1
+
+        # margin is the number of extra frames on either size of the 16x5 sampled frames.
+        margin = len(video.frames) - ((self.n_frames - 1) * n_every + 1)
+
+        # Pick a random start, then pick n_frames frames every n_every frames.
+        # (sam) This is likely not clear and there are probably better ways to express this in Python that is more clear to other video ML devs. Please open a PR if you know a better way!
+        start = self.rng.integers(0, margin + 1)
+        frames = video.frames[start:None:n_every][: self.n_frames]
+        labels = video.labels[start:None:n_every][: self.n_frames]
+
+        images = [Image.open(frame) for frame in frames]
+
+        if self.transform is not None:
+            images = [self.transform(image) for image in images]
+
+        return images, labels
+
+    def __len__(self) -&gt; int:
+        return len(self.videos)</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>torch.utils.data.dataset.Dataset</li>
+<li>typing.Generic</li>
+</ul>
+</dd>
+<dt id="src.biology_benchmark.tasks.kabr.Video"><code class="flex name class">
+<span>class <span class="ident">Video</span></span>
+<span>(</span><span>video_id: str, frames: list[str], labels: list[int])</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Video(video_id: str, frames: list[str], labels: list[int])</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@beartype.beartype
+@dataclasses.dataclass(frozen=True)
+class Video:
+    video_id: str
+    frames: list[str]
+    labels: list[int]
+
+    def __post_init__(self):
+        err_msg = f&#34;Video {self.video_id} has a different number of frames ({len(self.frames)} and labels ({len(self.labels)}).&#34;
+        assert len(self.frames) == len(self.labels), err_msg</code></pre>
+</details>
+<h3>Class variables</h3>
+<dl>
+<dt id="src.biology_benchmark.tasks.kabr.Video.frames"><code class="name">var <span class="ident">frames</span> : list[str]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="src.biology_benchmark.tasks.kabr.Video.labels"><code class="name">var <span class="ident">labels</span> : list[int]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="src.biology_benchmark.tasks.kabr.Video.video_id"><code class="name">var <span class="ident">video_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<div class="toc">
+<ul>
+<li><a href="#kenyan-animal-behavior-recognition-kabr">Kenyan Animal Behavior Recognition (KABR)</a><ul>
+<li><a href="#data">Data</a></li>
+</ul>
+</li>
+</ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="src.biology_benchmark.tasks" href="index.html">src.biology_benchmark.tasks</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-functions">Functions</a></h3>
+<ul class="two-column">
+<li><code><a title="src.biology_benchmark.tasks.kabr.aggregate_frames" href="#src.biology_benchmark.tasks.kabr.aggregate_frames">aggregate_frames</a></code></li>
+<li><code><a title="src.biology_benchmark.tasks.kabr.aggregate_labels" href="#src.biology_benchmark.tasks.kabr.aggregate_labels">aggregate_labels</a></code></li>
+<li><code><a title="src.biology_benchmark.tasks.kabr.batched_idx" href="#src.biology_benchmark.tasks.kabr.batched_idx">batched_idx</a></code></li>
+<li><code><a title="src.biology_benchmark.tasks.kabr.get_features" href="#src.biology_benchmark.tasks.kabr.get_features">get_features</a></code></li>
+<li><code><a title="src.biology_benchmark.tasks.kabr.l2_normalize" href="#src.biology_benchmark.tasks.kabr.l2_normalize">l2_normalize</a></code></li>
+<li><code><a title="src.biology_benchmark.tasks.kabr.main" href="#src.biology_benchmark.tasks.kabr.main">main</a></code></li>
+<li><code><a title="src.biology_benchmark.tasks.kabr.simpleshot" href="#src.biology_benchmark.tasks.kabr.simpleshot">simpleshot</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="src.biology_benchmark.tasks.kabr.Args" href="#src.biology_benchmark.tasks.kabr.Args">Args</a></code></h4>
+<ul class="two-column">
+<li><code><a title="src.biology_benchmark.tasks.kabr.Args.batch_size" href="#src.biology_benchmark.tasks.kabr.Args.batch_size">batch_size</a></code></li>
+<li><code><a title="src.biology_benchmark.tasks.kabr.Args.dataset_dir" href="#src.biology_benchmark.tasks.kabr.Args.dataset_dir">dataset_dir</a></code></li>
+<li><code><a title="src.biology_benchmark.tasks.kabr.Args.device" href="#src.biology_benchmark.tasks.kabr.Args.device">device</a></code></li>
+<li><code><a title="src.biology_benchmark.tasks.kabr.Args.model" href="#src.biology_benchmark.tasks.kabr.Args.model">model</a></code></li>
+<li><code><a title="src.biology_benchmark.tasks.kabr.Args.n_workers" href="#src.biology_benchmark.tasks.kabr.Args.n_workers">n_workers</a></code></li>
+<li><code><a title="src.biology_benchmark.tasks.kabr.Args.seed" href="#src.biology_benchmark.tasks.kabr.Args.seed">seed</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="src.biology_benchmark.tasks.kabr.Kabr" href="#src.biology_benchmark.tasks.kabr.Kabr">Kabr</a></code></h4>
+</li>
+<li>
+<h4><code><a title="src.biology_benchmark.tasks.kabr.Video" href="#src.biology_benchmark.tasks.kabr.Video">Video</a></code></h4>
+<ul class="">
+<li><code><a title="src.biology_benchmark.tasks.kabr.Video.frames" href="#src.biology_benchmark.tasks.kabr.Video.frames">frames</a></code></li>
+<li><code><a title="src.biology_benchmark.tasks.kabr.Video.labels" href="#src.biology_benchmark.tasks.kabr.Video.labels">labels</a></code></li>
+<li><code><a title="src.biology_benchmark.tasks.kabr.Video.video_id" href="#src.biology_benchmark.tasks.kabr.Video.video_id">video_id</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.1</a>.</p>
+</footer>
+</body>
+</html>

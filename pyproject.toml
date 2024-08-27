@@ -13,6 +13,7 @@ dependencies = [
     "open-clip-torch>=2.26.1",
     "datasets>=2.21.0",
     "aim>=3.24.0",
+    "scikit-learn>=1.5.1",
 ]
 
 [build-system]
