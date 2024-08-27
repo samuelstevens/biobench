@@ -1,0 +1,23 @@
+[project]
+name = "biology-benchmark"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "torch>=2.4.0",
+    "jaxtyping>=0.2.33",
+    "beartype>=0.18.5",
+    "tyro>=0.8.10",
+    "torchmetrics>=1.4.1",
+    "open-clip-torch>=2.26.1",
+    "datasets>=2.21.0",
+    "aim>=3.24.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.ruff.lint]
+ignore = ["F722"]
