@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+<meta name="generator" content="pdoc3 0.11.1">
+<title>benchmark API documentation</title>
+<meta name="description" content="">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin-bottom:1em}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => {
+hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+hljs.highlightAll();
+})</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>benchmark</code></h1>
+</header>
+<section id="section-intro">
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-functions">Functions</h2>
+<dl>
+<dt id="benchmark.display"><code class="name flex">
+<span>def <span class="ident">display</span></span>(<span>report: <a title="biobench.interfaces.BenchmarkReport" href="biobench/interfaces.html#biobench.interfaces.BenchmarkReport">BenchmarkReport</a>) ‑> None</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="benchmark.main"><code class="name flex">
+<span>def <span class="ident">main</span></span>(<span>args: <a title="benchmark.Args" href="#benchmark.Args">Args</a>)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="benchmark.Args"><code class="flex name class">
+<span>class <span class="ident">Args</span></span>
+<span>(</span><span>jobs: Literal['slurm', 'process', 'none'] = 'none', model: <a title="biobench.models.Params" href="biobench/models.html#biobench.models.Params">Params</a> = &lt;factory&gt;, device: Literal['cpu', 'cuda'] = 'cuda', newt_run: bool = False, newt_args: <a title="biobench.newt.Args" href="biobench/newt/index.html#biobench.newt.Args">Args</a> = &lt;factory&gt;, kabr_run: bool = False, kabr_args: <a title="biobench.kabr.Args" href="biobench/kabr/index.html#biobench.kabr.Args">Args</a> = &lt;factory&gt;)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Args(jobs: Literal['slurm', 'process', 'none'] = 'none', model: biobench.models.Params = <factory>, device: Literal['cpu', 'cuda'] = 'cuda', newt_run: bool = False, newt_args: biobench.newt.Args = <factory>, kabr_run: bool = False, kabr_args: biobench.kabr.Args = <factory>)</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@beartype.beartype
+@dataclasses.dataclass(frozen=True)
+class Args:
+    jobs: typing.Literal[&#34;slurm&#34;, &#34;process&#34;, &#34;none&#34;] = &#34;none&#34;
+    &#34;&#34;&#34;what kind of jobs we should use for parallel processing: slurm cluster, multiple processes on the same machine, or just a single process.&#34;&#34;&#34;
+
+    # How to set up the model.
+    model: models.Params = dataclasses.field(default_factory=models.Params)
+    &#34;&#34;&#34;arguments for the vision backbone.&#34;&#34;&#34;
+    device: typing.Literal[&#34;cpu&#34;, &#34;cuda&#34;] = &#34;cuda&#34;
+    &#34;&#34;&#34;which kind of accelerator to use.&#34;&#34;&#34;
+
+    # Individual benchmarks.
+    newt_run: bool = False
+    &#34;&#34;&#34;whether to run the NeWT benchmark.&#34;&#34;&#34;
+    newt_args: newt.Args = dataclasses.field(default_factory=newt.Args)
+    &#34;&#34;&#34;arguments for the NeWT benchmark.&#34;&#34;&#34;
+    kabr_run: bool = False
+    &#34;&#34;&#34;whether to run the KABR benchmark.&#34;&#34;&#34;
+    kabr_args: kabr.Args = dataclasses.field(default_factory=kabr.Args)
+    &#34;&#34;&#34;arguments for the KABR benchmark.&#34;&#34;&#34;</code></pre>
+</details>
+<h3>Class variables</h3>
+<dl>
+<dt id="benchmark.Args.device"><code class="name">var <span class="ident">device</span> : Literal['cpu', 'cuda']</code></dt>
+<dd>
+<div class="desc"><p>which kind of accelerator to use.</p></div>
+</dd>
+<dt id="benchmark.Args.jobs"><code class="name">var <span class="ident">jobs</span> : Literal['slurm', 'process', 'none']</code></dt>
+<dd>
+<div class="desc"><p>what kind of jobs we should use for parallel processing: slurm cluster, multiple processes on the same machine, or just a single process.</p></div>
+</dd>
+<dt id="benchmark.Args.kabr_args"><code class="name">var <span class="ident">kabr_args</span> : <a title="biobench.kabr.Args" href="biobench/kabr/index.html#biobench.kabr.Args">Args</a></code></dt>
+<dd>
+<div class="desc"><p>arguments for the KABR benchmark.</p></div>
+</dd>
+<dt id="benchmark.Args.kabr_run"><code class="name">var <span class="ident">kabr_run</span> : bool</code></dt>
+<dd>
+<div class="desc"><p>whether to run the KABR benchmark.</p></div>
+</dd>
+<dt id="benchmark.Args.model"><code class="name">var <span class="ident">model</span> : <a title="biobench.models.Params" href="biobench/models.html#biobench.models.Params">Params</a></code></dt>
+<dd>
+<div class="desc"><p>arguments for the vision backbone.</p></div>
+</dd>
+<dt id="benchmark.Args.newt_args"><code class="name">var <span class="ident">newt_args</span> : <a title="biobench.newt.Args" href="biobench/newt/index.html#biobench.newt.Args">Args</a></code></dt>
+<dd>
+<div class="desc"><p>arguments for the NeWT benchmark.</p></div>
+</dd>
+<dt id="benchmark.Args.newt_run"><code class="name">var <span class="ident">newt_run</span> : bool</code></dt>
+<dd>
+<div class="desc"><p>whether to run the NeWT benchmark.</p></div>
+</dd>
+</dl>
+</dd>
+<dt id="benchmark.DummyExecutor"><code class="flex name class">
+<span>class <span class="ident">DummyExecutor</span></span>
+</code></dt>
+<dd>
+<div class="desc"><p>Dummy class to satisfy the Executor interface. Directly runs the function in the main process for easy debugging.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class DummyExecutor(concurrent.futures.Executor):
+    &#34;&#34;&#34;Dummy class to satisfy the Executor interface. Directly runs the function in the main process for easy debugging.&#34;&#34;&#34;
+
+    def submit(self, fn, /, *args, **kwargs):
+        &#34;&#34;&#34;runs `fn` directly in the main process and returns a Future with the result.&#34;&#34;&#34;
+        future = concurrent.futures.Future()
+        try:
+            result = fn(*args, **kwargs)
+            future.set_result(result)
+        except Exception as exc:
+            future.set_exception(exc)
+
+        return future</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>concurrent.futures._base.Executor</li>
+</ul>
+<h3>Methods</h3>
+<dl>
+<dt id="benchmark.DummyExecutor.submit"><code class="name flex">
+<span>def <span class="ident">submit</span></span>(<span>self, fn, /, *args, **kwargs)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>runs <code>fn</code> directly in the main process and returns a Future with the result.</p></div>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3><a href="#header-functions">Functions</a></h3>
+<ul class="">
+<li><code><a title="benchmark.display" href="#benchmark.display">display</a></code></li>
+<li><code><a title="benchmark.main" href="#benchmark.main">main</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="benchmark.Args" href="#benchmark.Args">Args</a></code></h4>
+<ul class="two-column">
+<li><code><a title="benchmark.Args.device" href="#benchmark.Args.device">device</a></code></li>
+<li><code><a title="benchmark.Args.jobs" href="#benchmark.Args.jobs">jobs</a></code></li>
+<li><code><a title="benchmark.Args.kabr_args" href="#benchmark.Args.kabr_args">kabr_args</a></code></li>
+<li><code><a title="benchmark.Args.kabr_run" href="#benchmark.Args.kabr_run">kabr_run</a></code></li>
+<li><code><a title="benchmark.Args.model" href="#benchmark.Args.model">model</a></code></li>
+<li><code><a title="benchmark.Args.newt_args" href="#benchmark.Args.newt_args">newt_args</a></code></li>
+<li><code><a title="benchmark.Args.newt_run" href="#benchmark.Args.newt_run">newt_run</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="benchmark.DummyExecutor" href="#benchmark.DummyExecutor">DummyExecutor</a></code></h4>
+<ul class="">
+<li><code><a title="benchmark.DummyExecutor.submit" href="#benchmark.DummyExecutor.submit">submit</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.1</a>.</p>
+</footer>
+</body>
+</html>

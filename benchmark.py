@@ -1,3 +1,7 @@
+"""
+Entrypoint for running all benchmarks.
+"""
+
 import concurrent.futures
 import dataclasses
 import logging
@@ -19,6 +23,8 @@ logger = logging.getLogger("biobench")
 @beartype.beartype
 @dataclasses.dataclass(frozen=True)
 class Args:
+    """Params to run one or more benchmarks in a parallel setting."""
+
     jobs: typing.Literal["slurm", "process", "none"] = "none"
     """what kind of jobs we should use for parallel processing: slurm cluster, multiple processes on the same machine, or just a single process."""
 
@@ -49,7 +55,10 @@ class DummyExecutor(concurrent.futures.Executor):
     """Dummy class to satisfy the Executor interface. Directly runs the function in the main process for easy debugging."""
 
     def submit(self, fn, /, *args, **kwargs):
-        """runs `fn` directly in the main process and returns a Future with the result."""
+        """runs `fn` directly in the main process and returns a `concurrent.futures.Future` with the result.
+
+        Returns:
+        """
         future = concurrent.futures.Future()
         try:
             result = fn(*args, **kwargs)

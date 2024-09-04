@@ -1,7 +1,6 @@
 docs: lint
-    uv run pdoc3 --force --html --output-dir docs/html biobench
-    uv run pdoc3 --force --output-dir docs/md biobench
-    uv run python -m http.server -d docs/html/biobench
+    uv run pdoc3 --force --output-dir docs/md --config latex_math=True biobench benchmark
+    uv run pdoc3 --http :8000 --force --html --output-dir docs/html --config latex_math=True biobench benchmark
 
 types: lint
     uv run pyright biobench
