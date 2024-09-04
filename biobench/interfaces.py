@@ -9,12 +9,16 @@ from torch import Tensor
 @jaxtyped(typechecker=beartype.beartype)
 @dataclasses.dataclass(frozen=True)
 class EncodedImgBatch:
-    img_features: Float[Tensor, "batch dim"]
-    patch_features: Float[Tensor, "batch patch_size dim"] | None
-    """Patch-level features. Only ViTs have patch-level features."""
+    """The output of a `VisionBackbone`'s `img_encode()` method."""
+
+    img_features: Float[Tensor, "batch img_dim"]
+    """Image-level features. Each image is represented by a single vector."""
+    patch_features: Float[Tensor, "batch patch_size patch_dim"] | None
+    """Patch-level features. Only ViTs have patch-level features. These features might be a different dimension that the image features because of projection heads or such."""
 
 
-class VisionModel(torch.nn.Module):
+@jaxtyped(typechecker=beartype.beartype)
+class VisionBackbone(torch.nn.Module):
     """ """
 
     @jaxtyped(typechecker=beartype.beartype)
@@ -45,3 +49,15 @@ class VisionModel(torch.nn.Module):
 
         err_msg = f"{self.__class__.__name__} must implemented get_img_size()."
         raise NotImplementedError(err_msg)
+
+
+@jaxtyped(typechecker=beartype.beartype)
+@dataclasses.dataclass(frozen=True)
+class BenchmarkReport:
+    """The result of running a benchmark."""
+
+    name: str
+    """the benchmark name."""
+
+    score: float
+    """mean score across the entire task, as a number between 0 and 1."""

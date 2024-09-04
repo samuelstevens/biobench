@@ -26,10 +26,11 @@ import tyro
 from jaxtyping import Float, jaxtyped
 from torch import Tensor
 
-from biology_benchmark import models
+from biobench import models
 
 log_format = "[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s"
 logging.basicConfig(level=logging.INFO, format=log_format)
+logger = logging.getLogger("imagnet")
 
 
 @beartype.beartype
@@ -161,7 +162,6 @@ def main(args: Args):
     )
 
     # 4. Load tracking.
-    logger = logging.getLogger("imagnet")
     task = "multiclass"
     train_metrics = {
         "train_acc1": torchmetrics.Accuracy(task=task, top_k=1, num_classes=1_000),

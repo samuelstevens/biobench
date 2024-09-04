@@ -20,7 +20,6 @@ import collections.abc
 import csv
 import dataclasses
 import logging
-import multiprocessing
 import os
 import typing
 
@@ -29,18 +28,16 @@ import numpy as np
 import sklearn.neighbors
 import torch
 import tqdm
-import tyro
-from jaxtyping import Float, jaxtyped
+from jaxtyping import Float, Int, jaxtyped
 from PIL import Image
 from torch import Tensor
 
-from biology_benchmark import models
+from biobench import interfaces, models
 
-log_format = "[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s"
-logging.basicConfig(level=logging.INFO, format=log_format)
 logger = logging.getLogger("kabr")
 
 
+@beartype.beartype
 @dataclasses.dataclass
 class Args:
     seed: int = 42
@@ -49,18 +46,22 @@ class Args:
 
     dataset_dir: str = ""
     """dataset directory; where you downloaded KABR to."""
-    batch_size: int = 2048
-    """batch size for linear model."""
+    batch_size: int = 16
+    """batch size for deep model. Note that this is multiplied by 16 (number of frames)"""
     n_workers: int = 4
     """number of dataloader worker processes."""
 
-    device: typing.Literal["cpu", "cuda"] = "cpu"
+    frame_agg: typing.Literal["mean", "max"] = "mean"
+    """how to aggregate features across time dimension."""
+
+    device: typing.Literal["cpu", "cuda"] = "cuda"
+    """which device to use."""
 
 
 @beartype.beartype
 @dataclasses.dataclass(frozen=True)
 class Video:
-    video_id: str
+    video_id: int
     frames: list[str]
     labels: list[int]
 
@@ -69,7 +70,8 @@ class Video:
         assert len(self.frames) == len(self.labels), err_msg
 
 
-class Kabr(torch.utils.data.Dataset):
+@jaxtyped(typechecker=beartype.beartype)
+class Dataset(torch.utils.data.Dataset):
     """
     Clips of at most 90 frames in Charades format with each frame stored as an image.
     """
@@ -88,7 +90,8 @@ class Kabr(torch.utils.data.Dataset):
         # Load videos
         #############
 
-        frames, labels = {}, {}
+        frames: dict[int, list[str]] = {}
+        labels: dict[int, list[int]] = {}
 
         if not os.path.exists(self.path) or not os.path.isdir(self.path):
             msg = f"Path '{self.path}' doesn't exist. Did you download the KABR dataset? See the docstring at the top of this file for instructions. If you did download it, pass the path as --dataset-dir PATH"
@@ -159,22 +162,28 @@ class Kabr(torch.utils.data.Dataset):
 @torch.no_grad()
 @jaxtyped(typechecker=beartype.beartype)
 def get_features(
-    args: Args, model: models.VisionModel, dataloader
-) -> tuple[Float[Tensor, " batch"], Float[Tensor, " batch"]]:
-    """ """
+    args: Args, backbone: interfaces.VisionBackbone, dataloader
+) -> tuple[
+    Float[Tensor, "n_frames n_examples dim"], Int[Tensor, "n_frames n_examples"]
+]:
+    """
+    Gets all model features and true labels for all frames and all examples in the dataloader.
+
+    Returns it as a pair of big Tensors.
+    """
+    backbone = torch.compile(backbone)
     all_features, all_labels = [], []
     for frames, labels in tqdm.tqdm(dataloader, desc="img feats."):
         frames = torch.stack(frames, dim=0)
         labels = torch.stack(labels, dim=0)
         frames = frames.to(args.device)
 
-        with torch.cuda.amp.autocast():
-            # (sam) conv2d doesn't support multiple batch dimensions, so we have to view() before and after the model.img_encode() call.
+        with torch.amp.autocast("cuda"):
+            # conv2d doesn't support multiple batch dimensions, so we have to view() before and after the model.img_encode() call.
             n_frames, bsz, c, h, w = frames.shape
             frames = frames.view(bsz * n_frames, c, h, w)
-            outputs = model.img_encode(frames)
-            assert "img_features" in outputs
-            features = outputs["img_features"].view(n_frames, bsz, -1)
+            outputs = backbone.img_encode(frames)
+            features = outputs.img_features.view(n_frames, bsz, -1)
             features = torch.nn.functional.normalize(features, dim=-1)
             all_features.append(features.cpu())
             all_labels.append(labels.cpu())
@@ -187,25 +196,27 @@ def get_features(
 
 @jaxtyped(typechecker=beartype.beartype)
 def aggregate_labels(
-    args: Args, labels: Float[Tensor, " batch"]
-) -> Float[Tensor, " batch"]:
+    args: Args, labels: Int[Tensor, "n_frames n_examples"]
+) -> Int[Tensor, " n_examples"]:
     return torch.mode(labels, dim=0).values
 
 
 @jaxtyped(typechecker=beartype.beartype)
 def aggregate_frames(
-    args: Args, features: Float[Tensor, " batch"]
-) -> Float[Tensor, " batch"]:
+    args: Args, features: Float[Tensor, "n_frames n_examples dim"]
+) -> Float[Tensor, "n_examples dim"]:
     if args.frame_agg == "mean":
         return torch.mean(features, dim=0)
     elif args.frame_agg == "max":
         return torch.max(features, dim=0)
     else:
-        raise ValueError(args.frame_agg)
+        typing.assert_never(args.frame_agg)
 
 
 @jaxtyped(typechecker=beartype.beartype)
-def l2_normalize(features: Float[np.ndarray, " batch"]) -> Float[Tensor, " batch"]:
+def l2_normalize(
+    features: Float[Tensor, "n_examples dim"],
+) -> Float[Tensor, "n_examples dim"]:
     norms = np.linalg.norm(features, ord=2, axis=1, keepdims=True)
     return features / norms
 
@@ -221,8 +232,12 @@ def batched_idx(
 
 @jaxtyped(typechecker=beartype.beartype)
 def simpleshot(
-    args: Args, x_features: Float[np.ndarray, " batch"], x_labels, y_features, y_labels
-) -> Float[np.ndarray, ""]:
+    args: Args,
+    x_features: Float[Tensor, "n_x_examples dim"],
+    x_labels: Int[Tensor, " n_x_examples"],
+    y_features: Float[Tensor, "n_y_examples dim"],
+    y_labels: Int[Tensor, " n_y_examples"],
+) -> float:
     """
     Applies simpleshot to the video clips. We assign each clip the majority label.
     """
@@ -253,36 +268,42 @@ def simpleshot(
         correct = (preds == batch_labels).sum()
         accs.append(correct.item() / (stop - start))
 
-    return np.mean(accs) * 100
+    return np.mean(accs)
 
 
-def main(args: Args):
-    deep_model = models.load_model(args.model).to(args.device)
-    img_transform = deep_model.make_img_transform()
+@beartype.beartype
+def benchmark(
+    backbone: interfaces.VisionBackbone, args: Args
+) -> interfaces.BenchmarkReport:
+    img_transform = backbone.make_img_transform()
+    backbone = backbone.to(args.device)
 
-    train_dataset = Kabr(args.dataset_dir, "train", transform=img_transform)
-    val_dataset = Kabr(args.dataset_dir, "val", transform=img_transform)
+    # 2. Load data.
+    train_dataset = Dataset(args.dataset_dir, "train", transform=img_transform)
+    val_dataset = Dataset(args.dataset_dir, "val", transform=img_transform)
 
     train_dataloader = torch.utils.data.DataLoader(
-        train_dataset, batch_size=args.batch_size, num_workers=args.n_workers
+        train_dataset,
+        batch_size=args.batch_size,
+        num_workers=args.n_workers,
+        drop_last=False,
     )
     val_dataloader = torch.utils.data.DataLoader(
-        val_dataset, batch_size=args.batch_size, num_workers=args.n_workers
+        val_dataset,
+        batch_size=args.batch_size,
+        num_workers=args.n_workers,
+        drop_last=False,
     )
 
-    val_features, val_labels = get_features(args, deep_model, val_dataloader)
+    # 3. Get features
+    val_features, val_labels = get_features(args, backbone, val_dataloader)
     val_features = aggregate_frames(args, val_features)
     val_labels = aggregate_labels(args, val_labels)
 
-    train_features, train_labels = get_features(args, deep_model, train_dataloader)
+    train_features, train_labels = get_features(args, backbone, train_dataloader)
     train_features = aggregate_frames(args, train_features)
     train_labels = aggregate_labels(args, train_labels)
 
+    # 4. Do simpleshot.
     acc = simpleshot(args, train_features, train_labels, val_features, val_labels)
-    print(f"{acc:.3f}%")
-
-
-if __name__ == "__main__":
-    # Required on macOS so we don't use pickling to move things between processes.
-    multiprocessing.set_start_method("fork")
-    main(tyro.cli(Args))
+    return interfaces.BenchmarkReport("KABR", acc)
