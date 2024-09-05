@@ -14,11 +14,11 @@ I'm not sure which is better: closed-form solutions ("correct") or iterative opt
 Functions
 ---------
 
+`benchmark(backbone: biobench.interfaces.VisionBackbone, args: biobench.tasks.imagenet.Args)`
+:   
+
 `build_dataloader(args: biobench.tasks.imagenet.Args, transform, *, train: bool)`
 :   Constructs a dataloader from `Args`, a transform from `src.biology_benchmark.models.interfaces.VisionModel.make_img_transform` and a boolean indicating whether we are in train mode.
-
-`main(args: biobench.tasks.imagenet.Args)`
-:   
 
 `to_aim_value(value: object)`
 :   Recursively converts objects into [Aim](https://github.com/aimhubio/aim)-compatible values.
@@ -28,8 +28,8 @@ Functions
 Classes
 -------
 
-`Args(seed: int = 42, n_epochs: int = 8, model: biobench.models.Params = <factory>, dtype: str = 'float16', learning_rate: float = 0.0003, weight_decay: float = 0.1, shuffle_buffer_size: int = 1000, batch_size: int = 2048, n_workers: int = 4, log_every: int = 1, device: str = 'cpu')`
-:   Args(seed: int = 42, n_epochs: int = 8, model: biobench.models.Params = <factory>, dtype: str = 'float16', learning_rate: float = 0.0003, weight_decay: float = 0.1, shuffle_buffer_size: int = 1000, batch_size: int = 2048, n_workers: int = 4, log_every: int = 1, device: str = 'cpu')
+`Args(seed: int = 42, n_epochs: int = 8, model: biobench.interfaces.VisionBackboneArgs = <factory>, dtype: str = 'float16', learning_rate: float = 0.0003, weight_decay: float = 0.1, shuffle_buffer_size: int = 1000, batch_size: int = 2048, n_workers: int = 4, log_every: int = 1, device: str = 'cpu')`
+:   Args(seed: int = 42, n_epochs: int = 8, model: biobench.interfaces.VisionBackboneArgs = <factory>, dtype: str = 'float16', learning_rate: float = 0.0003, weight_decay: float = 0.1, shuffle_buffer_size: int = 1000, batch_size: int = 2048, n_workers: int = 4, log_every: int = 1, device: str = 'cpu')
 
     ### Class variables
 
@@ -48,7 +48,7 @@ Classes
     `log_every: int`
     :   how often to log to aim.
 
-    `model: biobench.models.Params`
+    `model: biobench.interfaces.VisionBackboneArgs`
     :
 
     `n_epochs: int`

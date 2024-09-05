@@ -94,10 +94,10 @@ We get video representations by embedding each frame of the video and taking the
 <dl>
 <dt id="biobench.kabr.Args"><code class="flex name class">
 <span>class <span class="ident">Args</span></span>
-<span>(</span><span>seed: int = 42, model: <a title="biobench.models.Params" href="../models.html#biobench.models.Params">Params</a> = &lt;factory&gt;, dataset_dir: str = '', batch_size: int = 16, n_workers: int = 4, frame_agg: Literal['mean', 'max'] = 'mean', device: Literal['cpu', 'cuda'] = 'cuda')</span>
+<span>(</span><span>seed: int = 42, dataset_dir: str = '', batch_size: int = 16, n_workers: int = 4, frame_agg: Literal['mean', 'max'] = 'mean', device: Literal['cpu', 'cuda'] = 'cuda')</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Args(seed: int = 42, model: biobench.models.Params = <factory>, dataset_dir: str = '', batch_size: int = 16, n_workers: int = 4, frame_agg: Literal['mean', 'max'] = 'mean', device: Literal['cpu', 'cuda'] = 'cuda')</p></div>
+<div class="desc"><p>Args(seed: int = 42, dataset_dir: str = '', batch_size: int = 16, n_workers: int = 4, frame_agg: Literal['mean', 'max'] = 'mean', device: Literal['cpu', 'cuda'] = 'cuda')</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -107,7 +107,6 @@ We get video representations by embedding each frame of the video and taking the
 class Args:
     seed: int = 42
     &#34;&#34;&#34;random seed.&#34;&#34;&#34;
-    model: models.Params = dataclasses.field(default_factory=lambda: models.Params())
 
     dataset_dir: str = &#34;&#34;
     &#34;&#34;&#34;dataset directory; where you downloaded KABR to.&#34;&#34;&#34;
@@ -115,10 +114,8 @@ class Args:
     &#34;&#34;&#34;batch size for deep model. Note that this is multiplied by 16 (number of frames)&#34;&#34;&#34;
     n_workers: int = 4
     &#34;&#34;&#34;number of dataloader worker processes.&#34;&#34;&#34;
-
     frame_agg: typing.Literal[&#34;mean&#34;, &#34;max&#34;] = &#34;mean&#34;
     &#34;&#34;&#34;how to aggregate features across time dimension.&#34;&#34;&#34;
-
     device: typing.Literal[&#34;cpu&#34;, &#34;cuda&#34;] = &#34;cuda&#34;
     &#34;&#34;&#34;which device to use.&#34;&#34;&#34;</code></pre>
 </details>
@@ -139,10 +136,6 @@ class Args:
 <dt id="biobench.kabr.Args.frame_agg"><code class="name">var <span class="ident">frame_agg</span> : Literal['mean', 'max']</code></dt>
 <dd>
 <div class="desc"><p>how to aggregate features across time dimension.</p></div>
-</dd>
-<dt id="biobench.kabr.Args.model"><code class="name">var <span class="ident">model</span> : <a title="biobench.models.Params" href="../models.html#biobench.models.Params">Params</a></code></dt>
-<dd>
-<div class="desc"></div>
 </dd>
 <dt id="biobench.kabr.Args.n_workers"><code class="name">var <span class="ident">n_workers</span> : int</code></dt>
 <dd>
@@ -333,7 +326,6 @@ class Video:
 <li><code><a title="biobench.kabr.Args.dataset_dir" href="#biobench.kabr.Args.dataset_dir">dataset_dir</a></code></li>
 <li><code><a title="biobench.kabr.Args.device" href="#biobench.kabr.Args.device">device</a></code></li>
 <li><code><a title="biobench.kabr.Args.frame_agg" href="#biobench.kabr.Args.frame_agg">frame_agg</a></code></li>
-<li><code><a title="biobench.kabr.Args.model" href="#biobench.kabr.Args.model">model</a></code></li>
 <li><code><a title="biobench.kabr.Args.n_workers" href="#biobench.kabr.Args.n_workers">n_workers</a></code></li>
 <li><code><a title="biobench.kabr.Args.seed" href="#biobench.kabr.Args.seed">seed</a></code></li>
 </ul>

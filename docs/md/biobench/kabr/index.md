@@ -45,8 +45,8 @@ Functions
 Classes
 -------
 
-`Args(seed: int = 42, model: biobench.models.Params = <factory>, dataset_dir: str = '', batch_size: int = 16, n_workers: int = 4, frame_agg: Literal['mean', 'max'] = 'mean', device: Literal['cpu', 'cuda'] = 'cuda')`
-:   Args(seed: int = 42, model: biobench.models.Params = <factory>, dataset_dir: str = '', batch_size: int = 16, n_workers: int = 4, frame_agg: Literal['mean', 'max'] = 'mean', device: Literal['cpu', 'cuda'] = 'cuda')
+`Args(seed: int = 42, dataset_dir: str = '', batch_size: int = 16, n_workers: int = 4, frame_agg: Literal['mean', 'max'] = 'mean', device: Literal['cpu', 'cuda'] = 'cuda')`
+:   Args(seed: int = 42, dataset_dir: str = '', batch_size: int = 16, n_workers: int = 4, frame_agg: Literal['mean', 'max'] = 'mean', device: Literal['cpu', 'cuda'] = 'cuda')
 
     ### Class variables
 
@@ -61,9 +61,6 @@ Classes
 
     `frame_agg: Literal['mean', 'max']`
     :   how to aggregate features across time dimension.
-
-    `model: biobench.models.Params`
-    :
 
     `n_workers: int`
     :   number of dataloader worker processes.

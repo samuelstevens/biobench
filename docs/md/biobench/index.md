@@ -9,3 +9,9 @@ Sub-modules
 * biobench.newt
 * biobench.tasks
 * biobench.third_party_models
+
+Functions
+---------
+
+`load_vision_backbone(args: biobench.interfaces.VisionBackboneArgs) ‑> biobench.interfaces.VisionBackbone`
+:

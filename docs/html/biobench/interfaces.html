@@ -31,16 +31,37 @@ hljs.highlightAll();
 <section>
 </section>
 <section>
+<h2 class="section-title" id="header-functions">Functions</h2>
+<dl>
+<dt id="biobench.interfaces.get_git_hash"><code class="name flex">
+<span>def <span class="ident">get_git_hash</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.interfaces.load_vision_backbone"><code class="name flex">
+<span>def <span class="ident">load_vision_backbone</span></span>(<span>args: <a title="biobench.interfaces.VisionBackboneArgs" href="#biobench.interfaces.VisionBackboneArgs">VisionBackboneArgs</a>) ‑> <a title="biobench.interfaces.VisionBackbone" href="#biobench.interfaces.VisionBackbone">VisionBackbone</a></span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
 </section>
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
 <dt id="biobench.interfaces.BenchmarkReport"><code class="flex name class">
 <span>class <span class="ident">BenchmarkReport</span></span>
-<span>(</span><span>name: str, score: float)</span>
+<span>(</span><span>name: str, score: float, argv: list[str] = &lt;factory&gt;, commit: str = '65e61be773df264727c70c65bdc69fd342fe4253', posix_time: float = &lt;factory&gt;, gpu_name: str = &lt;factory&gt;, hostname: str = &lt;factory&gt;)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>The result of running a benchmark.</p></div>
+<div class="desc"><p>The result of running a benchmark.</p>
+<p>TODO: this needs to store more than just a summary statistic (<code>score</code>). It should include many raw results that can be used for analysis later on. It can even reference invidividual examples in a dataset so that they can be viewed.</p>
+<p>This should probably be in the form of</p>
+<p>summary: float
+splits: dict[str, float]
+examples: list[tuple[object, float, dict[str, object]]]</p>
+<p>See notebooks/tutorial.py for details.</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -48,19 +69,63 @@ hljs.highlightAll();
 <pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
 @dataclasses.dataclass(frozen=True)
 class BenchmarkReport:
-    &#34;&#34;&#34;The result of running a benchmark.&#34;&#34;&#34;
+    &#34;&#34;&#34;
+    The result of running a benchmark.
 
+    TODO: this needs to store more than just a summary statistic (`score`). It should include many raw results that can be used for analysis later on. It can even reference invidividual examples in a dataset so that they can be viewed.
+
+    This should probably be in the form of
+
+    summary: float
+    splits: dict[str, float]
+    examples: list[tuple[object, float, dict[str, object]]]
+
+    See notebooks/tutorial.py for details.
+    &#34;&#34;&#34;
+
+    # Actual details of the report
     name: str
     &#34;&#34;&#34;the benchmark name.&#34;&#34;&#34;
-
     score: float
-    &#34;&#34;&#34;mean score across the entire task, as a number between 0 and 1.&#34;&#34;&#34;</code></pre>
+    &#34;&#34;&#34;mean score across the entire task, as a number between 0 and 1.&#34;&#34;&#34;
+
+    # Stuff for trying to reproduce this result. These are filled in by default.
+    argv: list[str] = dataclasses.field(default_factory=lambda: sys.argv)
+    &#34;&#34;&#34;command used to get this report.&#34;&#34;&#34;
+    commit: str = get_git_hash()
+    &#34;&#34;&#34;Git commit for this current report.&#34;&#34;&#34;
+    posix_time: float = dataclasses.field(default_factory=time.time)
+    &#34;&#34;&#34;time when this report was constructed.&#34;&#34;&#34;
+    gpu_name: str = dataclasses.field(
+        default_factory=lambda: torch.cuda.get_device_properties(0).name
+    )
+    hostname: str = dataclasses.field(default_factory=socket.gethostname)</code></pre>
 </details>
 <h3>Class variables</h3>
 <dl>
+<dt id="biobench.interfaces.BenchmarkReport.argv"><code class="name">var <span class="ident">argv</span> : list[str]</code></dt>
+<dd>
+<div class="desc"><p>command used to get this report.</p></div>
+</dd>
+<dt id="biobench.interfaces.BenchmarkReport.commit"><code class="name">var <span class="ident">commit</span> : str</code></dt>
+<dd>
+<div class="desc"><p>Git commit for this current report.</p></div>
+</dd>
+<dt id="biobench.interfaces.BenchmarkReport.gpu_name"><code class="name">var <span class="ident">gpu_name</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.interfaces.BenchmarkReport.hostname"><code class="name">var <span class="ident">hostname</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="biobench.interfaces.BenchmarkReport.name"><code class="name">var <span class="ident">name</span> : str</code></dt>
 <dd>
 <div class="desc"><p>the benchmark name.</p></div>
+</dd>
+<dt id="biobench.interfaces.BenchmarkReport.posix_time"><code class="name">var <span class="ident">posix_time</span> : float</code></dt>
+<dd>
+<div class="desc"><p>time when this report was constructed.</p></div>
 </dd>
 <dt id="biobench.interfaces.BenchmarkReport.score"><code class="name">var <span class="ident">score</span> : float</code></dt>
 <dd>
@@ -70,7 +135,7 @@ class BenchmarkReport:
 </dd>
 <dt id="biobench.interfaces.EncodedImgBatch"><code class="flex name class">
 <span>class <span class="ident">EncodedImgBatch</span></span>
-<span>(</span><span>img_features: jaxtyping.Float[Tensor, 'batch img_dim'], patch_features: jaxtyping.Float[Tensor, 'batch patch_size patch_dim'] | None)</span>
+<span>(</span><span>img_features: jaxtyping.Float[Tensor, 'batch img_dim'], patch_features: jaxtyping.Float[Tensor, 'batch n_patches patch_dim'] | None)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>The output of a <code><a title="biobench.interfaces.VisionBackbone" href="#biobench.interfaces.VisionBackbone">VisionBackbone</a></code>'s <code>img_encode()</code> method.</p></div>
@@ -85,7 +150,7 @@ class EncodedImgBatch:
 
     img_features: Float[Tensor, &#34;batch img_dim&#34;]
     &#34;&#34;&#34;Image-level features. Each image is represented by a single vector.&#34;&#34;&#34;
-    patch_features: Float[Tensor, &#34;batch patch_size patch_dim&#34;] | None
+    patch_features: Float[Tensor, &#34;batch n_patches patch_dim&#34;] | None
     &#34;&#34;&#34;Patch-level features. Only ViTs have patch-level features. These features might be a different dimension that the image features because of projection heads or such.&#34;&#34;&#34;</code></pre>
 </details>
 <h3>Class variables</h3>
@@ -94,7 +159,7 @@ class EncodedImgBatch:
 <dd>
 <div class="desc"><p>Image-level features. Each image is represented by a single vector.</p></div>
 </dd>
-<dt id="biobench.interfaces.EncodedImgBatch.patch_features"><code class="name">var <span class="ident">patch_features</span> : jaxtyping.Float[Tensor, 'batch patch_size patch_dim'] | None</code></dt>
+<dt id="biobench.interfaces.EncodedImgBatch.patch_features"><code class="name">var <span class="ident">patch_features</span> : jaxtyping.Float[Tensor, 'batch n_patches patch_dim'] | None</code></dt>
 <dd>
 <div class="desc"><p>Patch-level features. Only ViTs have patch-level features. These features might be a different dimension that the image features because of projection heads or such.</p></div>
 </dd>
@@ -123,24 +188,6 @@ class VisionBackbone(torch.nn.Module):
 
     def make_img_transform(self):
         err_msg = f&#34;{self.__class__.__name__} must implemented make_img_transform().&#34;
-        raise NotImplementedError(err_msg)
-
-    @jaxtyped(typechecker=beartype.beartype)
-    def get_patch_size(self) -&gt; int:
-        &#34;&#34;&#34;Returns an int&#34;&#34;&#34;
-        if hasattr(self, &#34;patch_size&#34;) and isinstance(self.patch_size, int):
-            return self.patch_size
-
-        err_msg = f&#34;{self.__class__.__name__} must implemented get_patch_size().&#34;
-        raise NotImplementedError(err_msg)
-
-    @jaxtyped(typechecker=beartype.beartype)
-    def get_image_size(self) -&gt; tuple[int, int]:
-        &#34;&#34;&#34;Returns (width, height) as a tuple of ints&#34;&#34;&#34;
-        if hasattr(self, &#34;image_size&#34;) and isinstance(self.image_size, tuple):
-            return self.image_size
-
-        err_msg = f&#34;{self.__class__.__name__} must implemented get_img_size().&#34;
         raise NotImplementedError(err_msg)</code></pre>
 </details>
 <h3>Ancestors</h3>
@@ -150,21 +197,10 @@ class VisionBackbone(torch.nn.Module):
 <h3>Subclasses</h3>
 <ul class="hlist">
 <li><a title="biobench.third_party_models.OpenClip" href="third_party_models.html#biobench.third_party_models.OpenClip">OpenClip</a></li>
+<li><a title="biobench.third_party_models.TimmViT" href="third_party_models.html#biobench.third_party_models.TimmViT">TimmViT</a></li>
 </ul>
 <h3>Methods</h3>
 <dl>
-<dt id="biobench.interfaces.VisionBackbone.get_image_size"><code class="name flex">
-<span>def <span class="ident">get_image_size</span></span>(<span>self) ‑> tuple[int, int]</span>
-</code></dt>
-<dd>
-<div class="desc"><p>Returns (width, height) as a tuple of ints</p></div>
-</dd>
-<dt id="biobench.interfaces.VisionBackbone.get_patch_size"><code class="name flex">
-<span>def <span class="ident">get_patch_size</span></span>(<span>self) ‑> int</span>
-</code></dt>
-<dd>
-<div class="desc"><p>Returns an int</p></div>
-</dd>
 <dt id="biobench.interfaces.VisionBackbone.img_encode"><code class="name flex">
 <span>def <span class="ident">img_encode</span></span>(<span>self, batch: jaxtyping.Float[Tensor, 'batch 3 width height']) ‑> <a title="biobench.interfaces.EncodedImgBatch" href="#biobench.interfaces.EncodedImgBatch">EncodedImgBatch</a></span>
 </code></dt>
@@ -176,6 +212,36 @@ class VisionBackbone(torch.nn.Module):
 </code></dt>
 <dd>
 <div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="biobench.interfaces.VisionBackboneArgs"><code class="flex name class">
+<span>class <span class="ident">VisionBackboneArgs</span></span>
+<span>(</span><span>org: Literal['open_clip', 'timm-vit'] = 'open_clip', ckpt: str = 'RN50/openai')</span>
+</code></dt>
+<dd>
+<div class="desc"><p>VisionBackboneArgs(org: Literal['open_clip', 'timm-vit'] = 'open_clip', ckpt: str = 'RN50/openai')</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@beartype.beartype
+@dataclasses.dataclass(frozen=True)
+class VisionBackboneArgs:
+    org: Org = &#34;open_clip&#34;
+    &#34;&#34;&#34;Where to load models from.&#34;&#34;&#34;
+    ckpt: str = &#34;RN50/openai&#34;
+    &#34;&#34;&#34;The org-specific string. Will error if you pass the wrong one.&#34;&#34;&#34;</code></pre>
+</details>
+<h3>Class variables</h3>
+<dl>
+<dt id="biobench.interfaces.VisionBackboneArgs.ckpt"><code class="name">var <span class="ident">ckpt</span> : str</code></dt>
+<dd>
+<div class="desc"><p>The org-specific string. Will error if you pass the wrong one.</p></div>
+</dd>
+<dt id="biobench.interfaces.VisionBackboneArgs.org"><code class="name">var <span class="ident">org</span> : Literal['open_clip', 'timm-vit']</code></dt>
+<dd>
+<div class="desc"><p>Where to load models from.</p></div>
 </dd>
 </dl>
 </dd>
@@ -192,12 +258,23 @@ class VisionBackbone(torch.nn.Module):
 <li><code><a title="biobench" href="index.html">biobench</a></code></li>
 </ul>
 </li>
+<li><h3><a href="#header-functions">Functions</a></h3>
+<ul class="">
+<li><code><a title="biobench.interfaces.get_git_hash" href="#biobench.interfaces.get_git_hash">get_git_hash</a></code></li>
+<li><code><a title="biobench.interfaces.load_vision_backbone" href="#biobench.interfaces.load_vision_backbone">load_vision_backbone</a></code></li>
+</ul>
+</li>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
 <li>
 <h4><code><a title="biobench.interfaces.BenchmarkReport" href="#biobench.interfaces.BenchmarkReport">BenchmarkReport</a></code></h4>
-<ul class="">
+<ul class="two-column">
+<li><code><a title="biobench.interfaces.BenchmarkReport.argv" href="#biobench.interfaces.BenchmarkReport.argv">argv</a></code></li>
+<li><code><a title="biobench.interfaces.BenchmarkReport.commit" href="#biobench.interfaces.BenchmarkReport.commit">commit</a></code></li>
+<li><code><a title="biobench.interfaces.BenchmarkReport.gpu_name" href="#biobench.interfaces.BenchmarkReport.gpu_name">gpu_name</a></code></li>
+<li><code><a title="biobench.interfaces.BenchmarkReport.hostname" href="#biobench.interfaces.BenchmarkReport.hostname">hostname</a></code></li>
 <li><code><a title="biobench.interfaces.BenchmarkReport.name" href="#biobench.interfaces.BenchmarkReport.name">name</a></code></li>
+<li><code><a title="biobench.interfaces.BenchmarkReport.posix_time" href="#biobench.interfaces.BenchmarkReport.posix_time">posix_time</a></code></li>
 <li><code><a title="biobench.interfaces.BenchmarkReport.score" href="#biobench.interfaces.BenchmarkReport.score">score</a></code></li>
 </ul>
 </li>
@@ -211,10 +288,15 @@ class VisionBackbone(torch.nn.Module):
 <li>
 <h4><code><a title="biobench.interfaces.VisionBackbone" href="#biobench.interfaces.VisionBackbone">VisionBackbone</a></code></h4>
 <ul class="">
-<li><code><a title="biobench.interfaces.VisionBackbone.get_image_size" href="#biobench.interfaces.VisionBackbone.get_image_size">get_image_size</a></code></li>
-<li><code><a title="biobench.interfaces.VisionBackbone.get_patch_size" href="#biobench.interfaces.VisionBackbone.get_patch_size">get_patch_size</a></code></li>
 <li><code><a title="biobench.interfaces.VisionBackbone.img_encode" href="#biobench.interfaces.VisionBackbone.img_encode">img_encode</a></code></li>
 <li><code><a title="biobench.interfaces.VisionBackbone.make_img_transform" href="#biobench.interfaces.VisionBackbone.make_img_transform">make_img_transform</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="biobench.interfaces.VisionBackboneArgs" href="#biobench.interfaces.VisionBackboneArgs">VisionBackboneArgs</a></code></h4>
+<ul class="">
+<li><code><a title="biobench.interfaces.VisionBackboneArgs.ckpt" href="#biobench.interfaces.VisionBackboneArgs.ckpt">ckpt</a></code></li>
+<li><code><a title="biobench.interfaces.VisionBackboneArgs.org" href="#biobench.interfaces.VisionBackboneArgs.org">org</a></code></li>
 </ul>
 </li>
 </ul>
