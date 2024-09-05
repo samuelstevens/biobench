@@ -4,19 +4,21 @@ Entrypoint for running all benchmarks.
 
 import concurrent.futures
 import dataclasses
+import json
 import logging
 import multiprocessing
+import os
+import time
 import typing
 
 import beartype
 import torch
 import tyro
 
-from biobench import interfaces, kabr, models, newt
+from biobench import interfaces, kabr, load_vision_backbone, newt
 
 log_format = "[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s"
 logging.basicConfig(level=logging.INFO, format=log_format)
-
 logger = logging.getLogger("biobench")
 
 
@@ -29,26 +31,30 @@ class Args:
     """what kind of jobs we should use for parallel processing: slurm cluster, multiple processes on the same machine, or just a single process."""
 
     # How to set up the model.
-    model: models.Params = dataclasses.field(default_factory=models.Params)
+    model: interfaces.VisionBackboneArgs = dataclasses.field(
+        default_factory=interfaces.VisionBackboneArgs
+    )
     """arguments for the vision backbone."""
     device: typing.Literal["cpu", "cuda"] = "cuda"
     """which kind of accelerator to use."""
 
     # Individual benchmarks.
-    newt_run: bool = False
+    newt_run: bool = True
     """whether to run the NeWT benchmark."""
     newt_args: newt.Args = dataclasses.field(default_factory=newt.Args)
     """arguments for the NeWT benchmark."""
-    kabr_run: bool = False
+    kabr_run: bool = True
     """whether to run the KABR benchmark."""
     kabr_args: kabr.Args = dataclasses.field(default_factory=kabr.Args)
     """arguments for the KABR benchmark."""
 
+    # Saving
+    report_to: str = os.path.join(".", "reports")
+    """where to save reports to."""
 
-@beartype.beartype
-def display(report: interfaces.BenchmarkReport) -> None:
-    # TODO: probably needs to write results to a machine readable format.
-    print(f"{report.name}: {report.score * 100:.1f}%")
+    def report_path(self, report: interfaces.BenchmarkReport) -> str:
+        posix = int(time.time())
+        return os.path.join(args.report_to, f"{posix}.jsonl")
 
 
 class DummyExecutor(concurrent.futures.Executor):
@@ -70,6 +76,19 @@ class DummyExecutor(concurrent.futures.Executor):
 
 
 @beartype.beartype
+def save(args: Args, report: interfaces.BenchmarkReport) -> None:
+    """
+    Saves the report to disk in a machine-readable JSON format.
+    """
+    report_dct = dataclasses.asdict(report)
+    report_dct["benchmark.py_args"] = dataclasses.asdict(args)
+    with open(args.report_path(report), "a") as fd:
+        fd.write(json.dumps(report_dct) + "\n")
+
+    logger.info("%s on %s: %.1f%%", args.model.ckpt, report.name, report.score * 100)
+
+
+@beartype.beartype
 def main(args: Args):
     if args.jobs == "process":
         executor = concurrent.futures.ProcessPoolExecutor()
@@ -83,23 +102,24 @@ def main(args: Args):
         typing.assert_never(args.jobs)
 
     # 1. Load model.
-    backbone = models.load_model(args.model)
+    backbone = load_vision_backbone(args.model)
 
     # 2. Run benchmarks.
     jobs = []
-    if args.newt_run:
-        newt_args = dataclasses.replace(args.newt_args, device=args.device)
-        jobs.append(executor.submit(newt.benchmark, backbone, newt_args))
     if args.kabr_run:
         kabr_args = dataclasses.replace(args.kabr_args, device=args.device)
         jobs.append(executor.submit(kabr.benchmark, backbone, kabr_args))
+    if args.newt_run:
+        newt_args = dataclasses.replace(args.newt_args, device=args.device)
+        jobs.append(executor.submit(newt.benchmark, backbone, newt_args))
 
     # 3. Display results.
+    os.makedirs(args.report_to, exist_ok=True)
     for future in concurrent.futures.as_completed(jobs):
         if future.exception():
             raise RuntimeError("Error running job.") from future.exception()
         report = future.result()
-        display(report)
+        save(args, report)
 
 
 if __name__ == "__main__":

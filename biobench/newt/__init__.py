@@ -95,14 +95,12 @@ def benchmark(
         train_acc = svc.score(x_train, y_train)
         test_acc = svc.score(x_test, y_test)
 
-        results.append(
-            {
-                "task": task.name,
-                "cluster": task.cluster,
-                "train_acc": train_acc,
-                "test_acc": test_acc,
-            }
-        )
+        results.append({
+            "task": task.name,
+            "cluster": task.cluster,
+            "train_acc": train_acc,
+            "test_acc": test_acc,
+        })
 
     df = pl.DataFrame(results)
 

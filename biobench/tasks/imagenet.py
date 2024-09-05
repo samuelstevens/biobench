@@ -26,7 +26,7 @@ import tyro
 from jaxtyping import Float, jaxtyped
 from torch import Tensor
 
-from biobench import models
+from .. import interfaces
 
 log_format = "[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s"
 logging.basicConfig(level=logging.INFO, format=log_format)
@@ -41,7 +41,9 @@ class Args:
     n_epochs: int = 8
     """number of training epochs."""
 
-    model: models.Params = dataclasses.field(default_factory=lambda: models.Params())
+    model: interfaces.VisionBackboneArgs = dataclasses.field(
+        default_factory=lambda: interfaces.VisionBackboneArgs()
+    )
     dtype: str = "float16"
     """dtype to use for the model's forward pass."""
     learning_rate: float = 3e-4
@@ -136,21 +138,19 @@ def build_dataloader(args: Args, transform, *, train: bool):
     )
 
 
-def main(args: Args):
+def benchmark(backbone: interfaces.VisionBackbone, args: Args):
     # 0. Do some runtime-based modification of args.
 
-    # 1. Load model.
-    deep_model = models.load_model(args.model)
     # Freeze model
-    for param in deep_model.parameters():
+    for param in backbone.parameters():
         param.requires_grad = False
     # Compile for speed.
-    deep_model = torch.compile(deep_model)
+    backbone = torch.compile(backbone.to(args.device))
 
     linear_model = LinearClassifier()
 
     # 2. Load dataloaders.
-    transform = deep_model.make_img_transform()
+    transform = backbone.make_img_transform()
     train_dataloader = build_dataloader(args, transform, train=True)
     # val_dataloader = build_dataloader(args, transform, train=False)
 
@@ -182,7 +182,7 @@ def main(args: Args):
             # Train
             for batch, examples in enumerate(train_dataloader):
                 with ctx:
-                    encoded = deep_model.img_encode(examples["image"])
+                    encoded = backbone.img_encode(examples["image"])
                 outputs = linear_model(encoded.img_features)
 
                 loss = loss_fn(outputs, examples["label"])
@@ -223,4 +223,4 @@ def main(args: Args):
 if __name__ == "__main__":
     # Required on macOS so we don't use pickling to move things between processes.
     multiprocessing.set_start_method("fork")
-    main(tyro.cli(Args))
+    benchmark(tyro.cli(Args))

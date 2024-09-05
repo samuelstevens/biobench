@@ -32,7 +32,7 @@ from jaxtyping import Float, Int, jaxtyped
 from PIL import Image
 from torch import Tensor
 
-from biobench import interfaces, models
+from biobench import interfaces
 
 logger = logging.getLogger("kabr")
 
@@ -42,7 +42,6 @@ logger = logging.getLogger("kabr")
 class Args:
     seed: int = 42
     """random seed."""
-    model: models.Params = dataclasses.field(default_factory=lambda: models.Params())
 
     dataset_dir: str = ""
     """dataset directory; where you downloaded KABR to."""
@@ -50,10 +49,8 @@ class Args:
     """batch size for deep model. Note that this is multiplied by 16 (number of frames)"""
     n_workers: int = 4
     """number of dataloader worker processes."""
-
     frame_agg: typing.Literal["mean", "max"] = "mean"
     """how to aggregate features across time dimension."""
-
     device: typing.Literal["cpu", "cuda"] = "cuda"
     """which device to use."""
 
