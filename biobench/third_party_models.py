@@ -9,26 +9,23 @@ from biobench import interfaces
 
 class OpenClip(interfaces.VisionBackbone):
     @jaxtyped(typechecker=beartype.beartype)
-    def __init__(self, arch: str, ckpt: str, **kwargs):
+    def __init__(self, ckpt: str, **kwargs):
         super().__init__()
         import open_clip
 
-        clip, self.img_transform = open_clip.create_model_from_pretrained(  # type: ignore
-            arch, pretrained=ckpt, cache_dir=os.environ.get("BIOBENCH_CACHE_DIR", "")
-        )
+        cache_dir = os.environ.get("BIOBENCH_CACHE_DIR", "")
+        if ckpt.startswith("hf-hub:"):
+            clip, self.img_transform = open_clip.create_model_from_pretrained(
+                ckpt, cache_dir=cache_dir
+            )
+        else:
+            arch, ckpt = ckpt.split("/")
+            clip, self.img_transform = open_clip.create_model_from_pretrained(
+                arch, pretrained=ckpt, cache_dir=cache_dir
+            )
 
         self.model = clip.visual
         self.model.output_tokens = True  # type: ignore
-
-        # Set patch_size and image_size
-        config = open_clip.get_model_config(arch)
-        try:
-            self.patch_size = config["vision_cfg"]["patch_size"]  # type: ignore
-        except KeyError:
-            self.patch_size = None
-
-        size = config["vision_cfg"]["image_size"]  # type: ignore
-        self.image_size = (size, size)
 
     def make_img_transform(self):
         return self.img_transform
@@ -45,9 +42,35 @@ class OpenClip(interfaces.VisionBackbone):
         else:
             return interfaces.EncodedImgBatch(result, None)
 
-    @beartype.beartype
-    @staticmethod
-    def parse_model_str(model: str) -> tuple[str, str]:
-        """Parse a string like 'RN50/openai' into 'RN50', 'openai' for use with the open_clip package."""
-        arch, ckpt = model.split("/")
-        return arch, ckpt
+
+class TimmViT(interfaces.VisionBackbone):
+    @jaxtyped(typechecker=beartype.beartype)
+    def __init__(self, ckpt: str, **kwargs):
+        super().__init__()
+        import timm
+
+        err_msg = "You are trying to load a non-ViT checkpoint; the `img_encode()` method assumes `model.forward_features()` will return features with shape (batch, n_patches, dim) which is not true for non-ViT checkpoints."
+        assert "vit" in ckpt, err_msg
+        self.model = timm.create_model(ckpt, pretrained=True)
+
+        data_cfg = timm.data.resolve_data_config(self.model.pretrained_cfg)
+        self.img_transform = timm.data.create_transform(**data_cfg)
+
+    def make_img_transform(self):
+        return self.img_transform
+
+    @jaxtyped(typechecker=beartype.beartype)
+    def img_encode(
+        self, batch: Float[Tensor, "batch 3 width height"]
+    ) -> interfaces.EncodedImgBatch:
+        patches = self.model.forward_features(batch)
+        # Use [CLS] token if it exists, otherwise do a maxpool
+        if self.model.num_prefix_tokens > 0:
+            img = patches[:, 0, ...]
+        else:
+            img = patches.max(axis=1).values
+
+        # Remove all non-image patches, like the [CLS] token or registers
+        patches = patches[:, self.model.num_prefix_tokens :, ...]
+
+        return interfaces.EncodedImgBatch(img, patches)
