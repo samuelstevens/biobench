@@ -1,4 +1,5 @@
 import dataclasses
+import numpy as np
 import socket
 import subprocess
 import sys
@@ -89,8 +90,10 @@ class BenchmarkReport:
     # Actual details of the report
     name: str
     """the benchmark name."""
-    score: float
-    """mean score across the entire task, as a number between 0 and 1."""
+    examples: list[tuple[str, float, dict[str, object]]]
+    """a list of (example_id, score, info) tuples"""
+    splits: dict[str, float]
+    """individual splits and scores; can be anything you want."""
 
     # Stuff for trying to reproduce this result. These are filled in by default.
     argv: list[str] = dataclasses.field(default_factory=lambda: sys.argv)
@@ -103,3 +106,33 @@ class BenchmarkReport:
         default_factory=lambda: torch.cuda.get_device_properties(0).name
     )
     hostname: str = dataclasses.field(default_factory=socket.gethostname)
+
+    def __repr__(self):
+        return f"Report({self.name} with {len(self.examples)} examples)"
+
+    def __str__(self):
+        return repr(self)
+
+    @property
+    def mean_score(self) -> float:
+        """mean score across the entire task, as a number between 0 and 1."""
+        return float(np.mean([score for _, score, _ in self.examples]))
+
+    def get_confidence_interval(
+        self,
+        statistic="mean",
+        confidence: float = 95,
+        n_resamples: int = 500,
+        seed: int = 42,
+    ) -> tuple[float, float]:
+        """confidence interval for the statistics (mean) by bootstrapping individual scores of the examples."""
+        scores = np.array([score for _, score, _ in self.examples])
+
+        rng = np.random.default_rng(seed=seed)
+        idx = rng.choice(len(scores), size=(n_resamples, len(scores)), replace=True)
+        means = np.mean(scores[idx], axis=0)
+
+        percentiles = (100 - confidence) / 2, (100 - confidence) / 2 + confidence
+        lower, upper = np.percentile(means, percentiles).tolist()
+
+        return lower, upper

@@ -31,12 +31,13 @@ import numpy as np
 import polars as pl
 import scipy.stats
 import sklearn.model_selection
+import itertools
 import sklearn.pipeline
 import sklearn.preprocessing
 import sklearn.svm
 import torch
 import tqdm
-from jaxtyping import Bool, Float, Int, jaxtyped
+from jaxtyping import Bool, Float, Int, jaxtyped, Shaped
 from PIL import Image
 from torch import Tensor
 
@@ -91,26 +92,35 @@ def benchmark(
         svc = init_svc()
 
         svc.fit(x_train, y_train)
-
-        train_acc = svc.score(x_train, y_train)
-        test_acc = svc.score(x_test, y_test)
+        y_pred = svc.predict(x_test)
+        examples = [
+            (str(id), float(pred == true), {"cluster": task.cluster, "task": task.name})
+            for id, pred, true in zip(task.example_ids, y_pred, y_test)
+        ]
+        test_acc = np.mean(y_pred == y_test)
 
         results.append({
             "task": task.name,
             "cluster": task.cluster,
-            "train_acc": train_acc,
+            "examples": examples,
             "test_acc": test_acc,
         })
 
-    df = pl.DataFrame(results)
+    # Removes 'examples' from each dict in results
+    examples = list(
+        itertools.chain.from_iterable((result.pop("examples") for result in results))
+    )
 
-    for cluster, test_acc in (
-        df.group_by("cluster").agg(pl.col("test_acc").mean()).iter_rows()
-    ):
-        logger.info("%10s %.1f", cluster, test_acc)
+    df = pl.DataFrame(results, schema={"task": str, "cluster": str, "test_acc": float})
 
-    test_acc = df.select("test_acc").mean().item()
-    return interfaces.BenchmarkReport("NeWT", test_acc)
+    splits = {
+        cluster: test_acc
+        for cluster, test_acc in df.group_by("cluster")
+        .agg(pl.col("test_acc").mean())
+        .iter_rows()
+    }
+
+    return interfaces.BenchmarkReport("NeWT", examples, splits)
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -120,12 +130,12 @@ class Dataset(torch.utils.data.Dataset):
         self.image_ids = df.get_column("id").to_list()
         self.dir = dir
 
-    def __getitem__(self, i: int) -> Float[Tensor, "3 width height"]:
+    def __getitem__(self, i: int) -> tuple[str, Float[Tensor, "3 width height"]]:
         image_id = self.image_ids[i]
         image = Image.open(os.path.join(self.dir, f"{image_id}.jpg"))
         if self.transform is not None:
             image = self.transform(image)
-        return image
+        return image_id, image
 
     def __len__(self) -> int:
         return len(self.image_ids)
@@ -139,6 +149,7 @@ class Task:
     features: Float[np.ndarray, "n_examples dim"]
     labels: Int[np.ndarray, " n_examples"]
     is_train: Bool[np.ndarray, " n_examples"]
+    example_ids: Shaped[np.ndarray, " n_examples"]  # Should be String[...]
 
     def __repr__(self) -> str:
         return f"Task(task={self.name}, cluster={self.cluster}, features={self.features.shape})"
@@ -188,27 +199,30 @@ def get_all_task_specific_features(
         persistent_workers=False,
     )
 
-    all_features = []
-    for images in tqdm.tqdm(dataloader, desc="img feats."):
+    all_features, all_ids = [], []
+    for ids, images in tqdm.tqdm(dataloader, desc="img feats."):
         images = images.to(args.device)
 
         with torch.amp.autocast("cuda"):
             features = backbone.img_encode(images).img_features
             features = torch.nn.functional.normalize(features, dim=-1)
             all_features.append(features.cpu())
+            all_ids.extend(ids)
 
     all_features = torch.cat(all_features, dim=0).cpu()
+    all_ids = np.array(all_ids)
     for task in df.get_column("task").unique():
         task_df = df.filter(pl.col("task") == task)
 
         task_idx = task_df.get_column("index").to_numpy()
         features = all_features[task_idx].numpy()
+        ids = all_ids[task_idx]
 
-        labels = task_df.get_column("label")
+        labels = task_df.get_column("label").to_numpy()
         is_train = task_df.select(pl.col("split") == "train").get_column("split")
 
         cluster = task_df.item(row=0, column="task_cluster")
-        yield Task(task, cluster, features, labels.to_numpy(), is_train.to_numpy())
+        yield Task(task, cluster, features, labels, is_train.to_numpy(), ids)
 
 
 @jaxtyped(typechecker=beartype.beartype)

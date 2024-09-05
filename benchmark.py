@@ -27,7 +27,7 @@ logger = logging.getLogger("biobench")
 class Args:
     """Params to run one or more benchmarks in a parallel setting."""
 
-    jobs: typing.Literal["slurm", "process", "none"] = "none"
+    jobs: typing.Literal["slurm", "host", "none"] = "none"
     """what kind of jobs we should use for parallel processing: slurm cluster, multiple processes on the same machine, or just a single process."""
 
     # How to set up the model.
@@ -81,11 +81,19 @@ def save(args: Args, report: interfaces.BenchmarkReport) -> None:
     Saves the report to disk in a machine-readable JSON format.
     """
     report_dct = dataclasses.asdict(report)
-    report_dct["benchmark.py_args"] = dataclasses.asdict(args)
+    report_dct["run_args"] = dataclasses.asdict(args)
+
+    report_dct["mean_score"] = report.mean_score
+    lower, upper = report.get_confidence_interval()
+    report_dct["confidence_interval_lower"] = lower
+    report_dct["confidence_interval_upper"] = upper
+
     with open(args.report_path(report), "a") as fd:
         fd.write(json.dumps(report_dct) + "\n")
 
-    logger.info("%s on %s: %.1f%%", args.model.ckpt, report.name, report.score * 100)
+    logger.info(
+        "%s on %s: %.1f%%", args.model.ckpt, report.name, report.mean_score * 100
+    )
 
 
 @beartype.beartype

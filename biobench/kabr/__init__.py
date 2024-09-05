@@ -230,42 +230,41 @@ def batched_idx(
 @jaxtyped(typechecker=beartype.beartype)
 def simpleshot(
     args: Args,
-    x_features: Float[Tensor, "n_x_examples dim"],
-    x_labels: Int[Tensor, " n_x_examples"],
-    y_features: Float[Tensor, "n_y_examples dim"],
-    y_labels: Int[Tensor, " n_y_examples"],
-) -> float:
+    x_train: Float[Tensor, "n_train dim"],
+    y_train: Int[Tensor, " n_train"],
+    x_test: Float[Tensor, "n_test dim"],
+    y_test: Int[Tensor, " n_test"],
+) -> Float[Tensor, " n_test"]:
     """
-    Applies simpleshot to the video clips. We assign each clip the majority label.
+    Applies simpleshot to the video clips. We assign each clip the majority label. Return the list of scores for x_test.
     """
-    x_mean = x_features.mean(axis=0, keepdims=True)
+    x_mean = x_train.mean(axis=0, keepdims=True)
 
-    x_features = x_features - x_mean
-    x_features = l2_normalize(x_features)
+    x_train = x_train - x_mean
+    x_train = l2_normalize(x_train)
 
-    y_features = y_features - x_mean
-    y_features = l2_normalize(y_features)
+    x_test = x_test - x_mean
+    x_test = l2_normalize(x_test)
 
     clf = sklearn.neighbors.NearestCentroid()
-    clf.fit(x_features, x_labels)
+    clf.fit(x_train, y_train)
 
     # Do this next step on the GPU to make it fast.
     # Goes from 1 batch/sec to 77 batch/sec
     centroids = torch.from_numpy(clf.centroids_).to(args.device)
-    y_features = y_features.to(args.device)
-    y_labels = y_labels.to(args.device)
+    x_test = x_test.to(args.device)
+    y_test = y_test.to(args.device)
 
-    accs = []
-    for start, stop in batched_idx(len(y_features), args.batch_size):
-        batch_feats = y_features[start:stop]
-        batch_labels = y_labels[start:stop]
-        distances = torch.linalg.vector_norm(batch_feats[:, None] - centroids, axis=2)
+    scores = []
+    for start, stop in batched_idx(len(x_test), args.batch_size):
+        x_batch = x_test[start:stop]
+        y_batch = y_test[start:stop]
+        distances = torch.linalg.vector_norm(x_batch[:, None] - centroids, axis=2)
         preds = torch.argmin(distances, dim=1)
 
-        correct = (preds == batch_labels).sum()
-        accs.append(correct.item() / (stop - start))
+        scores.append((preds == y_batch).type(torch.float32))
 
-    return np.mean(accs)
+    return torch.cat(scores, axis=0)
 
 
 @beartype.beartype
@@ -302,5 +301,13 @@ def benchmark(
     train_labels = aggregate_labels(args, train_labels)
 
     # 4. Do simpleshot.
-    acc = simpleshot(args, train_features, train_labels, val_features, val_labels)
-    return interfaces.BenchmarkReport("KABR", acc)
+    scores = simpleshot(args, train_features, train_labels, val_features, val_labels)
+
+    # Return benchmark report.
+    video_ids = [video.video_id for video in val_dataset.videos]
+    examples = [
+        (str(id), float(score), {}) for id, score in zip(video_ids, scores.tolist())
+    ]
+    # TODO: include example-specific info (class? something else)
+    # TODO: include split-level scores.
+    return interfaces.BenchmarkReport("KABR", examples, {})
