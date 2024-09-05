@@ -10,5 +10,5 @@ lint: fmt
 
 fmt:
     isort .
-    ruff format .
+    ruff format --preview .
 
