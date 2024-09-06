@@ -104,10 +104,12 @@ def save(args: Args, report: interfaces.BenchmarkReport) -> None:
         fd.write(json.dumps(report_dct) + "\n")
 
     logger.info(
-        "%s on %s: %.1f%%", args.model.ckpt, report.name, report.mean_score * 100
+        "%s on %s: %.1f%%", args.model_ckpt, report.name, report.mean_score * 100
     )
-    for key, value in report.info.items():
-        logger.info("%s on %s; %s: %.1f%%", args.model.ckpt, report.name, key, value)
+    for key, value in report.splits.items():
+        logger.info(
+            "%s on %s; split '%s': %.1f", args.model_ckpt, report.name, key, value
+        )
 
 
 @beartype.beartype
