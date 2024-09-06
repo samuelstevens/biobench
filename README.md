@@ -39,5 +39,5 @@ Then, I can add parallelization.
 - Add Beluga whale re-id
 - Look at FGCV 11 tasks (classification)
 - Think about segmentation/object detection tasks
-- Provide evidence that most vision tasks are accomplished with $f(img) -> \RR^d$ as an initial step.
+- Provide evidence that most vision tasks are accomplished with $f(img) -> \RR^d$ as an initial step.- Predict trait/no trait in CUB images---use patch-level features + linear classifier for each possible trait
 

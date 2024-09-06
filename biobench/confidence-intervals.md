@@ -1,7 +1,3 @@
-Module biobench
-===============
-Package for organizing all the code to run benchmarks.
-
 # Confidence Intervals
 
 Recommended Reading:
@@ -30,25 +26,3 @@ Parametric methods like linear classifiers or SVMs are slow to train, so we don'
 
 In practice, however, we simply bootstrap test set predictions because it can be cheaply applied to all benchmarks regardless of training or inference cost.
 It requires only that we have a $N$-dimensional vector of scores, where $N$ is the number of test examples, which is always under 10M, so at most a 40MB vector.
-
-Sub-modules
------------
-* biobench.interfaces
-* biobench.kabr
-* biobench.models
-* biobench.newt
-* biobench.registry
-* biobench.tasks
-* biobench.third_party_models
-
-Functions
----------
-
-`list_vision_backbones() ‑> list[str]`
-:   
-
-`load_vision_backbone(model_org: str, ckpt: str) ‑> biobench.interfaces.VisionBackbone`
-:   
-
-`register_vision_backbone(model_org: str, cls: type[biobench.interfaces.VisionBackbone])`
-:

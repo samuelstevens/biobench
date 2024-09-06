@@ -1,7 +1,3 @@
-Module benchmark
-================
-Entrypoint for running all benchmarks.
-
 # Tutorial
 
 This is a short tutorial on using `biobench` to answer a simple research question.
@@ -64,66 +60,3 @@ Open the notebook `notebooks/tutorial.py` using
 ```sh
 marimo edit
 ```
-
-Functions
----------
-
-`main(args: benchmark.Args)`
-:   
-
-`save(args: benchmark.Args, report: biobench.interfaces.BenchmarkReport) ‑> None`
-:   Saves the report to disk in a machine-readable JSON format.
-
-Classes
--------
-
-`Args(jobs: Literal['slurm', 'process', 'none'] = 'none', model_org: Literal['timm-vit', 'open_clip'] = 'open_clip', model_ckpt: str = 'RN50/openai', device: Literal['cpu', 'cuda'] = 'cuda', newt_run: bool = True, newt_args: biobench.newt.Args = <factory>, kabr_run: bool = True, kabr_args: biobench.kabr.Args = <factory>, report_to: str = './reports')`
-:   Params to run one or more benchmarks in a parallel setting.
-
-    ### Class variables
-
-    `device: Literal['cpu', 'cuda']`
-    :   which kind of accelerator to use.
-
-    `jobs: Literal['slurm', 'process', 'none']`
-    :   what kind of jobs we should use for parallel processing: slurm cluster, multiple processes on the same machine, or just a single process.
-
-    `kabr_args: biobench.kabr.Args`
-    :   arguments for the KABR benchmark.
-
-    `kabr_run: bool`
-    :   whether to run the KABR benchmark.
-
-    `model_ckpt: str`
-    :
-
-    `model_org: Literal['timm-vit', 'open_clip']`
-    :   Where to load models from.
-
-    `newt_args: biobench.newt.Args`
-    :   arguments for the NeWT benchmark.
-
-    `newt_run: bool`
-    :   whether to run the NeWT benchmark.
-
-    `report_to: str`
-    :   where to save reports to.
-
-    ### Methods
-
-    `report_path(self, report: biobench.interfaces.BenchmarkReport) ‑> str`
-    :
-
-`DummyExecutor()`
-:   Dummy class to satisfy the Executor interface. Directly runs the function in the main process for easy debugging.
-
-    ### Ancestors (in MRO)
-
-    * concurrent.futures._base.Executor
-
-    ### Methods
-
-    `submit(self, fn, /, *args, **kwargs)`
-    :   runs `fn` directly in the main process and returns a `concurrent.futures.Future` with the result.
-        
-        Returns:

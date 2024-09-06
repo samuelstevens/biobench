@@ -7,13 +7,10 @@ Functions
 `get_git_hash()`
 :   
 
-`load_vision_backbone(args: biobench.interfaces.VisionBackboneArgs) ‑> biobench.interfaces.VisionBackbone`
-:   
-
 Classes
 -------
 
-`BenchmarkReport(name: str, score: float, argv: list[str] = <factory>, commit: str = '65e61be773df264727c70c65bdc69fd342fe4253', posix_time: float = <factory>, gpu_name: str = <factory>, hostname: str = <factory>)`
+`BenchmarkReport(name: str, score: float, argv: list[str] = <factory>, commit: str = '90d97a086b7c6560031379a16d3eefe2cc337ae3', posix_time: float = <factory>, gpu_name: str = <factory>, hostname: str = <factory>)`
 :   The result of running a benchmark.
     
     TODO: this needs to store more than just a summary statistic (`score`). It should include many raw results that can be used for analysis later on. It can even reference invidividual examples in a dataset so that they can be viewed.
@@ -70,7 +67,7 @@ Classes
     ### Descendants
 
     * biobench.third_party_models.OpenClip
-    * biobench.third_party_models.TimmViT
+    * biobench.third_party_models.TimmVit
 
     ### Methods
 
@@ -79,14 +76,3 @@ Classes
 
     `make_img_transform(self)`
     :
-
-`VisionBackboneArgs(org: Literal['open_clip', 'timm-vit'] = 'open_clip', ckpt: str = 'RN50/openai')`
-:   VisionBackboneArgs(org: Literal['open_clip', 'timm-vit'] = 'open_clip', ckpt: str = 'RN50/openai')
-
-    ### Class variables
-
-    `ckpt: str`
-    :   The org-specific string. Will error if you pass the wrong one.
-
-    `org: Literal['open_clip', 'timm-vit']`
-    :   Where to load models from.

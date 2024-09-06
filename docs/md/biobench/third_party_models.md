@@ -20,7 +20,7 @@ Classes
     `make_img_transform(self)`
     :
 
-`TimmViT(ckpt: str, **kwargs)`
+`TimmVit(ckpt: str, **kwargs)`
 :   Initialize internal Module state, shared by both nn.Module and ScriptModule.
 
     ### Ancestors (in MRO)

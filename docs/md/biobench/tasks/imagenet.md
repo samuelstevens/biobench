@@ -28,8 +28,8 @@ Functions
 Classes
 -------
 
-`Args(seed: int = 42, n_epochs: int = 8, model: biobench.interfaces.VisionBackboneArgs = <factory>, dtype: str = 'float16', learning_rate: float = 0.0003, weight_decay: float = 0.1, shuffle_buffer_size: int = 1000, batch_size: int = 2048, n_workers: int = 4, log_every: int = 1, device: str = 'cpu')`
-:   Args(seed: int = 42, n_epochs: int = 8, model: biobench.interfaces.VisionBackboneArgs = <factory>, dtype: str = 'float16', learning_rate: float = 0.0003, weight_decay: float = 0.1, shuffle_buffer_size: int = 1000, batch_size: int = 2048, n_workers: int = 4, log_every: int = 1, device: str = 'cpu')
+`Args(seed: int = 42, n_epochs: int = 8, model_org: str = 'open_clip', model_ckpt: str = 'RN50/openai', dtype: str = 'float16', learning_rate: float = 0.0003, weight_decay: float = 0.1, shuffle_buffer_size: int = 1000, batch_size: int = 2048, n_workers: int = 4, log_every: int = 1, device: str = 'cpu')`
+:   Args(seed: int = 42, n_epochs: int = 8, model_org: str = 'open_clip', model_ckpt: str = 'RN50/openai', dtype: str = 'float16', learning_rate: float = 0.0003, weight_decay: float = 0.1, shuffle_buffer_size: int = 1000, batch_size: int = 2048, n_workers: int = 4, log_every: int = 1, device: str = 'cpu')
 
     ### Class variables
 
@@ -48,8 +48,11 @@ Classes
     `log_every: int`
     :   how often to log to aim.
 
-    `model: biobench.interfaces.VisionBackboneArgs`
+    `model_ckpt: str`
     :
+
+    `model_org: str`
+    :   Where to load models from.
 
     `n_epochs: int`
     :   number of training epochs.
