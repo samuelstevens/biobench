@@ -17,7 +17,7 @@ import beartype
 import torch
 import tyro
 
-from biobench import interfaces, kabr, load_vision_backbone, newt, registry
+from biobench import interfaces, kabr, load_vision_backbone, newt, plantnet, registry
 
 log_format = "[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s"
 logging.basicConfig(level=logging.INFO, format=log_format)
@@ -55,6 +55,10 @@ class Args:
     """whether to run the KABR benchmark."""
     kabr_args: kabr.Args = dataclasses.field(default_factory=kabr.Args)
     """arguments for the KABR benchmark."""
+    plantnet_run: bool = True
+    """whether to run the Pl@ntNet benchmark."""
+    plantnet_args: plantnet.Args = dataclasses.field(default_factory=plantnet.Args)
+    """arguments for the plantnet benchmark."""
 
     # Saving
     report_to: str = os.path.join(".", "reports")
@@ -122,12 +126,15 @@ def main(args: Args):
 
     # 2. Run benchmarks.
     jobs = []
-    if args.kabr_run:
-        kabr_args = dataclasses.replace(args.kabr_args, device=args.device)
-        jobs.append(executor.submit(kabr.benchmark, backbone, kabr_args))
     if args.newt_run:
         newt_args = dataclasses.replace(args.newt_args, device=args.device)
         jobs.append(executor.submit(newt.benchmark, backbone, newt_args))
+    if args.kabr_run:
+        kabr_args = dataclasses.replace(args.kabr_args, device=args.device)
+        jobs.append(executor.submit(kabr.benchmark, backbone, kabr_args))
+    if args.plantnet_run:
+        plantnet_args = dataclasses.replace(args.plantnet_args, device=args.device)
+        jobs.append(executor.submit(plantnet.benchmark, backbone, plantnet_args))
 
     # 3. Display results.
     os.makedirs(args.report_to, exist_ok=True)

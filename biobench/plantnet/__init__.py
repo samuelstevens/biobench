@@ -1,0 +1,174 @@
+__all__ = ["Args", "benchmark"]
+
+import dataclasses
+import logging
+import os
+import typing
+
+import beartype
+import numpy as np
+import sklearn.model_selection
+import sklearn.pipeline
+import sklearn.preprocessing
+import sklearn.svm
+import torch
+import tqdm
+from jaxtyping import Float, Int, Shaped, jaxtyped
+from PIL import Image
+from torch import Tensor
+
+from biobench import interfaces
+
+logger = logging.getLogger("plantnet")
+
+n_classes = 1081
+
+
+@beartype.beartype
+@dataclasses.dataclass(frozen=True)
+class Args:
+    dataset_dir: str = ""
+    """dataset directory; where you downloaded Pl@ntNet to. It should contain plantnet300K_metadata.json and images/"""
+    batch_size: int = 256
+    """batch size for deep model."""
+    n_workers: int = 4
+    """number of dataloader worker processes."""
+    device: typing.Literal["cpu", "cuda"] = "cuda"
+    """(computed at runtime) which kind of accelerator to use."""
+
+
+@jaxtyped(typechecker=beartype.beartype)
+@dataclasses.dataclass(frozen=True)
+class Features:
+    x: Float[np.ndarray, " n dim"]
+    y: Int[np.ndarray, " n n_classes"]
+    ids: Shaped[np.ndarray, " n"]
+
+
+@beartype.beartype
+def benchmark(
+    backbone: interfaces.VisionBackbone, args: Args
+) -> interfaces.BenchmarkReport:
+    """
+    Steps:
+    1. Get features for all images.
+    2. Select lambda using validation data.
+    3. Report score on test data.
+    """
+    # 1. Get features
+    val_features = get_features(args, backbone, split="val")
+    train_features = get_features(args, backbone, split="train")
+
+    # 2. Fit model.
+    model = init_ridge()
+    model.fit(train_features.x, train_features.y)
+
+    true_labels = val_features.y.argmax(axis=1)
+    pred_labels = model.predict(val_features.x).argmax(axis=1)
+
+    examples = [
+        (str(image_id), float(pred == true), {})
+        for image_id, pred, true in zip(val_features.ids, pred_labels, true_labels)
+    ]
+
+    return interfaces.BenchmarkReport("Pl@ntNet", examples, {})
+
+
+@jaxtyped(typechecker=beartype.beartype)
+class Dataset(torch.utils.data.Dataset):
+    transform: typing.Any | None
+    """Optional function function that transforms an image into a format expected by a neural network."""
+    samples: list[tuple[str, str, str]]
+    """List of all image ids, image paths, and classnames."""
+
+    def __init__(self, root: str, transform):
+        self.transform = transform
+        self.samples = []
+        for dirpath, dirnames, filenames in os.walk(root):
+            image_class = os.path.relpath(dirpath, root)
+            for filename in filenames:
+                image_id = filename.removesuffix(".jpg")
+                image_path = os.path.join(dirpath, filename)
+                self.samples.append((image_id, image_path, image_class))
+
+    def __getitem__(self, i: int) -> tuple[str, Float[Tensor, "3 width height"], str]:
+        image_id, image_path, image_class = self.samples[i]
+        image = Image.open(image_path)
+        if self.transform is not None:
+            image = self.transform(image)
+        return image_id, image, image_class
+
+    def __len__(self) -> int:
+        return len(self.samples)
+
+
+@jaxtyped(typechecker=beartype.beartype)
+@torch.no_grad()
+def get_features(
+    args: Args, backbone: interfaces.VisionBackbone, *, split: str
+) -> Features:
+    images_dir_path = os.path.join(args.dataset_dir, "images", split)
+
+    img_transform = backbone.make_img_transform()
+    backbone = torch.compile(backbone.to(args.device))
+
+    dataset = Dataset(images_dir_path, img_transform)
+    dataloader = torch.utils.data.DataLoader(
+        dataset,
+        batch_size=args.batch_size,
+        num_workers=args.n_workers,
+        drop_last=False,
+        shuffle=False,
+        pin_memory=True,
+        persistent_workers=False,
+    )
+    all_ids, all_features, all_labels = [], [], []
+    for ids, images, labels in tqdm.tqdm(dataloader, desc=f"{split} features"):
+        images = images.to(args.device)
+
+        with torch.amp.autocast("cuda"):
+            features = backbone.img_encode(images).img_features
+            all_features.append(features.cpu())
+
+        all_ids.extend(ids)
+        all_labels.extend(labels)
+
+    # Convert labels to one single np.ndarray
+    all_features = torch.cat(all_features, axis=0).cpu().numpy()
+    # Convert ids to np.ndarray of strings
+    all_ids = np.array(all_ids)
+
+    # Make one-hot encoding np.ndarray
+    ##################################
+
+    # First make a label mapping from label_str to label_int
+    label_lookup = {}
+    for label in sorted(set(all_labels)):
+        assert label not in label_lookup
+        label_lookup[label] = len(label_lookup)
+    all_labels = torch.tensor([label_lookup[label] for label in all_labels])
+
+    n_examples = len(all_labels)
+    assert n_classes == len(label_lookup)
+
+    # Then one-hot encode the labels
+    all_onehots = torch.full((n_examples, n_classes), -1, dtype=all_labels.dtype)
+    index = all_labels[:, None]
+    # .scatter_(): all_onehots[i][index[i][j]] = src[i][j] for dim=1
+    all_onehots.scatter_(dim=1, index=index, src=torch.ones_like(index))
+    assert (all_onehots == 1).sum() == n_examples
+    all_onehots = all_onehots.numpy()
+
+    return Features(all_features, all_onehots, all_ids)
+
+
+def init_ridge():
+    return sklearn.model_selection.GridSearchCV(
+        sklearn.pipeline.make_pipeline(
+            sklearn.preprocessing.StandardScaler(),
+            sklearn.linear_model.Ridge(1.0),
+        ),
+        {"ridge__alpha": np.pow(2.0, np.arange(-20, 11))},
+        n_jobs=-1,
+        verbose=2,
+    )

@@ -9,10 +9,11 @@ def __():
     import json
     import os
 
-    import polars as pl
-    import numpy as np
-    import matplotlib.pyplot as plt
     import marimo as mo
+    import matplotlib.pyplot as plt
+    import numpy as np
+    import polars as pl
+
     return json, mo, np, os, pl, plt
 
 
@@ -34,14 +35,18 @@ def __(json, os, pl):
                     reports.append(report.row(0, named=True))
 
         reports = pl.DataFrame(reports, schema=schema)
-        return reports.with_columns(model=pl.col("run_args_model_ckpt").str.replace_many({
-            "vit_base_patch14_reg4_dinov2.lvd142m": "ViT-B-14/DINOv2",
-            "hf-hub:imageomics/bioclip": "ViT-B-16/BioCLIP",
-            "ViT-B-16/laion400m_e32": "ViT-B-16/LAION-400M",
-        }))
+        return reports.with_columns(
+            model=pl.col("run_args_model_ckpt").str.replace_many({
+                "vit_base_patch14_reg4_dinov2.lvd142m": "ViT-B-14/DINOv2",
+                "hf-hub:imageomics/bioclip": "ViT-B-16/BioCLIP",
+                "ViT-B-16/laion400m_e32": "ViT-B-16/LAION-400M",
+            })
+        )
 
     reports = load_reports("./reports")
-    reports.select("name", "model", "mean_score").sort(by=("name", "mean_score"), descending=(False, True))
+    reports.select("name", "model", "mean_score").sort(
+        by=("name", "mean_score"), descending=(False, True)
+    )
     return load_reports, reports
 
 
@@ -66,11 +71,12 @@ def __(mo, np, pl, plt):
 
         ax.errorbar(xs, ys, yerr, fmt="o", linewidth=2, capsize=6)
         ax.set_title(f"Mean {task} Performance")
-        ax.tick_params(axis='x', labelrotation=20)
+        ax.tick_params(axis="x", labelrotation=20)
         return mo.md(f"""
     Mean performance on {task}. Error bars indicate 95% confidence intervals, bootstrapped from the test set.
     {mo.as_html(fig)}""")
-    return plot_task,
+
+    return (plot_task,)
 
 
 @app.cell

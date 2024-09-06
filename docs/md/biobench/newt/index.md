@@ -34,8 +34,8 @@ Functions
 Classes
 -------
 
-`Args(seed: int = 42, dataset_dir: str = '', batch_size: int = 256, n_workers: int = 4, device: Literal['cpu', 'cuda'] = 'cuda')`
-:   Args(seed: int = 42, dataset_dir: str = '', batch_size: int = 256, n_workers: int = 4, device: Literal['cpu', 'cuda'] = 'cuda')
+`Args(dataset_dir: str = '', batch_size: int = 256, n_workers: int = 4, device: Literal['cpu', 'cuda'] = 'cuda')`
+:   Args(dataset_dir: str = '', batch_size: int = 256, n_workers: int = 4, device: Literal['cpu', 'cuda'] = 'cuda')
 
     ### Class variables
 
@@ -50,6 +50,3 @@ Classes
 
     `n_workers: int`
     :   number of dataloader worker processes.
-
-    `seed: int`
-    :   random seed.

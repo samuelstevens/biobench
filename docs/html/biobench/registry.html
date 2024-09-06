@@ -4,8 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
 <meta name="generator" content="pdoc3 0.11.1">
-<title>biobench.newt.download API documentation</title>
-<meta name="description" content="">
+<title>biobench.registry API documentation</title>
+<meta name="description" content="Stores all vision backbones.
+Users can register new custom backbones from their code to evaluate on biobench using `register_vision_backbone`.
+As long …">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
@@ -24,9 +26,12 @@ hljs.highlightAll();
 <main>
 <article id="content">
 <header>
-<h1 class="title">Module <code>biobench.newt.download</code></h1>
+<h1 class="title">Module <code>biobench.registry</code></h1>
 </header>
 <section id="section-intro">
+<p>Stores all vision backbones.
+Users can register new custom backbones from their code to evaluate on biobench using <code><a title="biobench.registry.register_vision_backbone" href="#biobench.registry.register_vision_backbone">register_vision_backbone()</a></code>.
+As long as it satisfies the <code><a title="biobench.interfaces.VisionBackbone" href="interfaces.html#biobench.interfaces.VisionBackbone">VisionBackbone</a></code> interface, it will work will all tasks.</p>
 </section>
 <section>
 </section>
@@ -35,61 +40,27 @@ hljs.highlightAll();
 <section>
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
-<dt id="biobench.newt.download.main"><code class="name flex">
-<span>def <span class="ident">main</span></span>(<span>args: <a title="biobench.newt.download.Args" href="#biobench.newt.download.Args">Args</a>)</span>
+<dt id="biobench.registry.list_vision_backbones"><code class="name flex">
+<span>def <span class="ident">list_vision_backbones</span></span>(<span>) ‑> list[str]</span>
 </code></dt>
 <dd>
-<div class="desc"></div>
+<div class="desc"><p>List all vision backbone model orgs.</p></div>
+</dd>
+<dt id="biobench.registry.load_vision_backbone"><code class="name flex">
+<span>def <span class="ident">load_vision_backbone</span></span>(<span>model_org: str, ckpt: str) ‑> <a title="biobench.interfaces.VisionBackbone" href="interfaces.html#biobench.interfaces.VisionBackbone">VisionBackbone</a></span>
+</code></dt>
+<dd>
+<div class="desc"><p>Load a pretrained vision backbone.</p></div>
+</dd>
+<dt id="biobench.registry.register_vision_backbone"><code class="name flex">
+<span>def <span class="ident">register_vision_backbone</span></span>(<span>model_org: str, cls: type[<a title="biobench.interfaces.VisionBackbone" href="interfaces.html#biobench.interfaces.VisionBackbone">VisionBackbone</a>])</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Register a new vision backbone class.</p></div>
 </dd>
 </dl>
 </section>
 <section>
-<h2 class="section-title" id="header-classes">Classes</h2>
-<dl>
-<dt id="biobench.newt.download.Args"><code class="flex name class">
-<span>class <span class="ident">Args</span></span>
-<span>(</span><span>dir: str = '.', chunk_size_kb: int = 1, images: bool = True, labels: bool = True)</span>
-</code></dt>
-<dd>
-<div class="desc"><p>Args(dir: str = '.', chunk_size_kb: int = 1, images: bool = True, labels: bool = True)</p></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">@dataclasses.dataclass(frozen=True)
-class Args:
-    dir: str = &#34;.&#34;
-    &#34;&#34;&#34;where to save data.&#34;&#34;&#34;
-
-    chunk_size_kb: int = 1
-    &#34;&#34;&#34;how many KB to download at a time before writing to file.&#34;&#34;&#34;
-
-    images: bool = True
-    &#34;&#34;&#34;whether to download images [4.1GB].&#34;&#34;&#34;
-    labels: bool = True
-    &#34;&#34;&#34;whether to download labels.&#34;&#34;&#34;</code></pre>
-</details>
-<h3>Class variables</h3>
-<dl>
-<dt id="biobench.newt.download.Args.chunk_size_kb"><code class="name">var <span class="ident">chunk_size_kb</span> : int</code></dt>
-<dd>
-<div class="desc"><p>how many KB to download at a time before writing to file.</p></div>
-</dd>
-<dt id="biobench.newt.download.Args.dir"><code class="name">var <span class="ident">dir</span> : str</code></dt>
-<dd>
-<div class="desc"><p>where to save data.</p></div>
-</dd>
-<dt id="biobench.newt.download.Args.images"><code class="name">var <span class="ident">images</span> : bool</code></dt>
-<dd>
-<div class="desc"><p>whether to download images [4.1GB].</p></div>
-</dd>
-<dt id="biobench.newt.download.Args.labels"><code class="name">var <span class="ident">labels</span> : bool</code></dt>
-<dd>
-<div class="desc"><p>whether to download labels.</p></div>
-</dd>
-</dl>
-</dd>
-</dl>
 </section>
 </article>
 <nav id="sidebar">
@@ -99,25 +70,14 @@ class Args:
 <ul id="index">
 <li><h3>Super-module</h3>
 <ul>
-<li><code><a title="biobench.newt" href="index.html">biobench.newt</a></code></li>
+<li><code><a title="biobench" href="index.html">biobench</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-functions">Functions</a></h3>
 <ul class="">
-<li><code><a title="biobench.newt.download.main" href="#biobench.newt.download.main">main</a></code></li>
-</ul>
-</li>
-<li><h3><a href="#header-classes">Classes</a></h3>
-<ul>
-<li>
-<h4><code><a title="biobench.newt.download.Args" href="#biobench.newt.download.Args">Args</a></code></h4>
-<ul class="">
-<li><code><a title="biobench.newt.download.Args.chunk_size_kb" href="#biobench.newt.download.Args.chunk_size_kb">chunk_size_kb</a></code></li>
-<li><code><a title="biobench.newt.download.Args.dir" href="#biobench.newt.download.Args.dir">dir</a></code></li>
-<li><code><a title="biobench.newt.download.Args.images" href="#biobench.newt.download.Args.images">images</a></code></li>
-<li><code><a title="biobench.newt.download.Args.labels" href="#biobench.newt.download.Args.labels">labels</a></code></li>
-</ul>
-</li>
+<li><code><a title="biobench.registry.list_vision_backbones" href="#biobench.registry.list_vision_backbones">list_vision_backbones</a></code></li>
+<li><code><a title="biobench.registry.load_vision_backbone" href="#biobench.registry.load_vision_backbone">load_vision_backbone</a></code></li>
+<li><code><a title="biobench.registry.register_vision_backbone" href="#biobench.registry.register_vision_backbone">register_vision_backbone</a></code></li>
 </ul>
 </li>
 </ul>

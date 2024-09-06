@@ -39,8 +39,8 @@ Functions
 `l2_normalize(features: jaxtyping.Float[Tensor, 'n_examples dim']) ‑> jaxtyping.Float[Tensor, 'n_examples dim']`
 :   
 
-`simpleshot(args: biobench.kabr.Args, x_features: jaxtyping.Float[Tensor, 'n_x_examples dim'], x_labels: jaxtyping.Int[Tensor, 'n_x_examples'], y_features: jaxtyping.Float[Tensor, 'n_y_examples dim'], y_labels: jaxtyping.Int[Tensor, 'n_y_examples']) ‑> float`
-:   Applies simpleshot to the video clips. We assign each clip the majority label.
+`simpleshot(args: biobench.kabr.Args, x_train: jaxtyping.Float[Tensor, 'n_train dim'], y_train: jaxtyping.Int[Tensor, 'n_train'], x_test: jaxtyping.Float[Tensor, 'n_test dim'], y_test: jaxtyping.Int[Tensor, 'n_test']) ‑> jaxtyping.Float[Tensor, 'n_test']`
+:   Applies simpleshot to the video clips. We assign each clip the majority label. Return the list of scores for x_test.
 
 Classes
 -------

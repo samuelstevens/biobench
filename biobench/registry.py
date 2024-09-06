@@ -10,7 +10,6 @@ import beartype
 
 from . import interfaces
 
-
 logger = logging.getLogger(__name__)
 
 _global_backbone_registry: dict[str, type[interfaces.VisionBackbone]] = {}

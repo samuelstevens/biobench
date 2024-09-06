@@ -12,6 +12,8 @@
 <style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin-bottom:1em}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
 <style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
 <style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script type="text/x-mathjax-config">MathJax.Hub.Config({ tex2jax: { inlineMath: [ ['$','$'], ["\\(","\\)"] ], processEscapes: true } });</script>
+<script async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS_CHTML" integrity="sha256-kZafAc6mZvK3W3v1pHOcUix30OHQN6pU/NO2oFkqZVw=" crossorigin></script>
 <script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
 <script>window.addEventListener('DOMContentLoaded', () => {
 hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
@@ -39,12 +41,6 @@ hljs.highlightAll();
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="biobench.interfaces.load_vision_backbone"><code class="name flex">
-<span>def <span class="ident">load_vision_backbone</span></span>(<span>args: <a title="biobench.interfaces.VisionBackboneArgs" href="#biobench.interfaces.VisionBackboneArgs">VisionBackboneArgs</a>) ‑> <a title="biobench.interfaces.VisionBackbone" href="#biobench.interfaces.VisionBackbone">VisionBackbone</a></span>
-</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
 </dl>
 </section>
 <section>
@@ -52,7 +48,7 @@ hljs.highlightAll();
 <dl>
 <dt id="biobench.interfaces.BenchmarkReport"><code class="flex name class">
 <span>class <span class="ident">BenchmarkReport</span></span>
-<span>(</span><span>name: str, score: float, argv: list[str] = &lt;factory&gt;, commit: str = '65e61be773df264727c70c65bdc69fd342fe4253', posix_time: float = &lt;factory&gt;, gpu_name: str = &lt;factory&gt;, hostname: str = &lt;factory&gt;)</span>
+<span>(</span><span>name: str, examples: list[tuple[str, float, dict[str, object]]], splits: dict[str, float], argv: list[str] = &lt;factory&gt;, commit: str = '55bd3eb39223801f3b2d59382ceaa0335f7d119e', posix_time: float = &lt;factory&gt;, gpu_name: str = &lt;factory&gt;, hostname: str = &lt;factory&gt;)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>The result of running a benchmark.</p>
@@ -86,8 +82,10 @@ class BenchmarkReport:
     # Actual details of the report
     name: str
     &#34;&#34;&#34;the benchmark name.&#34;&#34;&#34;
-    score: float
-    &#34;&#34;&#34;mean score across the entire task, as a number between 0 and 1.&#34;&#34;&#34;
+    examples: list[tuple[str, float, dict[str, object]]]
+    &#34;&#34;&#34;a list of (example_id, score, info) tuples&#34;&#34;&#34;
+    splits: dict[str, float]
+    &#34;&#34;&#34;individual splits and scores; can be anything you want.&#34;&#34;&#34;
 
     # Stuff for trying to reproduce this result. These are filled in by default.
     argv: list[str] = dataclasses.field(default_factory=lambda: sys.argv)
@@ -99,7 +97,37 @@ class BenchmarkReport:
     gpu_name: str = dataclasses.field(
         default_factory=lambda: torch.cuda.get_device_properties(0).name
     )
-    hostname: str = dataclasses.field(default_factory=socket.gethostname)</code></pre>
+    hostname: str = dataclasses.field(default_factory=socket.gethostname)
+
+    def __repr__(self):
+        return f&#34;Report({self.name} with {len(self.examples)} examples)&#34;
+
+    def __str__(self):
+        return repr(self)
+
+    @property
+    def mean_score(self) -&gt; float:
+        &#34;&#34;&#34;mean score across the entire task, as a number between 0 and 1.&#34;&#34;&#34;
+        return float(np.mean([score for _, score, _ in self.examples]))
+
+    def get_confidence_interval(
+        self,
+        statistic=&#34;mean&#34;,
+        confidence: float = 95,
+        n_resamples: int = 500,
+        seed: int = 42,
+    ) -&gt; tuple[float, float]:
+        &#34;&#34;&#34;confidence interval for the statistics (mean) by bootstrapping individual scores of the examples.&#34;&#34;&#34;
+        scores = np.array([score for _, score, _ in self.examples])
+
+        rng = np.random.default_rng(seed=seed)
+        idx = rng.choice(len(scores), size=(n_resamples, len(scores)), replace=True)
+        means = np.mean(scores[idx], axis=0)
+
+        percentiles = (100 - confidence) / 2, (100 - confidence) / 2 + confidence
+        lower, upper = np.percentile(means, percentiles).tolist()
+
+        return lower, upper</code></pre>
 </details>
 <h3>Class variables</h3>
 <dl>
@@ -110,6 +138,10 @@ class BenchmarkReport:
 <dt id="biobench.interfaces.BenchmarkReport.commit"><code class="name">var <span class="ident">commit</span> : str</code></dt>
 <dd>
 <div class="desc"><p>Git commit for this current report.</p></div>
+</dd>
+<dt id="biobench.interfaces.BenchmarkReport.examples"><code class="name">var <span class="ident">examples</span> : list[tuple[str, float, dict[str, object]]]</code></dt>
+<dd>
+<div class="desc"><p>a list of (example_id, score, info) tuples</p></div>
 </dd>
 <dt id="biobench.interfaces.BenchmarkReport.gpu_name"><code class="name">var <span class="ident">gpu_name</span> : str</code></dt>
 <dd>
@@ -127,9 +159,34 @@ class BenchmarkReport:
 <dd>
 <div class="desc"><p>time when this report was constructed.</p></div>
 </dd>
-<dt id="biobench.interfaces.BenchmarkReport.score"><code class="name">var <span class="ident">score</span> : float</code></dt>
+<dt id="biobench.interfaces.BenchmarkReport.splits"><code class="name">var <span class="ident">splits</span> : dict[str, float]</code></dt>
+<dd>
+<div class="desc"><p>individual splits and scores; can be anything you want.</p></div>
+</dd>
+</dl>
+<h3>Instance variables</h3>
+<dl>
+<dt id="biobench.interfaces.BenchmarkReport.mean_score"><code class="name">prop <span class="ident">mean_score</span> : float</code></dt>
 <dd>
 <div class="desc"><p>mean score across the entire task, as a number between 0 and 1.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@property
+def mean_score(self) -&gt; float:
+    &#34;&#34;&#34;mean score across the entire task, as a number between 0 and 1.&#34;&#34;&#34;
+    return float(np.mean([score for _, score, _ in self.examples]))</code></pre>
+</details>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="biobench.interfaces.BenchmarkReport.get_confidence_interval"><code class="name flex">
+<span>def <span class="ident">get_confidence_interval</span></span>(<span>self, statistic='mean', confidence: float = 95, n_resamples: int = 500, seed: int = 42) ‑> tuple[float, float]</span>
+</code></dt>
+<dd>
+<div class="desc"><p>confidence interval for the statistics (mean) by bootstrapping individual scores of the examples.</p></div>
 </dd>
 </dl>
 </dd>
@@ -197,7 +254,7 @@ class VisionBackbone(torch.nn.Module):
 <h3>Subclasses</h3>
 <ul class="hlist">
 <li><a title="biobench.third_party_models.OpenClip" href="third_party_models.html#biobench.third_party_models.OpenClip">OpenClip</a></li>
-<li><a title="biobench.third_party_models.TimmViT" href="third_party_models.html#biobench.third_party_models.TimmViT">TimmViT</a></li>
+<li><a title="biobench.third_party_models.TimmVit" href="third_party_models.html#biobench.third_party_models.TimmVit">TimmVit</a></li>
 </ul>
 <h3>Methods</h3>
 <dl>
@@ -212,36 +269,6 @@ class VisionBackbone(torch.nn.Module):
 </code></dt>
 <dd>
 <div class="desc"></div>
-</dd>
-</dl>
-</dd>
-<dt id="biobench.interfaces.VisionBackboneArgs"><code class="flex name class">
-<span>class <span class="ident">VisionBackboneArgs</span></span>
-<span>(</span><span>org: Literal['open_clip', 'timm-vit'] = 'open_clip', ckpt: str = 'RN50/openai')</span>
-</code></dt>
-<dd>
-<div class="desc"><p>VisionBackboneArgs(org: Literal['open_clip', 'timm-vit'] = 'open_clip', ckpt: str = 'RN50/openai')</p></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">@beartype.beartype
-@dataclasses.dataclass(frozen=True)
-class VisionBackboneArgs:
-    org: Org = &#34;open_clip&#34;
-    &#34;&#34;&#34;Where to load models from.&#34;&#34;&#34;
-    ckpt: str = &#34;RN50/openai&#34;
-    &#34;&#34;&#34;The org-specific string. Will error if you pass the wrong one.&#34;&#34;&#34;</code></pre>
-</details>
-<h3>Class variables</h3>
-<dl>
-<dt id="biobench.interfaces.VisionBackboneArgs.ckpt"><code class="name">var <span class="ident">ckpt</span> : str</code></dt>
-<dd>
-<div class="desc"><p>The org-specific string. Will error if you pass the wrong one.</p></div>
-</dd>
-<dt id="biobench.interfaces.VisionBackboneArgs.org"><code class="name">var <span class="ident">org</span> : Literal['open_clip', 'timm-vit']</code></dt>
-<dd>
-<div class="desc"><p>Where to load models from.</p></div>
 </dd>
 </dl>
 </dd>
@@ -261,21 +288,23 @@ class VisionBackboneArgs:
 <li><h3><a href="#header-functions">Functions</a></h3>
 <ul class="">
 <li><code><a title="biobench.interfaces.get_git_hash" href="#biobench.interfaces.get_git_hash">get_git_hash</a></code></li>
-<li><code><a title="biobench.interfaces.load_vision_backbone" href="#biobench.interfaces.load_vision_backbone">load_vision_backbone</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
 <li>
 <h4><code><a title="biobench.interfaces.BenchmarkReport" href="#biobench.interfaces.BenchmarkReport">BenchmarkReport</a></code></h4>
-<ul class="two-column">
+<ul class="">
 <li><code><a title="biobench.interfaces.BenchmarkReport.argv" href="#biobench.interfaces.BenchmarkReport.argv">argv</a></code></li>
 <li><code><a title="biobench.interfaces.BenchmarkReport.commit" href="#biobench.interfaces.BenchmarkReport.commit">commit</a></code></li>
+<li><code><a title="biobench.interfaces.BenchmarkReport.examples" href="#biobench.interfaces.BenchmarkReport.examples">examples</a></code></li>
+<li><code><a title="biobench.interfaces.BenchmarkReport.get_confidence_interval" href="#biobench.interfaces.BenchmarkReport.get_confidence_interval">get_confidence_interval</a></code></li>
 <li><code><a title="biobench.interfaces.BenchmarkReport.gpu_name" href="#biobench.interfaces.BenchmarkReport.gpu_name">gpu_name</a></code></li>
 <li><code><a title="biobench.interfaces.BenchmarkReport.hostname" href="#biobench.interfaces.BenchmarkReport.hostname">hostname</a></code></li>
+<li><code><a title="biobench.interfaces.BenchmarkReport.mean_score" href="#biobench.interfaces.BenchmarkReport.mean_score">mean_score</a></code></li>
 <li><code><a title="biobench.interfaces.BenchmarkReport.name" href="#biobench.interfaces.BenchmarkReport.name">name</a></code></li>
 <li><code><a title="biobench.interfaces.BenchmarkReport.posix_time" href="#biobench.interfaces.BenchmarkReport.posix_time">posix_time</a></code></li>
-<li><code><a title="biobench.interfaces.BenchmarkReport.score" href="#biobench.interfaces.BenchmarkReport.score">score</a></code></li>
+<li><code><a title="biobench.interfaces.BenchmarkReport.splits" href="#biobench.interfaces.BenchmarkReport.splits">splits</a></code></li>
 </ul>
 </li>
 <li>
@@ -290,13 +319,6 @@ class VisionBackboneArgs:
 <ul class="">
 <li><code><a title="biobench.interfaces.VisionBackbone.img_encode" href="#biobench.interfaces.VisionBackbone.img_encode">img_encode</a></code></li>
 <li><code><a title="biobench.interfaces.VisionBackbone.make_img_transform" href="#biobench.interfaces.VisionBackbone.make_img_transform">make_img_transform</a></code></li>
-</ul>
-</li>
-<li>
-<h4><code><a title="biobench.interfaces.VisionBackboneArgs" href="#biobench.interfaces.VisionBackboneArgs">VisionBackboneArgs</a></code></h4>
-<ul class="">
-<li><code><a title="biobench.interfaces.VisionBackboneArgs.ckpt" href="#biobench.interfaces.VisionBackboneArgs.ckpt">ckpt</a></code></li>
-<li><code><a title="biobench.interfaces.VisionBackboneArgs.org" href="#biobench.interfaces.VisionBackboneArgs.org">org</a></code></li>
 </ul>
 </li>
 </ul>

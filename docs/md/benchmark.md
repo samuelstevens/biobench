@@ -77,7 +77,7 @@ Functions
 Classes
 -------
 
-`Args(jobs: Literal['slurm', 'process', 'none'] = 'none', model_org: Literal['timm-vit', 'open_clip'] = 'open_clip', model_ckpt: str = 'RN50/openai', device: Literal['cpu', 'cuda'] = 'cuda', newt_run: bool = True, newt_args: biobench.newt.Args = <factory>, kabr_run: bool = True, kabr_args: biobench.kabr.Args = <factory>, report_to: str = './reports')`
+`Args(jobs: Literal['slurm', 'host', 'none'] = 'none', model_org: Literal['timm-vit', 'open_clip'] = 'open_clip', model_ckpt: str = 'RN50/openai', device: Literal['cpu', 'cuda'] = 'cuda', newt_run: bool = True, newt_args: biobench.newt.Args = <factory>, kabr_run: bool = True, kabr_args: biobench.kabr.Args = <factory>, plantnet_run: bool = True, plantnet_args: biobench.plantnet.Args = <factory>, report_to: str = './reports')`
 :   Params to run one or more benchmarks in a parallel setting.
 
     ### Class variables
@@ -85,7 +85,7 @@ Classes
     `device: Literal['cpu', 'cuda']`
     :   which kind of accelerator to use.
 
-    `jobs: Literal['slurm', 'process', 'none']`
+    `jobs: Literal['slurm', 'host', 'none']`
     :   what kind of jobs we should use for parallel processing: slurm cluster, multiple processes on the same machine, or just a single process.
 
     `kabr_args: biobench.kabr.Args`
@@ -105,6 +105,12 @@ Classes
 
     `newt_run: bool`
     :   whether to run the NeWT benchmark.
+
+    `plantnet_args: biobench.plantnet.Args`
+    :   arguments for the plantnet benchmark.
+
+    `plantnet_run: bool`
+    :   whether to run the Pl@ntNet benchmark.
 
     `report_to: str`
     :   where to save reports to.
