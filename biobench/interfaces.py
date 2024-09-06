@@ -1,11 +1,11 @@
 import dataclasses
-import numpy as np
 import socket
 import subprocess
 import sys
 import time
 
 import beartype
+import numpy as np
 import torch
 from jaxtyping import Float, jaxtyped
 from torch import Tensor

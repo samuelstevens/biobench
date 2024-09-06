@@ -22,6 +22,7 @@ __all__ = ["Args", "benchmark"]
 
 import collections.abc
 import dataclasses
+import itertools
 import logging
 import os
 import typing
@@ -31,13 +32,12 @@ import numpy as np
 import polars as pl
 import scipy.stats
 import sklearn.model_selection
-import itertools
 import sklearn.pipeline
 import sklearn.preprocessing
 import sklearn.svm
 import torch
 import tqdm
-from jaxtyping import Bool, Float, Int, jaxtyped, Shaped
+from jaxtyping import Bool, Float, Int, Shaped, jaxtyped
 from PIL import Image
 from torch import Tensor
 
@@ -47,11 +47,8 @@ logger = logging.getLogger("newt")
 
 
 @beartype.beartype
-@dataclasses.dataclass
+@dataclasses.dataclass(frozen=True)
 class Args:
-    seed: int = 42
-    """random seed."""
-
     dataset_dir: str = ""
     """dataset directory; where you downloaded NEWT to."""
     batch_size: int = 256

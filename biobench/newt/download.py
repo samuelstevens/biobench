@@ -20,7 +20,7 @@ images_url = (
 labels_url = "https://ml-inat-competition-datasets.s3.amazonaws.com/newt/newt2021_labels.csv.tar.gz"
 
 
-@dataclasses.dataclass
+@dataclasses.dataclass(frozen=True)
 class Args:
     dir: str = "."
     """where to save data."""
