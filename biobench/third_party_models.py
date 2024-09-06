@@ -43,7 +43,7 @@ class OpenClip(interfaces.VisionBackbone):
             return interfaces.EncodedImgBatch(result, None)
 
 
-class TimmViT(interfaces.VisionBackbone):
+class TimmVit(interfaces.VisionBackbone):
     @jaxtyped(typechecker=beartype.beartype)
     def __init__(self, ckpt: str, **kwargs):
         super().__init__()

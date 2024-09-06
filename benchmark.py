@@ -1,5 +1,7 @@
 """
 Entrypoint for running all benchmarks.
+
+.. include:: ./tutorial.md
 """
 
 import concurrent.futures
@@ -15,11 +17,18 @@ import beartype
 import torch
 import tyro
 
-from biobench import interfaces, kabr, load_vision_backbone, newt
+from biobench import interfaces, kabr, load_vision_backbone, newt, registry
 
 log_format = "[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s"
 logging.basicConfig(level=logging.INFO, format=log_format)
 logger = logging.getLogger("biobench")
+
+if typing.TYPE_CHECKING:
+    # Static type seen by language servers, type checkers, etc.
+    ModelOrg = str
+else:
+    # Runtime type used by tyro.
+    ModelOrg = tyro.extras.literal_type_from_choices(registry.list_vision_backbones())
 
 
 @beartype.beartype
@@ -31,10 +40,9 @@ class Args:
     """what kind of jobs we should use for parallel processing: slurm cluster, multiple processes on the same machine, or just a single process."""
 
     # How to set up the model.
-    model: interfaces.VisionBackboneArgs = dataclasses.field(
-        default_factory=interfaces.VisionBackboneArgs
-    )
-    """arguments for the vision backbone."""
+    model_org: ModelOrg = "open_clip"
+    """Where to load models from."""
+    model_ckpt: str = "RN50/openai"
     device: typing.Literal["cpu", "cuda"] = "cuda"
     """which kind of accelerator to use."""
 
@@ -110,7 +118,7 @@ def main(args: Args):
         typing.assert_never(args.jobs)
 
     # 1. Load model.
-    backbone = load_vision_backbone(args.model)
+    backbone = load_vision_backbone(args.model_org, args.model_ckpt)
 
     # 2. Run benchmarks.
     jobs = []
@@ -138,7 +146,7 @@ if __name__ == "__main__":
         logger.warning("No CUDA GPU found. Using CPU instead.")
         # Can't use CUDA, so might be on macOS, which cannot use spawn with pickle.
         multiprocessing.set_start_method("fork")
-        args.device = "cpu"
+        args = dataclasses.replace(args, device="cpu")
     elif args.device == "cuda" and torch.cuda.is_available():
         multiprocessing.set_start_method("spawn")
 

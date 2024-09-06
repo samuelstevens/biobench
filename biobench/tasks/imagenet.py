@@ -41,9 +41,11 @@ class Args:
     n_epochs: int = 8
     """number of training epochs."""
 
-    model: interfaces.VisionBackboneArgs = dataclasses.field(
-        default_factory=lambda: interfaces.VisionBackboneArgs()
-    )
+    # How to set up the model.
+    model_org: str = "open_clip"
+    """Where to load models from."""
+    model_ckpt: str = "RN50/openai"
+
     dtype: str = "float16"
     """dtype to use for the model's forward pass."""
     learning_rate: float = 3e-4

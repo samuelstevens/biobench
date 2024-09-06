@@ -4,7 +4,6 @@ import socket
 import subprocess
 import sys
 import time
-import typing
 
 import beartype
 import torch
@@ -41,33 +40,6 @@ class VisionBackbone(torch.nn.Module):
 
 def get_git_hash():
     return subprocess.check_output(["git", "rev-parse", "HEAD"]).decode("ascii").strip()
-
-
-Org = typing.Literal["open_clip", "timm-vit"]
-
-
-@beartype.beartype
-@dataclasses.dataclass(frozen=True)
-class VisionBackboneArgs:
-    org: Org = "open_clip"
-    """Where to load models from."""
-    ckpt: str = "RN50/openai"
-    """The org-specific string. Will error if you pass the wrong one."""
-
-
-@beartype.beartype
-def load_vision_backbone(args: VisionBackboneArgs) -> VisionBackbone:
-    if args.org == "open_clip":
-        import third_party_models
-
-        arch, ckpt = third_party_models.OpenClip.parse_model_str(args.ckpt)
-        return third_party_models.OpenClip(arch, ckpt)
-    elif args.org == "timm-vit":
-        import third_party_models
-
-        return third_party_models.TimmViT(args.ckpt)
-    else:
-        typing.assert_never(args.org)
 
 
 @jaxtyped(typechecker=beartype.beartype)

@@ -1,23 +1,25 @@
 """
 Package for organizing all the code to run benchmarks.
+
+.. include:: ./confidence-intervals.md
 """
 
-import typing
-
-import beartype
-
 from . import interfaces, kabr, newt, third_party_models
+from .registry import (
+    list_vision_backbones,
+    load_vision_backbone,
+    register_vision_backbone,
+)
 
-__all__ = ["interfaces", "load_vision_backbone", "newt", "kabr"]
+register_vision_backbone("timm-vit", third_party_models.TimmVit)
+register_vision_backbone("open_clip", third_party_models.OpenClip)
 
 
-@beartype.beartype
-def load_vision_backbone(
-    args: interfaces.VisionBackboneArgs,
-) -> interfaces.VisionBackbone:
-    if args.org == "open_clip":
-        return third_party_models.OpenClip(args.ckpt)
-    elif args.org == "timm-vit":
-        return third_party_models.TimmViT(args.ckpt)
-    else:
-        typing.assert_never(args.org)
+__all__ = [
+    "interfaces",
+    "load_vision_backbone",
+    "register_vision_backbone",
+    "list_vision_backbones",
+    "newt",
+    "kabr",
+]
