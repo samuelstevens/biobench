@@ -71,7 +71,18 @@ def benchmark(
         for image_id, pred, true in zip(val_features.ids, pred_labels, true_labels)
     ]
 
-    return interfaces.BenchmarkReport("Pl@ntNet", examples, {})
+    # Calculate macro-average
+    cls_accs = []
+    for cls in range(n_classes):
+        acc = (pred_labels[true_labels == cls] == cls).mean()
+        cls_accs.append(acc)
+
+    info = {
+        "micro-acc@1": (pred_labels == true_labels).mean().item(),
+        "macro-acc@1": np.mean(cls_accs).item(),
+    }
+
+    return interfaces.BenchmarkReport("Pl@ntNet", examples, info)
 
 
 @jaxtyped(typechecker=beartype.beartype)
