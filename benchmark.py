@@ -36,8 +36,8 @@ else:
 class Args:
     """Params to run one or more benchmarks in a parallel setting."""
 
-    jobs: typing.Literal["slurm", "host", "none"] = "none"
-    """what kind of jobs we should use for parallel processing: slurm cluster, multiple processes on the same machine, or just a single process."""
+    jobs: typing.Literal["slurm", "process", "none"] = "none"
+    """what kind of jobs we should use for parallel processing: slurm cluster, multiple processes on the same machine, or no parallelism (a single process)."""
 
     # How to set up the model.
     model_org: ModelOrg = "open_clip"
@@ -68,6 +68,9 @@ class Args:
         posix = int(time.time())
         return os.path.join(args.report_to, f"{posix}.jsonl")
 
+    def to_dict(self):
+        return dataclasses.asdict(self)
+
 
 class DummyExecutor(concurrent.futures.Executor):
     """Dummy class to satisfy the Executor interface. Directly runs the function in the main process for easy debugging."""
@@ -92,10 +95,10 @@ def save(args: Args, report: interfaces.BenchmarkReport) -> None:
     """
     Saves the report to disk in a machine-readable JSON format.
     """
-    report_dct = dataclasses.asdict(report)
+    report_dct = report.to_dict()
     report_dct["run_args"] = dataclasses.asdict(args)
 
-    report_dct["mean_score"] = report.mean_score
+    report_dct["mean_score"] = report.get_mean_score()
     lower, upper = report.get_confidence_interval()
     report_dct["confidence_interval_lower"] = lower
     report_dct["confidence_interval_upper"] = upper
@@ -104,11 +107,11 @@ def save(args: Args, report: interfaces.BenchmarkReport) -> None:
         fd.write(json.dumps(report_dct) + "\n")
 
     logger.info(
-        "%s on %s: %.1f%%", args.model_ckpt, report.name, report.mean_score * 100
+        "%s on %s: %.1f%%", args.model_ckpt, report.name, report.get_mean_score() * 100
     )
     for key, value in report.splits.items():
         logger.info(
-            "%s on %s; split '%s': %.1f", args.model_ckpt, report.name, key, value
+            "%s on %s; split '%s': %.3f", args.model_ckpt, report.name, key, value
         )
 
 
@@ -144,7 +147,9 @@ def main(args: Args):
     os.makedirs(args.report_to, exist_ok=True)
     for future in concurrent.futures.as_completed(jobs):
         if future.exception():
-            raise RuntimeError("Error running job.") from future.exception()
+            logger.warning("Error running job: %s", future.exception())
+            continue
+
         report = future.result()
         save(args, report)
 

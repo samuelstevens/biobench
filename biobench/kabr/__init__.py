@@ -121,7 +121,7 @@ class Dataset(torch.utils.data.Dataset):
             if len(frames[video_id]) >= self.n_frames
         ]
 
-    def __getitem__(self, i) -> tuple[list[object], list[int]]:
+    def __getitem__(self, i) -> tuple[list[Float[Tensor, "3 width height"]], list[int]]:
         """
         Returns 16 frames and their labels sampled every 5 frames from a clip. The start of the clip is uniformly sampled. If there are fewer
         """
@@ -205,7 +205,7 @@ def aggregate_frames(
     if args.frame_agg == "mean":
         return torch.mean(features, dim=0)
     elif args.frame_agg == "max":
-        return torch.max(features, dim=0)
+        return torch.max(features, dim=0).values
     else:
         typing.assert_never(args.frame_agg)
 
@@ -306,8 +306,13 @@ def benchmark(
     # Return benchmark report.
     video_ids = [video.video_id for video in val_dataset.videos]
     examples = [
-        (str(id), float(score), {}) for id, score in zip(video_ids, scores.tolist())
+        interfaces.Example(str(id), float(score), {})
+        for id, score in zip(video_ids, scores.tolist())
     ]
     # TODO: include example-specific info (class? something else)
     # TODO: include split-level scores.
-    return interfaces.BenchmarkReport("KABR", examples, {})
+    return interfaces.BenchmarkReport("KABR", examples, {}, calc_mean_score)
+
+
+def calc_mean_score(examples: list[interfaces.Example]) -> float:
+    return np.mean([example.score for example in examples]).item()

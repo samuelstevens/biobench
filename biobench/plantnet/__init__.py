@@ -67,22 +67,37 @@ def benchmark(
     pred_labels = model.predict(val_features.x).argmax(axis=1)
 
     examples = [
-        (str(image_id), float(pred == true), {})
+        interfaces.Example(
+            str(image_id),
+            float(pred == true),
+            {"pred_label": pred.item(), "true_label": true.item()},
+        )
         for image_id, pred, true in zip(val_features.ids, pred_labels, true_labels)
     ]
 
-    # Calculate macro-average
-    cls_accs = []
-    for cls in range(n_classes):
-        acc = (pred_labels[true_labels == cls] == cls).mean()
-        cls_accs.append(acc)
-
-    info = {
+    splits = {
         "micro-acc@1": (pred_labels == true_labels).mean().item(),
-        "macro-acc@1": np.mean(cls_accs).item(),
     }
 
-    return interfaces.BenchmarkReport("Pl@ntNet", examples, info)
+    return interfaces.BenchmarkReport("Pl@ntNet", examples, splits, calc_mean_score)
+
+
+def calc_mean_score(examples: list[interfaces.Example]) -> float:
+    """
+    Macro top-1 accuracy.
+    """
+    cls_examples = {}
+    for example in examples:
+        true_cls = example.info["true_label"]
+        if true_cls not in cls_examples:
+            cls_examples[true_cls] = []
+
+        cls_examples[true_cls].append(example)
+
+    cls_accs = []
+    for examples in cls_examples.values():
+        cls_accs.append(np.mean([example.score for example in examples]))
+    return np.mean(cls_accs).item()
 
 
 @jaxtyped(typechecker=beartype.beartype)

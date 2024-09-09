@@ -3,6 +3,7 @@ import socket
 import subprocess
 import sys
 import time
+import typing
 
 import beartype
 import numpy as np
@@ -44,6 +45,14 @@ def get_git_hash():
 
 @jaxtyped(typechecker=beartype.beartype)
 @dataclasses.dataclass(frozen=True)
+class Example:
+    id: str
+    score: float
+    info: dict[str, object]
+
+
+@jaxtyped(typechecker=beartype.beartype)
+@dataclasses.dataclass(frozen=True)
 class BenchmarkReport:
     """
     The result of running a benchmark.
@@ -62,10 +71,12 @@ class BenchmarkReport:
     # Actual details of the report
     name: str
     """the benchmark name."""
-    examples: list[tuple[str, float, dict[str, object]]]
-    """a list of (example_id, score, info) tuples"""
+    examples: list[Example]
+    """a list of (example_id, score, info) objects"""
     splits: dict[str, float]
     """individual splits and scores; can be anything you want."""
+    calc_mean_score: typing.Callable[[list[Example]], float]
+    """how to calculate the mean score from a given list of examples."""
 
     # Stuff for trying to reproduce this result. These are filled in by default.
     argv: list[str] = dataclasses.field(default_factory=lambda: sys.argv)
@@ -85,10 +96,8 @@ class BenchmarkReport:
     def __str__(self):
         return repr(self)
 
-    @property
-    def mean_score(self) -> float:
-        """mean score across the entire task, as a number between 0 and 1."""
-        return float(np.mean([score for _, score, _ in self.examples]))
+    def get_mean_score(self) -> float:
+        return self.calc_mean_score(self.examples)
 
     def get_confidence_interval(
         self,
@@ -97,14 +106,33 @@ class BenchmarkReport:
         n_resamples: int = 500,
         seed: int = 42,
     ) -> tuple[float, float]:
-        """confidence interval for the statistics (mean) by bootstrapping individual scores of the examples."""
-        scores = np.array([score for _, score, _ in self.examples])
+        """confidence interval for the statistics (mean) by bootstrapping individual scores of the examples.
+
+        NOTE: it's crazy how much easier this would be in jax to vmap. PyTrees of Examples would simply contains batch dimensions, and then I would jax.vmap(get_mean_score)(batched_examples).
+        """
 
         rng = np.random.default_rng(seed=seed)
-        idx = rng.choice(len(scores), size=(n_resamples, len(scores)), replace=True)
-        means = np.mean(scores[idx], axis=0)
+        choices = rng.choice(
+            len(self.examples), size=(n_resamples, len(self.examples)), replace=True
+        )
+
+        scores = []
+        for choice in choices:
+            scores.append(self.calc_mean_score([self.examples[i] for i in choice]))
 
         percentiles = (100 - confidence) / 2, (100 - confidence) / 2 + confidence
-        lower, upper = np.percentile(means, percentiles).tolist()
+        lower, upper = np.percentile(scores, percentiles).tolist()
 
         return lower, upper
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "name": self.name,
+            "examples": [dataclasses.asdict(example) for example in self.examples],
+            "splits": self.splits,
+            "argv": self.argv,
+            "commit": self.commit,
+            "posix_time": self.posix_time,
+            "gpu_name": self.gpu_name,
+            "hostname": self.hostname,
+        }

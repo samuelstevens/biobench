@@ -91,7 +91,11 @@ def benchmark(
         svc.fit(x_train, y_train)
         y_pred = svc.predict(x_test)
         examples = [
-            (str(id), float(pred == true), {"cluster": task.cluster, "task": task.name})
+            interfaces.Example(
+                str(id),
+                float(pred == true),
+                {"cluster": task.cluster, "task": task.name},
+            )
             for id, pred, true in zip(task.example_ids, y_pred, y_test)
         ]
         test_acc = np.mean(y_pred == y_test)
@@ -117,7 +121,7 @@ def benchmark(
         .iter_rows()
     }
 
-    return interfaces.BenchmarkReport("NeWT", examples, splits)
+    return interfaces.BenchmarkReport("NeWT", examples, splits, calc_mean_score)
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -245,3 +249,7 @@ def init_svc():
         n_jobs=-1,
         random_state=42,
     )
+
+
+def calc_mean_score(examples: list[interfaces.Example]) -> float:
+    return np.mean([example.score for example in examples]).item()
