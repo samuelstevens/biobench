@@ -10,7 +10,6 @@ import numpy as np
 import sklearn.model_selection
 import sklearn.pipeline
 import sklearn.preprocessing
-import sklearn.svm
 import torch
 import tqdm
 from jaxtyping import Float, Int, Shaped, jaxtyped
@@ -70,7 +69,7 @@ def benchmark(
         interfaces.Example(
             str(image_id),
             float(pred == true),
-            {"pred_label": pred.item(), "true_label": true.item()},
+            {"y_pred": pred.item(), "y_true": true.item()},
         )
         for image_id, pred, true in zip(val_features.ids, pred_labels, true_labels)
     ]
@@ -88,7 +87,7 @@ def calc_mean_score(examples: list[interfaces.Example]) -> float:
     """
     cls_examples = {}
     for example in examples:
-        true_cls = example.info["true_label"]
+        true_cls = example.info["y_true"]
         if true_cls not in cls_examples:
             cls_examples[true_cls] = []
 

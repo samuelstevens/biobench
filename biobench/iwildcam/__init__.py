@@ -6,20 +6,22 @@ Fits a linear classifier that is trained using cross-entropy on the training set
 
 import dataclasses
 import logging
-import time
+import typing
 
 import beartype
+import numpy as np
+import sklearn.model_selection
+import sklearn.pipeline
+import sklearn.preprocessing
 import torch
-import torchmetrics
 import tqdm
 import wilds
 import wilds.common.data_loaders
-from jaxtyping import Float, jaxtyped
-from torch import Tensor
+from jaxtyping import Float, Int, Shaped, jaxtyped
 
 from biobench import interfaces
 
-logger = logging.getLogger("newt")
+logger = logging.getLogger("iwildcam")
 
 
 @beartype.beartype
@@ -27,42 +29,24 @@ logger = logging.getLogger("newt")
 class Args:
     seed: int = 42
     """random seed."""
-    n_epochs: int = 8
-    """number of training epochs."""
-    dtype: str = "float16"
-    """dtype to use for the model's forward pass."""
-    learning_rate: float = 3e-4
-    """learning rate for linear model."""
-    weight_decay: float = 0.1
-    """weight decay for linear model."""
-
     # Data
     dataset_dir: str = ""
     """dataset directory; where you downloaded iWildCam to."""
     batch_size: int = 2048
-    """batch size for linear model."""
+    """batch size for deep model."""
     n_workers: int = 4
     """number of dataloader worker processes."""
-
-    log_every: int = 1
-    """how often to log to aim."""
-
     # Computed at runtime.
-    device: str = "cpu"
-    """(computed by program) which device to use (CUDA, cpu, mips, etc)."""
+    device: typing.Literal["cpu", "cuda"] = "cuda"
+    """(computed at runtime) which kind of accelerator to use."""
 
 
-class LinearClassifier(torch.nn.Module):
-    def __init__(self, n_classes: int):
-        super().__init__()
-        self.linear = torch.nn.LazyLinear(n_classes)
-
-    @jaxtyped(typechecker=beartype.beartype)
-    def forward(
-        self, features: Float[Tensor, "batch dim"]
-    ) -> Float[Tensor, "batch n_classes"]:
-        logits = self.linear(features)
-        return torch.nn.functional.softmax(logits, dim=-1)
+@jaxtyped(typechecker=beartype.beartype)
+@dataclasses.dataclass(frozen=True)
+class Features:
+    x: Float[np.ndarray, " n dim"]
+    y: Int[np.ndarray, " n n_classes"]
+    ids: Shaped[np.ndarray, " n"]
 
 
 @beartype.beartype
@@ -74,14 +58,6 @@ def benchmark(
     dataset = wilds.get_dataset(
         dataset="iwildcam", download=False, root_dir=args.dataset_dir
     )
-    train_dataset = dataset.get_subset("train", transform=transform)
-    train_dataloader = wilds.common.data_loaders.get_train_loader(
-        "standard",
-        train_dataset,
-        batch_size=args.batch_size,
-        num_workers=args.n_workers,
-        pin_memory=True,
-    )
 
     test_data = dataset.get_subset("test", transform=transform)
     test_dataloader = wilds.common.data_loaders.get_eval_loader(
@@ -89,107 +65,36 @@ def benchmark(
         test_data,
         batch_size=args.batch_size,
         num_workers=args.n_workers,
-        pin_memory=True,
     )
+    test_features = get_features(args, backbone, test_dataloader)
 
-    # 2. Some modeling stuff
-    # Freeze model
-    for param in backbone.parameters():
-        param.requires_grad = False
-    # Compile for speed.
-    backbone = torch.compile(backbone.to(args.device))
-    linear_model = LinearClassifier(dataset.n_classes).to(args.device)
-
-    # 3. Load optimizers.
-    ctx = torch.amp.autocast(device_type="cuda", dtype=getattr(torch, args.dtype))
-    loss_fn = torch.nn.CrossEntropyLoss()
-    optimizer = torch.optim.AdamW(
-        linear_model.parameters(), lr=args.learning_rate, weight_decay=args.weight_decay
+    train_dataset = dataset.get_subset("train", transform=transform)
+    train_dataloader = wilds.common.data_loaders.get_train_loader(
+        "standard",
+        train_dataset,
+        batch_size=args.batch_size,
+        num_workers=args.n_workers,
     )
-    # 4. Load tracking.
-    train_acc1 = torchmetrics.Accuracy(
-        task="multiclass", top_k=1, num_classes=dataset.n_classes
-    )
-    train_acc5 = torchmetrics.Accuracy(
-        task="multiclass", top_k=5, num_classes=dataset.n_classes
-    )
-    train_metrics = {"train_acc1": train_acc1, "train_acc5": train_acc5}
-    train_metrics = torchmetrics.MetricCollection(train_metrics).to(args.device)
+    train_features = get_features(args, backbone, train_dataloader)
 
-    global_step = 0
-    global_start_s = time.time()
-    for epoch in range(args.n_epochs):
-        # Train
-        for batch, (images, labels, metadata) in enumerate(train_dataloader):
-            images = images.to(args.device)
-            labels = labels.to(args.device)
-            with ctx:
-                encoded = backbone.img_encode(images)
-                outputs = linear_model(encoded.img_features)
+    # 2. Fit model.
+    model = init_ridge()
+    model.fit(train_features.x, train_features.y)
 
-            loss = loss_fn(outputs, labels)
-            loss.backward()
-
-            # Step optimizer
-            optimizer.step()
-            # This has to be after optimizer.step() or scaler.step(optimizer)
-            optimizer.zero_grad(set_to_none=True)
-            global_step += 1
-
-            train_metrics.reset()
-            train_metrics(outputs, labels)
-
-            if batch % (args.log_every) == 0:
-                imgs_per_sec = (
-                    global_step * args.batch_size / (time.time() - global_start_s)
-                )
-                # We can use loss.item() because we don't need to sync it across all processes since it's going to be noisy anyways.
-                # metrics = {
-                #     **train_metrics.compute(),
-                #     "train_cross_entropy": loss.item(),
-                #     "train_step": global_step,
-                #     "perf_images_per_sec": imgs_per_sec,
-                # }
-                logger.info(
-                    "epoch: %d, step: %s, loss: %.6f, imgs/sec: %.2g",
-                    epoch,
-                    global_step,
-                    loss.item(),
-                    imgs_per_sec,
-                )
-
-        # Validate
-        all_y_pred, all_y_true, all_metadata = [], [], []
-        for batch, (images, labels, metadata) in enumerate(
-            tqdm.tqdm(test_dataloader, desc=f"Eval; epoch {epoch}")
-        ):
-            images = images.to(args.device)
-            with ctx:
-                encoded = backbone.img_encode(images)
-                outputs = linear_model(encoded.img_features)
-
-            y_pred = outputs.argmax(axis=1)
-            all_y_pred.append(y_pred.cpu())
-            all_y_true.append(labels)
-            all_metadata.append(metadata)
-
-        all_y_pred = torch.cat(all_y_pred, axis=0)
-        all_y_true = torch.cat(all_y_true, axis=0)
-        all_metadata = torch.cat(all_metadata, axis=0)
-
-        test_metrics, _ = dataset.eval(all_y_pred, all_y_true, all_metadata)
-        msg = ", ".join(f"{name}: {value:.3f}" for name, value in test_metrics.items())
-        logger.info("epoch: %d, " + msg, epoch)
+    true_labels = test_features.y.argmax(axis=1)
+    pred_labels = model.predict(test_features.x).argmax(axis=1)
 
     # TODO: I don't know why this is so slow. 42K examples should be faster than 40 seconds.
     logger.info("Constructing examples.")
     examples = [
         interfaces.Example(
-            str(i),
-            float(y_pred == y_true),
-            {"y_pred": y_pred.item(), "y_true": y_true.item()},
+            str(image_id),
+            float(pred == true),
+            {"y_pred": pred.item(), "y_true": true.item()},
         )
-        for i, (y_pred, y_true) in enumerate(zip(tqdm.tqdm(all_y_pred), all_y_true))
+        for image_id, pred, true in zip(
+            tqdm.tqdm(test_features.ids), pred_labels, true_labels
+        )
     ]
     logger.info("%d examples done.", len(examples))
 
@@ -202,3 +107,56 @@ def benchmark(
         return metrics["F1-macro_all"]
 
     return interfaces.BenchmarkReport("iWildCam", examples, {}, _calc_mean_score)
+
+
+@jaxtyped(typechecker=beartype.beartype)
+@torch.no_grad()
+def get_features(
+    args: Args, backbone: interfaces.VisionBackbone, dataloader
+) -> Features:
+    backbone = torch.compile(backbone.to(args.device))
+
+    all_features, all_labels = [], []
+    for images, labels, metadata in tqdm.tqdm(dataloader, desc="Embedding images"):
+        images = images.to(args.device)
+
+        with torch.amp.autocast("cuda"):
+            features = backbone.img_encode(images).img_features
+            all_features.append(features.cpu())
+
+        all_labels.append(labels)
+
+    # Convert labels to one single np.ndarray
+    all_features = torch.cat(all_features, axis=0).cpu().numpy()
+    # Convert ids to np.ndarray of strings
+    all_ids = np.array([str(i) for i in range(len(dataloader.dataset))])
+
+    # Leave as Tensor so we can reference the dtype later.
+    all_labels = torch.cat(all_labels, axis=0)
+
+    # Make one-hot encoding np.ndarray
+    ##################################
+    n_examples = len(all_labels)
+    n_classes = dataloader.dataset.n_classes
+
+    # First one-hot encode the labels
+    all_onehots = torch.full((n_examples, n_classes), -1, dtype=all_labels.dtype)
+    index = all_labels[:, None]
+    # .scatter_(): all_onehots[i][index[i][j]] = src[i][j] for dim=1
+    all_onehots.scatter_(dim=1, index=index, src=torch.ones_like(index))
+    assert (all_onehots == 1).sum() == n_examples
+    all_onehots = all_onehots.numpy()
+
+    return Features(all_features, all_onehots, all_ids)
+
+
+def init_ridge():
+    return sklearn.model_selection.GridSearchCV(
+        sklearn.pipeline.make_pipeline(
+            sklearn.preprocessing.StandardScaler(),
+            sklearn.linear_model.Ridge(1.0),
+        ),
+        {"ridge__alpha": np.pow(2.0, np.arange(-20, 11))},
+        n_jobs=-1,
+        verbose=2,
+    )
