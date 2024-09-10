@@ -8,6 +8,7 @@ import typing
 import beartype
 import numpy as np
 import torch
+import tqdm
 from jaxtyping import Float, jaxtyped
 from torch import Tensor
 
@@ -117,7 +118,7 @@ class BenchmarkReport:
         )
 
         scores = []
-        for choice in choices:
+        for choice in tqdm.tqdm(choices, desc="Bootstrapping CI"):
             scores.append(self.calc_mean_score([self.examples[i] for i in choice]))
 
         percentiles = (100 - confidence) / 2, (100 - confidence) / 2 + confidence

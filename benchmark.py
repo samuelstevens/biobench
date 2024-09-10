@@ -17,7 +17,15 @@ import beartype
 import torch
 import tyro
 
-from biobench import interfaces, kabr, load_vision_backbone, newt, plantnet, registry
+from biobench import (
+    interfaces,
+    iwildcam,
+    kabr,
+    load_vision_backbone,
+    newt,
+    plantnet,
+    registry,
+)
 
 log_format = "[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s"
 logging.basicConfig(level=logging.INFO, format=log_format)
@@ -47,18 +55,22 @@ class Args:
     """which kind of accelerator to use."""
 
     # Individual benchmarks.
-    newt_run: bool = True
+    newt_run: bool = False
     """whether to run the NeWT benchmark."""
     newt_args: newt.Args = dataclasses.field(default_factory=newt.Args)
     """arguments for the NeWT benchmark."""
-    kabr_run: bool = True
+    kabr_run: bool = False
     """whether to run the KABR benchmark."""
     kabr_args: kabr.Args = dataclasses.field(default_factory=kabr.Args)
     """arguments for the KABR benchmark."""
-    plantnet_run: bool = True
+    plantnet_run: bool = False
     """whether to run the Pl@ntNet benchmark."""
     plantnet_args: plantnet.Args = dataclasses.field(default_factory=plantnet.Args)
-    """arguments for the plantnet benchmark."""
+    """arguments for the Pl@ntNet benchmark."""
+    iwildcam_run: bool = False
+    """whether to run the iWildCam benchmark."""
+    iwildcam_args: iwildcam.Args = dataclasses.field(default_factory=iwildcam.Args)
+    """arguments for the iWildCam benchmark."""
 
     # Saving
     report_to: str = os.path.join(".", "reports")
@@ -142,6 +154,9 @@ def main(args: Args):
     if args.plantnet_run:
         plantnet_args = dataclasses.replace(args.plantnet_args, device=args.device)
         jobs.append(executor.submit(plantnet.benchmark, backbone, plantnet_args))
+    if args.iwildcam_run:
+        iwildcam_args = dataclasses.replace(args.iwildcam_args, device=args.device)
+        jobs.append(executor.submit(iwildcam.benchmark, backbone, iwildcam_args))
 
     # 3. Display results.
     os.makedirs(args.report_to, exist_ok=True)
