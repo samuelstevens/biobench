@@ -10,6 +10,7 @@ import json
 import logging
 import os
 import resource
+import sqlite3
 import time
 import typing
 
@@ -20,7 +21,7 @@ import tyro
 from biobench import ModelOrg, interfaces, iwildcam, kabr, newt, plantnet
 
 log_format = "[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s"
-logging.basicConfig(level=logging.DEBUG, format=log_format)
+logging.basicConfig(level=logging.INFO, format=log_format)
 logger = logging.getLogger("biobench")
 
 
@@ -69,9 +70,8 @@ class Args:
     report_to: str = os.path.join(".", "reports")
     """where to save reports to."""
 
-    def report_path(self, report: interfaces.TaskReport) -> str:
-        posix = int(time.time())
-        return os.path.join(args.report_to, f"{posix}.jsonl")
+    graph: bool = True
+    """whether to make a graph."""
 
     def to_dict(self) -> dict[str, object]:
         return dataclasses.asdict(self)
@@ -100,24 +100,28 @@ def save(
     args: Args, model_args: interfaces.ModelArgs, report: interfaces.TaskReport
 ) -> None:
     """
-    Saves the report to disk in a machine-readable JSON format.
+    Saves the report to disk in a machine-readable SQLite format.
     """
-    dct = {}
-    dct.update(**{f"report_{key}": value for key, value in report.to_dict().items()})
-    model_org, model_ckpt = model_args
-    dct["report_model_org"] = model_org
-    dct["report_model_ckpt"] = model_ckpt
-    dct["report_mean_score"] = report.get_mean_score()
-    lower, upper = report.get_confidence_interval()
-    dct["report_confidence_interval_lower"] = lower
-    dct["report_confidence_interval_upper"] = upper
-    # Add benchmark.py args
-    dct.update(**{
-        f"benchmark_{key}": value for key, value in dataclasses.asdict(args).items()
-    })
+    conn = sqlite3.connect(os.path.join(args.report_to, "reports.sqlite"))
+    with open("schema.sql") as fd:
+        schema = fd.read()
+    conn.execute(schema)
 
-    with open(args.report_path(report), "a") as fd:
-        fd.write(json.dumps(dct) + "\n")
+    model_org, model_ckpt = model_args
+    lower, upper = report.get_confidence_interval()
+    values = (
+        model_org,
+        model_ckpt,
+        report.name,
+        int(time.time()),
+        report.get_mean_score(),
+        lower,
+        upper,
+        json.dumps(dataclasses.asdict(args)),
+        json.dumps(report.to_dict()),
+    )
+    conn.execute("INSERT INTO reports VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)", values)
+    conn.commit()
 
     logger.info(
         "%s on %s: %.1f%%", model_ckpt, report.name, report.get_mean_score() * 100
@@ -179,6 +183,11 @@ def main(args: Args):
     finally:
         logger.info("Shutting down job executor.")
         executor.shutdown(cancel_futures=True, wait=True)
+
+    if args.graph:
+        # For each combination of model/task, get the most recent version from the database. Then make a graph and save it to disk.
+        pass
+
     logger.info("Finished.")
 
 

@@ -7,21 +7,25 @@ from torch import Tensor
 from biobench import interfaces
 
 
+def get_cache_dir() -> str:
+    cache_dir = ""
+    for var in ("BIOBENCH_CACHE", "HF_HOME", "HF_HUB_CACHE"):
+        cache_dir = cache_dir or os.environ.get(var, "")
+    return cache_dir or "."
+
+
 class OpenClip(interfaces.VisionBackbone):
     @jaxtyped(typechecker=beartype.beartype)
     def __init__(self, ckpt: str, **kwargs):
         super().__init__()
         import open_clip
 
-        cache_dir = os.environ.get("BIOBENCH_CACHE_DIR", "")
         if ckpt.startswith("hf-hub:"):
-            clip, self.img_transform = open_clip.create_model_from_pretrained(
-                ckpt, cache_dir=cache_dir
-            )
+            clip, self.img_transform = open_clip.create_model_from_pretrained(ckpt)
         else:
             arch, ckpt = ckpt.split("/")
             clip, self.img_transform = open_clip.create_model_from_pretrained(
-                arch, pretrained=ckpt, cache_dir=cache_dir
+                arch, pretrained=ckpt, cache_dir=get_cache_dir()
             )
 
         self.model = clip.visual
