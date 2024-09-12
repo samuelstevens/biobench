@@ -53,8 +53,8 @@ class MeanScoreCalculator:
 
 @beartype.beartype
 def benchmark(
-    model_args: tuple[str, str], args: Args
-) -> tuple[tuple[str, str], interfaces.TaskReport]:
+    args: Args, model_args: interfaces.ModelArgs
+) -> tuple[interfaces.ModelArgs, interfaces.TaskReport]:
     backbone = registry.load_vision_backbone(*model_args)
     # 1. Load dataloaders.
     transform = backbone.make_img_transform()

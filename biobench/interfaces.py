@@ -8,9 +8,24 @@ import typing
 import beartype
 import numpy as np
 import torch
-import tqdm
 from jaxtyping import Float, jaxtyped
 from torch import Tensor
+
+
+@jaxtyped(typechecker=beartype.beartype)
+@dataclasses.dataclass(frozen=True)
+class TaskArgs:
+    """Common args for all tasks."""
+
+    seed: int = 42
+    """random seed."""
+    datadir: str = ""
+    """dataset directory; where you downloaded this task's data to."""
+    # Computed at runtime.
+    device: str = "cuda"
+    """(computed at runtime) which kind of accelerator to use."""
+    debug: bool = False
+    """(computed at runtime) whether to run in debug mode."""
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -54,17 +69,9 @@ class Example:
 
 @jaxtyped(typechecker=beartype.beartype)
 @dataclasses.dataclass(frozen=True)
-class BenchmarkReport:
+class TaskReport:
     """
-    The result of running a benchmark.
-
-    TODO: this needs to store more than just a summary statistic (`score`). It should include many raw results that can be used for analysis later on. It can even reference invidividual examples in a dataset so that they can be viewed.
-
-    This should probably be in the form of
-
-    summary: float
-    splits: dict[str, float]
-    examples: list[tuple[object, float, dict[str, object]]]
+    The result of running a benchmark task.
 
     See notebooks/tutorial.py for details.
     """
@@ -77,7 +84,7 @@ class BenchmarkReport:
     splits: dict[str, float]
     """individual splits and scores; can be anything you want."""
     calc_mean_score: typing.Callable[[list[Example]], float]
-    """how to calculate the mean score from a given list of examples."""
+    """way to calculate mean score from a list of examples."""
 
     # Stuff for trying to reproduce this result. These are filled in by default.
     argv: list[str] = dataclasses.field(default_factory=lambda: sys.argv)
@@ -118,7 +125,7 @@ class BenchmarkReport:
         )
 
         scores = []
-        for choice in tqdm.tqdm(choices, desc="Bootstrapping CI"):
+        for choice in choices:
             scores.append(self.calc_mean_score([self.examples[i] for i in choice]))
 
         percentiles = (100 - confidence) / 2, (100 - confidence) / 2 + confidence
@@ -137,3 +144,6 @@ class BenchmarkReport:
             "gpu_name": self.gpu_name,
             "hostname": self.hostname,
         }
+
+
+ModelArgs = tuple[str, str]

@@ -267,8 +267,8 @@ def simpleshot(
 
 @beartype.beartype
 def benchmark(
-    model_args: tuple[str, str], args: Args
-) -> tuple[tuple[str, str], interfaces.TaskReport]:
+    args: Args, model_args: interfaces.ModelArgs
+) -> tuple[interfaces.ModelArgs, interfaces.TaskReport]:
     # 1. Load model
     backbone = registry.load_vision_backbone(*model_args)
     img_transform = backbone.make_img_transform()

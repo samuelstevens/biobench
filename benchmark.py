@@ -17,16 +17,7 @@ import beartype
 import torch
 import tyro
 
-from biobench import (
-    interfaces,
-    iwildcam,
-    kabr,
-    newt,
-    plantnet,
-    ModelOrg,
-    BenchmarkFn,
-    ModelArgs,
-)
+from biobench import ModelOrg, interfaces, iwildcam, kabr, newt, plantnet
 
 log_format = "[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s"
 logging.basicConfig(level=logging.DEBUG, format=log_format)
@@ -38,12 +29,12 @@ logger = logging.getLogger("biobench")
 class Args:
     """Params to run one or more benchmarks in a parallel setting."""
 
-    # TODO: how to structure the script to run more than one model and more than one task? how to compare maximum flexibility vs maximum ease of use at the cost of additional flexibility vs code clarity and simplicity?
+    slurm: bool = False
+    """whether to use submitit to run jobs on a slurm cluster."""
 
-    jobs: typing.Literal["slurm", "parallel", "single"] = "single"
-    """what kind of jobs we should use for parallel processing: slurm cluster, multiple processes on the same machine, or no parallelism (a single process)."""
-
-    model: list[tuple[ModelOrg, str]] = dataclasses.field(
+    model_args: typing.Annotated[
+        list[tuple[ModelOrg, str]], tyro.conf.arg(name="model")
+    ] = dataclasses.field(
         default_factory=lambda: [
             ("open-clip", "RN50/openai"),
             ("open-clip", "ViT-B-16/openai"),
@@ -82,7 +73,7 @@ class Args:
         posix = int(time.time())
         return os.path.join(args.report_to, f"{posix}.jsonl")
 
-    def to_dict(self):
+    def to_dict(self) -> dict[str, object]:
         return dataclasses.asdict(self)
 
 
@@ -105,46 +96,9 @@ class DummyExecutor(concurrent.futures.Executor):
 
 
 @beartype.beartype
-class CudaPoolWorker:
-    def __init__(self, gpu_queue):
-        self._gpu_queue = gpu_queue
-
-    def __call__(
-        self,
-        fn: BenchmarkFn,
-        model_args: ModelArgs,
-        args: interfaces.TaskArgs,
-    ) -> tuple[ModelArgs, interfaces.TaskReport]:
-        device = self._gpu_queue.get()
-        logger.debug("Got device '%s'", device)
-
-        # Update args.device
-        assert dataclasses.is_dataclass(args)
-        args = dataclasses.replace(args, device=device)
-
-        try:
-            result = fn(model_args, args)
-            return result
-        finally:
-            self._gpu_queue.put(device)
-            logger.debug("Released device '%s'", device)
-
-
-class CudaPoolExecutor(concurrent.futures.ProcessPoolExecutor):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        n_gpus = torch.cuda.device_count()
-        self._gpu_queue = torch.multiprocessing.Manager().Queue()
-        for i in range(n_gpus):
-            self._gpu_queue.put(f"cuda:{i}")
-
-    def submit(self, fn, model_args: ModelArgs, args):
-        """Wraps fn to only use a particular CUDA device using a multiprocessing queue."""
-        return super().submit(CudaPoolWorker(self._gpu_queue), fn, model_args, args)
-
-
-@beartype.beartype
-def save(args: Args, model_args: ModelArgs, report: interfaces.TaskReport) -> None:
+def save(
+    args: Args, model_args: interfaces.ModelArgs, report: interfaces.TaskReport
+) -> None:
     """
     Saves the report to disk in a machine-readable JSON format.
     """
@@ -175,48 +129,39 @@ def save(args: Args, model_args: ModelArgs, report: interfaces.TaskReport) -> No
 @beartype.beartype
 def main(args: Args):
     # 1. Setup executor.
-    pool_args, pool_kwargs = (), {}
-    if args.jobs == "parallel":
-        pool_cls = CudaPoolExecutor
-        pool_kwargs = dict(max_tasks_per_child=1)
-    elif args.jobs == "slurm":
+    pool_cls, pool_args, pool_kwargs = DummyExecutor, (), {}
+    if args.slurm:
         raise NotImplementedError("submitit not implemented.")
         # TODO: implement submitit
         # executor = submitit.AutoExecutor()
-    elif args.jobs == "single":
-        pool_cls = DummyExecutor
-    else:
-        typing.assert_never(args.jobs)
 
     # 2. Run benchmarks.
     try:
         executor = pool_cls(*pool_args, **pool_kwargs)
         jobs = []
-        for model_args in args.model:
+        for model_args in args.model_args:
             if args.newt_run:
                 newt_args = dataclasses.replace(
                     args.newt_args, device=args.device, debug=args.debug
                 )
-                jobs.append(executor.submit(newt.benchmark, model_args, newt_args))
+                jobs.append(executor.submit(newt.benchmark, newt_args, model_args))
             if args.kabr_run:
                 kabr_args = dataclasses.replace(
                     args.kabr_args, device=args.device, debug=args.debug
                 )
-                jobs.append(executor.submit(kabr.benchmark, model_args, kabr_args))
+                jobs.append(executor.submit(kabr.benchmark, kabr_args, model_args))
             if args.plantnet_run:
                 plantnet_args = dataclasses.replace(
                     args.plantnet_args, device=args.device, debug=args.debug
                 )
-                jobs.append(
-                    executor.submit(plantnet.benchmark, model_args, plantnet_args)
-                )
+                job = executor.submit(plantnet.benchmark, plantnet_args, model_args)
+                jobs.append(job)
             if args.iwildcam_run:
                 iwildcam_args = dataclasses.replace(
                     args.iwildcam_args, device=args.device, debug=args.debug
                 )
-                jobs.append(
-                    executor.submit(iwildcam.benchmark, model_args, iwildcam_args)
-                )
+                job = executor.submit(iwildcam.benchmark, iwildcam_args, model_args)
+                jobs.append(job)
 
         logger.info("Submitted %d jobs.", len(jobs))
 
@@ -232,9 +177,9 @@ def main(args: Args):
             save(args, model_args, report)
             logger.info("Finished %d/%d jobs.", i + 1, len(jobs))
     finally:
-        print("shutting down.")
+        logger.info("Shutting down job executor.")
         executor.shutdown(cancel_futures=True, wait=True)
-    logger.info("Finished executing jobs.")
+    logger.info("Finished.")
 
 
 if __name__ == "__main__":

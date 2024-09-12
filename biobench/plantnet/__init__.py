@@ -62,8 +62,8 @@ class MeanScoreCalculator:
 
 @beartype.beartype
 def benchmark(
-    model_args: tuple[str, str], args: Args
-) -> tuple[tuple[str, str], interfaces.TaskReport]:
+    args: Args, model_args: interfaces.ModelArgs
+) -> tuple[interfaces.ModelArgs, interfaces.TaskReport]:
     """
     Steps:
     1. Get features for all images.

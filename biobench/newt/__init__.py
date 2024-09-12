@@ -54,7 +54,9 @@ class Args(interfaces.TaskArgs):
 
 
 @beartype.beartype
-def benchmark(model_args: tuple[str, str], args: Args) -> interfaces.TaskReport:
+def benchmark(
+    args: Args, model_args: interfaces.ModelArgs
+) -> tuple[interfaces.ModelArgs, interfaces.TaskReport]:
     """
     Steps:
     1. Get features for all images.
@@ -115,7 +117,7 @@ def benchmark(model_args: tuple[str, str], args: Args) -> interfaces.TaskReport:
         .iter_rows()
     }
 
-    return interfaces.TaskReport("NeWT", examples, splits, calc_mean_score)
+    return model_args, interfaces.TaskReport("NeWT", examples, splits, calc_mean_score)
 
 
 @jaxtyped(typechecker=beartype.beartype)
