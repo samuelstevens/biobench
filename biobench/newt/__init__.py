@@ -25,7 +25,6 @@ import dataclasses
 import itertools
 import logging
 import os
-import typing
 
 import beartype
 import numpy as np
@@ -36,46 +35,41 @@ import sklearn.pipeline
 import sklearn.preprocessing
 import sklearn.svm
 import torch
-import tqdm
 from jaxtyping import Bool, Float, Int, Shaped, jaxtyped
 from PIL import Image
 from torch import Tensor
 
-from biobench import interfaces
+from biobench import interfaces, registry
 
 logger = logging.getLogger("newt")
 
 
 @beartype.beartype
 @dataclasses.dataclass(frozen=True)
-class Args:
-    dataset_dir: str = ""
-    """dataset directory; where you downloaded NEWT to."""
+class Args(interfaces.TaskArgs):
     batch_size: int = 256
     """batch size for deep model."""
     n_workers: int = 4
     """number of dataloader worker processes."""
-    device: typing.Literal["cpu", "cuda"] = "cuda"
-    """(computed at runtime) which kind of accelerator to use."""
 
 
 @beartype.beartype
-def benchmark(
-    backbone: interfaces.VisionBackbone, args: Args
-) -> interfaces.BenchmarkReport:
+def benchmark(model_args: tuple[str, str], args: Args) -> interfaces.TaskReport:
     """
     Steps:
     1. Get features for all images.
     2. Select subsets of the features for fitting with SVMs.
     3. Evaluate SVMs and report.
     """
+    # 1. Load model
+    backbone = registry.load_vision_backbone(*model_args)
 
     # 2. Get features.
     all_task_features = get_all_task_specific_features(args, backbone)
 
     # Fit SVMs.
     results = []
-    for task in tqdm.tqdm(all_task_features, desc="SVCs"):
+    for task in all_task_features:
         (x_train, y_train), (x_test, y_test) = task.splits
 
         x_mean = x_train.mean(axis=0, keepdims=True)
@@ -121,7 +115,7 @@ def benchmark(
         .iter_rows()
     }
 
-    return interfaces.BenchmarkReport("NeWT", examples, splits, calc_mean_score)
+    return interfaces.TaskReport("NeWT", examples, splits, calc_mean_score)
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -176,9 +170,9 @@ def get_all_task_specific_features(
     args: Args, backbone: interfaces.VisionBackbone
 ) -> collections.abc.Iterator[Task]:
     labels_csv_name = "newt2021_labels.csv"
-    labels_csv_path = os.path.join(args.dataset_dir, labels_csv_name)
+    labels_csv_path = os.path.join(args.datadir, labels_csv_name)
     images_dir_name = "newt2021_images"
-    images_dir_path = os.path.join(args.dataset_dir, images_dir_name)
+    images_dir_path = os.path.join(args.datadir, images_dir_name)
 
     if not os.path.isfile(labels_csv_path):
         msg = f"Path '{labels_csv_path}' doesn't exist. Did you download the Newt dataset? See the docstring at the top of this file for instructions. If you did download it, pass the path with 'dataset-dir'; see --help for more."
@@ -196,19 +190,26 @@ def get_all_task_specific_features(
         num_workers=args.n_workers,
         drop_last=False,
         shuffle=False,
-        pin_memory=True,
+        pin_memory=False,
         persistent_workers=False,
     )
 
     all_features, all_ids = [], []
-    for ids, images in tqdm.tqdm(dataloader, desc="img feats."):
+
+    total = len(dataloader) if not args.debug else 2
+    it = iter(dataloader)
+    logger.debug("Need to embed %d batches of %d images.", total, args.batch_size)
+    for b in range(total):
+        ids, images = next(it)
         images = images.to(args.device)
 
         with torch.amp.autocast("cuda"):
             features = backbone.img_encode(images).img_features
             features = torch.nn.functional.normalize(features, dim=-1)
             all_features.append(features.cpu())
-            all_ids.extend(ids)
+
+        all_ids.extend(ids)
+        logger.debug("Embedded batch %d", b)
 
     all_features = torch.cat(all_features, dim=0).cpu()
     all_ids = np.array(all_ids)

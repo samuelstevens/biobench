@@ -27,32 +27,24 @@ import beartype
 import numpy as np
 import sklearn.neighbors
 import torch
-import tqdm
 from jaxtyping import Float, Int, jaxtyped
 from PIL import Image
 from torch import Tensor
 
-from biobench import interfaces
+from biobench import interfaces, registry
 
 logger = logging.getLogger("kabr")
 
 
 @beartype.beartype
-@dataclasses.dataclass
-class Args:
-    seed: int = 42
-    """random seed."""
-
-    dataset_dir: str = ""
-    """dataset directory; where you downloaded KABR to."""
+@dataclasses.dataclass(frozen=True)
+class Args(interfaces.TaskArgs):
     batch_size: int = 16
     """batch size for deep model. Note that this is multiplied by 16 (number of frames)"""
     n_workers: int = 4
     """number of dataloader worker processes."""
     frame_agg: typing.Literal["mean", "max"] = "mean"
     """how to aggregate features across time dimension."""
-    device: typing.Literal["cpu", "cuda"] = "cuda"
-    """which device to use."""
 
 
 @beartype.beartype
@@ -92,7 +84,6 @@ class Dataset(torch.utils.data.Dataset):
 
         if not os.path.exists(self.path) or not os.path.isdir(self.path):
             msg = f"Path '{self.path}' doesn't exist. Did you download the KABR dataset? See the docstring at the top of this file for instructions. If you did download it, pass the path as --dataset-dir PATH"
-            logger.critical(msg)
             raise RuntimeError(msg)
 
         with open(os.path.join(self.path, "annotation", f"{split}.csv")) as fd:
@@ -170,7 +161,12 @@ def get_features(
     """
     backbone = torch.compile(backbone)
     all_features, all_labels = [], []
-    for frames, labels in tqdm.tqdm(dataloader, desc="img feats."):
+
+    total = len(dataloader) if not args.debug else 2
+    it = iter(dataloader)
+    logger.debug("Need to embed %d batches of %d images.", total, args.batch_size * 16)
+    for b in range(total):
+        frames, labels = next(it)
         frames = torch.stack(frames, dim=0)
         labels = torch.stack(labels, dim=0)
         frames = frames.to(args.device)
@@ -184,6 +180,8 @@ def get_features(
             features = torch.nn.functional.normalize(features, dim=-1)
             all_features.append(features.cpu())
             all_labels.append(labels.cpu())
+
+        logger.debug("Embedded batch %d/%d", b + 1, total)
 
     all_features = torch.cat(all_features, dim=1).cpu()
     all_labels = torch.cat(all_labels, dim=1).cpu()
@@ -269,14 +267,16 @@ def simpleshot(
 
 @beartype.beartype
 def benchmark(
-    backbone: interfaces.VisionBackbone, args: Args
-) -> interfaces.BenchmarkReport:
+    model_args: tuple[str, str], args: Args
+) -> tuple[tuple[str, str], interfaces.TaskReport]:
+    # 1. Load model
+    backbone = registry.load_vision_backbone(*model_args)
     img_transform = backbone.make_img_transform()
     backbone = backbone.to(args.device)
 
     # 2. Load data.
-    train_dataset = Dataset(args.dataset_dir, "train", transform=img_transform)
-    val_dataset = Dataset(args.dataset_dir, "val", transform=img_transform)
+    train_dataset = Dataset(args.datadir, "train", transform=img_transform)
+    val_dataset = Dataset(args.datadir, "val", transform=img_transform)
 
     train_dataloader = torch.utils.data.DataLoader(
         train_dataset,
@@ -311,7 +311,7 @@ def benchmark(
     ]
     # TODO: include example-specific info (class? something else)
     # TODO: include split-level scores.
-    return interfaces.BenchmarkReport("KABR", examples, {}, calc_mean_score)
+    return model_args, interfaces.TaskReport("KABR", examples, {}, calc_mean_score)
 
 
 def calc_mean_score(examples: list[interfaces.Example]) -> float:

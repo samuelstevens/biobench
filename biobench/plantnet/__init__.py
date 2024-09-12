@@ -11,12 +11,11 @@ import sklearn.model_selection
 import sklearn.pipeline
 import sklearn.preprocessing
 import torch
-import tqdm
 from jaxtyping import Float, Int, Shaped, jaxtyped
 from PIL import Image
 from torch import Tensor
 
-from biobench import interfaces
+from biobench import interfaces, registry
 
 logger = logging.getLogger("plantnet")
 
@@ -25,15 +24,11 @@ n_classes = 1081
 
 @beartype.beartype
 @dataclasses.dataclass(frozen=True)
-class Args:
-    dataset_dir: str = ""
-    """dataset directory; where you downloaded Pl@ntNet to. It should contain plantnet300K_metadata.json and images/"""
+class Args(interfaces.TaskArgs):
     batch_size: int = 256
     """batch size for deep model."""
     n_workers: int = 4
     """number of dataloader worker processes."""
-    device: typing.Literal["cpu", "cuda"] = "cuda"
-    """(computed at runtime) which kind of accelerator to use."""
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -45,15 +40,38 @@ class Features:
 
 
 @beartype.beartype
+class MeanScoreCalculator:
+    """
+    Macro top-1 accuracy.
+    """
+
+    def __call__(self, examples: list[interfaces.Example]) -> float:
+        cls_examples = {}
+        for example in examples:
+            true_cls = example.info["y_true"]
+            if true_cls not in cls_examples:
+                cls_examples[true_cls] = []
+
+            cls_examples[true_cls].append(example)
+
+        cls_accs = []
+        for examples in cls_examples.values():
+            cls_accs.append(np.mean([example.score for example in examples]))
+        return np.mean(cls_accs).item()
+
+
+@beartype.beartype
 def benchmark(
-    backbone: interfaces.VisionBackbone, args: Args
-) -> interfaces.BenchmarkReport:
+    model_args: tuple[str, str], args: Args
+) -> tuple[tuple[str, str], interfaces.TaskReport]:
     """
     Steps:
     1. Get features for all images.
     2. Select lambda using validation data.
     3. Report score on test data.
     """
+    backbone = registry.load_vision_backbone(*model_args)
+
     # 1. Get features
     val_features = get_features(args, backbone, split="val")
     train_features = get_features(args, backbone, split="train")
@@ -78,25 +96,7 @@ def benchmark(
         "micro-acc@1": (pred_labels == true_labels).mean().item(),
     }
 
-    return interfaces.BenchmarkReport("Pl@ntNet", examples, splits, calc_mean_score)
-
-
-def calc_mean_score(examples: list[interfaces.Example]) -> float:
-    """
-    Macro top-1 accuracy.
-    """
-    cls_examples = {}
-    for example in examples:
-        true_cls = example.info["y_true"]
-        if true_cls not in cls_examples:
-            cls_examples[true_cls] = []
-
-        cls_examples[true_cls].append(example)
-
-    cls_accs = []
-    for examples in cls_examples.values():
-        cls_accs.append(np.mean([example.score for example in examples]))
-    return np.mean(cls_accs).item()
+    return Report("Pl@ntNet", examples, splits)
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -109,6 +109,10 @@ class Dataset(torch.utils.data.Dataset):
     def __init__(self, root: str, transform):
         self.transform = transform
         self.samples = []
+        if not os.path.exists(root) or not os.path.isdir(root):
+            msg = f"Path '{root}' doesn't exist. Did you download the Pl@ntNet dataset? See the docstring at the top of this file for instructions. If you did download it, pass the path as --dataset-dir PATH"
+            raise RuntimeError(msg)
+
         for dirpath, dirnames, filenames in os.walk(root):
             image_class = os.path.relpath(dirpath, root)
             for filename in filenames:
@@ -132,7 +136,7 @@ class Dataset(torch.utils.data.Dataset):
 def get_features(
     args: Args, backbone: interfaces.VisionBackbone, *, split: str
 ) -> Features:
-    images_dir_path = os.path.join(args.dataset_dir, "images", split)
+    images_dir_path = os.path.join(args.datadir, "images", split)
 
     img_transform = backbone.make_img_transform()
     backbone = torch.compile(backbone.to(args.device))
@@ -144,11 +148,16 @@ def get_features(
         num_workers=args.n_workers,
         drop_last=False,
         shuffle=False,
-        pin_memory=True,
+        pin_memory=False,
         persistent_workers=False,
     )
     all_ids, all_features, all_labels = [], [], []
-    for ids, images, labels in tqdm.tqdm(dataloader, desc=f"{split} features"):
+
+    total = len(dataloader) if not args.debug else 2
+    it = iter(dataloader)
+    logger.debug("Need to embed %d batches of %d images.", total, args.batch_size)
+    for b in range(total):
+        ids, images, labels = next(it)
         images = images.to(args.device)
 
         with torch.amp.autocast("cuda"):
@@ -157,6 +166,7 @@ def get_features(
 
         all_ids.extend(ids)
         all_labels.extend(labels)
+        logger.debug("Embedded batch %d", b)
 
     # Convert labels to one single np.ndarray
     all_features = torch.cat(all_features, axis=0).cpu().numpy()
