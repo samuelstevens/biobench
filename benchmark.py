@@ -15,13 +15,15 @@ import time
 import typing
 
 import beartype
+import matplotlib.pyplot as plt
+import numpy as np
 import torch
 import tyro
 
 from biobench import ModelOrg, interfaces, iwildcam, kabr, newt, plantnet
 
 log_format = "[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s"
-logging.basicConfig(level=logging.INFO, format=log_format)
+logging.basicConfig(level=logging.DEBUG, format=log_format)
 logger = logging.getLogger("biobench")
 
 
@@ -66,12 +68,14 @@ class Args:
     """whether to run the iWildCam benchmark."""
     iwildcam_args: iwildcam.Args = dataclasses.field(default_factory=iwildcam.Args)
     """arguments for the iWildCam benchmark."""
-    # Saving
+
+    # Reporting and graphing.
     report_to: str = os.path.join(".", "reports")
     """where to save reports to."""
-
     graph: bool = True
     """whether to make a graph."""
+    graph_to: str = os.path.join(".", "graphs")
+    """where to save graphs to."""
 
     def to_dict(self) -> dict[str, object]:
         return dataclasses.asdict(self)
@@ -186,9 +190,51 @@ def main(args: Args):
 
     if args.graph:
         # For each combination of model/task, get the most recent version from the database. Then make a graph and save it to disk.
-        pass
+        conn = sqlite3.connect(os.path.join(args.report_to, "reports.sqlite"))
+        for task in ("KABR", "NeWT", "Pl@ntNet", "iWildCam"):
+            fig = plot_task(conn, task)
+            if fig is None:
+                continue
+            os.makedirs(args.graph_to, exist_ok=True)
+            path = os.path.join(args.graph_to, f"{task}.png")
+            fig.savefig(path)
+            logger.info("Saved fig for %s to %s.", task, path)
 
     logger.info("Finished.")
+
+
+@beartype.beartype
+def plot_task(conn: sqlite3.Connection, task: str) -> plt.Figure | None:
+    """
+    Plots the most recent result for each model on given task, including confidence intervals.
+    Returns the figure so the caller can save or display it.
+    """
+    orig_row_factory = conn.row_factory
+
+    conn.row_factory = sqlite3.Row
+    fig, ax = plt.subplots()
+    stmt = "SELECT model_ckpt, task_name, mean_score, confidence_lower, confidence_upper, MAX(posix) FROM reports WHERE task_name = (?) GROUP BY model_ckpt, task_name ORDER BY model_ckpt ASC;"
+    data = conn.execute(stmt, (task,)).fetchall()
+
+    conn.row_factory = orig_row_factory
+
+    if not data:
+        return
+
+    xs = [row["model_ckpt"] for row in data]
+    ys = [row["mean_score"] for row in data]
+
+    yerr = np.array([ys, ys])
+    yerr[0] = np.max(yerr[0] - [row["confidence_lower"] for row in data], 0)
+    yerr[1] = [row["confidence_upper"] for row in data] - yerr[1]
+
+    ax.errorbar(xs, ys, yerr, fmt="o", linewidth=2, capsize=6)
+    ax.set_title(f"Mean {task} Performance")
+    ax.tick_params(axis="x", labelrotation=20)
+
+    fig.tight_layout()
+
+    return fig
 
 
 if __name__ == "__main__":
