@@ -33,7 +33,9 @@ It requires only that we have a $N$-dimensional vector of scores, where $N$ is t
 
 Sub-modules
 -----------
+* biobench.beluga
 * biobench.interfaces
+* biobench.iwildcam
 * biobench.kabr
 * biobench.models
 * biobench.newt

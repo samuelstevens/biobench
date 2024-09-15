@@ -28,7 +28,10 @@ Functions
 `batched_idx(total_size: int, batch_size: int) ‑> collections.abc.Iterator[tuple[int, int]]`
 :   
 
-`benchmark(backbone: biobench.interfaces.VisionBackbone, args: biobench.kabr.Args) ‑> biobench.interfaces.BenchmarkReport`
+`benchmark(args: biobench.kabr.Args, model_args: tuple[str, str]) ‑> tuple[tuple[str, str], biobench.interfaces.TaskReport]`
+:   
+
+`calc_mean_score(examples: list[biobench.interfaces.Example]) ‑> float`
 :   
 
 `get_features(args: biobench.kabr.Args, backbone: biobench.interfaces.VisionBackbone, dataloader) ‑> tuple[jaxtyping.Float[Tensor, 'n_frames n_examples dim'], jaxtyping.Int[Tensor, 'n_frames n_examples']]`
@@ -45,28 +48,23 @@ Functions
 Classes
 -------
 
-`Args(seed: int = 42, dataset_dir: str = '', batch_size: int = 16, n_workers: int = 4, frame_agg: Literal['mean', 'max'] = 'mean', device: Literal['cpu', 'cuda'] = 'cuda')`
-:   Args(seed: int = 42, dataset_dir: str = '', batch_size: int = 16, n_workers: int = 4, frame_agg: Literal['mean', 'max'] = 'mean', device: Literal['cpu', 'cuda'] = 'cuda')
+`Args(seed: int = 42, datadir: str = '', device: str = 'cuda', debug: bool = False, batch_size: int = 16, n_workers: int = 4, frame_agg: Literal['mean', 'max'] = 'mean')`
+:   Args(seed: int = 42, datadir: str = '', device: str = 'cuda', debug: bool = False, batch_size: int = 16, n_workers: int = 4, frame_agg: Literal['mean', 'max'] = 'mean')
+
+    ### Ancestors (in MRO)
+
+    * biobench.interfaces.TaskArgs
 
     ### Class variables
 
     `batch_size: int`
     :   batch size for deep model. Note that this is multiplied by 16 (number of frames)
 
-    `dataset_dir: str`
-    :   dataset directory; where you downloaded KABR to.
-
-    `device: Literal['cpu', 'cuda']`
-    :   which device to use.
-
     `frame_agg: Literal['mean', 'max']`
     :   how to aggregate features across time dimension.
 
     `n_workers: int`
     :   number of dataloader worker processes.
-
-    `seed: int`
-    :   random seed.
 
 `Dataset(path, split: str, transform=None, seed: int = 42)`
 :   Clips of at most 90 frames in Charades format with each frame stored as an image.

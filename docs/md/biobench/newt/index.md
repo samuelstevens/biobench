@@ -25,7 +25,7 @@ Sub-modules
 Functions
 ---------
 
-`benchmark(backbone: biobench.interfaces.VisionBackbone, args: biobench.newt.Args) ‑> biobench.interfaces.BenchmarkReport`
+`benchmark(args: biobench.newt.Args, model_args: tuple[str, str]) ‑> tuple[tuple[str, str], biobench.interfaces.TaskReport]`
 :   Steps:
     1. Get features for all images.
     2. Select subsets of the features for fitting with SVMs.
@@ -34,19 +34,17 @@ Functions
 Classes
 -------
 
-`Args(dataset_dir: str = '', batch_size: int = 256, n_workers: int = 4, device: Literal['cpu', 'cuda'] = 'cuda')`
-:   Args(dataset_dir: str = '', batch_size: int = 256, n_workers: int = 4, device: Literal['cpu', 'cuda'] = 'cuda')
+`Args(seed: int = 42, datadir: str = '', device: str = 'cuda', debug: bool = False, batch_size: int = 256, n_workers: int = 4)`
+:   Args(seed: int = 42, datadir: str = '', device: str = 'cuda', debug: bool = False, batch_size: int = 256, n_workers: int = 4)
+
+    ### Ancestors (in MRO)
+
+    * biobench.interfaces.TaskArgs
 
     ### Class variables
 
     `batch_size: int`
     :   batch size for deep model.
-
-    `dataset_dir: str`
-    :   dataset directory; where you downloaded NEWT to.
-
-    `device: Literal['cpu', 'cuda']`
-    :   (computed at runtime) which kind of accelerator to use.
 
     `n_workers: int`
     :   number of dataloader worker processes.

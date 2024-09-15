@@ -1,6 +1,12 @@
 Module biobench.third_party_models
 ==================================
 
+Functions
+---------
+
+`get_cache_dir() ‑> str`
+:   
+
 Classes
 -------
 

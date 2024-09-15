@@ -96,7 +96,25 @@ def benchmark(
         "micro-acc@1": (pred_labels == true_labels).mean().item(),
     }
 
-    return Report("Pl@ntNet", examples, splits)
+    return interfaces.TaskReport("Pl@ntNet", examples, splits, calc_mean_score)
+
+
+def calc_mean_score(examples: list[interfaces.Example]) -> float:
+    """
+    Macro top-1 accuracy.
+    """
+    cls_examples = {}
+    for example in examples:
+        true_cls = example.info["y_true"]
+        if true_cls not in cls_examples:
+            cls_examples[true_cls] = []
+
+        cls_examples[true_cls].append(example)
+
+    cls_accs = []
+    for examples in cls_examples.values():
+        cls_accs.append(np.mean([example.score for example in examples]))
+    return np.mean(cls_accs).item()
 
 
 @jaxtyped(typechecker=beartype.beartype)

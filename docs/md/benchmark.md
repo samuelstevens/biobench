@@ -71,22 +71,31 @@ Functions
 `main(args: benchmark.Args)`
 :   
 
-`save(args: benchmark.Args, report: biobench.interfaces.BenchmarkReport) ‑> None`
-:   Saves the report to disk in a machine-readable JSON format.
+`save(args: benchmark.Args, model_args: tuple[str, str], report: biobench.interfaces.TaskReport) ‑> None`
+:   Saves the report to disk in a machine-readable SQLite format.
 
 Classes
 -------
 
-`Args(jobs: Literal['slurm', 'host', 'none'] = 'none', model_org: Literal['timm-vit', 'open_clip'] = 'open_clip', model_ckpt: str = 'RN50/openai', device: Literal['cpu', 'cuda'] = 'cuda', newt_run: bool = True, newt_args: biobench.newt.Args = <factory>, kabr_run: bool = True, kabr_args: biobench.kabr.Args = <factory>, plantnet_run: bool = True, plantnet_args: biobench.plantnet.Args = <factory>, report_to: str = './reports')`
+`Args(slurm: bool = False, model_args: typing.Annotated[list[tuple[typing.Literal['timm-vit', 'open-clip'], str]], _ArgConfiguration(name='model', metavar=None, help=None, aliases=None, prefix_name=None, constructor_factory=None)] = <factory>, device: Literal['cpu', 'cuda'] = 'cuda', debug: bool = False, newt_run: bool = True, newt_args: biobench.newt.Args = <factory>, kabr_run: bool = True, kabr_args: biobench.kabr.Args = <factory>, plantnet_run: bool = True, plantnet_args: biobench.plantnet.Args = <factory>, iwildcam_run: bool = True, iwildcam_args: biobench.iwildcam.Args = <factory>, report_to: str = './reports', graph: bool = True)`
 :   Params to run one or more benchmarks in a parallel setting.
 
     ### Class variables
 
+    `debug: bool`
+    :   whether to run in debug mode.
+
     `device: Literal['cpu', 'cuda']`
     :   which kind of accelerator to use.
 
-    `jobs: Literal['slurm', 'host', 'none']`
-    :   what kind of jobs we should use for parallel processing: slurm cluster, multiple processes on the same machine, or just a single process.
+    `graph: bool`
+    :   whether to make a graph.
+
+    `iwildcam_args: biobench.iwildcam.Args`
+    :   arguments for the iWildCam benchmark.
+
+    `iwildcam_run: bool`
+    :   whether to run the iWildCam benchmark.
 
     `kabr_args: biobench.kabr.Args`
     :   arguments for the KABR benchmark.
@@ -94,11 +103,8 @@ Classes
     `kabr_run: bool`
     :   whether to run the KABR benchmark.
 
-    `model_ckpt: str`
-    :
-
-    `model_org: Literal['timm-vit', 'open_clip']`
-    :   Where to load models from.
+    `model_args: list[tuple[typing.Literal['timm-vit', 'open-clip'], str]]`
+    :   model; a pair of model org (interface) and checkpoint.
 
     `newt_args: biobench.newt.Args`
     :   arguments for the NeWT benchmark.
@@ -107,7 +113,7 @@ Classes
     :   whether to run the NeWT benchmark.
 
     `plantnet_args: biobench.plantnet.Args`
-    :   arguments for the plantnet benchmark.
+    :   arguments for the Pl@ntNet benchmark.
 
     `plantnet_run: bool`
     :   whether to run the Pl@ntNet benchmark.
@@ -115,9 +121,12 @@ Classes
     `report_to: str`
     :   where to save reports to.
 
+    `slurm: bool`
+    :   whether to use submitit to run jobs on a slurm cluster.
+
     ### Methods
 
-    `report_path(self, report: biobench.interfaces.BenchmarkReport) ‑> str`
+    `to_dict(self) ‑> dict[str, object]`
     :
 
 `DummyExecutor()`
