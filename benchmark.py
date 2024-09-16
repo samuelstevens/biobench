@@ -4,7 +4,9 @@ Entrypoint for running all benchmarks.
 .. include:: ./tutorial.md
 """
 
+import collections
 import concurrent.futures
+import csv
 import dataclasses
 import json
 import logging
@@ -23,7 +25,7 @@ import tyro
 from biobench import ModelOrg, interfaces, iwildcam, kabr, newt, plantnet
 
 log_format = "[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s"
-logging.basicConfig(level=logging.DEBUG, format=log_format)
+logging.basicConfig(level=logging.INFO, format=log_format)
 logger = logging.getLogger("biobench")
 
 
@@ -80,6 +82,9 @@ class Args:
     def to_dict(self) -> dict[str, object]:
         return dataclasses.asdict(self)
 
+    def get_sqlite_connection(self) -> sqlite3.Connection:
+        return sqlite3.connect(os.path.join(self.report_to, "reports.sqlite"))
+
 
 class DummyExecutor(concurrent.futures.Executor):
     """Dummy class to satisfy the Executor interface. Directly runs the function in the main process for easy debugging."""
@@ -106,7 +111,7 @@ def save(
     """
     Saves the report to disk in a machine-readable SQLite format.
     """
-    conn = sqlite3.connect(os.path.join(args.report_to, "reports.sqlite"))
+    conn = args.get_sqlite_connection()
     with open("schema.sql") as fd:
         schema = fd.read()
     conn.execute(schema)
@@ -132,6 +137,36 @@ def save(
     )
     for key, value in report.splits.items():
         logger.info("%s on %s; split '%s': %.3f", model_ckpt, report.name, key, value)
+
+
+@beartype.beartype
+def export_to_csv(args: Args) -> None:
+    """
+    Exports to a wide table format for viewing (long table formats are better for additional manipulation/graphing, but wide is easy for viewing).
+    """
+    conn = args.get_sqlite_connection()
+    stmt = "SELECT model_ckpt, task_name, mean_score, MAX(posix) AS posix FROM reports GROUP BY model_ckpt, task_name ORDER BY model_ckpt ASC;"
+    data = conn.execute(stmt, ()).fetchall()
+
+    tasks = set()
+    rows = collections.defaultdict(lambda: collections.defaultdict(float))
+    for model_ckpt, task_name, mean_score, _ in data:
+        rows[model_ckpt][task_name] = mean_score
+        tasks.add(task_name)
+
+    for model, scores in rows.items():
+        scores["mean"] = np.mean([scores[task] for task in tasks]).item()
+
+    path = os.path.join(args.report_to, "results.csv")
+    with open(path, "w") as fd:
+        writer = csv.writer(fd)
+        writer.writerow(["model", "mean"] + sorted(tasks))
+        for model in sorted(rows, key=lambda model: rows[model]["mean"], reverse=True):
+            scores = rows[model]
+            writer.writerow(
+                [model, scores["mean"]] + [scores[task] for task in sorted(tasks)]
+            )
+    logger.info("Wrote results to '%s'.", path)
 
 
 @beartype.beartype
@@ -188,9 +223,13 @@ def main(args: Args):
         logger.info("Shutting down job executor.")
         executor.shutdown(cancel_futures=True, wait=True)
 
+    # Export results to CSV file for committing to git.
+    export_to_csv(args)
+
     if args.graph:
         # For each combination of model/task, get the most recent version from the database. Then make a graph and save it to disk.
-        conn = sqlite3.connect(os.path.join(args.report_to, "reports.sqlite"))
+
+        conn = args.get_sqlite_connection()
         for task in ("KABR", "NeWT", "Pl@ntNet", "iWildCam"):
             fig = plot_task(conn, task)
             if fig is None:
