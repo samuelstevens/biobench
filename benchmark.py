@@ -4,13 +4,13 @@ Entrypoint for running all benchmarks.
 .. include:: ./tutorial.md
 """
 
-import collections
 import concurrent.futures
 import csv
 import dataclasses
 import json
 import logging
 import os
+import collections
 import resource
 import sqlite3
 import time

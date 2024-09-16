@@ -18,26 +18,19 @@ It aims to make it easy to:
 
 [^web-deps]: Web dependencies include things like datasets being available from their original source, Huggingface datasets can be re-downloaded, model checkpoints do not change, etc.
 
-
-# TODO
+# To Do
 
 ## Concrete Steps
 
 - Easy: currently easy to run. I need examples of how to run the script in different contexts, with different goals in mind.
-- Fast: With unlimited resources, I can still run the entire benchmark serially in under 1 hour on an A6000. As I add more tasks, I will need to make it more parallel.
-- Reproducible: not at all. Right now, results are simply printed to the console with a benchmark name and the score. These results need to be logged to a file that includes instructions on how to re-acquire the results.
-- Understandable: results are not in a machine-readable format.
+- Fast: I can still run the entire benchmark serially in under 1 hour on an A6000. As I add more tasks, I will need to make it more parallel. It's possible to run the entire benchmark for one model in under 1 hour on an A6000. However, it's not possible to run it for all four default models. I need to implement `submitit` on OSC.
+- Reproducible: Very. However, I need to add instructions on how to reproduce.
+- Understandable: results are in a machine-readable format (sqlite database), and produce graphs and a `results.csv` file for quick human viewing. But it would be nice to have a mistake viewer for each task in `notebooks/`.
 
-I think my current TODO is making results available in a machine-readable format with instructions on how to reproduce.
-This way, I can start to fill in the huge table of MODELS x TASKS to identify trends.
-After that, I will continue adding tasks from FGCV11 until it takes more than an hour to run a ViT-B-16 on a single A6000.
-Then, I can add parallelization.
+## Long-Term
 
-## Additional Tasks
-
-- Add TreeDetector
 - Add Beluga whale re-id
-- Look at FGCV 11 tasks (classification)
-- Think about segmentation/object detection tasks
-- Provide evidence that most vision tasks are accomplished with $f(img) -> \RR^d$ as an initial step.- Predict trait/no trait in CUB images---use patch-level features + linear classifier for each possible trait
+- Add TreeDetector (think about segmentation/object detection tasks)
+- Provide evidence that most vision tasks are accomplished with $f(img) -> \mathcal{R}^d$ as an initial step.
+- Predict trait/no trait in CUB images---use patch-level features + linear classifier for each possible trait
 
