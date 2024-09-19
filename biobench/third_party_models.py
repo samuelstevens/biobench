@@ -14,8 +14,8 @@ def get_cache_dir() -> str:
     return cache_dir or "."
 
 
+@jaxtyped(typechecker=beartype.beartype)
 class OpenClip(interfaces.VisionBackbone):
-    @jaxtyped(typechecker=beartype.beartype)
     def __init__(self, ckpt: str, **kwargs):
         super().__init__()
         import open_clip
@@ -34,7 +34,6 @@ class OpenClip(interfaces.VisionBackbone):
     def make_img_transform(self):
         return self.img_transform
 
-    @jaxtyped(typechecker=beartype.beartype)
     def img_encode(
         self, batch: Float[Tensor, "batch 3 width height"]
     ) -> interfaces.EncodedImgBatch:

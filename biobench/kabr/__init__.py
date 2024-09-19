@@ -16,7 +16,6 @@ To download the data, you need to use the dataset download script:
 2. Run `python download.py`. It doesn't have any requirements beyond the Python standard library.
 """
 
-import collections.abc
 import csv
 import dataclasses
 import logging
@@ -25,13 +24,12 @@ import typing
 
 import beartype
 import numpy as np
-import sklearn.neighbors
 import torch
 from jaxtyping import Float, Int, jaxtyped
 from PIL import Image
 from torch import Tensor
 
-from biobench import interfaces, registry
+from biobench import interfaces, registry, simpleshot
 
 logger = logging.getLogger("kabr")
 
@@ -177,7 +175,6 @@ def get_features(
             frames = frames.view(bsz * n_frames, c, h, w)
             outputs = backbone.img_encode(frames)
             features = outputs.img_features.view(n_frames, bsz, -1)
-            features = torch.nn.functional.normalize(features, dim=-1)
             all_features.append(features.cpu())
             all_labels.append(labels.cpu())
 
@@ -206,63 +203,6 @@ def aggregate_frames(
         return torch.max(features, dim=0).values
     else:
         typing.assert_never(args.frame_agg)
-
-
-@jaxtyped(typechecker=beartype.beartype)
-def l2_normalize(
-    features: Float[Tensor, "n_examples dim"],
-) -> Float[Tensor, "n_examples dim"]:
-    norms = np.linalg.norm(features, ord=2, axis=1, keepdims=True)
-    return features / norms
-
-
-@beartype.beartype
-def batched_idx(
-    total_size: int, batch_size: int
-) -> collections.abc.Iterator[tuple[int, int]]:
-    for start in range(0, total_size, batch_size):
-        stop = min(start + batch_size, total_size)
-        yield start, stop
-
-
-@jaxtyped(typechecker=beartype.beartype)
-def simpleshot(
-    args: Args,
-    x_train: Float[Tensor, "n_train dim"],
-    y_train: Int[Tensor, " n_train"],
-    x_test: Float[Tensor, "n_test dim"],
-    y_test: Int[Tensor, " n_test"],
-) -> Float[Tensor, " n_test"]:
-    """
-    Applies simpleshot to the video clips. We assign each clip the majority label. Return the list of scores for x_test.
-    """
-    x_mean = x_train.mean(axis=0, keepdims=True)
-
-    x_train = x_train - x_mean
-    x_train = l2_normalize(x_train)
-
-    x_test = x_test - x_mean
-    x_test = l2_normalize(x_test)
-
-    clf = sklearn.neighbors.NearestCentroid()
-    clf.fit(x_train, y_train)
-
-    # Do this next step on the GPU to make it fast.
-    # Goes from 1 batch/sec to 77 batch/sec
-    centroids = torch.from_numpy(clf.centroids_).to(args.device)
-    x_test = x_test.to(args.device)
-    y_test = y_test.to(args.device)
-
-    scores = []
-    for start, stop in batched_idx(len(x_test), args.batch_size):
-        x_batch = x_test[start:stop]
-        y_batch = y_test[start:stop]
-        distances = torch.linalg.vector_norm(x_batch[:, None] - centroids, axis=2)
-        preds = torch.argmin(distances, dim=1)
-
-        scores.append((preds == y_batch).type(torch.float32))
-
-    return torch.cat(scores, axis=0)
 
 
 @beartype.beartype
@@ -301,7 +241,9 @@ def benchmark(
     train_labels = aggregate_labels(args, train_labels)
 
     # 4. Do simpleshot.
-    scores = simpleshot(args, train_features, train_labels, val_features, val_labels)
+    scores = simpleshot.simpleshot(
+        args, train_features, train_labels, val_features, val_labels
+    )
 
     # Return benchmark report.
     video_ids = [video.video_id for video in val_dataset.videos]

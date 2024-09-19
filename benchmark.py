@@ -4,13 +4,13 @@ Entrypoint for running all benchmarks.
 .. include:: ./tutorial.md
 """
 
+import collections
 import concurrent.futures
 import csv
 import dataclasses
 import json
 import logging
 import os
-import collections
 import resource
 import sqlite3
 import time
@@ -22,7 +22,7 @@ import numpy as np
 import torch
 import tyro
 
-from biobench import ModelOrg, interfaces, iwildcam, kabr, newt, plantnet
+from biobench import ModelOrg, birds525, interfaces, iwildcam, kabr, newt, plantnet
 
 log_format = "[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s"
 logging.basicConfig(level=logging.INFO, format=log_format)
@@ -43,7 +43,9 @@ class Args:
         default_factory=lambda: [
             ("open-clip", "RN50/openai"),
             ("open-clip", "ViT-B-16/openai"),
+            ("open-clip", "ViT-B-16/laion400m_e32"),
             ("open-clip", "hf-hub:imageomics/bioclip"),
+            ("open-clip", "ViT-B-16-SigLIP/webli"),
             ("timm-vit", "vit_base_patch14_reg4_dinov2.lvd142m"),
         ]
     )
@@ -70,6 +72,10 @@ class Args:
     """whether to run the iWildCam benchmark."""
     iwildcam_args: iwildcam.Args = dataclasses.field(default_factory=iwildcam.Args)
     """arguments for the iWildCam benchmark."""
+    birds525_run: bool = True
+    """whether to run the Birds 525 benchmark."""
+    birds525_args: birds525.Args = dataclasses.field(default_factory=birds525.Args)
+    """arguments for the Birds 525 benchmark."""
 
     # Reporting and graphing.
     report_to: str = os.path.join(".", "reports")
@@ -205,6 +211,12 @@ def main(args: Args):
                 )
                 job = executor.submit(iwildcam.benchmark, iwildcam_args, model_args)
                 jobs.append(job)
+            if args.birds525_run:
+                birds525_args = dataclasses.replace(
+                    args.birds525_args, device=args.device, debug=args.debug
+                )
+                job = executor.submit(birds525.benchmark, birds525_args, model_args)
+                jobs.append(job)
 
         logger.info("Submitted %d jobs.", len(jobs))
 
@@ -214,6 +226,7 @@ def main(args: Args):
             err = future.exception()
             if err:
                 logger.warning("Error running job: %s: %s", err, err.__cause__)
+                raise err
                 continue
 
             model_args, report = future.result()
@@ -230,7 +243,7 @@ def main(args: Args):
         # For each combination of model/task, get the most recent version from the database. Then make a graph and save it to disk.
 
         conn = args.get_sqlite_connection()
-        for task in ("KABR", "NeWT", "Pl@ntNet", "iWildCam"):
+        for task in ("KABR", "NeWT", "Pl@ntNet", "iWildCam", "Birds525"):
             fig = plot_task(conn, task)
             if fig is None:
                 continue
@@ -264,8 +277,8 @@ def plot_task(conn: sqlite3.Connection, task: str) -> plt.Figure | None:
     ys = [row["mean_score"] for row in data]
 
     yerr = np.array([ys, ys])
-    yerr[0] = np.max(yerr[0] - [row["confidence_lower"] for row in data], 0)
-    yerr[1] = [row["confidence_upper"] for row in data] - yerr[1]
+    yerr[0] = np.maximum(yerr[0] - [row["confidence_lower"] for row in data], 0)
+    yerr[1] = np.maximum([row["confidence_upper"] for row in data] - yerr[1], 0)
 
     ax.errorbar(xs, ys, yerr, fmt="o", linewidth=2, capsize=6)
     ax.set_title(f"Mean {task} Performance")

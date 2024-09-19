@@ -20,6 +20,10 @@ It aims to make it easy to:
 
 # To Do
 
+1. Add RareSpecies with 1-shot and 5-shot variants
+2. Host docs on github pages somehow.
+3. Make presentation explaining this work to ml-foundations group.
+
 ## Concrete Steps
 
 - Easy: currently easy to run. I need examples of how to run the script in different contexts, with different goals in mind.

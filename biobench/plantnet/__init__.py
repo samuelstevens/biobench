@@ -29,6 +29,8 @@ class Args(interfaces.TaskArgs):
     """batch size for deep model."""
     n_workers: int = 4
     """number of dataloader worker processes."""
+    log_every: int = 10
+    """how often (number of batches) to log progress."""
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -95,8 +97,8 @@ def benchmark(
     splits = {
         "micro-acc@1": (pred_labels == true_labels).mean().item(),
     }
-
-    return interfaces.TaskReport("Pl@ntNet", examples, splits, calc_mean_score)
+    report = interfaces.TaskReport("Pl@ntNet", examples, splits, calc_mean_score)
+    return model_args, report
 
 
 def calc_mean_score(examples: list[interfaces.Example]) -> float:
@@ -173,7 +175,7 @@ def get_features(
 
     total = len(dataloader) if not args.debug else 2
     it = iter(dataloader)
-    logger.debug("Need to embed %d batches of %d images.", total, args.batch_size)
+    logger.info("Need to embed %d batches of %d images.", total, args.batch_size)
     for b in range(total):
         ids, images, labels = next(it)
         images = images.to(args.device)
@@ -184,7 +186,8 @@ def get_features(
 
         all_ids.extend(ids)
         all_labels.extend(labels)
-        logger.debug("Embedded batch %d", b)
+        if (b + 1) % args.log_every == 0:
+            logger.info("%d/%d", b + 1, total)
 
     # Convert labels to one single np.ndarray
     all_features = torch.cat(all_features, axis=0).cpu().numpy()
@@ -212,6 +215,8 @@ def get_features(
     assert (all_onehots == 1).sum() == n_examples
     all_onehots = all_onehots.numpy()
 
+    logger.info("Got features for %d images.", n_examples)
+
     return Features(all_features, all_onehots, all_ids)
 
 
@@ -222,6 +227,6 @@ def init_ridge():
             sklearn.linear_model.Ridge(1.0),
         ),
         {"ridge__alpha": np.pow(2.0, np.arange(-20, 11))},
-        n_jobs=-1,
+        n_jobs=16,
         verbose=2,
     )

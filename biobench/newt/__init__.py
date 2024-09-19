@@ -51,6 +51,8 @@ class Args(interfaces.TaskArgs):
     """batch size for deep model."""
     n_workers: int = 4
     """number of dataloader worker processes."""
+    log_every: int = 10
+    """how often (number of batches) to log progress."""
 
 
 @beartype.beartype
@@ -211,10 +213,13 @@ def get_all_task_specific_features(
             all_features.append(features.cpu())
 
         all_ids.extend(ids)
-        logger.debug("Embedded batch %d", b)
+        if (b + 1) % args.log_every == 0:
+            logger.info("%d/%d", b + 1, total)
 
     all_features = torch.cat(all_features, dim=0).cpu()
     all_ids = np.array(all_ids)
+    logger.info("Got features for %d images.", len(all_ids))
+
     for task in df.get_column("task").unique():
         task_df = df.filter(pl.col("task") == task)
 
@@ -249,7 +254,7 @@ def init_svc():
             "svc__gamma": scipy.stats.loguniform(a=1e-4, b=1e-3),
         },
         n_iter=100,
-        n_jobs=-1,
+        n_jobs=16,
         random_state=42,
     )
 
