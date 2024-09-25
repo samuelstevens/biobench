@@ -1,7 +1,7 @@
 """
 Species classification of 525 different bird species; this dataset is from [Kaggle](https://www.kaggle.com/datasets/gpiosenka/100-bird-species) (although it was down when I wrote this docstring, several weeks after downloading the data).
 
-We use simpleshot and mimic the setting in [BioCLIP](https://imageomics.github.io/bioclip/): we randomly select 5 examples from each class, then evaluate on the validation set.
+We use simpleshot and mimic the setting in [BioCLIP](https://imageomics.github.io/bioclip/): we randomly select 1 example from each class, then evaluate on the validation set.
 
 We are interested in understanding the variance associated with using different training examples.
 However, the `biobench.interfaces.TaskReport.get_confidence_interval` method only passes a list of scored test examples, not a set of new training examples.
@@ -48,7 +48,7 @@ def benchmark(
     args: Args, model_args: interfaces.ModelArgs
 ) -> tuple[interfaces.ModelArgs, interfaces.TaskReport]:
     """
-    Runs simpleshot `Args.n_repeats` times (default 100) with 5 training examples per class, then evaluates on the validation split.
+    Runs simpleshot `Args.n_repeats` times (default 100) with 1 training example per class, then evaluates on the validation split.
     """
 
     backbone = registry.load_vision_backbone(*model_args)

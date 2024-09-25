@@ -1,6 +1,11 @@
 """
 Entrypoint for running all benchmarks.
 
+Most of this script is self documenting.
+Run `python benchmark.py --help` to see all the options.
+
+.. include:: ./examples.md
+
 .. include:: ./tutorial.md
 """
 
