@@ -1,3 +1,20 @@
+"""
+Common interfaces for models and tasks so that it's easy to add new models (which will work right away with all tasks) and easy to add new tasks (which will work right away with all models).
+
+The model interface is `VisionBackbone`.
+See `biobench.third_party_models` for examples of how to subclass it, and note that you have to call `biobench.register_vision_backbone` for it to show up.
+
+The benchmark interface is informal, but is a function that matches the following signature:
+
+```py
+def benchmark(args: Args, model_args: tuple[str, str]) -> tuple[tuple[str, str], interfaces.TaskReport]:
+    ...
+```
+
+In a Haskell-like signature, this is more like `Args -> (str, str) -> ((str, str), TaskReport)`.
+
+"""
+
 import dataclasses
 import socket
 import subprocess

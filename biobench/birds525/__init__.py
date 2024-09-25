@@ -93,7 +93,7 @@ def benchmark(
 @jaxtyped(typechecker=beartype.beartype)
 class ChooseRandomCachedResult:
     """
-    We sort of cheat here. We run simpleshot n_repeats (100) times, then when we want to calculate the confidence intervals, we just choose the score of one of these simpleshot runs, regardless of what examples are passed.
+    We sort of cheat here. We run simpleshot `Args.n_repeats` (100) times, then when we want to calculate the confidence intervals, we just randomly choose the score of one of these simpleshot runs, regardless of what examples are passed.
     """
 
     def __init__(self, seed, scores: Float[np.ndarray, " n"]):
@@ -153,7 +153,7 @@ def get_features(
     """
     Get a block of features from a vision backbone for a split (either train or test).
 
-    Arguments:
+    Args:
         args: Birds525 arguments.
         backbone: visual backbone.
         is_train: whether you want training data or the test data.
@@ -210,7 +210,7 @@ def choose_k_per_class(labels: Int[Tensor, " n"], *, k: int) -> Int[Tensor, " n_
     """
     Returns indices for a label set that include at most `k` examples per class.
 
-    Arguments:
+    Args:
         labels: a list of integer labels for a set of data.
         k: the maximum number of examples per class.
 

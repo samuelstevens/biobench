@@ -1,6 +1,8 @@
 """
 Package for organizing all the code to run benchmarks.
 
+Submodules are either tasks (like `biobench.kabr`, `biobench.birds525`) or helpers for organizing code (like `biobench.registry`, `biobench.interfaces`).
+
 .. include:: ./confidence-intervals.md
 """
 

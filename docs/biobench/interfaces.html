@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
 <meta name="generator" content="pdoc3 0.11.1">
 <title>biobench.interfaces API documentation</title>
-<meta name="description" content="">
+<meta name="description" content="Common interfaces for models and tasks so that it&#39;s easy to add new models (which will work right away with all tasks) and easy to add new tasks …">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
@@ -27,6 +27,14 @@ hljs.highlightAll();
 <h1 class="title">Module <code>biobench.interfaces</code></h1>
 </header>
 <section id="section-intro">
+<p>Common interfaces for models and tasks so that it's easy to add new models (which will work right away with all tasks) and easy to add new tasks (which will work right away with all models).</p>
+<p>The model interface is <code><a title="biobench.interfaces.VisionBackbone" href="#biobench.interfaces.VisionBackbone">VisionBackbone</a></code>.
+See <code><a title="biobench.third_party_models" href="third_party_models.html">biobench.third_party_models</a></code> for examples of how to subclass it, and note that you have to call <code><a title="biobench.register_vision_backbone" href="index.html#biobench.register_vision_backbone">register_vision_backbone()</a></code> for it to show up.</p>
+<p>The benchmark interface is informal, but is a function that matches the following signature:</p>
+<pre><code class="language-py">def benchmark(args: Args, model_args: tuple[str, str]) -&gt; tuple[tuple[str, str], interfaces.TaskReport]:
+    ...
+</code></pre>
+<p>In a Haskell-like signature, this is more like <code>Args -&gt; (str, str) -&gt; ((str, str), TaskReport)</code>.</p>
 </section>
 <section>
 </section>
@@ -172,7 +180,7 @@ class TaskArgs:
 </dd>
 <dt id="biobench.interfaces.TaskReport"><code class="flex name class">
 <span>class <span class="ident">TaskReport</span></span>
-<span>(</span><span>name: str, examples: list[<a title="biobench.interfaces.Example" href="#biobench.interfaces.Example">Example</a>], calc_mean_score: Callable[[list[<a title="biobench.interfaces.Example" href="#biobench.interfaces.Example">Example</a>]], float], argv: list[str] = &lt;factory&gt;, commit: str = '978655c114d65b8d1e346c5a20058a00f1671f94', posix_time: float = &lt;factory&gt;, gpu_name: str = &lt;factory&gt;, hostname: str = &lt;factory&gt;)</span>
+<span>(</span><span>name: str, examples: list[<a title="biobench.interfaces.Example" href="#biobench.interfaces.Example">Example</a>], calc_mean_score: Callable[[list[<a title="biobench.interfaces.Example" href="#biobench.interfaces.Example">Example</a>]], float], argv: list[str] = &lt;factory&gt;, commit: str = 'ff6814af043cb7044cf97f2f6d1b66d67f0a7d45', posix_time: float = &lt;factory&gt;, gpu_name: str = &lt;factory&gt;, hostname: str = &lt;factory&gt;)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>The result of running a benchmark task.</p>

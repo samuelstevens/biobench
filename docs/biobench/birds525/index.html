@@ -60,9 +60,13 @@ This gives a pretty tight confidence interval because <code><a title="biobench.i
 </code></dt>
 <dd>
 <div class="desc"><p>Returns indices for a label set that include at most <code>k</code> examples per class.</p>
-<h2 id="arguments">Arguments</h2>
-<p>labels: a list of integer labels for a set of data.
-k: the maximum number of examples per class.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>labels</code></strong></dt>
+<dd>a list of integer labels for a set of data.</dd>
+<dt><strong><code>k</code></strong></dt>
+<dd>the maximum number of examples per class.</dd>
+</dl>
 <h2 id="returns">Returns</h2>
 <p>indices for <code>labels</code> such that at most <code>k</code> examples per class are in the data.</p></div>
 </dd>
@@ -71,10 +75,15 @@ k: the maximum number of examples per class.</p>
 </code></dt>
 <dd>
 <div class="desc"><p>Get a block of features from a vision backbone for a split (either train or test).</p>
-<h2 id="arguments">Arguments</h2>
-<p>args: Birds525 arguments.
-backbone: visual backbone.
-is_train: whether you want training data or the test data.</p></div>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>args</code></strong></dt>
+<dd>Birds525 arguments.</dd>
+<dt><strong><code>backbone</code></strong></dt>
+<dd>visual backbone.</dd>
+<dt><strong><code>is_train</code></strong></dt>
+<dd>whether you want training data or the test data.</dd>
+</dl></div>
 </dd>
 </dl>
 </section>
@@ -147,7 +156,7 @@ class Args(interfaces.TaskArgs):
 <span>(</span><span>seed, scores: jaxtyping.Float[ndarray, 'n'])</span>
 </code></dt>
 <dd>
-<div class="desc"><p>We sort of cheat here. We run simpleshot n_repeats (100) times, then when we want to calculate the confidence intervals, we just choose the score of one of these simpleshot runs, regardless of what examples are passed.</p></div>
+<div class="desc"><p>We sort of cheat here. We run simpleshot <code><a title="biobench.birds525.Args.n_repeats" href="#biobench.birds525.Args.n_repeats">Args.n_repeats</a></code> (100) times, then when we want to calculate the confidence intervals, we just randomly choose the score of one of these simpleshot runs, regardless of what examples are passed.</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -155,7 +164,7 @@ class Args(interfaces.TaskArgs):
 <pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
 class ChooseRandomCachedResult:
     &#34;&#34;&#34;
-    We sort of cheat here. We run simpleshot n_repeats (100) times, then when we want to calculate the confidence intervals, we just choose the score of one of these simpleshot runs, regardless of what examples are passed.
+    We sort of cheat here. We run simpleshot `Args.n_repeats` (100) times, then when we want to calculate the confidence intervals, we just randomly choose the score of one of these simpleshot runs, regardless of what examples are passed.
     &#34;&#34;&#34;
 
     def __init__(self, seed, scores: Float[np.ndarray, &#34; n&#34;]):
