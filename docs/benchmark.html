@@ -28,48 +28,6 @@ hljs.highlightAll();
 </header>
 <section id="section-intro">
 <p>Entrypoint for running all benchmarks.</p>
-<h1 id="tutorial">Tutorial</h1>
-<p>This is a short tutorial on using <code><a title="biobench" href="biobench/index.html">biobench</a></code> to answer a simple research question.</p>
-<p><strong>Research question: Why does <a href="https://github.com/facebookresearch/dinov2">DINOv2</a> outperform <a href="https://imageomics.github.io/bioclip/">BioCLIP</a> on classification tasks?</strong></p>
-<p>To answer this question, we need to:</p>
-<ol>
-<li>Evaluate both models on all tasks in <code><a title="biobench" href="biobench/index.html">biobench</a></code> using the <code>benchmark.py</code> script.</li>
-<li>Compare mean scores across all classification tasks for both models.</li>
-<li>Look at specific examples that DINOv2 correctly classifies and BioCLIP incorrectly classifies.</li>
-</ol>
-<p>The <code><a title="biobench" href="biobench/index.html">biobench</a></code> package will completely do #1, #2, and makes it easy to do #3.</p>
-<h2 id="1-get-results">1. Get Results</h2>
-<p>First, run:</p>
-<pre><code class="language-sh">python benchmark.py \
-  --jobs none \
-  --kabr-args.dataset-dir /local/scratch/stevens.994/datasets/KABR/ \
-  --newt-args.dataset-dir /local/scratch/stevens.994/datasets/newt/ \
-  --model.ckpt hf-hub:imageomics/bioclip
-</code></pre>
-<p>In practice, you probably want some combination of the following:</p>
-<pre><code class="language-sh">CUDA_VISIBLE_DEVICES=1 uv run python benchmark.py \
-  --jobs none \
-  --kabr-args.dataset-dir /local/scratch/stevens.994/datasets/KABR/ \
-  --newt-args.dataset-dir /local/scratch/stevens.994/datasets/newt/ \
-  --model.ckpt hf-hub:imageomics/bioclip
-</code></pre>
-<p>Where you combine <code>CUDA_VISIBLE_DEVICES</code> and <code>uv run</code> (since we all use <code>uv</code> now) with the actual call to Python.</p>
-<p>Then we need to evaluate DINOv2.
-DINOv2 is suppported using the <code>TimmVit</code> integration in <code>third_party.py</code>.
-We're interested in the best ViT-B model, which is <code>vit_base_patch14_reg4_dinov2.lvd142m</code> (ViT-B/14 with 4 registers).</p>
-<pre><code class="language-sh">python benchmark.py \
-  --jobs none \
-  --kabr-args.dataset-dir /local/scratch/stevens.994/datasets/KABR/ \
-  --newt-args.dataset-dir /local/scratch/stevens.994/datasets/newt/ \
-  --model.org timm-vit --model.ckpt vit_base_patch14_reg4_dinov2.lvd142m
-</code></pre>
-<p>The same caveats apply as above; you might need to specify CUDA_VISIBLE_DEVICES.</p>
-<p>After running these scripts, you will have some results stored in <code>results/</code> that we can analyze with the starter notebooks.</p>
-<h2 id="2-view-results">2. View Results</h2>
-<p>These notebooks are in <code>notebooks/</code>.
-Open the notebook <code>notebooks/tutorial.py</code> using</p>
-<pre><code class="language-sh">marimo edit
-</code></pre>
 </section>
 <section>
 </section>
@@ -286,13 +244,7 @@ class Args:
 </article>
 <nav id="sidebar">
 <div class="toc">
-<ul>
-<li><a href="#tutorial">Tutorial</a><ul>
-<li><a href="#1-get-results">1. Get Results</a></li>
-<li><a href="#2-view-results">2. View Results</a></li>
-</ul>
-</li>
-</ul>
+<ul></ul>
 </div>
 <ul id="index">
 <li><h3><a href="#header-functions">Functions</a></h3>
