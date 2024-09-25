@@ -39,13 +39,22 @@ hljs.highlightAll();
 <span>def <span class="ident">batched_idx</span></span>(<span>total_size: int, batch_size: int) ‑> collections.abc.Iterator[tuple[int, int]]</span>
 </code></dt>
 <dd>
-<div class="desc"></div>
+<div class="desc"><p>Iterate over (start, end) indices for total_size examples, where end - start is at most batch_size.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>total_size</code></strong></dt>
+<dd>total number of examples</dd>
+<dt><strong><code>batch_size</code></strong></dt>
+<dd>maximum distance between the generated indices.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>A generator of (int, int) tuples that can slice up a list or a tensor.</p></div>
 </dd>
 <dt id="biobench.simpleshot.l2_normalize"><code class="name flex">
 <span>def <span class="ident">l2_normalize</span></span>(<span>features: jaxtyping.Float[Tensor, 'n_examples dim']) ‑> jaxtyping.Float[Tensor, 'n_examples dim']</span>
 </code></dt>
 <dd>
-<div class="desc"></div>
+<div class="desc"><p>L2-normalize a batch of features.</p></div>
 </dd>
 <dt id="biobench.simpleshot.simpleshot"><code class="name flex">
 <span>def <span class="ident">simpleshot</span></span>(<span>x_train: jaxtyping.Float[Tensor, 'n_train dim'], y_train: jaxtyping.Int[Tensor, 'n_train'], x_test: jaxtyping.Float[Tensor, 'n_test dim'], y_test: jaxtyping.Int[Tensor, 'n_test'], batch_size: int, device: str) ‑> jaxtyping.Float[Tensor, 'n_test']</span>

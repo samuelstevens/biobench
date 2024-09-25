@@ -1,12 +1,13 @@
 """
-Entrypoint for running all benchmarks.
+Entrypoint for running all tasks in `biobench`.
 
 Most of this script is self documenting.
 Run `python benchmark.py --help` to see all the options.
 
-.. include:: ./examples.md
+Note that you will have to download all the datasets, but each dataset includes its own download script with instructions.
+For example, see `biobench.newt.download` for an example.
 
-.. include:: ./tutorial.md
+.. include:: ./examples.md
 """
 
 import collections
@@ -101,7 +102,7 @@ class Args:
     report_to: str = os.path.join(".", "reports")
     """where to save reports to."""
     graph: bool = True
-    """whether to make a graph."""
+    """whether to make graphs."""
     graph_to: str = os.path.join(".", "graphs")
     """where to save graphs to."""
 
@@ -109,6 +110,10 @@ class Args:
         return dataclasses.asdict(self)
 
     def get_sqlite_connection(self) -> sqlite3.Connection:
+        """Get a connection to the reports database.
+        Returns:
+            a connection to a sqlite3 database.
+        """
         return sqlite3.connect(os.path.join(self.report_to, "reports.sqlite"))
 
 
@@ -118,6 +123,11 @@ def save(
 ) -> None:
     """
     Saves the report to disk in a machine-readable SQLite format.
+
+    Args:
+        args: launch script arguments.
+        model_args: a pair of model_org, model_ckpt strings.
+        report: the task report from the model_args.
     """
     conn = args.get_sqlite_connection()
     with open("schema.sql") as fd:
@@ -148,7 +158,7 @@ def save(
 @beartype.beartype
 def export_to_csv(args: Args) -> None:
     """
-    Exports to a wide table format for viewing (long table formats are better for additional manipulation/graphing, but wide is easy for viewing).
+    Exports (and writes) to a wide table format for viewing (long table formats are better for additional manipulation/graphing, but wide is easy for viewing).
     """
     conn = args.get_sqlite_connection()
     stmt = "SELECT model_ckpt, task_name, mean_score, MAX(posix) AS posix FROM reports GROUP BY model_ckpt, task_name ORDER BY model_ckpt ASC;"
@@ -177,6 +187,10 @@ def export_to_csv(args: Args) -> None:
 
 @beartype.beartype
 def main(args: Args):
+    """
+    Launch all jobs, using either a local GPU or a Slurm cluster.
+    Then report results and save to disk.
+    """
     # 1. Setup executor.
     if args.slurm:
         raise NotImplementedError("submitit not implemented.")

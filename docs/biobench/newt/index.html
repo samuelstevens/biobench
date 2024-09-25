@@ -58,10 +58,34 @@ We aggregate scores across all 164 tasks.</p>
 <span>def <span class="ident">benchmark</span></span>(<span>args: <a title="biobench.newt.Args" href="#biobench.newt.Args">Args</a>, model_args: tuple[str, str]) ‑> tuple[tuple[str, str], <a title="biobench.interfaces.TaskReport" href="../interfaces.html#biobench.interfaces.TaskReport">TaskReport</a>]</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Steps:
-1. Get features for all images.
-2. Select subsets of the features for fitting with SVMs.
-3. Evaluate SVMs and report.</p></div>
+<div class="desc"><p>The NeWT benchmark.
+First, get features for all images.
+Second, select the subsets of features that correspond to different tasks and train an SVM.
+Third, evaluate the SVM and report results.</p></div>
+</dd>
+<dt id="biobench.newt.calc_mean_score"><code class="name flex">
+<span>def <span class="ident">calc_mean_score</span></span>(<span>examples: list[<a title="biobench.interfaces.Example" href="../interfaces.html#biobench.interfaces.Example">Example</a>]) ‑> float</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.newt.get_all_task_specific_features"><code class="name flex">
+<span>def <span class="ident">get_all_task_specific_features</span></span>(<span>args: <a title="biobench.newt.Args" href="#biobench.newt.Args">Args</a>, backbone: <a title="biobench.interfaces.VisionBackbone" href="../interfaces.html#biobench.interfaces.VisionBackbone">VisionBackbone</a>) ‑> collections.abc.Iterator[<a title="biobench.newt.Task" href="#biobench.newt.Task">Task</a>]</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.newt.init_svc"><code class="name flex">
+<span>def <span class="ident">init_svc</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.newt.l2_normalize"><code class="name flex">
+<span>def <span class="ident">l2_normalize</span></span>(<span>features: jaxtyping.Float[ndarray, 'n_examples dim']) ‑> jaxtyping.Float[ndarray, 'n_examples dim']</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
 </dd>
 </dl>
 </section>
@@ -73,7 +97,7 @@ We aggregate scores across all 164 tasks.</p>
 <span>(</span><span>seed: int = 42, datadir: str = '', device: str = 'cuda', debug: bool = False, batch_size: int = 256, n_workers: int = 4, log_every: int = 10)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Args(seed: int = 42, datadir: str = '', device: str = 'cuda', debug: bool = False, batch_size: int = 256, n_workers: int = 4, log_every: int = 10)</p></div>
+<div class="desc"><p>NeWT task arguments.</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -81,6 +105,8 @@ We aggregate scores across all 164 tasks.</p>
 <pre><code class="python">@beartype.beartype
 @dataclasses.dataclass(frozen=True)
 class Args(interfaces.TaskArgs):
+    &#34;&#34;&#34;NeWT task arguments.&#34;&#34;&#34;
+
     batch_size: int = 256
     &#34;&#34;&#34;batch size for deep model.&#34;&#34;&#34;
     n_workers: int = 4
@@ -119,6 +145,145 @@ class Args(interfaces.TaskArgs):
 </li>
 </ul>
 </dd>
+<dt id="biobench.newt.Dataset"><code class="flex name class">
+<span>class <span class="ident">Dataset</span></span>
+<span>(</span><span>dir: str, df, transform)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>An abstract class representing a :class:<code><a title="biobench.newt.Dataset" href="#biobench.newt.Dataset">Dataset</a></code>.</p>
+<p>All datasets that represent a map from keys to data samples should subclass
+it. All subclasses should overwrite :meth:<code>__getitem__</code>, supporting fetching a
+data sample for a given key. Subclasses could also optionally overwrite
+:meth:<code>__len__</code>, which is expected to return the size of the dataset by many
+:class:<code>~torch.utils.data.Sampler</code> implementations and the default options
+of :class:<code>~torch.utils.data.DataLoader</code>. Subclasses could also
+optionally implement :meth:<code>__getitems__</code>, for speedup batched samples
+loading. This method accepts list of indices of samples of batch and returns
+list of samples.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>:class:<code>~torch.utils.data.DataLoader</code> by default constructs an index
+sampler that yields integral indices.
+To make it work with a map-style
+dataset with non-integral indices/keys, a custom sampler must be provided.</p>
+</div></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
+class Dataset(torch.utils.data.Dataset):
+    def __init__(self, dir: str, df, transform):
+        self.transform = transform
+        self.image_ids = df.get_column(&#34;id&#34;).to_list()
+        self.dir = dir
+
+    def __getitem__(self, i: int) -&gt; tuple[str, Float[Tensor, &#34;3 width height&#34;]]:
+        image_id = self.image_ids[i]
+        image = Image.open(os.path.join(self.dir, f&#34;{image_id}.jpg&#34;))
+        if self.transform is not None:
+            image = self.transform(image)
+        return image_id, image
+
+    def __len__(self) -&gt; int:
+        return len(self.image_ids)</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>torch.utils.data.dataset.Dataset</li>
+<li>typing.Generic</li>
+</ul>
+</dd>
+<dt id="biobench.newt.Task"><code class="flex name class">
+<span>class <span class="ident">Task</span></span>
+<span>(</span><span>name: str, cluster: str, features: jaxtyping.Float[ndarray, 'n_examples dim'], labels: jaxtyping.Int[ndarray, 'n_examples'], is_train: jaxtyping.Bool[ndarray, 'n_examples'], example_ids: jaxtyping.Shaped[ndarray, 'n_examples'])</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Task(name: str, cluster: str, features: jaxtyping.Float[ndarray, 'n_examples dim'], labels: jaxtyping.Int[ndarray, 'n_examples'], is_train: jaxtyping.Bool[ndarray, 'n_examples'], example_ids: jaxtyping.Shaped[ndarray, 'n_examples'])</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
+@dataclasses.dataclass(frozen=True)
+class Task:
+    name: str
+    cluster: str
+    features: Float[np.ndarray, &#34;n_examples dim&#34;]
+    labels: Int[np.ndarray, &#34; n_examples&#34;]
+    is_train: Bool[np.ndarray, &#34; n_examples&#34;]
+    example_ids: Shaped[np.ndarray, &#34; n_examples&#34;]  # Should be String[...]
+
+    def __repr__(self) -&gt; str:
+        return f&#34;Task(task={self.name}, cluster={self.cluster}, features={self.features.shape})&#34;
+
+    @property
+    def splits(
+        self,
+    ) -&gt; tuple[
+        tuple[Float[np.ndarray, &#34;n_train dim&#34;], Int[np.ndarray, &#34; n_train&#34;]],
+        tuple[Float[np.ndarray, &#34;n_test dim&#34;], Int[np.ndarray, &#34; n_test&#34;]],
+    ]:
+        x_train = self.features[self.is_train]
+        y_train = self.labels[self.is_train]
+        x_test = self.features[~self.is_train]
+        y_test = self.labels[~self.is_train]
+
+        return (x_train, y_train), (x_test, y_test)</code></pre>
+</details>
+<h3>Class variables</h3>
+<dl>
+<dt id="biobench.newt.Task.cluster"><code class="name">var <span class="ident">cluster</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.newt.Task.example_ids"><code class="name">var <span class="ident">example_ids</span> : jaxtyping.Shaped[ndarray, 'n_examples']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.newt.Task.features"><code class="name">var <span class="ident">features</span> : jaxtyping.Float[ndarray, 'n_examples dim']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.newt.Task.is_train"><code class="name">var <span class="ident">is_train</span> : jaxtyping.Bool[ndarray, 'n_examples']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.newt.Task.labels"><code class="name">var <span class="ident">labels</span> : jaxtyping.Int[ndarray, 'n_examples']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.newt.Task.name"><code class="name">var <span class="ident">name</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Instance variables</h3>
+<dl>
+<dt id="biobench.newt.Task.splits"><code class="name">prop <span class="ident">splits</span> : tuple[tuple[jaxtyping.Float[ndarray, 'n_train dim'], jaxtyping.Int[ndarray, 'n_train']], tuple[jaxtyping.Float[ndarray, 'n_test dim'], jaxtyping.Int[ndarray, 'n_test']]]</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@property
+def splits(
+    self,
+) -&gt; tuple[
+    tuple[Float[np.ndarray, &#34;n_train dim&#34;], Int[np.ndarray, &#34; n_train&#34;]],
+    tuple[Float[np.ndarray, &#34;n_test dim&#34;], Int[np.ndarray, &#34; n_test&#34;]],
+]:
+    x_train = self.features[self.is_train]
+    y_train = self.labels[self.is_train]
+    x_test = self.features[~self.is_train]
+    y_test = self.labels[~self.is_train]
+
+    return (x_train, y_train), (x_test, y_test)</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
 </dl>
 </section>
 </article>
@@ -142,6 +307,10 @@ class Args(interfaces.TaskArgs):
 <li><h3><a href="#header-functions">Functions</a></h3>
 <ul class="">
 <li><code><a title="biobench.newt.benchmark" href="#biobench.newt.benchmark">benchmark</a></code></li>
+<li><code><a title="biobench.newt.calc_mean_score" href="#biobench.newt.calc_mean_score">calc_mean_score</a></code></li>
+<li><code><a title="biobench.newt.get_all_task_specific_features" href="#biobench.newt.get_all_task_specific_features">get_all_task_specific_features</a></code></li>
+<li><code><a title="biobench.newt.init_svc" href="#biobench.newt.init_svc">init_svc</a></code></li>
+<li><code><a title="biobench.newt.l2_normalize" href="#biobench.newt.l2_normalize">l2_normalize</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>
@@ -152,6 +321,21 @@ class Args(interfaces.TaskArgs):
 <li><code><a title="biobench.newt.Args.batch_size" href="#biobench.newt.Args.batch_size">batch_size</a></code></li>
 <li><code><a title="biobench.newt.Args.log_every" href="#biobench.newt.Args.log_every">log_every</a></code></li>
 <li><code><a title="biobench.newt.Args.n_workers" href="#biobench.newt.Args.n_workers">n_workers</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="biobench.newt.Dataset" href="#biobench.newt.Dataset">Dataset</a></code></h4>
+</li>
+<li>
+<h4><code><a title="biobench.newt.Task" href="#biobench.newt.Task">Task</a></code></h4>
+<ul class="two-column">
+<li><code><a title="biobench.newt.Task.cluster" href="#biobench.newt.Task.cluster">cluster</a></code></li>
+<li><code><a title="biobench.newt.Task.example_ids" href="#biobench.newt.Task.example_ids">example_ids</a></code></li>
+<li><code><a title="biobench.newt.Task.features" href="#biobench.newt.Task.features">features</a></code></li>
+<li><code><a title="biobench.newt.Task.is_train" href="#biobench.newt.Task.is_train">is_train</a></code></li>
+<li><code><a title="biobench.newt.Task.labels" href="#biobench.newt.Task.labels">labels</a></code></li>
+<li><code><a title="biobench.newt.Task.name" href="#biobench.newt.Task.name">name</a></code></li>
+<li><code><a title="biobench.newt.Task.splits" href="#biobench.newt.Task.splits">splits</a></code></li>
 </ul>
 </li>
 </ul>

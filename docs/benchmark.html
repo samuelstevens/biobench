@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
 <meta name="generator" content="pdoc3 0.11.1">
 <title>benchmark API documentation</title>
-<meta name="description" content="Entrypoint for running all benchmarks …">
+<meta name="description" content="Entrypoint for running all tasks in `biobench` …">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
@@ -27,9 +27,11 @@ hljs.highlightAll();
 <h1 class="title">Module <code>benchmark</code></h1>
 </header>
 <section id="section-intro">
-<p>Entrypoint for running all benchmarks.</p>
+<p>Entrypoint for running all tasks in <code><a title="biobench" href="biobench/index.html">biobench</a></code>.</p>
 <p>Most of this script is self documenting.
 Run <code>python benchmark.py --help</code> to see all the options.</p>
+<p>Note that you will have to download all the datasets, but each dataset includes its own download script with instructions.
+For example, see <code><a title="biobench.newt.download" href="biobench/newt/download.html">biobench.newt.download</a></code> for an example.</p>
 <h1 id="examples">Examples</h1>
 <p>First, run <code>python benchmark.py --help</code> to make sure all your dependencies are installed.</p>
 <h2 id="run-everything">Run Everything</h2>
@@ -85,13 +87,14 @@ It's really easy with <code><a title="biobench" href="biobench/index.html">biobe
 <span>def <span class="ident">export_to_csv</span></span>(<span>args: <a title="benchmark.Args" href="#benchmark.Args">Args</a>) ‑> None</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Exports to a wide table format for viewing (long table formats are better for additional manipulation/graphing, but wide is easy for viewing).</p></div>
+<div class="desc"><p>Exports (and writes) to a wide table format for viewing (long table formats are better for additional manipulation/graphing, but wide is easy for viewing).</p></div>
 </dd>
 <dt id="benchmark.main"><code class="name flex">
 <span>def <span class="ident">main</span></span>(<span>args: <a title="benchmark.Args" href="#benchmark.Args">Args</a>)</span>
 </code></dt>
 <dd>
-<div class="desc"></div>
+<div class="desc"><p>Launch all jobs, using either a local GPU or a Slurm cluster.
+Then report results and save to disk.</p></div>
 </dd>
 <dt id="benchmark.plot_task"><code class="name flex">
 <span>def <span class="ident">plot_task</span></span>(<span>conn: sqlite3.Connection, task: str) ‑> matplotlib.figure.Figure | None</span>
@@ -104,7 +107,16 @@ Returns the figure so the caller can save or display it.</p></div>
 <span>def <span class="ident">save</span></span>(<span>args: <a title="benchmark.Args" href="#benchmark.Args">Args</a>, model_args: tuple[str, str], report: <a title="biobench.interfaces.TaskReport" href="biobench/interfaces.html#biobench.interfaces.TaskReport">TaskReport</a>) ‑> None</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Saves the report to disk in a machine-readable SQLite format.</p></div>
+<div class="desc"><p>Saves the report to disk in a machine-readable SQLite format.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>args</code></strong></dt>
+<dd>launch script arguments.</dd>
+<dt><strong><code>model_args</code></strong></dt>
+<dd>a pair of model_org, model_ckpt strings.</dd>
+<dt><strong><code>report</code></strong></dt>
+<dd>the task report from the model_args.</dd>
+</dl></div>
 </dd>
 </dl>
 </section>
@@ -179,7 +191,7 @@ class Args:
     report_to: str = os.path.join(&#34;.&#34;, &#34;reports&#34;)
     &#34;&#34;&#34;where to save reports to.&#34;&#34;&#34;
     graph: bool = True
-    &#34;&#34;&#34;whether to make a graph.&#34;&#34;&#34;
+    &#34;&#34;&#34;whether to make graphs.&#34;&#34;&#34;
     graph_to: str = os.path.join(&#34;.&#34;, &#34;graphs&#34;)
     &#34;&#34;&#34;where to save graphs to.&#34;&#34;&#34;
 
@@ -187,6 +199,10 @@ class Args:
         return dataclasses.asdict(self)
 
     def get_sqlite_connection(self) -&gt; sqlite3.Connection:
+        &#34;&#34;&#34;Get a connection to the reports database.
+        Returns:
+            a connection to a sqlite3 database.
+        &#34;&#34;&#34;
         return sqlite3.connect(os.path.join(self.report_to, &#34;reports.sqlite&#34;))</code></pre>
 </details>
 <h3>Class variables</h3>
@@ -209,7 +225,7 @@ class Args:
 </dd>
 <dt id="benchmark.Args.graph"><code class="name">var <span class="ident">graph</span> : bool</code></dt>
 <dd>
-<div class="desc"><p>whether to make a graph.</p></div>
+<div class="desc"><p>whether to make graphs.</p></div>
 </dd>
 <dt id="benchmark.Args.graph_to"><code class="name">var <span class="ident">graph_to</span> : str</code></dt>
 <dd>
@@ -274,7 +290,9 @@ class Args:
 <span>def <span class="ident">get_sqlite_connection</span></span>(<span>self) ‑> sqlite3.Connection</span>
 </code></dt>
 <dd>
-<div class="desc"></div>
+<div class="desc"><p>Get a connection to the reports database.</p>
+<h2 id="returns">Returns</h2>
+<p>a connection to a sqlite3 database.</p></div>
 </dd>
 <dt id="benchmark.Args.to_dict"><code class="name flex">
 <span>def <span class="ident">to_dict</span></span>(<span>self) ‑> dict[str, object]</span>

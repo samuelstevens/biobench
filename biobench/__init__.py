@@ -7,8 +7,31 @@ The most important modules to understand are:
 
 * `benchmark` because it is the launch script that runs all the tasks.
 * `biobench.interfaces` because it defines how everything hooks together.
-* Any of the task modules--`biobench.kabr` is well documented.
+* Any of the task modules--`biobench.newt` is well documented.
 * Any of the vision modules--`biobench.third_party_models.OpenClip` is highly relevant to anyone using the [open_clip](https://github.com/mlfoundations/open_clip) codebase to train models.
+
+## Tasks
+
+* `biobench.birds525`: 1-shot classification with nearest-neighbor of the Kaggle Birds dataset.
+* `biobench.iwildcam`: Species classification using multiclass linear regression.
+* `biobench.kabr`: Behavior classification of single-subject animals using simpleshot of mean frame representations.
+* `biobench.newt`: 164 binary classification tasks using an binary SVM trained on image features.
+
+## Helpers
+
+* `biobench.interfaces`:
+* `biobench.registry`:
+* `biobench.simpleshot`: An implementation of nearest-centroid classification from [Simpleshot](https://arxiv.org/abs/1911.04623).
+* `biobench.third_party_models`:
+
+## Future Tasks
+
+These are tasks that I plan on adding but are not yet done.
+
+* `biobench.beluga`:
+* `biobench.iwildcam`:
+* `biobench.rarespecies`:
+* [FishVista](https://github.com/Imageomics/Fish-Vista): I want to add trait classification: given patch-level features, can we train a linear probe to predict the presence/absense of a feature?
 
 .. include:: ./confidence-intervals.md
 """

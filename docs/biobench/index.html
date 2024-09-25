@@ -33,8 +33,30 @@ hljs.highlightAll();
 <ul>
 <li><code><a title="benchmark" href="../benchmark.html">benchmark</a></code> because it is the launch script that runs all the tasks.</li>
 <li><code><a title="biobench.interfaces" href="interfaces.html">biobench.interfaces</a></code> because it defines how everything hooks together.</li>
-<li>Any of the task modules&ndash;<code><a title="biobench.kabr" href="kabr/index.html">biobench.kabr</a></code> is well documented.</li>
+<li>Any of the task modules&ndash;<code><a title="biobench.newt" href="newt/index.html">biobench.newt</a></code> is well documented.</li>
 <li>Any of the vision modules&ndash;<code><a title="biobench.third_party_models.OpenClip" href="third_party_models.html#biobench.third_party_models.OpenClip">OpenClip</a></code> is highly relevant to anyone using the <a href="https://github.com/mlfoundations/open_clip">open_clip</a> codebase to train models.</li>
+</ul>
+<h2 id="tasks">Tasks</h2>
+<ul>
+<li><code><a title="biobench.birds525" href="birds525/index.html">biobench.birds525</a></code>: 1-shot classification with nearest-neighbor of the Kaggle Birds dataset.</li>
+<li><code><a title="biobench.iwildcam" href="iwildcam/index.html">biobench.iwildcam</a></code>: Species classification using multiclass linear regression.</li>
+<li><code><a title="biobench.kabr" href="kabr/index.html">biobench.kabr</a></code>: Behavior classification of single-subject animals using simpleshot of mean frame representations.</li>
+<li><code><a title="biobench.newt" href="newt/index.html">biobench.newt</a></code>: 164 binary classification tasks using an binary SVM trained on image features.</li>
+</ul>
+<h2 id="helpers">Helpers</h2>
+<ul>
+<li><code><a title="biobench.interfaces" href="interfaces.html">biobench.interfaces</a></code>:</li>
+<li><code><a title="biobench.registry" href="registry.html">biobench.registry</a></code>:</li>
+<li><code><a title="biobench.simpleshot" href="simpleshot.html">biobench.simpleshot</a></code>:</li>
+<li><code><a title="biobench.third_party_models" href="third_party_models.html">biobench.third_party_models</a></code>:</li>
+</ul>
+<h2 id="future-tasks">Future Tasks</h2>
+<p>These are tasks that I plan on adding but are not yet done.</p>
+<ul>
+<li><code><a title="biobench.beluga" href="beluga/index.html">biobench.beluga</a></code>:</li>
+<li><code><a title="biobench.iwildcam" href="iwildcam/index.html">biobench.iwildcam</a></code>:</li>
+<li><code><a title="biobench.rarespecies" href="rarespecies/index.html">biobench.rarespecies</a></code>:</li>
+<li><a href="https://github.com/Imageomics/Fish-Vista">FishVista</a>: I want to add trait classification: given patch-level features, can we train a linear probe to predict the presence/absense of a feature?</li>
 </ul>
 <h1 id="confidence-intervals">Confidence Intervals</h1>
 <p>Recommended Reading:</p>
@@ -152,6 +174,9 @@ As long …</p></div>
 <nav id="sidebar">
 <div class="toc">
 <ul>
+<li><a href="#tasks">Tasks</a></li>
+<li><a href="#helpers">Helpers</a></li>
+<li><a href="#future-tasks">Future Tasks</a></li>
 <li><a href="#confidence-intervals">Confidence Intervals</a><ul>
 <li><a href="#biobench-confidence-intervals">BioBench Confidence Intervals</a></li>
 <li><a href="#note-on-confidence-interval-types">Note on Confidence Interval Types</a></li>

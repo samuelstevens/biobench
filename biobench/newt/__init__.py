@@ -18,8 +18,6 @@ If you use this evaluation, be sure to cite the original work:
 ```
 """
 
-__all__ = ["Args", "benchmark"]
-
 import collections.abc
 import dataclasses
 import itertools
@@ -47,6 +45,8 @@ logger = logging.getLogger("newt")
 @beartype.beartype
 @dataclasses.dataclass(frozen=True)
 class Args(interfaces.TaskArgs):
+    """NeWT task arguments."""
+
     batch_size: int = 256
     """batch size for deep model."""
     n_workers: int = 4
@@ -60,10 +60,10 @@ def benchmark(
     args: Args, model_args: interfaces.ModelArgs
 ) -> tuple[interfaces.ModelArgs, interfaces.TaskReport]:
     """
-    Steps:
-    1. Get features for all images.
-    2. Select subsets of the features for fitting with SVMs.
-    3. Evaluate SVMs and report.
+    The NeWT benchmark.
+    First, get features for all images.
+    Second, select the subsets of features that correspond to different tasks and train an SVM.
+    Third, evaluate the SVM and report results.
     """
     # 1. Load model
     backbone = registry.load_vision_backbone(*model_args)
