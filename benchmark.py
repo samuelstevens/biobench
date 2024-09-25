@@ -5,7 +5,6 @@ Entrypoint for running all benchmarks.
 """
 
 import collections
-import concurrent.futures
 import csv
 import dataclasses
 import json
@@ -19,10 +18,20 @@ import typing
 import beartype
 import matplotlib.pyplot as plt
 import numpy as np
+import submitit
 import torch
 import tyro
 
-from biobench import ModelOrg, birds525, interfaces, iwildcam, kabr, newt, plantnet
+from biobench import (
+    ModelOrg,
+    birds525,
+    interfaces,
+    iwildcam,
+    kabr,
+    newt,
+    plantnet,
+    rarespecies,
+)
 
 log_format = "[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s"
 logging.basicConfig(level=logging.INFO, format=log_format)
@@ -76,6 +85,12 @@ class Args:
     """whether to run the Birds 525 benchmark."""
     birds525_args: birds525.Args = dataclasses.field(default_factory=birds525.Args)
     """arguments for the Birds 525 benchmark."""
+    rarespecies_run: bool = True
+    """whether to run the RareSpecies benchmark."""
+    rarespecies_args: rarespecies.Args = dataclasses.field(
+        default_factory=rarespecies.Args
+    )
+    """arguments for the Birds 525 benchmark."""
 
     # Reporting and graphing.
     report_to: str = os.path.join(".", "reports")
@@ -90,24 +105,6 @@ class Args:
 
     def get_sqlite_connection(self) -> sqlite3.Connection:
         return sqlite3.connect(os.path.join(self.report_to, "reports.sqlite"))
-
-
-class DummyExecutor(concurrent.futures.Executor):
-    """Dummy class to satisfy the Executor interface. Directly runs the function in the main process for easy debugging."""
-
-    def submit(self, fn, /, *args, **kwargs):
-        """runs `fn` directly in the main process and returns a `concurrent.futures.Future` with the result.
-
-        Returns:
-        """
-        future = concurrent.futures.Future()
-        try:
-            result = fn(*args, **kwargs)
-            future.set_result(result)
-        except Exception as exc:
-            future.set_exception(exc)
-
-        return future
 
 
 @beartype.beartype
@@ -178,70 +175,70 @@ def export_to_csv(args: Args) -> None:
 @beartype.beartype
 def main(args: Args):
     # 1. Setup executor.
-    pool_cls, pool_args, pool_kwargs = DummyExecutor, (), {}
     if args.slurm:
         raise NotImplementedError("submitit not implemented.")
-        # TODO: implement submitit
-        # executor = submitit.AutoExecutor()
+        executor = submitit.SlurmExecutor()
+    else:
+        executor = submitit.DebugExecutor(folder="logs")
 
     # 2. Run benchmarks.
-    try:
-        executor = pool_cls(*pool_args, **pool_kwargs)
-        jobs = []
-        for model_args in args.model_args:
-            if args.newt_run:
-                newt_args = dataclasses.replace(
-                    args.newt_args, device=args.device, debug=args.debug
-                )
-                jobs.append(executor.submit(newt.benchmark, newt_args, model_args))
-            if args.kabr_run:
-                kabr_args = dataclasses.replace(
-                    args.kabr_args, device=args.device, debug=args.debug
-                )
-                jobs.append(executor.submit(kabr.benchmark, kabr_args, model_args))
-            if args.plantnet_run:
-                plantnet_args = dataclasses.replace(
-                    args.plantnet_args, device=args.device, debug=args.debug
-                )
-                job = executor.submit(plantnet.benchmark, plantnet_args, model_args)
-                jobs.append(job)
-            if args.iwildcam_run:
-                iwildcam_args = dataclasses.replace(
-                    args.iwildcam_args, device=args.device, debug=args.debug
-                )
-                job = executor.submit(iwildcam.benchmark, iwildcam_args, model_args)
-                jobs.append(job)
-            if args.birds525_run:
-                birds525_args = dataclasses.replace(
-                    args.birds525_args, device=args.device, debug=args.debug
-                )
-                job = executor.submit(birds525.benchmark, birds525_args, model_args)
-                jobs.append(job)
+    jobs = []
+    for model_args in args.model_args:
+        if args.newt_run:
+            newt_args = dataclasses.replace(
+                args.newt_args, device=args.device, debug=args.debug
+            )
+            jobs.append(executor.submit(newt.benchmark, newt_args, model_args))
+        if args.kabr_run:
+            kabr_args = dataclasses.replace(
+                args.kabr_args, device=args.device, debug=args.debug
+            )
+            jobs.append(executor.submit(kabr.benchmark, kabr_args, model_args))
+        if args.plantnet_run:
+            plantnet_args = dataclasses.replace(
+                args.plantnet_args, device=args.device, debug=args.debug
+            )
+            job = executor.submit(plantnet.benchmark, plantnet_args, model_args)
+            jobs.append(job)
+        if args.iwildcam_run:
+            iwildcam_args = dataclasses.replace(
+                args.iwildcam_args, device=args.device, debug=args.debug
+            )
+            job = executor.submit(iwildcam.benchmark, iwildcam_args, model_args)
+            jobs.append(job)
+        if args.birds525_run:
+            birds525_args = dataclasses.replace(
+                args.birds525_args, device=args.device, debug=args.debug
+            )
+            job = executor.submit(birds525.benchmark, birds525_args, model_args)
+            jobs.append(job)
+        if args.rarespecies_run:
+            rarespecies_args = dataclasses.replace(
+                args.rarespecies_args, device=args.device, debug=args.debug
+            )
+            job = executor.submit(rarespecies.benchmark, rarespecies_args, model_args)
+            jobs.append(job)
 
-        logger.info("Submitted %d jobs.", len(jobs))
+    logger.info("Submitted %d jobs.", len(jobs))
 
-        # 3. Display results.
-        os.makedirs(args.report_to, exist_ok=True)
-        for i, future in enumerate(concurrent.futures.as_completed(jobs)):
-            err = future.exception()
-            if err:
-                logger.warning("Error running job: %s: %s", err, err.__cause__)
-                raise err
-                continue
+    # 3. Display results.
+    os.makedirs(args.report_to, exist_ok=True)
+    for i, future in enumerate(submitit.helpers.as_completed(jobs)):
+        err = future.exception()
+        if err:
+            logger.warning("Error running job: %s: %s", err, err.__cause__)
+            continue
 
-            model_args, report = future.result()
-            save(args, model_args, report)
-            logger.info("Finished %d/%d jobs.", i + 1, len(jobs))
-    finally:
-        logger.info("Shutting down job executor.")
-        executor.shutdown(cancel_futures=True, wait=True)
+        model_args, report = future.result()
+        save(args, model_args, report)
+        logger.info("Finished %d/%d jobs.", i + 1, len(jobs))
 
-    # Export results to CSV file for committing to git.
+    # 4. Save results to CSV file for committing to git.
     export_to_csv(args)
 
+    # 5. Make graphs.
     if args.graph:
         # For each combination of model/task, get the most recent version from the database. Then make a graph and save it to disk.
-
         conn = args.get_sqlite_connection()
         for task in ("KABR", "NeWT", "Pl@ntNet", "iWildCam", "Birds525"):
             fig = plot_task(conn, task)
