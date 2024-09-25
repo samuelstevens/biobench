@@ -78,17 +78,30 @@ Open the notebook <code>notebooks/tutorial.py</code> using</p>
 <section>
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
+<dt id="benchmark.export_to_csv"><code class="name flex">
+<span>def <span class="ident">export_to_csv</span></span>(<span>args: <a title="benchmark.Args" href="#benchmark.Args">Args</a>) ‑> None</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Exports to a wide table format for viewing (long table formats are better for additional manipulation/graphing, but wide is easy for viewing).</p></div>
+</dd>
 <dt id="benchmark.main"><code class="name flex">
 <span>def <span class="ident">main</span></span>(<span>args: <a title="benchmark.Args" href="#benchmark.Args">Args</a>)</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="benchmark.save"><code class="name flex">
-<span>def <span class="ident">save</span></span>(<span>args: <a title="benchmark.Args" href="#benchmark.Args">Args</a>, report: <a title="biobench.interfaces.BenchmarkReport" href="biobench/interfaces.html#biobench.interfaces.BenchmarkReport">BenchmarkReport</a>) ‑> None</span>
+<dt id="benchmark.plot_task"><code class="name flex">
+<span>def <span class="ident">plot_task</span></span>(<span>conn: sqlite3.Connection, task: str) ‑> matplotlib.figure.Figure | None</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Saves the report to disk in a machine-readable JSON format.</p></div>
+<div class="desc"><p>Plots the most recent result for each model on given task, including confidence intervals.
+Returns the figure so the caller can save or display it.</p></div>
+</dd>
+<dt id="benchmark.save"><code class="name flex">
+<span>def <span class="ident">save</span></span>(<span>args: <a title="benchmark.Args" href="#benchmark.Args">Args</a>, model_args: tuple[str, str], report: <a title="biobench.interfaces.TaskReport" href="biobench/interfaces.html#biobench.interfaces.TaskReport">TaskReport</a>) ‑> None</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Saves the report to disk in a machine-readable SQLite format.</p></div>
 </dd>
 </dl>
 </section>
@@ -97,7 +110,7 @@ Open the notebook <code>notebooks/tutorial.py</code> using</p>
 <dl>
 <dt id="benchmark.Args"><code class="flex name class">
 <span>class <span class="ident">Args</span></span>
-<span>(</span><span>jobs: Literal['slurm', 'host', 'none'] = 'none', model_org: Literal['timm-vit', 'open_clip'] = 'open_clip', model_ckpt: str = 'RN50/openai', device: Literal['cpu', 'cuda'] = 'cuda', newt_run: bool = True, newt_args: <a title="biobench.newt.Args" href="biobench/newt/index.html#biobench.newt.Args">Args</a> = &lt;factory&gt;, kabr_run: bool = True, kabr_args: <a title="biobench.kabr.Args" href="biobench/kabr/index.html#biobench.kabr.Args">Args</a> = &lt;factory&gt;, plantnet_run: bool = True, plantnet_args: <a title="biobench.plantnet.Args" href="biobench/plantnet/index.html#biobench.plantnet.Args">Args</a> = &lt;factory&gt;, report_to: str = './reports')</span>
+<span>(</span><span>slurm: bool = False, model_args: typing.Annotated[list[tuple[typing.Literal['timm-vit', 'open-clip'], str]], _ArgConfiguration(name='model', metavar=None, help=None, aliases=None, prefix_name=None, constructor_factory=None)] = &lt;factory&gt;, device: Literal['cpu', 'cuda'] = 'cuda', debug: bool = False, newt_run: bool = True, newt_args: <a title="biobench.newt.Args" href="biobench/newt/index.html#biobench.newt.Args">Args</a> = &lt;factory&gt;, kabr_run: bool = True, kabr_args: <a title="biobench.kabr.Args" href="biobench/kabr/index.html#biobench.kabr.Args">Args</a> = &lt;factory&gt;, plantnet_run: bool = True, plantnet_args: <a title="biobench.plantnet.Args" href="biobench/plantnet/index.html#biobench.plantnet.Args">Args</a> = &lt;factory&gt;, iwildcam_run: bool = True, iwildcam_args: <a title="biobench.iwildcam.Args" href="biobench/iwildcam/index.html#biobench.iwildcam.Args">Args</a> = &lt;factory&gt;, birds525_run: bool = True, birds525_args: <a title="biobench.birds525.Args" href="biobench/birds525/index.html#biobench.birds525.Args">Args</a> = &lt;factory&gt;, rarespecies_run: bool = True, rarespecies_args: <a title="biobench.rarespecies.Args" href="biobench/rarespecies/index.html#biobench.rarespecies.Args">Args</a> = &lt;factory&gt;, report_to: str = './reports', graph: bool = True, graph_to: str = './graphs')</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Params to run one or more benchmarks in a parallel setting.</p></div>
@@ -110,15 +123,26 @@ Open the notebook <code>notebooks/tutorial.py</code> using</p>
 class Args:
     &#34;&#34;&#34;Params to run one or more benchmarks in a parallel setting.&#34;&#34;&#34;
 
-    jobs: typing.Literal[&#34;slurm&#34;, &#34;host&#34;, &#34;none&#34;] = &#34;none&#34;
-    &#34;&#34;&#34;what kind of jobs we should use for parallel processing: slurm cluster, multiple processes on the same machine, or just a single process.&#34;&#34;&#34;
+    slurm: bool = False
+    &#34;&#34;&#34;whether to use submitit to run jobs on a slurm cluster.&#34;&#34;&#34;
 
-    # How to set up the model.
-    model_org: ModelOrg = &#34;open_clip&#34;
-    &#34;&#34;&#34;Where to load models from.&#34;&#34;&#34;
-    model_ckpt: str = &#34;RN50/openai&#34;
+    model_args: typing.Annotated[
+        list[tuple[ModelOrg, str]], tyro.conf.arg(name=&#34;model&#34;)
+    ] = dataclasses.field(
+        default_factory=lambda: [
+            (&#34;open-clip&#34;, &#34;RN50/openai&#34;),
+            (&#34;open-clip&#34;, &#34;ViT-B-16/openai&#34;),
+            (&#34;open-clip&#34;, &#34;ViT-B-16/laion400m_e32&#34;),
+            (&#34;open-clip&#34;, &#34;hf-hub:imageomics/bioclip&#34;),
+            (&#34;open-clip&#34;, &#34;ViT-B-16-SigLIP/webli&#34;),
+            (&#34;timm-vit&#34;, &#34;vit_base_patch14_reg4_dinov2.lvd142m&#34;),
+        ]
+    )
+    &#34;&#34;&#34;model; a pair of model org (interface) and checkpoint.&#34;&#34;&#34;
     device: typing.Literal[&#34;cpu&#34;, &#34;cuda&#34;] = &#34;cuda&#34;
     &#34;&#34;&#34;which kind of accelerator to use.&#34;&#34;&#34;
+    debug: bool = False
+    &#34;&#34;&#34;whether to run in debug mode.&#34;&#34;&#34;
 
     # Individual benchmarks.
     newt_run: bool = True
@@ -132,25 +156,69 @@ class Args:
     plantnet_run: bool = True
     &#34;&#34;&#34;whether to run the Pl@ntNet benchmark.&#34;&#34;&#34;
     plantnet_args: plantnet.Args = dataclasses.field(default_factory=plantnet.Args)
-    &#34;&#34;&#34;arguments for the plantnet benchmark.&#34;&#34;&#34;
+    &#34;&#34;&#34;arguments for the Pl@ntNet benchmark.&#34;&#34;&#34;
+    iwildcam_run: bool = True
+    &#34;&#34;&#34;whether to run the iWildCam benchmark.&#34;&#34;&#34;
+    iwildcam_args: iwildcam.Args = dataclasses.field(default_factory=iwildcam.Args)
+    &#34;&#34;&#34;arguments for the iWildCam benchmark.&#34;&#34;&#34;
+    birds525_run: bool = True
+    &#34;&#34;&#34;whether to run the Birds 525 benchmark.&#34;&#34;&#34;
+    birds525_args: birds525.Args = dataclasses.field(default_factory=birds525.Args)
+    &#34;&#34;&#34;arguments for the Birds 525 benchmark.&#34;&#34;&#34;
+    rarespecies_run: bool = True
+    &#34;&#34;&#34;whether to run the RareSpecies benchmark.&#34;&#34;&#34;
+    rarespecies_args: rarespecies.Args = dataclasses.field(
+        default_factory=rarespecies.Args
+    )
+    &#34;&#34;&#34;arguments for the Birds 525 benchmark.&#34;&#34;&#34;
 
-    # Saving
+    # Reporting and graphing.
     report_to: str = os.path.join(&#34;.&#34;, &#34;reports&#34;)
     &#34;&#34;&#34;where to save reports to.&#34;&#34;&#34;
+    graph: bool = True
+    &#34;&#34;&#34;whether to make a graph.&#34;&#34;&#34;
+    graph_to: str = os.path.join(&#34;.&#34;, &#34;graphs&#34;)
+    &#34;&#34;&#34;where to save graphs to.&#34;&#34;&#34;
 
-    def report_path(self, report: interfaces.BenchmarkReport) -&gt; str:
-        posix = int(time.time())
-        return os.path.join(args.report_to, f&#34;{posix}.jsonl&#34;)</code></pre>
+    def to_dict(self) -&gt; dict[str, object]:
+        return dataclasses.asdict(self)
+
+    def get_sqlite_connection(self) -&gt; sqlite3.Connection:
+        return sqlite3.connect(os.path.join(self.report_to, &#34;reports.sqlite&#34;))</code></pre>
 </details>
 <h3>Class variables</h3>
 <dl>
+<dt id="benchmark.Args.birds525_args"><code class="name">var <span class="ident">birds525_args</span> : <a title="biobench.birds525.Args" href="biobench/birds525/index.html#biobench.birds525.Args">Args</a></code></dt>
+<dd>
+<div class="desc"><p>arguments for the Birds 525 benchmark.</p></div>
+</dd>
+<dt id="benchmark.Args.birds525_run"><code class="name">var <span class="ident">birds525_run</span> : bool</code></dt>
+<dd>
+<div class="desc"><p>whether to run the Birds 525 benchmark.</p></div>
+</dd>
+<dt id="benchmark.Args.debug"><code class="name">var <span class="ident">debug</span> : bool</code></dt>
+<dd>
+<div class="desc"><p>whether to run in debug mode.</p></div>
+</dd>
 <dt id="benchmark.Args.device"><code class="name">var <span class="ident">device</span> : Literal['cpu', 'cuda']</code></dt>
 <dd>
 <div class="desc"><p>which kind of accelerator to use.</p></div>
 </dd>
-<dt id="benchmark.Args.jobs"><code class="name">var <span class="ident">jobs</span> : Literal['slurm', 'host', 'none']</code></dt>
+<dt id="benchmark.Args.graph"><code class="name">var <span class="ident">graph</span> : bool</code></dt>
 <dd>
-<div class="desc"><p>what kind of jobs we should use for parallel processing: slurm cluster, multiple processes on the same machine, or just a single process.</p></div>
+<div class="desc"><p>whether to make a graph.</p></div>
+</dd>
+<dt id="benchmark.Args.graph_to"><code class="name">var <span class="ident">graph_to</span> : str</code></dt>
+<dd>
+<div class="desc"><p>where to save graphs to.</p></div>
+</dd>
+<dt id="benchmark.Args.iwildcam_args"><code class="name">var <span class="ident">iwildcam_args</span> : <a title="biobench.iwildcam.Args" href="biobench/iwildcam/index.html#biobench.iwildcam.Args">Args</a></code></dt>
+<dd>
+<div class="desc"><p>arguments for the iWildCam benchmark.</p></div>
+</dd>
+<dt id="benchmark.Args.iwildcam_run"><code class="name">var <span class="ident">iwildcam_run</span> : bool</code></dt>
+<dd>
+<div class="desc"><p>whether to run the iWildCam benchmark.</p></div>
 </dd>
 <dt id="benchmark.Args.kabr_args"><code class="name">var <span class="ident">kabr_args</span> : <a title="biobench.kabr.Args" href="biobench/kabr/index.html#biobench.kabr.Args">Args</a></code></dt>
 <dd>
@@ -160,13 +228,9 @@ class Args:
 <dd>
 <div class="desc"><p>whether to run the KABR benchmark.</p></div>
 </dd>
-<dt id="benchmark.Args.model_ckpt"><code class="name">var <span class="ident">model_ckpt</span> : str</code></dt>
+<dt id="benchmark.Args.model_args"><code class="name">var <span class="ident">model_args</span> : list[tuple[typing.Literal['timm-vit', 'open-clip'], str]]</code></dt>
 <dd>
-<div class="desc"></div>
-</dd>
-<dt id="benchmark.Args.model_org"><code class="name">var <span class="ident">model_org</span> : Literal['timm-vit', 'open_clip']</code></dt>
-<dd>
-<div class="desc"><p>Where to load models from.</p></div>
+<div class="desc"><p>model; a pair of model org (interface) and checkpoint.</p></div>
 </dd>
 <dt id="benchmark.Args.newt_args"><code class="name">var <span class="ident">newt_args</span> : <a title="biobench.newt.Args" href="biobench/newt/index.html#biobench.newt.Args">Args</a></code></dt>
 <dd>
@@ -178,65 +242,42 @@ class Args:
 </dd>
 <dt id="benchmark.Args.plantnet_args"><code class="name">var <span class="ident">plantnet_args</span> : <a title="biobench.plantnet.Args" href="biobench/plantnet/index.html#biobench.plantnet.Args">Args</a></code></dt>
 <dd>
-<div class="desc"><p>arguments for the plantnet benchmark.</p></div>
+<div class="desc"><p>arguments for the Pl@ntNet benchmark.</p></div>
 </dd>
 <dt id="benchmark.Args.plantnet_run"><code class="name">var <span class="ident">plantnet_run</span> : bool</code></dt>
 <dd>
 <div class="desc"><p>whether to run the Pl@ntNet benchmark.</p></div>
 </dd>
+<dt id="benchmark.Args.rarespecies_args"><code class="name">var <span class="ident">rarespecies_args</span> : <a title="biobench.rarespecies.Args" href="biobench/rarespecies/index.html#biobench.rarespecies.Args">Args</a></code></dt>
+<dd>
+<div class="desc"><p>arguments for the Birds 525 benchmark.</p></div>
+</dd>
+<dt id="benchmark.Args.rarespecies_run"><code class="name">var <span class="ident">rarespecies_run</span> : bool</code></dt>
+<dd>
+<div class="desc"><p>whether to run the RareSpecies benchmark.</p></div>
+</dd>
 <dt id="benchmark.Args.report_to"><code class="name">var <span class="ident">report_to</span> : str</code></dt>
 <dd>
 <div class="desc"><p>where to save reports to.</p></div>
 </dd>
+<dt id="benchmark.Args.slurm"><code class="name">var <span class="ident">slurm</span> : bool</code></dt>
+<dd>
+<div class="desc"><p>whether to use submitit to run jobs on a slurm cluster.</p></div>
+</dd>
 </dl>
 <h3>Methods</h3>
 <dl>
-<dt id="benchmark.Args.report_path"><code class="name flex">
-<span>def <span class="ident">report_path</span></span>(<span>self, report: <a title="biobench.interfaces.BenchmarkReport" href="biobench/interfaces.html#biobench.interfaces.BenchmarkReport">BenchmarkReport</a>) ‑> str</span>
+<dt id="benchmark.Args.get_sqlite_connection"><code class="name flex">
+<span>def <span class="ident">get_sqlite_connection</span></span>(<span>self) ‑> sqlite3.Connection</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-</dl>
-</dd>
-<dt id="benchmark.DummyExecutor"><code class="flex name class">
-<span>class <span class="ident">DummyExecutor</span></span>
+<dt id="benchmark.Args.to_dict"><code class="name flex">
+<span>def <span class="ident">to_dict</span></span>(<span>self) ‑> dict[str, object]</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Dummy class to satisfy the Executor interface. Directly runs the function in the main process for easy debugging.</p></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class DummyExecutor(concurrent.futures.Executor):
-    &#34;&#34;&#34;Dummy class to satisfy the Executor interface. Directly runs the function in the main process for easy debugging.&#34;&#34;&#34;
-
-    def submit(self, fn, /, *args, **kwargs):
-        &#34;&#34;&#34;runs `fn` directly in the main process and returns a `concurrent.futures.Future` with the result.
-
-        Returns:
-        &#34;&#34;&#34;
-        future = concurrent.futures.Future()
-        try:
-            result = fn(*args, **kwargs)
-            future.set_result(result)
-        except Exception as exc:
-            future.set_exception(exc)
-
-        return future</code></pre>
-</details>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li>concurrent.futures._base.Executor</li>
-</ul>
-<h3>Methods</h3>
-<dl>
-<dt id="benchmark.DummyExecutor.submit"><code class="name flex">
-<span>def <span class="ident">submit</span></span>(<span>self, fn, /, *args, **kwargs)</span>
-</code></dt>
-<dd>
-<div class="desc"><p>runs <code>fn</code> directly in the main process and returns a <code>concurrent.futures.Future</code> with the result.</p>
-<p>Returns:</p></div>
+<div class="desc"></div>
 </dd>
 </dl>
 </dd>
@@ -256,7 +297,9 @@ class Args:
 <ul id="index">
 <li><h3><a href="#header-functions">Functions</a></h3>
 <ul class="">
+<li><code><a title="benchmark.export_to_csv" href="#benchmark.export_to_csv">export_to_csv</a></code></li>
 <li><code><a title="benchmark.main" href="#benchmark.main">main</a></code></li>
+<li><code><a title="benchmark.plot_task" href="#benchmark.plot_task">plot_task</a></code></li>
 <li><code><a title="benchmark.save" href="#benchmark.save">save</a></code></li>
 </ul>
 </li>
@@ -264,25 +307,28 @@ class Args:
 <ul>
 <li>
 <h4><code><a title="benchmark.Args" href="#benchmark.Args">Args</a></code></h4>
-<ul class="two-column">
+<ul class="">
+<li><code><a title="benchmark.Args.birds525_args" href="#benchmark.Args.birds525_args">birds525_args</a></code></li>
+<li><code><a title="benchmark.Args.birds525_run" href="#benchmark.Args.birds525_run">birds525_run</a></code></li>
+<li><code><a title="benchmark.Args.debug" href="#benchmark.Args.debug">debug</a></code></li>
 <li><code><a title="benchmark.Args.device" href="#benchmark.Args.device">device</a></code></li>
-<li><code><a title="benchmark.Args.jobs" href="#benchmark.Args.jobs">jobs</a></code></li>
+<li><code><a title="benchmark.Args.get_sqlite_connection" href="#benchmark.Args.get_sqlite_connection">get_sqlite_connection</a></code></li>
+<li><code><a title="benchmark.Args.graph" href="#benchmark.Args.graph">graph</a></code></li>
+<li><code><a title="benchmark.Args.graph_to" href="#benchmark.Args.graph_to">graph_to</a></code></li>
+<li><code><a title="benchmark.Args.iwildcam_args" href="#benchmark.Args.iwildcam_args">iwildcam_args</a></code></li>
+<li><code><a title="benchmark.Args.iwildcam_run" href="#benchmark.Args.iwildcam_run">iwildcam_run</a></code></li>
 <li><code><a title="benchmark.Args.kabr_args" href="#benchmark.Args.kabr_args">kabr_args</a></code></li>
 <li><code><a title="benchmark.Args.kabr_run" href="#benchmark.Args.kabr_run">kabr_run</a></code></li>
-<li><code><a title="benchmark.Args.model_ckpt" href="#benchmark.Args.model_ckpt">model_ckpt</a></code></li>
-<li><code><a title="benchmark.Args.model_org" href="#benchmark.Args.model_org">model_org</a></code></li>
+<li><code><a title="benchmark.Args.model_args" href="#benchmark.Args.model_args">model_args</a></code></li>
 <li><code><a title="benchmark.Args.newt_args" href="#benchmark.Args.newt_args">newt_args</a></code></li>
 <li><code><a title="benchmark.Args.newt_run" href="#benchmark.Args.newt_run">newt_run</a></code></li>
 <li><code><a title="benchmark.Args.plantnet_args" href="#benchmark.Args.plantnet_args">plantnet_args</a></code></li>
 <li><code><a title="benchmark.Args.plantnet_run" href="#benchmark.Args.plantnet_run">plantnet_run</a></code></li>
-<li><code><a title="benchmark.Args.report_path" href="#benchmark.Args.report_path">report_path</a></code></li>
+<li><code><a title="benchmark.Args.rarespecies_args" href="#benchmark.Args.rarespecies_args">rarespecies_args</a></code></li>
+<li><code><a title="benchmark.Args.rarespecies_run" href="#benchmark.Args.rarespecies_run">rarespecies_run</a></code></li>
 <li><code><a title="benchmark.Args.report_to" href="#benchmark.Args.report_to">report_to</a></code></li>
-</ul>
-</li>
-<li>
-<h4><code><a title="benchmark.DummyExecutor" href="#benchmark.DummyExecutor">DummyExecutor</a></code></h4>
-<ul class="">
-<li><code><a title="benchmark.DummyExecutor.submit" href="#benchmark.DummyExecutor.submit">submit</a></code></li>
+<li><code><a title="benchmark.Args.slurm" href="#benchmark.Args.slurm">slurm</a></code></li>
+<li><code><a title="benchmark.Args.to_dict" href="#benchmark.Args.to_dict">to_dict</a></code></li>
 </ul>
 </li>
 </ul>

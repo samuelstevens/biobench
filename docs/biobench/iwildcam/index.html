@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
 <meta name="generator" content="pdoc3 0.11.1">
-<title>biobench.newt API documentation</title>
-<meta name="description" content="NeWT: Natural World Tasks …">
+<title>biobench.iwildcam API documentation</title>
+<meta name="description" content="Fits a linear classifier that is trained using cross-entropy on the training set of iWildCam 2020.">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
@@ -24,26 +24,15 @@ hljs.highlightAll();
 <main>
 <article id="content">
 <header>
-<h1 class="title">Module <code>biobench.newt</code></h1>
+<h1 class="title">Module <code>biobench.iwildcam</code></h1>
 </header>
 <section id="section-intro">
-<h1 id="newt-natural-world-tasks">NeWT: Natural World Tasks</h1>
-<p>NeWT is a collection of 164 binary classification tasks related to visual understanding of the natural world (<a href="https://arxiv.org/abs/2103.16483">CVPR 2021 paper</a>, <a href="https://github.com/visipedia/newt/tree/main">code</a>).</p>
-<p>We evaluate a vision model by extracting visual features for each image, fitting a linear SVM to the training examples, and evaluating on the test data.
-We aggregate scores across all 164 tasks.</p>
-<p>If you use this evaluation, be sure to cite the original work:</p>
-<pre><code>@inproceedings{van2021benchmarking,
-  title={Benchmarking Representation Learning for Natural World Image Collections},
-  author={Van Horn, Grant and Cole, Elijah and Beery, Sara and Wilber, Kimberly and Belongie, Serge and Mac Aodha, Oisin},
-  booktitle={Computer Vision and Pattern Recognition},
-  year={2021}
-}
-</code></pre>
+<p>Fits a linear classifier that is trained using cross-entropy on the training set of iWildCam 2020.</p>
 </section>
 <section>
 <h2 class="section-title" id="header-submodules">Sub-modules</h2>
 <dl>
-<dt><code class="name"><a title="biobench.newt.download" href="download.html">biobench.newt.download</a></code></dt>
+<dt><code class="name"><a title="biobench.iwildcam.download" href="download.html">biobench.iwildcam.download</a></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -54,70 +43,139 @@ We aggregate scores across all 164 tasks.</p>
 <section>
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
-<dt id="biobench.newt.benchmark"><code class="name flex">
-<span>def <span class="ident">benchmark</span></span>(<span>backbone: <a title="biobench.interfaces.VisionBackbone" href="../interfaces.html#biobench.interfaces.VisionBackbone">VisionBackbone</a>, args: <a title="biobench.newt.Args" href="#biobench.newt.Args">Args</a>) ‑> <a title="biobench.interfaces.BenchmarkReport" href="../interfaces.html#biobench.interfaces.BenchmarkReport">BenchmarkReport</a></span>
+<dt id="biobench.iwildcam.benchmark"><code class="name flex">
+<span>def <span class="ident">benchmark</span></span>(<span>args: <a title="biobench.iwildcam.Args" href="#biobench.iwildcam.Args">Args</a>, model_args: tuple[str, str]) ‑> tuple[tuple[str, str], <a title="biobench.interfaces.TaskReport" href="../interfaces.html#biobench.interfaces.TaskReport">TaskReport</a>]</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Steps:
-1. Get features for all images.
-2. Select subsets of the features for fitting with SVMs.
-3. Evaluate SVMs and report.</p></div>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.iwildcam.get_features"><code class="name flex">
+<span>def <span class="ident">get_features</span></span>(<span>args: <a title="biobench.iwildcam.Args" href="#biobench.iwildcam.Args">Args</a>, backbone: <a title="biobench.interfaces.VisionBackbone" href="../interfaces.html#biobench.interfaces.VisionBackbone">VisionBackbone</a>, dataloader) ‑> <a title="biobench.iwildcam.Features" href="#biobench.iwildcam.Features">Features</a></span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.iwildcam.init_ridge"><code class="name flex">
+<span>def <span class="ident">init_ridge</span></span>(<span>args: <a title="biobench.iwildcam.Args" href="#biobench.iwildcam.Args">Args</a>)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
 </dd>
 </dl>
 </section>
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
-<dt id="biobench.newt.Args"><code class="flex name class">
+<dt id="biobench.iwildcam.Args"><code class="flex name class">
 <span>class <span class="ident">Args</span></span>
-<span>(</span><span>dataset_dir: str = '', batch_size: int = 256, n_workers: int = 4, device: Literal['cpu', 'cuda'] = 'cuda')</span>
+<span>(</span><span>seed: int = 42, datadir: str = '', device: str = 'cuda', debug: bool = False, batch_size: int = 2048, n_workers: int = 4, log_every: int = 10)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Args(dataset_dir: str = '', batch_size: int = 256, n_workers: int = 4, device: Literal['cpu', 'cuda'] = 'cuda')</p></div>
+<div class="desc"><p>Args(seed: int = 42, datadir: str = '', device: str = 'cuda', debug: bool = False, batch_size: int = 2048, n_workers: int = 4, log_every: int = 10)</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">@beartype.beartype
 @dataclasses.dataclass(frozen=True)
-class Args:
-    dataset_dir: str = &#34;&#34;
-    &#34;&#34;&#34;dataset directory; where you downloaded NEWT to.&#34;&#34;&#34;
-    batch_size: int = 256
+class Args(interfaces.TaskArgs):
+    batch_size: int = 2048
     &#34;&#34;&#34;batch size for deep model.&#34;&#34;&#34;
     n_workers: int = 4
     &#34;&#34;&#34;number of dataloader worker processes.&#34;&#34;&#34;
-    device: typing.Literal[&#34;cpu&#34;, &#34;cuda&#34;] = &#34;cuda&#34;
-    &#34;&#34;&#34;(computed at runtime) which kind of accelerator to use.&#34;&#34;&#34;</code></pre>
+    log_every: int = 10
+    &#34;&#34;&#34;how often (number of batches) to log progress.&#34;&#34;&#34;</code></pre>
 </details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="biobench.interfaces.TaskArgs" href="../interfaces.html#biobench.interfaces.TaskArgs">TaskArgs</a></li>
+</ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="biobench.newt.Args.batch_size"><code class="name">var <span class="ident">batch_size</span> : int</code></dt>
+<dt id="biobench.iwildcam.Args.batch_size"><code class="name">var <span class="ident">batch_size</span> : int</code></dt>
 <dd>
 <div class="desc"><p>batch size for deep model.</p></div>
 </dd>
-<dt id="biobench.newt.Args.dataset_dir"><code class="name">var <span class="ident">dataset_dir</span> : str</code></dt>
+<dt id="biobench.iwildcam.Args.log_every"><code class="name">var <span class="ident">log_every</span> : int</code></dt>
 <dd>
-<div class="desc"><p>dataset directory; where you downloaded NEWT to.</p></div>
+<div class="desc"><p>how often (number of batches) to log progress.</p></div>
 </dd>
-<dt id="biobench.newt.Args.device"><code class="name">var <span class="ident">device</span> : Literal['cpu', 'cuda']</code></dt>
-<dd>
-<div class="desc"><p>(computed at runtime) which kind of accelerator to use.</p></div>
-</dd>
-<dt id="biobench.newt.Args.n_workers"><code class="name">var <span class="ident">n_workers</span> : int</code></dt>
+<dt id="biobench.iwildcam.Args.n_workers"><code class="name">var <span class="ident">n_workers</span> : int</code></dt>
 <dd>
 <div class="desc"><p>number of dataloader worker processes.</p></div>
 </dd>
 </dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="biobench.interfaces.TaskArgs" href="../interfaces.html#biobench.interfaces.TaskArgs">TaskArgs</a></b></code>:
+<ul class="hlist">
+<li><code><a title="biobench.interfaces.TaskArgs.datadir" href="../interfaces.html#biobench.interfaces.TaskArgs.datadir">datadir</a></code></li>
+<li><code><a title="biobench.interfaces.TaskArgs.debug" href="../interfaces.html#biobench.interfaces.TaskArgs.debug">debug</a></code></li>
+<li><code><a title="biobench.interfaces.TaskArgs.device" href="../interfaces.html#biobench.interfaces.TaskArgs.device">device</a></code></li>
+<li><code><a title="biobench.interfaces.TaskArgs.seed" href="../interfaces.html#biobench.interfaces.TaskArgs.seed">seed</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="biobench.iwildcam.Features"><code class="flex name class">
+<span>class <span class="ident">Features</span></span>
+<span>(</span><span>x: jaxtyping.Float[ndarray, 'n dim'], y: jaxtyping.Int[ndarray, 'n n_classes'], ids: jaxtyping.Shaped[ndarray, 'n'])</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Features(x: jaxtyping.Float[ndarray, 'n dim'], y: jaxtyping.Int[ndarray, 'n n_classes'], ids: jaxtyping.Shaped[ndarray, 'n'])</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
+@dataclasses.dataclass(frozen=True)
+class Features:
+    x: Float[np.ndarray, &#34; n dim&#34;]
+    y: Int[np.ndarray, &#34; n n_classes&#34;]
+    ids: Shaped[np.ndarray, &#34; n&#34;]</code></pre>
+</details>
+<h3>Class variables</h3>
+<dl>
+<dt id="biobench.iwildcam.Features.ids"><code class="name">var <span class="ident">ids</span> : jaxtyping.Shaped[ndarray, 'n']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.iwildcam.Features.x"><code class="name">var <span class="ident">x</span> : jaxtyping.Float[ndarray, 'n dim']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.iwildcam.Features.y"><code class="name">var <span class="ident">y</span> : jaxtyping.Int[ndarray, 'n n_classes']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="biobench.iwildcam.MeanScoreCalculator"><code class="flex name class">
+<span>class <span class="ident">MeanScoreCalculator</span></span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@beartype.beartype
+class MeanScoreCalculator:
+    def __call__(self, examples: list[interfaces.Example]) -&gt; float:
+        y_pred = np.array([example.info[&#34;y_pred&#34;] for example in examples])
+        y_true = np.array([example.info[&#34;y_true&#34;] for example in examples])
+        score = sklearn.metrics.f1_score(
+            y_true, y_pred, average=&#34;macro&#34;, labels=np.unique(y_true)
+        )
+        return score.item()</code></pre>
+</details>
 </dd>
 </dl>
 </section>
 </article>
 <nav id="sidebar">
 <div class="toc">
-<ul>
-<li><a href="#newt-natural-world-tasks">NeWT: Natural World Tasks</a></li>
-</ul>
+<ul></ul>
 </div>
 <ul id="index">
 <li><h3>Super-module</h3>
@@ -127,24 +185,36 @@ class Args:
 </li>
 <li><h3><a href="#header-submodules">Sub-modules</a></h3>
 <ul>
-<li><code><a title="biobench.newt.download" href="download.html">biobench.newt.download</a></code></li>
+<li><code><a title="biobench.iwildcam.download" href="download.html">biobench.iwildcam.download</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-functions">Functions</a></h3>
 <ul class="">
-<li><code><a title="biobench.newt.benchmark" href="#biobench.newt.benchmark">benchmark</a></code></li>
+<li><code><a title="biobench.iwildcam.benchmark" href="#biobench.iwildcam.benchmark">benchmark</a></code></li>
+<li><code><a title="biobench.iwildcam.get_features" href="#biobench.iwildcam.get_features">get_features</a></code></li>
+<li><code><a title="biobench.iwildcam.init_ridge" href="#biobench.iwildcam.init_ridge">init_ridge</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
 <li>
-<h4><code><a title="biobench.newt.Args" href="#biobench.newt.Args">Args</a></code></h4>
+<h4><code><a title="biobench.iwildcam.Args" href="#biobench.iwildcam.Args">Args</a></code></h4>
 <ul class="">
-<li><code><a title="biobench.newt.Args.batch_size" href="#biobench.newt.Args.batch_size">batch_size</a></code></li>
-<li><code><a title="biobench.newt.Args.dataset_dir" href="#biobench.newt.Args.dataset_dir">dataset_dir</a></code></li>
-<li><code><a title="biobench.newt.Args.device" href="#biobench.newt.Args.device">device</a></code></li>
-<li><code><a title="biobench.newt.Args.n_workers" href="#biobench.newt.Args.n_workers">n_workers</a></code></li>
+<li><code><a title="biobench.iwildcam.Args.batch_size" href="#biobench.iwildcam.Args.batch_size">batch_size</a></code></li>
+<li><code><a title="biobench.iwildcam.Args.log_every" href="#biobench.iwildcam.Args.log_every">log_every</a></code></li>
+<li><code><a title="biobench.iwildcam.Args.n_workers" href="#biobench.iwildcam.Args.n_workers">n_workers</a></code></li>
 </ul>
+</li>
+<li>
+<h4><code><a title="biobench.iwildcam.Features" href="#biobench.iwildcam.Features">Features</a></code></h4>
+<ul class="">
+<li><code><a title="biobench.iwildcam.Features.ids" href="#biobench.iwildcam.Features.ids">ids</a></code></li>
+<li><code><a title="biobench.iwildcam.Features.x" href="#biobench.iwildcam.Features.x">x</a></code></li>
+<li><code><a title="biobench.iwildcam.Features.y" href="#biobench.iwildcam.Features.y">y</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="biobench.iwildcam.MeanScoreCalculator" href="#biobench.iwildcam.MeanScoreCalculator">MeanScoreCalculator</a></code></h4>
 </li>
 </ul>
 </li>

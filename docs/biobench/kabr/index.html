@@ -58,14 +58,14 @@ We get video representations by embedding each frame of the video and taking the
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="biobench.kabr.batched_idx"><code class="name flex">
-<span>def <span class="ident">batched_idx</span></span>(<span>total_size: int, batch_size: int) ‑> collections.abc.Iterator[tuple[int, int]]</span>
+<dt id="biobench.kabr.benchmark"><code class="name flex">
+<span>def <span class="ident">benchmark</span></span>(<span>args: <a title="biobench.kabr.Args" href="#biobench.kabr.Args">Args</a>, model_args: tuple[str, str]) ‑> tuple[tuple[str, str], <a title="biobench.interfaces.TaskReport" href="../interfaces.html#biobench.interfaces.TaskReport">TaskReport</a>]</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="biobench.kabr.benchmark"><code class="name flex">
-<span>def <span class="ident">benchmark</span></span>(<span>backbone: <a title="biobench.interfaces.VisionBackbone" href="../interfaces.html#biobench.interfaces.VisionBackbone">VisionBackbone</a>, args: <a title="biobench.kabr.Args" href="#biobench.kabr.Args">Args</a>) ‑> <a title="biobench.interfaces.BenchmarkReport" href="../interfaces.html#biobench.interfaces.BenchmarkReport">BenchmarkReport</a></span>
+<dt id="biobench.kabr.calc_mean_score"><code class="name flex">
+<span>def <span class="ident">calc_mean_score</span></span>(<span>examples: list[<a title="biobench.interfaces.Example" href="../interfaces.html#biobench.interfaces.Example">Example</a>]) ‑> float</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
@@ -77,18 +77,6 @@ We get video representations by embedding each frame of the video and taking the
 <div class="desc"><p>Gets all model features and true labels for all frames and all examples in the dataloader.</p>
 <p>Returns it as a pair of big Tensors.</p></div>
 </dd>
-<dt id="biobench.kabr.l2_normalize"><code class="name flex">
-<span>def <span class="ident">l2_normalize</span></span>(<span>features: jaxtyping.Float[Tensor, 'n_examples dim']) ‑> jaxtyping.Float[Tensor, 'n_examples dim']</span>
-</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="biobench.kabr.simpleshot"><code class="name flex">
-<span>def <span class="ident">simpleshot</span></span>(<span>args: <a title="biobench.kabr.Args" href="#biobench.kabr.Args">Args</a>, x_train: jaxtyping.Float[Tensor, 'n_train dim'], y_train: jaxtyping.Int[Tensor, 'n_train'], x_test: jaxtyping.Float[Tensor, 'n_test dim'], y_test: jaxtyping.Int[Tensor, 'n_test']) ‑> jaxtyping.Float[Tensor, 'n_test']</span>
-</code></dt>
-<dd>
-<div class="desc"><p>Applies simpleshot to the video clips. We assign each clip the majority label. Return the list of scores for x_test.</p></div>
-</dd>
 </dl>
 </section>
 <section>
@@ -96,44 +84,33 @@ We get video representations by embedding each frame of the video and taking the
 <dl>
 <dt id="biobench.kabr.Args"><code class="flex name class">
 <span>class <span class="ident">Args</span></span>
-<span>(</span><span>seed: int = 42, dataset_dir: str = '', batch_size: int = 16, n_workers: int = 4, frame_agg: Literal['mean', 'max'] = 'mean', device: Literal['cpu', 'cuda'] = 'cuda')</span>
+<span>(</span><span>seed: int = 42, datadir: str = '', device: str = 'cuda', debug: bool = False, batch_size: int = 16, n_workers: int = 4, frame_agg: Literal['mean', 'max'] = 'mean')</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Args(seed: int = 42, dataset_dir: str = '', batch_size: int = 16, n_workers: int = 4, frame_agg: Literal['mean', 'max'] = 'mean', device: Literal['cpu', 'cuda'] = 'cuda')</p></div>
+<div class="desc"><p>Args(seed: int = 42, datadir: str = '', device: str = 'cuda', debug: bool = False, batch_size: int = 16, n_workers: int = 4, frame_agg: Literal['mean', 'max'] = 'mean')</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">@beartype.beartype
-@dataclasses.dataclass
-class Args:
-    seed: int = 42
-    &#34;&#34;&#34;random seed.&#34;&#34;&#34;
-
-    dataset_dir: str = &#34;&#34;
-    &#34;&#34;&#34;dataset directory; where you downloaded KABR to.&#34;&#34;&#34;
+@dataclasses.dataclass(frozen=True)
+class Args(interfaces.TaskArgs):
     batch_size: int = 16
     &#34;&#34;&#34;batch size for deep model. Note that this is multiplied by 16 (number of frames)&#34;&#34;&#34;
     n_workers: int = 4
     &#34;&#34;&#34;number of dataloader worker processes.&#34;&#34;&#34;
     frame_agg: typing.Literal[&#34;mean&#34;, &#34;max&#34;] = &#34;mean&#34;
-    &#34;&#34;&#34;how to aggregate features across time dimension.&#34;&#34;&#34;
-    device: typing.Literal[&#34;cpu&#34;, &#34;cuda&#34;] = &#34;cuda&#34;
-    &#34;&#34;&#34;which device to use.&#34;&#34;&#34;</code></pre>
+    &#34;&#34;&#34;how to aggregate features across time dimension.&#34;&#34;&#34;</code></pre>
 </details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="biobench.interfaces.TaskArgs" href="../interfaces.html#biobench.interfaces.TaskArgs">TaskArgs</a></li>
+</ul>
 <h3>Class variables</h3>
 <dl>
 <dt id="biobench.kabr.Args.batch_size"><code class="name">var <span class="ident">batch_size</span> : int</code></dt>
 <dd>
 <div class="desc"><p>batch size for deep model. Note that this is multiplied by 16 (number of frames)</p></div>
-</dd>
-<dt id="biobench.kabr.Args.dataset_dir"><code class="name">var <span class="ident">dataset_dir</span> : str</code></dt>
-<dd>
-<div class="desc"><p>dataset directory; where you downloaded KABR to.</p></div>
-</dd>
-<dt id="biobench.kabr.Args.device"><code class="name">var <span class="ident">device</span> : Literal['cpu', 'cuda']</code></dt>
-<dd>
-<div class="desc"><p>which device to use.</p></div>
 </dd>
 <dt id="biobench.kabr.Args.frame_agg"><code class="name">var <span class="ident">frame_agg</span> : Literal['mean', 'max']</code></dt>
 <dd>
@@ -143,11 +120,18 @@ class Args:
 <dd>
 <div class="desc"><p>number of dataloader worker processes.</p></div>
 </dd>
-<dt id="biobench.kabr.Args.seed"><code class="name">var <span class="ident">seed</span> : int</code></dt>
-<dd>
-<div class="desc"><p>random seed.</p></div>
-</dd>
 </dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="biobench.interfaces.TaskArgs" href="../interfaces.html#biobench.interfaces.TaskArgs">TaskArgs</a></b></code>:
+<ul class="hlist">
+<li><code><a title="biobench.interfaces.TaskArgs.datadir" href="../interfaces.html#biobench.interfaces.TaskArgs.datadir">datadir</a></code></li>
+<li><code><a title="biobench.interfaces.TaskArgs.debug" href="../interfaces.html#biobench.interfaces.TaskArgs.debug">debug</a></code></li>
+<li><code><a title="biobench.interfaces.TaskArgs.device" href="../interfaces.html#biobench.interfaces.TaskArgs.device">device</a></code></li>
+<li><code><a title="biobench.interfaces.TaskArgs.seed" href="../interfaces.html#biobench.interfaces.TaskArgs.seed">seed</a></code></li>
+</ul>
+</li>
+</ul>
 </dd>
 <dt id="biobench.kabr.Dataset"><code class="flex name class">
 <span>class <span class="ident">Dataset</span></span>
@@ -184,7 +168,6 @@ class Dataset(torch.utils.data.Dataset):
 
         if not os.path.exists(self.path) or not os.path.isdir(self.path):
             msg = f&#34;Path &#39;{self.path}&#39; doesn&#39;t exist. Did you download the KABR dataset? See the docstring at the top of this file for instructions. If you did download it, pass the path as --dataset-dir PATH&#34;
-            logger.critical(msg)
             raise RuntimeError(msg)
 
         with open(os.path.join(self.path, &#34;annotation&#34;, f&#34;{split}.csv&#34;)) as fd:
@@ -213,7 +196,7 @@ class Dataset(torch.utils.data.Dataset):
             if len(frames[video_id]) &gt;= self.n_frames
         ]
 
-    def __getitem__(self, i) -&gt; tuple[list[object], list[int]]:
+    def __getitem__(self, i) -&gt; tuple[list[Float[Tensor, &#34;3 width height&#34;]], list[int]]:
         &#34;&#34;&#34;
         Returns 16 frames and their labels sampled every 5 frames from a clip. The start of the clip is uniformly sampled. If there are fewer
         &#34;&#34;&#34;
@@ -309,27 +292,22 @@ class Video:
 </ul>
 </li>
 <li><h3><a href="#header-functions">Functions</a></h3>
-<ul class="two-column">
+<ul class="">
 <li><code><a title="biobench.kabr.aggregate_frames" href="#biobench.kabr.aggregate_frames">aggregate_frames</a></code></li>
 <li><code><a title="biobench.kabr.aggregate_labels" href="#biobench.kabr.aggregate_labels">aggregate_labels</a></code></li>
-<li><code><a title="biobench.kabr.batched_idx" href="#biobench.kabr.batched_idx">batched_idx</a></code></li>
 <li><code><a title="biobench.kabr.benchmark" href="#biobench.kabr.benchmark">benchmark</a></code></li>
+<li><code><a title="biobench.kabr.calc_mean_score" href="#biobench.kabr.calc_mean_score">calc_mean_score</a></code></li>
 <li><code><a title="biobench.kabr.get_features" href="#biobench.kabr.get_features">get_features</a></code></li>
-<li><code><a title="biobench.kabr.l2_normalize" href="#biobench.kabr.l2_normalize">l2_normalize</a></code></li>
-<li><code><a title="biobench.kabr.simpleshot" href="#biobench.kabr.simpleshot">simpleshot</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
 <li>
 <h4><code><a title="biobench.kabr.Args" href="#biobench.kabr.Args">Args</a></code></h4>
-<ul class="two-column">
+<ul class="">
 <li><code><a title="biobench.kabr.Args.batch_size" href="#biobench.kabr.Args.batch_size">batch_size</a></code></li>
-<li><code><a title="biobench.kabr.Args.dataset_dir" href="#biobench.kabr.Args.dataset_dir">dataset_dir</a></code></li>
-<li><code><a title="biobench.kabr.Args.device" href="#biobench.kabr.Args.device">device</a></code></li>
 <li><code><a title="biobench.kabr.Args.frame_agg" href="#biobench.kabr.Args.frame_agg">frame_agg</a></code></li>
 <li><code><a title="biobench.kabr.Args.n_workers" href="#biobench.kabr.Args.n_workers">n_workers</a></code></li>
-<li><code><a title="biobench.kabr.Args.seed" href="#biobench.kabr.Args.seed">seed</a></code></li>
 </ul>
 </li>
 <li>
