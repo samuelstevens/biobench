@@ -94,10 +94,7 @@ def benchmark(
         for image_id, pred, true in zip(val_features.ids, pred_labels, true_labels)
     ]
 
-    splits = {
-        "micro-acc@1": (pred_labels == true_labels).mean().item(),
-    }
-    report = interfaces.TaskReport("Pl@ntNet", examples, splits, calc_mean_score)
+    report = interfaces.TaskReport("Pl@ntNet", examples, calc_mean_score)
     return model_args, report
 
 

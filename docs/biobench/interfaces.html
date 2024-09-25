@@ -36,10 +36,10 @@ hljs.highlightAll();
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
 <dt id="biobench.interfaces.get_git_hash"><code class="name flex">
-<span>def <span class="ident">get_git_hash</span></span>(<span>)</span>
+<span>def <span class="ident">get_git_hash</span></span>(<span>) ‑> str</span>
 </code></dt>
 <dd>
-<div class="desc"></div>
+<div class="desc"><p>Returns the hash of the current git commit, assuming we are in a git repo.</p></div>
 </dd>
 </dl>
 </section>
@@ -167,7 +167,7 @@ class TaskArgs:
 </dd>
 <dt id="biobench.interfaces.TaskReport"><code class="flex name class">
 <span>class <span class="ident">TaskReport</span></span>
-<span>(</span><span>name: str, examples: list[<a title="biobench.interfaces.Example" href="#biobench.interfaces.Example">Example</a>], splits: dict[str, float], calc_mean_score: Callable[[list[<a title="biobench.interfaces.Example" href="#biobench.interfaces.Example">Example</a>]], float], argv: list[str] = &lt;factory&gt;, commit: str = 'fda03bfb87dd745cf23626b65865060274aca18d', posix_time: float = &lt;factory&gt;, gpu_name: str = &lt;factory&gt;, hostname: str = &lt;factory&gt;)</span>
+<span>(</span><span>name: str, examples: list[<a title="biobench.interfaces.Example" href="#biobench.interfaces.Example">Example</a>], calc_mean_score: Callable[[list[<a title="biobench.interfaces.Example" href="#biobench.interfaces.Example">Example</a>]], float], argv: list[str] = &lt;factory&gt;, commit: str = 'a4368c9538171b59c7ce47d969dbbc49a92b2138', posix_time: float = &lt;factory&gt;, gpu_name: str = &lt;factory&gt;, hostname: str = &lt;factory&gt;)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>The result of running a benchmark task.</p>
@@ -187,13 +187,11 @@ class TaskReport:
 
     # Actual details of the report
     name: str
-    &#34;&#34;&#34;the benchmark name.&#34;&#34;&#34;
+    &#34;&#34;&#34;The benchmark name.&#34;&#34;&#34;
     examples: list[Example]
-    &#34;&#34;&#34;a list of (example_id, score, info) objects&#34;&#34;&#34;
-    splits: dict[str, float]
-    &#34;&#34;&#34;individual splits and scores; can be anything you want.&#34;&#34;&#34;
+    &#34;&#34;&#34;A list of (example_id, score, info) objects&#34;&#34;&#34;
     calc_mean_score: typing.Callable[[list[Example]], float]
-    &#34;&#34;&#34;way to calculate mean score from a list of examples.&#34;&#34;&#34;
+    &#34;&#34;&#34;A way to calculate mean score from a list of examples.&#34;&#34;&#34;
 
     # Stuff for trying to reproduce this result. These are filled in by default.
     argv: list[str] = dataclasses.field(default_factory=lambda: sys.argv)
@@ -243,10 +241,12 @@ class TaskReport:
         return lower, upper
 
     def to_dict(self) -&gt; dict[str, object]:
+        &#34;&#34;&#34;
+        Returns a json-encodable dictionary representation of self.
+        &#34;&#34;&#34;
         return {
             &#34;name&#34;: self.name,
             &#34;examples&#34;: [dataclasses.asdict(example) for example in self.examples],
-            &#34;splits&#34;: self.splits,
             &#34;argv&#34;: self.argv,
             &#34;commit&#34;: self.commit,
             &#34;posix_time&#34;: self.posix_time,
@@ -262,7 +262,7 @@ class TaskReport:
 </dd>
 <dt id="biobench.interfaces.TaskReport.calc_mean_score"><code class="name">var <span class="ident">calc_mean_score</span> : Callable[[list[<a title="biobench.interfaces.Example" href="#biobench.interfaces.Example">Example</a>]], float]</code></dt>
 <dd>
-<div class="desc"><p>way to calculate mean score from a list of examples.</p></div>
+<div class="desc"><p>A way to calculate mean score from a list of examples.</p></div>
 </dd>
 <dt id="biobench.interfaces.TaskReport.commit"><code class="name">var <span class="ident">commit</span> : str</code></dt>
 <dd>
@@ -270,7 +270,7 @@ class TaskReport:
 </dd>
 <dt id="biobench.interfaces.TaskReport.examples"><code class="name">var <span class="ident">examples</span> : list[<a title="biobench.interfaces.Example" href="#biobench.interfaces.Example">Example</a>]</code></dt>
 <dd>
-<div class="desc"><p>a list of (example_id, score, info) objects</p></div>
+<div class="desc"><p>A list of (example_id, score, info) objects</p></div>
 </dd>
 <dt id="biobench.interfaces.TaskReport.gpu_name"><code class="name">var <span class="ident">gpu_name</span> : str</code></dt>
 <dd>
@@ -282,15 +282,11 @@ class TaskReport:
 </dd>
 <dt id="biobench.interfaces.TaskReport.name"><code class="name">var <span class="ident">name</span> : str</code></dt>
 <dd>
-<div class="desc"><p>the benchmark name.</p></div>
+<div class="desc"><p>The benchmark name.</p></div>
 </dd>
 <dt id="biobench.interfaces.TaskReport.posix_time"><code class="name">var <span class="ident">posix_time</span> : float</code></dt>
 <dd>
 <div class="desc"><p>time when this report was constructed.</p></div>
-</dd>
-<dt id="biobench.interfaces.TaskReport.splits"><code class="name">var <span class="ident">splits</span> : dict[str, float]</code></dt>
-<dd>
-<div class="desc"><p>individual splits and scores; can be anything you want.</p></div>
 </dd>
 </dl>
 <h3>Methods</h3>
@@ -312,7 +308,7 @@ class TaskReport:
 <span>def <span class="ident">to_dict</span></span>(<span>self) ‑> dict[str, object]</span>
 </code></dt>
 <dd>
-<div class="desc"></div>
+<div class="desc"><p>Returns a json-encodable dictionary representation of self.</p></div>
 </dd>
 </dl>
 </dd>
@@ -321,14 +317,22 @@ class TaskReport:
 <span>(</span><span>*args, **kwargs)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Initialize internal Module state, shared by both nn.Module and ScriptModule.</p></div>
+<div class="desc"><p>A frozen vision model that embeds batches of images into batches of vectors.</p>
+<p>To add new models to the benchmark, you can simply create a new class that satisfies this interface and register it.
+See the tutorial on adding SAM to biobench.</p>
+<p>Initialize internal Module state, shared by both nn.Module and ScriptModule.</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
 class VisionBackbone(torch.nn.Module):
-    &#34;&#34;&#34; &#34;&#34;&#34;
+    &#34;&#34;&#34;
+    A frozen vision model that embeds batches of images into batches of vectors.
+
+    To add new models to the benchmark, you can simply create a new class that satisfies this interface and register it.
+    See the tutorial on adding SAM to biobench.
+    &#34;&#34;&#34;
 
     @jaxtyped(typechecker=beartype.beartype)
     def img_encode(
@@ -423,7 +427,6 @@ class VisionBackbone(torch.nn.Module):
 <li><code><a title="biobench.interfaces.TaskReport.hostname" href="#biobench.interfaces.TaskReport.hostname">hostname</a></code></li>
 <li><code><a title="biobench.interfaces.TaskReport.name" href="#biobench.interfaces.TaskReport.name">name</a></code></li>
 <li><code><a title="biobench.interfaces.TaskReport.posix_time" href="#biobench.interfaces.TaskReport.posix_time">posix_time</a></code></li>
-<li><code><a title="biobench.interfaces.TaskReport.splits" href="#biobench.interfaces.TaskReport.splits">splits</a></code></li>
 <li><code><a title="biobench.interfaces.TaskReport.to_dict" href="#biobench.interfaces.TaskReport.to_dict">to_dict</a></code></li>
 </ul>
 </li>

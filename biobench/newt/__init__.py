@@ -110,16 +110,7 @@ def benchmark(
         itertools.chain.from_iterable((result.pop("examples") for result in results))
     )
 
-    df = pl.DataFrame(results, schema={"task": str, "cluster": str, "test_acc": float})
-
-    splits = {
-        cluster: test_acc
-        for cluster, test_acc in df.group_by("cluster")
-        .agg(pl.col("test_acc").mean())
-        .iter_rows()
-    }
-
-    return model_args, interfaces.TaskReport("NeWT", examples, splits, calc_mean_score)
+    return model_args, interfaces.TaskReport("NeWT", examples, calc_mean_score)
 
 
 @jaxtyped(typechecker=beartype.beartype)

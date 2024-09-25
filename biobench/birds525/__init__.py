@@ -1,3 +1,15 @@
+"""
+Species classification of 525 different bird species; this dataset is from [Kaggle](https://www.kaggle.com/datasets/gpiosenka/100-bird-species) (although it was down when I wrote this docstring, several weeks after downloading the data).
+
+We use simpleshot and mimic the setting in [BioCLIP](https://imageomics.github.io/bioclip/): we randomly select 5 examples from each class, then evaluate on the validation set.
+
+We are interested in understanding the variance associated with using different training examples.
+However, the `biobench.interfaces.TaskReport.get_confidence_interval` method only passes a list of scored test examples, not a set of new training examples.
+To get around this, the `benchmark` function re-samples training data and re-runs the simpleshot algorithm 100 times.
+Then when the `biobench.interfaces.TaskReport.get_confidence_interval` is called, we randomly return one of the scores.
+This gives a pretty tight confidence interval because `biobench.interfaces.TaskReport.get_confidence_interval` will do 500 resamples by default, but at least we re-run training with different training examples.
+"""
+
 import dataclasses
 import logging
 import os.path
@@ -11,10 +23,10 @@ from torch import Tensor
 
 from biobench import interfaces, registry, simpleshot
 
-__all__ = ["Args", "benchmark"]
 logger = logging.getLogger("birds525")
 
 
+# Download URL for the croissant format of the Kaggle Birds dataset.
 dataset_url = (
     "https://www.kaggle.com/datasets/gpiosenka/100-bird-species/croissant/download"
 )
@@ -23,6 +35,10 @@ dataset_url = (
 @beartype.beartype
 @dataclasses.dataclass(frozen=True)
 class Args(interfaces.TaskArgs):
+    """
+    Args for Birds525.
+    """
+
     batch_size: int = 256
     """batch size for deep model."""
     n_workers: int = 4
@@ -37,6 +53,10 @@ class Args(interfaces.TaskArgs):
 def benchmark(
     args: Args, model_args: interfaces.ModelArgs
 ) -> tuple[interfaces.ModelArgs, interfaces.TaskReport]:
+    """
+    Runs simpleshot `Args.n_repeats` times with 5 training examples per class, then evaluates on the validation split.
+    """
+
     backbone = registry.load_vision_backbone(*model_args)
     train_features = get_features(args, backbone, is_train=True)
     test_features = get_features(args, backbone, is_train=False)
@@ -72,12 +92,16 @@ def benchmark(
 
     # We sort of cheat here. We run simpleshot n_repeats (100) times, then when we want to calculate the confidence intervals, we just choose the score of one of these simpleshot runs, regardless of what examples are passed.
     return model_args, interfaces.TaskReport(
-        "Birds525-1shot", examples, {}, ChooseRandomCachedResult(args.seed, all_scores)
+        "Birds525-1shot", examples, ChooseRandomCachedResult(args.seed, all_scores)
     )
 
 
 @jaxtyped(typechecker=beartype.beartype)
 class ChooseRandomCachedResult:
+    """
+    We sort of cheat here. We run simpleshot n_repeats (100) times, then when we want to calculate the confidence intervals, we just choose the score of one of these simpleshot runs, regardless of what examples are passed.
+    """
+
     def __init__(self, seed, scores: Float[np.ndarray, " n"]):
         self._scores = scores
         self._rng = np.random.default_rng(seed=seed)
@@ -90,12 +114,19 @@ class ChooseRandomCachedResult:
 @dataclasses.dataclass(frozen=True)
 class Features:
     x: Float[Tensor, " n dim"]
+    """Input features; from a `biobench.interfaces.VisionBackbone`."""
     y: Int[Tensor, " n"]
+    """Class label."""
     ids: Shaped[np.ndarray, " n"]
+    """Array of ids; could be strings, could be ints, etc."""
 
 
 @jaxtyped(typechecker=beartype.beartype)
 class Dataset(torchvision.datasets.ImageFolder):
+    """
+    Overwrites ImageFolder so that it includes the
+    """
+
     def __getitem__(self, index: int) -> tuple[str, object, object]:
         """
         Args:
@@ -168,6 +199,9 @@ def get_features(
 
 @jaxtyped(typechecker=beartype.beartype)
 def choose_k_per_class(labels: Int[Tensor, " n"], *, k: int) -> Int[Tensor, " n_train"]:
+    """
+    Returns indices for a label set that include at most k examples per class.
+    """
     classes = np.unique(labels)
 
     train_indices = np.array([], dtype=int)

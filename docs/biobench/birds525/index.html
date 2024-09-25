@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
 <meta name="generator" content="pdoc3 0.11.1">
 <title>biobench.birds525 API documentation</title>
-<meta name="description" content="">
+<meta name="description" content="Species classification of 525 different bird species; this dataset is from [Kaggle](https://www.kaggle.com/datasets/gpiosenka/100-bird-species) …">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
@@ -27,6 +27,13 @@ hljs.highlightAll();
 <h1 class="title">Module <code>biobench.birds525</code></h1>
 </header>
 <section id="section-intro">
+<p>Species classification of 525 different bird species; this dataset is from <a href="https://www.kaggle.com/datasets/gpiosenka/100-bird-species">Kaggle</a> (although it was down when I wrote this docstring, several weeks after downloading the data).</p>
+<p>We use simpleshot and mimic the setting in <a href="https://imageomics.github.io/bioclip/">BioCLIP</a>: we randomly select 5 examples from each class, then evaluate on the validation set.</p>
+<p>We are interested in understanding the variance associated with using different training examples.
+However, the <code><a title="biobench.interfaces.TaskReport.get_confidence_interval" href="../interfaces.html#biobench.interfaces.TaskReport.get_confidence_interval">TaskReport.get_confidence_interval()</a></code> method only passes a list of scored test examples, not a set of new training examples.
+To get around this, the <code><a title="biobench.birds525.benchmark" href="#biobench.birds525.benchmark">benchmark()</a></code> function re-samples training data and re-runs the simpleshot algorithm 100 times.
+Then when the <code><a title="biobench.interfaces.TaskReport.get_confidence_interval" href="../interfaces.html#biobench.interfaces.TaskReport.get_confidence_interval">TaskReport.get_confidence_interval()</a></code> is called, we randomly return one of the scores.
+This gives a pretty tight confidence interval because <code><a title="biobench.interfaces.TaskReport.get_confidence_interval" href="../interfaces.html#biobench.interfaces.TaskReport.get_confidence_interval">TaskReport.get_confidence_interval()</a></code> will do 500 resamples by default, but at least we re-run training with different training examples.</p>
 </section>
 <section>
 <h2 class="section-title" id="header-submodules">Sub-modules</h2>
@@ -46,6 +53,18 @@ hljs.highlightAll();
 <span>def <span class="ident">benchmark</span></span>(<span>args: <a title="biobench.birds525.Args" href="#biobench.birds525.Args">Args</a>, model_args: tuple[str, str]) ‑> tuple[tuple[str, str], <a title="biobench.interfaces.TaskReport" href="../interfaces.html#biobench.interfaces.TaskReport">TaskReport</a>]</span>
 </code></dt>
 <dd>
+<div class="desc"><p>Runs simpleshot <code><a title="biobench.birds525.Args.n_repeats" href="#biobench.birds525.Args.n_repeats">Args.n_repeats</a></code> times with 5 training examples per class, then evaluates on the validation split.</p></div>
+</dd>
+<dt id="biobench.birds525.choose_k_per_class"><code class="name flex">
+<span>def <span class="ident">choose_k_per_class</span></span>(<span>labels: jaxtyping.Int[Tensor, 'n'], *, k: int) ‑> jaxtyping.Int[Tensor, 'n_train']</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Returns indices for a label set that include at most k examples per class.</p></div>
+</dd>
+<dt id="biobench.birds525.get_features"><code class="name flex">
+<span>def <span class="ident">get_features</span></span>(<span>args: <a title="biobench.birds525.Args" href="#biobench.birds525.Args">Args</a>, backbone: <a title="biobench.interfaces.VisionBackbone" href="../interfaces.html#biobench.interfaces.VisionBackbone">VisionBackbone</a>, *, is_train: bool) ‑> <a title="biobench.birds525.Features" href="#biobench.birds525.Features">Features</a></span>
+</code></dt>
+<dd>
 <div class="desc"></div>
 </dd>
 </dl>
@@ -58,7 +77,7 @@ hljs.highlightAll();
 <span>(</span><span>seed: int = 42, datadir: str = '', device: str = 'cuda', debug: bool = False, batch_size: int = 256, n_workers: int = 4, log_every: int = 10, n_repeats: int = 100)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Args(seed: int = 42, datadir: str = '', device: str = 'cuda', debug: bool = False, batch_size: int = 256, n_workers: int = 4, log_every: int = 10, n_repeats: int = 100)</p></div>
+<div class="desc"><p>Args for Birds525.</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -66,6 +85,10 @@ hljs.highlightAll();
 <pre><code class="python">@beartype.beartype
 @dataclasses.dataclass(frozen=True)
 class Args(interfaces.TaskArgs):
+    &#34;&#34;&#34;
+    Args for Birds525.
+    &#34;&#34;&#34;
+
     batch_size: int = 256
     &#34;&#34;&#34;batch size for deep model.&#34;&#34;&#34;
     n_workers: int = 4
@@ -110,6 +133,108 @@ class Args(interfaces.TaskArgs):
 </li>
 </ul>
 </dd>
+<dt id="biobench.birds525.ChooseRandomCachedResult"><code class="flex name class">
+<span>class <span class="ident">ChooseRandomCachedResult</span></span>
+<span>(</span><span>seed, scores: jaxtyping.Float[ndarray, 'n'])</span>
+</code></dt>
+<dd>
+<div class="desc"><p>We sort of cheat here. We run simpleshot n_repeats (100) times, then when we want to calculate the confidence intervals, we just choose the score of one of these simpleshot runs, regardless of what examples are passed.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
+class ChooseRandomCachedResult:
+    &#34;&#34;&#34;
+    We sort of cheat here. We run simpleshot n_repeats (100) times, then when we want to calculate the confidence intervals, we just choose the score of one of these simpleshot runs, regardless of what examples are passed.
+    &#34;&#34;&#34;
+
+    def __init__(self, seed, scores: Float[np.ndarray, &#34; n&#34;]):
+        self._scores = scores
+        self._rng = np.random.default_rng(seed=seed)
+
+    def __call__(self, examples: list[interfaces.Example]) -&gt; float:
+        return self._rng.choice(self._scores).item()</code></pre>
+</details>
+</dd>
+<dt id="biobench.birds525.Dataset"><code class="flex name class">
+<span>class <span class="ident">Dataset</span></span>
+<span>(</span><span>root: str, transform: Optional[Callable] = None, target_transform: Optional[Callable] = None, loader: Callable[[str], Any] = &lt;function default_loader&gt;, is_valid_file: Optional[Callable[[str], bool]] = None, allow_empty: bool = False)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Overwrites ImageFolder so that it includes the</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
+class Dataset(torchvision.datasets.ImageFolder):
+    &#34;&#34;&#34;
+    Overwrites ImageFolder so that it includes the
+    &#34;&#34;&#34;
+
+    def __getitem__(self, index: int) -&gt; tuple[str, object, object]:
+        &#34;&#34;&#34;
+        Args:
+            index (int): Index
+
+        Returns:
+            tuple: (sample, target) where target is class_index of the target class.
+        &#34;&#34;&#34;
+        path, target = self.samples[index]
+        sample = self.loader(path)
+        if self.transform is not None:
+            sample = self.transform(sample)
+        if self.target_transform is not None:
+            target = self.target_transform(target)
+
+        return path, sample, target</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>torchvision.datasets.folder.ImageFolder</li>
+<li>torchvision.datasets.folder.DatasetFolder</li>
+<li>torchvision.datasets.vision.VisionDataset</li>
+<li>torch.utils.data.dataset.Dataset</li>
+<li>typing.Generic</li>
+</ul>
+</dd>
+<dt id="biobench.birds525.Features"><code class="flex name class">
+<span>class <span class="ident">Features</span></span>
+<span>(</span><span>x: jaxtyping.Float[Tensor, 'n dim'], y: jaxtyping.Int[Tensor, 'n'], ids: jaxtyping.Shaped[ndarray, 'n'])</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Features(x: jaxtyping.Float[Tensor, 'n dim'], y: jaxtyping.Int[Tensor, 'n'], ids: jaxtyping.Shaped[ndarray, 'n'])</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
+@dataclasses.dataclass(frozen=True)
+class Features:
+    x: Float[Tensor, &#34; n dim&#34;]
+    &#34;&#34;&#34;Input features; from a `biobench.interfaces.VisionBackbone`.&#34;&#34;&#34;
+    y: Int[Tensor, &#34; n&#34;]
+    &#34;&#34;&#34;Class label.&#34;&#34;&#34;
+    ids: Shaped[np.ndarray, &#34; n&#34;]
+    &#34;&#34;&#34;Array of ids; could be strings, could be ints, etc.&#34;&#34;&#34;</code></pre>
+</details>
+<h3>Class variables</h3>
+<dl>
+<dt id="biobench.birds525.Features.ids"><code class="name">var <span class="ident">ids</span> : jaxtyping.Shaped[ndarray, 'n']</code></dt>
+<dd>
+<div class="desc"><p>Array of ids; could be strings, could be ints, etc.</p></div>
+</dd>
+<dt id="biobench.birds525.Features.x"><code class="name">var <span class="ident">x</span> : jaxtyping.Float[Tensor, 'n dim']</code></dt>
+<dd>
+<div class="desc"><p>Input features; from a <code><a title="biobench.interfaces.VisionBackbone" href="../interfaces.html#biobench.interfaces.VisionBackbone">VisionBackbone</a></code>.</p></div>
+</dd>
+<dt id="biobench.birds525.Features.y"><code class="name">var <span class="ident">y</span> : jaxtyping.Int[Tensor, 'n']</code></dt>
+<dd>
+<div class="desc"><p>Class label.</p></div>
+</dd>
+</dl>
+</dd>
 </dl>
 </section>
 </article>
@@ -131,6 +256,8 @@ class Args(interfaces.TaskArgs):
 <li><h3><a href="#header-functions">Functions</a></h3>
 <ul class="">
 <li><code><a title="biobench.birds525.benchmark" href="#biobench.birds525.benchmark">benchmark</a></code></li>
+<li><code><a title="biobench.birds525.choose_k_per_class" href="#biobench.birds525.choose_k_per_class">choose_k_per_class</a></code></li>
+<li><code><a title="biobench.birds525.get_features" href="#biobench.birds525.get_features">get_features</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>
@@ -142,6 +269,20 @@ class Args(interfaces.TaskArgs):
 <li><code><a title="biobench.birds525.Args.log_every" href="#biobench.birds525.Args.log_every">log_every</a></code></li>
 <li><code><a title="biobench.birds525.Args.n_repeats" href="#biobench.birds525.Args.n_repeats">n_repeats</a></code></li>
 <li><code><a title="biobench.birds525.Args.n_workers" href="#biobench.birds525.Args.n_workers">n_workers</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="biobench.birds525.ChooseRandomCachedResult" href="#biobench.birds525.ChooseRandomCachedResult">ChooseRandomCachedResult</a></code></h4>
+</li>
+<li>
+<h4><code><a title="biobench.birds525.Dataset" href="#biobench.birds525.Dataset">Dataset</a></code></h4>
+</li>
+<li>
+<h4><code><a title="biobench.birds525.Features" href="#biobench.birds525.Features">Features</a></code></h4>
+<ul class="">
+<li><code><a title="biobench.birds525.Features.ids" href="#biobench.birds525.Features.ids">ids</a></code></li>
+<li><code><a title="biobench.birds525.Features.x" href="#biobench.birds525.Features.x">x</a></code></li>
+<li><code><a title="biobench.birds525.Features.y" href="#biobench.birds525.Features.y">y</a></code></li>
 </ul>
 </li>
 </ul>

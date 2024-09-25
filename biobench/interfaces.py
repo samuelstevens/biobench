@@ -41,7 +41,12 @@ class EncodedImgBatch:
 
 @jaxtyped(typechecker=beartype.beartype)
 class VisionBackbone(torch.nn.Module):
-    """ """
+    """
+    A frozen vision model that embeds batches of images into batches of vectors.
+
+    To add new models to the benchmark, you can simply create a new class that satisfies this interface and register it.
+    See the tutorial on adding SAM to biobench.
+    """
 
     @jaxtyped(typechecker=beartype.beartype)
     def img_encode(
@@ -55,13 +60,18 @@ class VisionBackbone(torch.nn.Module):
         raise NotImplementedError(err_msg)
 
 
-def get_git_hash():
+def get_git_hash() -> str:
+    """
+    Returns the hash of the current git commit, assuming we are in a git repo.
+    """
     return subprocess.check_output(["git", "rev-parse", "HEAD"]).decode("ascii").strip()
 
 
 @jaxtyped(typechecker=beartype.beartype)
 @dataclasses.dataclass(frozen=True)
 class Example:
+    """ """
+
     id: str
     score: float
     info: dict[str, object]
@@ -78,25 +88,25 @@ class TaskReport:
 
     # Actual details of the report
     name: str
-    """the benchmark name."""
+    """The benchmark name."""
     examples: list[Example]
-    """a list of (example_id, score, info) objects"""
-    splits: dict[str, float]
-    """individual splits and scores; can be anything you want."""
+    """A list of (example_id, score, info) objects"""
     calc_mean_score: typing.Callable[[list[Example]], float]
-    """way to calculate mean score from a list of examples."""
+    """A way to calculate mean score from a list of examples."""
 
     # Stuff for trying to reproduce this result. These are filled in by default.
     argv: list[str] = dataclasses.field(default_factory=lambda: sys.argv)
-    """command used to get this report."""
+    """Command used to get this report."""
     commit: str = get_git_hash()
     """Git commit for this current report."""
     posix_time: float = dataclasses.field(default_factory=time.time)
-    """time when this report was constructed."""
+    """Time when this report was constructed."""
     gpu_name: str = dataclasses.field(
         default_factory=lambda: torch.cuda.get_device_properties(0).name
     )
+    """Name of the GPU that ran this experiment."""
     hostname: str = dataclasses.field(default_factory=socket.gethostname)
+    """Machine hostname that ran this experiment."""
 
     def __repr__(self):
         return f"Report({self.name} with {len(self.examples)} examples)"
@@ -105,6 +115,9 @@ class TaskReport:
         return repr(self)
 
     def get_mean_score(self) -> float:
+        """
+        Get the mean score of all examples.
+        """
         return self.calc_mean_score(self.examples)
 
     def get_confidence_interval(
@@ -114,9 +127,10 @@ class TaskReport:
         n_resamples: int = 500,
         seed: int = 42,
     ) -> tuple[float, float]:
-        """confidence interval for the statistics (mean) by bootstrapping individual scores of the examples.
+        """
+        Get the confidence interval for the statistics (mean) by bootstrapping individual scores of the examples.
 
-        NOTE: it's crazy how much easier this would be in jax to vmap. PyTrees of Examples would simply contains batch dimensions, and then I would jax.vmap(get_mean_score)(batched_examples).
+        NOTE: it's crazy how much easier this would be in Jax. PyTrees of Examples would simply contains batch dimensions, and then I would `jax.vmap(get_mean_score)(batched_examples)`.
         """
 
         rng = np.random.default_rng(seed=seed)
@@ -134,10 +148,12 @@ class TaskReport:
         return lower, upper
 
     def to_dict(self) -> dict[str, object]:
+        """
+        Returns a json-encodable dictionary representation of self.
+        """
         return {
             "name": self.name,
             "examples": [dataclasses.asdict(example) for example in self.examples],
-            "splits": self.splits,
             "argv": self.argv,
             "commit": self.commit,
             "posix_time": self.posix_time,

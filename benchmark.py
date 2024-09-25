@@ -138,8 +138,6 @@ def save(
     logger.info(
         "%s on %s: %.1f%%", model_ckpt, report.name, report.get_mean_score() * 100
     )
-    for key, value in report.splits.items():
-        logger.info("%s on %s; split '%s': %.3f", model_ckpt, report.name, key, value)
 
 
 @beartype.beartype

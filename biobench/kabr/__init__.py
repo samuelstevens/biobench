@@ -252,8 +252,7 @@ def benchmark(
         for id, score in zip(video_ids, scores.tolist())
     ]
     # TODO: include example-specific info (class? something else)
-    # TODO: include split-level scores.
-    return model_args, interfaces.TaskReport("KABR", examples, {}, calc_mean_score)
+    return model_args, interfaces.TaskReport("KABR", examples, calc_mean_score)
 
 
 def calc_mean_score(examples: list[interfaces.Example]) -> float:

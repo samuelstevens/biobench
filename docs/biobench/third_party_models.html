@@ -51,7 +51,10 @@ hljs.highlightAll();
 <span>(</span><span>ckpt: str, **kwargs)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Initialize internal Module state, shared by both nn.Module and ScriptModule.</p></div>
+<div class="desc"><p>A frozen vision model that embeds batches of images into batches of vectors.</p>
+<p>To add new models to the benchmark, you can simply create a new class that satisfies this interface and register it.
+See the tutorial on adding SAM to biobench.</p>
+<p>Initialize internal Module state, shared by both nn.Module and ScriptModule.</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -113,7 +116,10 @@ class OpenClip(interfaces.VisionBackbone):
 <span>(</span><span>ckpt: str, **kwargs)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Initialize internal Module state, shared by both nn.Module and ScriptModule.</p></div>
+<div class="desc"><p>A frozen vision model that embeds batches of images into batches of vectors.</p>
+<p>To add new models to the benchmark, you can simply create a new class that satisfies this interface and register it.
+See the tutorial on adding SAM to biobench.</p>
+<p>Initialize internal Module state, shared by both nn.Module and ScriptModule.</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>

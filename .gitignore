@@ -3,3 +3,4 @@ __pycache__
 .aim/
 graphs/
 *.sqlite
+logs/

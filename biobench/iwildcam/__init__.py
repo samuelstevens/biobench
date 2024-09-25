@@ -105,7 +105,7 @@ def benchmark(
     logger.info("%d examples done.", len(examples))
 
     return model_args, interfaces.TaskReport(
-        "iWildCam", examples, {}, MeanScoreCalculator()
+        "iWildCam", examples, MeanScoreCalculator()
     )
 
 
