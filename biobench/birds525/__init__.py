@@ -26,17 +26,11 @@ from biobench import interfaces, registry, simpleshot
 logger = logging.getLogger("birds525")
 
 
-# Download URL for the croissant format of the Kaggle Birds dataset.
-dataset_url = (
-    "https://www.kaggle.com/datasets/gpiosenka/100-bird-species/croissant/download"
-)
-
-
 @beartype.beartype
 @dataclasses.dataclass(frozen=True)
 class Args(interfaces.TaskArgs):
     """
-    Args for Birds525.
+    Arguments for Birds525.
     """
 
     batch_size: int = 256
@@ -54,7 +48,7 @@ def benchmark(
     args: Args, model_args: interfaces.ModelArgs
 ) -> tuple[interfaces.ModelArgs, interfaces.TaskReport]:
     """
-    Runs simpleshot `Args.n_repeats` times with 5 training examples per class, then evaluates on the validation split.
+    Runs simpleshot `Args.n_repeats` times (default 100) with 5 training examples per class, then evaluates on the validation split.
     """
 
     backbone = registry.load_vision_backbone(*model_args)
@@ -113,6 +107,12 @@ class ChooseRandomCachedResult:
 @jaxtyped(typechecker=beartype.beartype)
 @dataclasses.dataclass(frozen=True)
 class Features:
+    """
+    A block of features.
+
+    Note: In Jax, this could be a tuple of arrays, all with a leading dimension of `n`. Instead, in PyTorch, it's easier to make it its own class. Oh well.
+    """
+
     x: Float[Tensor, " n dim"]
     """Input features; from a `biobench.interfaces.VisionBackbone`."""
     y: Int[Tensor, " n"]
@@ -124,7 +124,7 @@ class Features:
 @jaxtyped(typechecker=beartype.beartype)
 class Dataset(torchvision.datasets.ImageFolder):
     """
-    Overwrites ImageFolder so that it includes the
+    Overwrites ImageFolder so that `__getitem__` includes the path, which we use as the ID.
     """
 
     def __getitem__(self, index: int) -> tuple[str, object, object]:
@@ -133,7 +133,7 @@ class Dataset(torchvision.datasets.ImageFolder):
             index (int): Index
 
         Returns:
-            tuple: (sample, target) where target is class_index of the target class.
+            tuple: (path, sample, target) where target is class_index of the target class.
         """
         path, target = self.samples[index]
         sample = self.loader(path)
@@ -150,6 +150,14 @@ class Dataset(torchvision.datasets.ImageFolder):
 def get_features(
     args: Args, backbone: interfaces.VisionBackbone, *, is_train: bool
 ) -> Features:
+    """
+    Get a block of features from a vision backbone for a split (either train or test).
+
+    Arguments:
+        args: Birds525 arguments.
+        backbone: visual backbone.
+        is_train: whether you want training data or the test data.
+    """
     img_transform = backbone.make_img_transform()
     backbone = torch.compile(backbone.to(args.device))
 
@@ -200,7 +208,14 @@ def get_features(
 @jaxtyped(typechecker=beartype.beartype)
 def choose_k_per_class(labels: Int[Tensor, " n"], *, k: int) -> Int[Tensor, " n_train"]:
     """
-    Returns indices for a label set that include at most k examples per class.
+    Returns indices for a label set that include at most `k` examples per class.
+
+    Arguments:
+        labels: a list of integer labels for a set of data.
+        k: the maximum number of examples per class.
+
+    Returns:
+        indices for `labels` such that at most `k` examples per class are in the data.
     """
     classes = np.unique(labels)
 

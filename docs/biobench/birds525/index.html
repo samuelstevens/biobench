@@ -53,19 +53,28 @@ This gives a pretty tight confidence interval because <code><a title="biobench.i
 <span>def <span class="ident">benchmark</span></span>(<span>args: <a title="biobench.birds525.Args" href="#biobench.birds525.Args">Args</a>, model_args: tuple[str, str]) ‑> tuple[tuple[str, str], <a title="biobench.interfaces.TaskReport" href="../interfaces.html#biobench.interfaces.TaskReport">TaskReport</a>]</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Runs simpleshot <code><a title="biobench.birds525.Args.n_repeats" href="#biobench.birds525.Args.n_repeats">Args.n_repeats</a></code> times with 5 training examples per class, then evaluates on the validation split.</p></div>
+<div class="desc"><p>Runs simpleshot <code><a title="biobench.birds525.Args.n_repeats" href="#biobench.birds525.Args.n_repeats">Args.n_repeats</a></code> times (default 100) with 5 training examples per class, then evaluates on the validation split.</p></div>
 </dd>
 <dt id="biobench.birds525.choose_k_per_class"><code class="name flex">
 <span>def <span class="ident">choose_k_per_class</span></span>(<span>labels: jaxtyping.Int[Tensor, 'n'], *, k: int) ‑> jaxtyping.Int[Tensor, 'n_train']</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Returns indices for a label set that include at most k examples per class.</p></div>
+<div class="desc"><p>Returns indices for a label set that include at most <code>k</code> examples per class.</p>
+<h2 id="arguments">Arguments</h2>
+<p>labels: a list of integer labels for a set of data.
+k: the maximum number of examples per class.</p>
+<h2 id="returns">Returns</h2>
+<p>indices for <code>labels</code> such that at most <code>k</code> examples per class are in the data.</p></div>
 </dd>
 <dt id="biobench.birds525.get_features"><code class="name flex">
 <span>def <span class="ident">get_features</span></span>(<span>args: <a title="biobench.birds525.Args" href="#biobench.birds525.Args">Args</a>, backbone: <a title="biobench.interfaces.VisionBackbone" href="../interfaces.html#biobench.interfaces.VisionBackbone">VisionBackbone</a>, *, is_train: bool) ‑> <a title="biobench.birds525.Features" href="#biobench.birds525.Features">Features</a></span>
 </code></dt>
 <dd>
-<div class="desc"></div>
+<div class="desc"><p>Get a block of features from a vision backbone for a split (either train or test).</p>
+<h2 id="arguments">Arguments</h2>
+<p>args: Birds525 arguments.
+backbone: visual backbone.
+is_train: whether you want training data or the test data.</p></div>
 </dd>
 </dl>
 </section>
@@ -77,7 +86,7 @@ This gives a pretty tight confidence interval because <code><a title="biobench.i
 <span>(</span><span>seed: int = 42, datadir: str = '', device: str = 'cuda', debug: bool = False, batch_size: int = 256, n_workers: int = 4, log_every: int = 10, n_repeats: int = 100)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Args for Birds525.</p></div>
+<div class="desc"><p>Arguments for Birds525.</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -86,7 +95,7 @@ This gives a pretty tight confidence interval because <code><a title="biobench.i
 @dataclasses.dataclass(frozen=True)
 class Args(interfaces.TaskArgs):
     &#34;&#34;&#34;
-    Args for Birds525.
+    Arguments for Birds525.
     &#34;&#34;&#34;
 
     batch_size: int = 256
@@ -162,7 +171,7 @@ class ChooseRandomCachedResult:
 <span>(</span><span>root: str, transform: Optional[Callable] = None, target_transform: Optional[Callable] = None, loader: Callable[[str], Any] = &lt;function default_loader&gt;, is_valid_file: Optional[Callable[[str], bool]] = None, allow_empty: bool = False)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Overwrites ImageFolder so that it includes the</p></div>
+<div class="desc"><p>Overwrites ImageFolder so that <code>__getitem__</code> includes the path, which we use as the ID.</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -170,7 +179,7 @@ class ChooseRandomCachedResult:
 <pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
 class Dataset(torchvision.datasets.ImageFolder):
     &#34;&#34;&#34;
-    Overwrites ImageFolder so that it includes the
+    Overwrites ImageFolder so that `__getitem__` includes the path, which we use as the ID.
     &#34;&#34;&#34;
 
     def __getitem__(self, index: int) -&gt; tuple[str, object, object]:
@@ -179,7 +188,7 @@ class Dataset(torchvision.datasets.ImageFolder):
             index (int): Index
 
         Returns:
-            tuple: (sample, target) where target is class_index of the target class.
+            tuple: (path, sample, target) where target is class_index of the target class.
         &#34;&#34;&#34;
         path, target = self.samples[index]
         sample = self.loader(path)
@@ -204,7 +213,8 @@ class Dataset(torchvision.datasets.ImageFolder):
 <span>(</span><span>x: jaxtyping.Float[Tensor, 'n dim'], y: jaxtyping.Int[Tensor, 'n'], ids: jaxtyping.Shaped[ndarray, 'n'])</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Features(x: jaxtyping.Float[Tensor, 'n dim'], y: jaxtyping.Int[Tensor, 'n'], ids: jaxtyping.Shaped[ndarray, 'n'])</p></div>
+<div class="desc"><p>A block of features.</p>
+<p>Note: In Jax, this could be a tuple of arrays, all with a leading dimension of <code>n</code>. Instead, in PyTorch, it's easier to make it its own class. Oh well.</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -212,6 +222,12 @@ class Dataset(torchvision.datasets.ImageFolder):
 <pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
 @dataclasses.dataclass(frozen=True)
 class Features:
+    &#34;&#34;&#34;
+    A block of features.
+
+    Note: In Jax, this could be a tuple of arrays, all with a leading dimension of `n`. Instead, in PyTorch, it&#39;s easier to make it its own class. Oh well.
+    &#34;&#34;&#34;
+
     x: Float[Tensor, &#34; n dim&#34;]
     &#34;&#34;&#34;Input features; from a `biobench.interfaces.VisionBackbone`.&#34;&#34;&#34;
     y: Int[Tensor, &#34; n&#34;]

@@ -12,6 +12,8 @@
 <style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin-bottom:1em}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
 <style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
 <style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script type="text/x-mathjax-config">MathJax.Hub.Config({ tex2jax: { inlineMath: [ ['$','$'], ["\\(","\\)"] ], processEscapes: true } });</script>
+<script async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS_CHTML" integrity="sha256-kZafAc6mZvK3W3v1pHOcUix30OHQN6pU/NO2oFkqZVw=" crossorigin></script>
 <script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
 <script>window.addEventListener('DOMContentLoaded', () => {
 hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
@@ -27,15 +29,15 @@ hljs.highlightAll();
 <section id="section-intro">
 <p>Entrypoint for running all benchmarks.</p>
 <h1 id="tutorial">Tutorial</h1>
-<p>This is a short tutorial on using <code>biobench</code> to answer a simple research question.</p>
+<p>This is a short tutorial on using <code><a title="biobench" href="biobench/index.html">biobench</a></code> to answer a simple research question.</p>
 <p><strong>Research question: Why does <a href="https://github.com/facebookresearch/dinov2">DINOv2</a> outperform <a href="https://imageomics.github.io/bioclip/">BioCLIP</a> on classification tasks?</strong></p>
 <p>To answer this question, we need to:</p>
 <ol>
-<li>Evaluate both models on all tasks in <code>biobench</code> using the <code>benchmark.py</code> script.</li>
+<li>Evaluate both models on all tasks in <code><a title="biobench" href="biobench/index.html">biobench</a></code> using the <code>benchmark.py</code> script.</li>
 <li>Compare mean scores across all classification tasks for both models.</li>
 <li>Look at specific examples that DINOv2 correctly classifies and BioCLIP incorrectly classifies.</li>
 </ol>
-<p>The <code>biobench</code> package will completely do #1, #2, and makes it easy to do #3.</p>
+<p>The <code><a title="biobench" href="biobench/index.html">biobench</a></code> package will completely do #1, #2, and makes it easy to do #3.</p>
 <h2 id="1-get-results">1. Get Results</h2>
 <p>First, run:</p>
 <pre><code class="language-sh">python benchmark.py \
@@ -96,7 +98,7 @@ Open the notebook <code>notebooks/tutorial.py</code> using</p>
 Returns the figure so the caller can save or display it.</p></div>
 </dd>
 <dt id="benchmark.save"><code class="name flex">
-<span>def <span class="ident">save</span></span>(<span>args: <a title="benchmark.Args" href="#benchmark.Args">Args</a>, model_args: tuple[str, str], report: biobench.interfaces.TaskReport) ‑> None</span>
+<span>def <span class="ident">save</span></span>(<span>args: <a title="benchmark.Args" href="#benchmark.Args">Args</a>, model_args: tuple[str, str], report: <a title="biobench.interfaces.TaskReport" href="biobench/interfaces.html#biobench.interfaces.TaskReport">TaskReport</a>) ‑> None</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Saves the report to disk in a machine-readable SQLite format.</p></div>
@@ -108,7 +110,7 @@ Returns the figure so the caller can save or display it.</p></div>
 <dl>
 <dt id="benchmark.Args"><code class="flex name class">
 <span>class <span class="ident">Args</span></span>
-<span>(</span><span>slurm: bool = False, model_args: typing.Annotated[list[tuple[typing.Literal['timm-vit', 'open-clip'], str]], _ArgConfiguration(name='model', metavar=None, help=None, aliases=None, prefix_name=None, constructor_factory=None)] = &lt;factory&gt;, device: Literal['cpu', 'cuda'] = 'cuda', debug: bool = False, newt_run: bool = True, newt_args: biobench.newt.Args = &lt;factory&gt;, kabr_run: bool = True, kabr_args: biobench.kabr.Args = &lt;factory&gt;, plantnet_run: bool = True, plantnet_args: biobench.plantnet.Args = &lt;factory&gt;, iwildcam_run: bool = True, iwildcam_args: biobench.iwildcam.Args = &lt;factory&gt;, birds525_run: bool = True, birds525_args: biobench.birds525.Args = &lt;factory&gt;, rarespecies_run: bool = True, rarespecies_args: biobench.rarespecies.Args = &lt;factory&gt;, report_to: str = './reports', graph: bool = True, graph_to: str = './graphs')</span>
+<span>(</span><span>slurm: bool = False, model_args: typing.Annotated[list[tuple[typing.Literal['timm-vit', 'open-clip'], str]], _ArgConfiguration(name='model', metavar=None, help=None, aliases=None, prefix_name=None, constructor_factory=None)] = &lt;factory&gt;, device: Literal['cpu', 'cuda'] = 'cuda', debug: bool = False, newt_run: bool = True, newt_args: <a title="biobench.newt.Args" href="biobench/newt/index.html#biobench.newt.Args">Args</a> = &lt;factory&gt;, kabr_run: bool = True, kabr_args: <a title="biobench.kabr.Args" href="biobench/kabr/index.html#biobench.kabr.Args">Args</a> = &lt;factory&gt;, plantnet_run: bool = True, plantnet_args: <a title="biobench.plantnet.Args" href="biobench/plantnet/index.html#biobench.plantnet.Args">Args</a> = &lt;factory&gt;, iwildcam_run: bool = True, iwildcam_args: <a title="biobench.iwildcam.Args" href="biobench/iwildcam/index.html#biobench.iwildcam.Args">Args</a> = &lt;factory&gt;, birds525_run: bool = True, birds525_args: <a title="biobench.birds525.Args" href="biobench/birds525/index.html#biobench.birds525.Args">Args</a> = &lt;factory&gt;, rarespecies_run: bool = True, rarespecies_args: <a title="biobench.rarespecies.Args" href="biobench/rarespecies/index.html#biobench.rarespecies.Args">Args</a> = &lt;factory&gt;, report_to: str = './reports', graph: bool = True, graph_to: str = './graphs')</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Params to run one or more benchmarks in a parallel setting.</p></div>
@@ -186,7 +188,7 @@ class Args:
 </details>
 <h3>Class variables</h3>
 <dl>
-<dt id="benchmark.Args.birds525_args"><code class="name">var <span class="ident">birds525_args</span> : biobench.birds525.Args</code></dt>
+<dt id="benchmark.Args.birds525_args"><code class="name">var <span class="ident">birds525_args</span> : <a title="biobench.birds525.Args" href="biobench/birds525/index.html#biobench.birds525.Args">Args</a></code></dt>
 <dd>
 <div class="desc"><p>arguments for the Birds 525 benchmark.</p></div>
 </dd>
@@ -210,7 +212,7 @@ class Args:
 <dd>
 <div class="desc"><p>where to save graphs to.</p></div>
 </dd>
-<dt id="benchmark.Args.iwildcam_args"><code class="name">var <span class="ident">iwildcam_args</span> : biobench.iwildcam.Args</code></dt>
+<dt id="benchmark.Args.iwildcam_args"><code class="name">var <span class="ident">iwildcam_args</span> : <a title="biobench.iwildcam.Args" href="biobench/iwildcam/index.html#biobench.iwildcam.Args">Args</a></code></dt>
 <dd>
 <div class="desc"><p>arguments for the iWildCam benchmark.</p></div>
 </dd>
@@ -218,7 +220,7 @@ class Args:
 <dd>
 <div class="desc"><p>whether to run the iWildCam benchmark.</p></div>
 </dd>
-<dt id="benchmark.Args.kabr_args"><code class="name">var <span class="ident">kabr_args</span> : biobench.kabr.Args</code></dt>
+<dt id="benchmark.Args.kabr_args"><code class="name">var <span class="ident">kabr_args</span> : <a title="biobench.kabr.Args" href="biobench/kabr/index.html#biobench.kabr.Args">Args</a></code></dt>
 <dd>
 <div class="desc"><p>arguments for the KABR benchmark.</p></div>
 </dd>
@@ -230,7 +232,7 @@ class Args:
 <dd>
 <div class="desc"><p>model; a pair of model org (interface) and checkpoint.</p></div>
 </dd>
-<dt id="benchmark.Args.newt_args"><code class="name">var <span class="ident">newt_args</span> : biobench.newt.Args</code></dt>
+<dt id="benchmark.Args.newt_args"><code class="name">var <span class="ident">newt_args</span> : <a title="biobench.newt.Args" href="biobench/newt/index.html#biobench.newt.Args">Args</a></code></dt>
 <dd>
 <div class="desc"><p>arguments for the NeWT benchmark.</p></div>
 </dd>
@@ -238,7 +240,7 @@ class Args:
 <dd>
 <div class="desc"><p>whether to run the NeWT benchmark.</p></div>
 </dd>
-<dt id="benchmark.Args.plantnet_args"><code class="name">var <span class="ident">plantnet_args</span> : biobench.plantnet.Args</code></dt>
+<dt id="benchmark.Args.plantnet_args"><code class="name">var <span class="ident">plantnet_args</span> : <a title="biobench.plantnet.Args" href="biobench/plantnet/index.html#biobench.plantnet.Args">Args</a></code></dt>
 <dd>
 <div class="desc"><p>arguments for the Pl@ntNet benchmark.</p></div>
 </dd>
@@ -246,7 +248,7 @@ class Args:
 <dd>
 <div class="desc"><p>whether to run the Pl@ntNet benchmark.</p></div>
 </dd>
-<dt id="benchmark.Args.rarespecies_args"><code class="name">var <span class="ident">rarespecies_args</span> : biobench.rarespecies.Args</code></dt>
+<dt id="benchmark.Args.rarespecies_args"><code class="name">var <span class="ident">rarespecies_args</span> : <a title="biobench.rarespecies.Args" href="biobench/rarespecies/index.html#biobench.rarespecies.Args">Args</a></code></dt>
 <dd>
 <div class="desc"><p>arguments for the Birds 525 benchmark.</p></div>
 </dd>

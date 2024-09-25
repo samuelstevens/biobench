@@ -51,7 +51,7 @@ hljs.highlightAll();
 <span>(</span><span>img_features: jaxtyping.Float[Tensor, 'batch img_dim'], patch_features: jaxtyping.Float[Tensor, 'batch n_patches patch_dim'] | None)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>The output of a <code><a title="biobench.interfaces.VisionBackbone" href="#biobench.interfaces.VisionBackbone">VisionBackbone</a></code>'s <code>img_encode()</code> method.</p></div>
+<div class="desc"><p>The output of a <code><a title="biobench.interfaces.VisionBackbone" href="#biobench.interfaces.VisionBackbone">VisionBackbone</a></code>'s <code><a title="biobench.interfaces.VisionBackbone.img_encode" href="#biobench.interfaces.VisionBackbone.img_encode">VisionBackbone.img_encode()</a></code> method.</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -59,7 +59,7 @@ hljs.highlightAll();
 <pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
 @dataclasses.dataclass(frozen=True)
 class EncodedImgBatch:
-    &#34;&#34;&#34;The output of a `VisionBackbone`&#39;s `img_encode()` method.&#34;&#34;&#34;
+    &#34;&#34;&#34;The output of a `VisionBackbone`&#39;s `VisionBackbone.img_encode()` method.&#34;&#34;&#34;
 
     img_features: Float[Tensor, &#34;batch img_dim&#34;]
     &#34;&#34;&#34;Image-level features. Each image is represented by a single vector.&#34;&#34;&#34;
@@ -83,7 +83,7 @@ class EncodedImgBatch:
 <span>(</span><span>id: str, score: float, info: dict[str, object])</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Example(id: str, score: float, info: dict[str, object])</p></div>
+<div class="desc"><p>An individual test example.</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -91,23 +91,28 @@ class EncodedImgBatch:
 <pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
 @dataclasses.dataclass(frozen=True)
 class Example:
+    &#34;&#34;&#34;An individual test example.&#34;&#34;&#34;
+
     id: str
+    &#34;&#34;&#34;Whatever kind of ID; used to find the original image/example.&#34;&#34;&#34;
     score: float
-    info: dict[str, object]</code></pre>
+    &#34;&#34;&#34;Test score; typically 0 or 1 for classification tasks.&#34;&#34;&#34;
+    info: dict[str, object]
+    &#34;&#34;&#34;Any additional information included. This might be the original class, the true label, etc.&#34;&#34;&#34;</code></pre>
 </details>
 <h3>Class variables</h3>
 <dl>
 <dt id="biobench.interfaces.Example.id"><code class="name">var <span class="ident">id</span> : str</code></dt>
 <dd>
-<div class="desc"></div>
+<div class="desc"><p>Whatever kind of ID; used to find the original image/example.</p></div>
 </dd>
 <dt id="biobench.interfaces.Example.info"><code class="name">var <span class="ident">info</span> : dict[str, object]</code></dt>
 <dd>
-<div class="desc"></div>
+<div class="desc"><p>Any additional information included. This might be the original class, the true label, etc.</p></div>
 </dd>
 <dt id="biobench.interfaces.Example.score"><code class="name">var <span class="ident">score</span> : float</code></dt>
 <dd>
-<div class="desc"></div>
+<div class="desc"><p>Test score; typically 0 or 1 for classification tasks.</p></div>
 </dd>
 </dl>
 </dd>
@@ -167,7 +172,7 @@ class TaskArgs:
 </dd>
 <dt id="biobench.interfaces.TaskReport"><code class="flex name class">
 <span>class <span class="ident">TaskReport</span></span>
-<span>(</span><span>name: str, examples: list[<a title="biobench.interfaces.Example" href="#biobench.interfaces.Example">Example</a>], calc_mean_score: Callable[[list[<a title="biobench.interfaces.Example" href="#biobench.interfaces.Example">Example</a>]], float], argv: list[str] = &lt;factory&gt;, commit: str = 'a4368c9538171b59c7ce47d969dbbc49a92b2138', posix_time: float = &lt;factory&gt;, gpu_name: str = &lt;factory&gt;, hostname: str = &lt;factory&gt;)</span>
+<span>(</span><span>name: str, examples: list[<a title="biobench.interfaces.Example" href="#biobench.interfaces.Example">Example</a>], calc_mean_score: Callable[[list[<a title="biobench.interfaces.Example" href="#biobench.interfaces.Example">Example</a>]], float], argv: list[str] = &lt;factory&gt;, commit: str = '978655c114d65b8d1e346c5a20058a00f1671f94', posix_time: float = &lt;factory&gt;, gpu_name: str = &lt;factory&gt;, hostname: str = &lt;factory&gt;)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>The result of running a benchmark task.</p>
@@ -195,15 +200,17 @@ class TaskReport:
 
     # Stuff for trying to reproduce this result. These are filled in by default.
     argv: list[str] = dataclasses.field(default_factory=lambda: sys.argv)
-    &#34;&#34;&#34;command used to get this report.&#34;&#34;&#34;
+    &#34;&#34;&#34;Command used to get this report.&#34;&#34;&#34;
     commit: str = get_git_hash()
     &#34;&#34;&#34;Git commit for this current report.&#34;&#34;&#34;
     posix_time: float = dataclasses.field(default_factory=time.time)
-    &#34;&#34;&#34;time when this report was constructed.&#34;&#34;&#34;
+    &#34;&#34;&#34;Time when this report was constructed.&#34;&#34;&#34;
     gpu_name: str = dataclasses.field(
         default_factory=lambda: torch.cuda.get_device_properties(0).name
     )
+    &#34;&#34;&#34;Name of the GPU that ran this experiment.&#34;&#34;&#34;
     hostname: str = dataclasses.field(default_factory=socket.gethostname)
+    &#34;&#34;&#34;Machine hostname that ran this experiment.&#34;&#34;&#34;
 
     def __repr__(self):
         return f&#34;Report({self.name} with {len(self.examples)} examples)&#34;
@@ -212,6 +219,9 @@ class TaskReport:
         return repr(self)
 
     def get_mean_score(self) -&gt; float:
+        &#34;&#34;&#34;
+        Get the mean score of all examples.
+        &#34;&#34;&#34;
         return self.calc_mean_score(self.examples)
 
     def get_confidence_interval(
@@ -221,9 +231,10 @@ class TaskReport:
         n_resamples: int = 500,
         seed: int = 42,
     ) -&gt; tuple[float, float]:
-        &#34;&#34;&#34;confidence interval for the statistics (mean) by bootstrapping individual scores of the examples.
+        &#34;&#34;&#34;
+        Get the confidence interval for the statistics (mean) by bootstrapping individual scores of the examples.
 
-        NOTE: it&#39;s crazy how much easier this would be in jax to vmap. PyTrees of Examples would simply contains batch dimensions, and then I would jax.vmap(get_mean_score)(batched_examples).
+        NOTE: it&#39;s crazy how much easier this would be in Jax. PyTrees of Examples would simply contains batch dimensions, and then I would `jax.vmap(get_mean_score)(batched_examples)`.
         &#34;&#34;&#34;
 
         rng = np.random.default_rng(seed=seed)
@@ -258,7 +269,7 @@ class TaskReport:
 <dl>
 <dt id="biobench.interfaces.TaskReport.argv"><code class="name">var <span class="ident">argv</span> : list[str]</code></dt>
 <dd>
-<div class="desc"><p>command used to get this report.</p></div>
+<div class="desc"><p>Command used to get this report.</p></div>
 </dd>
 <dt id="biobench.interfaces.TaskReport.calc_mean_score"><code class="name">var <span class="ident">calc_mean_score</span> : Callable[[list[<a title="biobench.interfaces.Example" href="#biobench.interfaces.Example">Example</a>]], float]</code></dt>
 <dd>
@@ -274,11 +285,11 @@ class TaskReport:
 </dd>
 <dt id="biobench.interfaces.TaskReport.gpu_name"><code class="name">var <span class="ident">gpu_name</span> : str</code></dt>
 <dd>
-<div class="desc"></div>
+<div class="desc"><p>Name of the GPU that ran this experiment.</p></div>
 </dd>
 <dt id="biobench.interfaces.TaskReport.hostname"><code class="name">var <span class="ident">hostname</span> : str</code></dt>
 <dd>
-<div class="desc"></div>
+<div class="desc"><p>Machine hostname that ran this experiment.</p></div>
 </dd>
 <dt id="biobench.interfaces.TaskReport.name"><code class="name">var <span class="ident">name</span> : str</code></dt>
 <dd>
@@ -286,7 +297,7 @@ class TaskReport:
 </dd>
 <dt id="biobench.interfaces.TaskReport.posix_time"><code class="name">var <span class="ident">posix_time</span> : float</code></dt>
 <dd>
-<div class="desc"><p>time when this report was constructed.</p></div>
+<div class="desc"><p>Time when this report was constructed.</p></div>
 </dd>
 </dl>
 <h3>Methods</h3>
@@ -295,14 +306,14 @@ class TaskReport:
 <span>def <span class="ident">get_confidence_interval</span></span>(<span>self, statistic='mean', confidence: float = 95, n_resamples: int = 500, seed: int = 42) ‑> tuple[float, float]</span>
 </code></dt>
 <dd>
-<div class="desc"><p>confidence interval for the statistics (mean) by bootstrapping individual scores of the examples.</p>
-<p>NOTE: it's crazy how much easier this would be in jax to vmap. PyTrees of Examples would simply contains batch dimensions, and then I would jax.vmap(get_mean_score)(batched_examples).</p></div>
+<div class="desc"><p>Get the confidence interval for the statistics (mean) by bootstrapping individual scores of the examples.</p>
+<p>NOTE: it's crazy how much easier this would be in Jax. PyTrees of Examples would simply contains batch dimensions, and then I would <code>jax.vmap(get_mean_score)(batched_examples)</code>.</p></div>
 </dd>
 <dt id="biobench.interfaces.TaskReport.get_mean_score"><code class="name flex">
 <span>def <span class="ident">get_mean_score</span></span>(<span>self) ‑> float</span>
 </code></dt>
 <dd>
-<div class="desc"></div>
+<div class="desc"><p>Get the mean score of all examples.</p></div>
 </dd>
 <dt id="biobench.interfaces.TaskReport.to_dict"><code class="name flex">
 <span>def <span class="ident">to_dict</span></span>(<span>self) ‑> dict[str, object]</span>
@@ -338,10 +349,15 @@ class VisionBackbone(torch.nn.Module):
     def img_encode(
         self, batch: Float[Tensor, &#34;batch 3 width height&#34;]
     ) -&gt; EncodedImgBatch:
+        &#34;&#34;&#34;Encode a batch of images.&#34;&#34;&#34;
         err_msg = f&#34;{self.__class__.__name__} must implemented img_encode().&#34;
         raise NotImplementedError(err_msg)
 
     def make_img_transform(self):
+        &#34;&#34;&#34;
+        Return whatever function the backbone wants for image preprocessing.
+        This should be an evaluation transform, not a training transform, because we are using the output features of this backbone as data and not updating this backbone.
+        &#34;&#34;&#34;
         err_msg = f&#34;{self.__class__.__name__} must implemented make_img_transform().&#34;
         raise NotImplementedError(err_msg)</code></pre>
 </details>
@@ -360,13 +376,14 @@ class VisionBackbone(torch.nn.Module):
 <span>def <span class="ident">img_encode</span></span>(<span>self, batch: jaxtyping.Float[Tensor, 'batch 3 width height']) ‑> <a title="biobench.interfaces.EncodedImgBatch" href="#biobench.interfaces.EncodedImgBatch">EncodedImgBatch</a></span>
 </code></dt>
 <dd>
-<div class="desc"></div>
+<div class="desc"><p>Encode a batch of images.</p></div>
 </dd>
 <dt id="biobench.interfaces.VisionBackbone.make_img_transform"><code class="name flex">
 <span>def <span class="ident">make_img_transform</span></span>(<span>self)</span>
 </code></dt>
 <dd>
-<div class="desc"></div>
+<div class="desc"><p>Return whatever function the backbone wants for image preprocessing.
+This should be an evaluation transform, not a training transform, because we are using the output features of this backbone as data and not updating this backbone.</p></div>
 </dd>
 </dl>
 </dd>

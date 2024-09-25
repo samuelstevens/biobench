@@ -31,7 +31,7 @@ class TaskArgs:
 @jaxtyped(typechecker=beartype.beartype)
 @dataclasses.dataclass(frozen=True)
 class EncodedImgBatch:
-    """The output of a `VisionBackbone`'s `img_encode()` method."""
+    """The output of a `VisionBackbone`'s `VisionBackbone.img_encode()` method."""
 
     img_features: Float[Tensor, "batch img_dim"]
     """Image-level features. Each image is represented by a single vector."""
@@ -52,10 +52,15 @@ class VisionBackbone(torch.nn.Module):
     def img_encode(
         self, batch: Float[Tensor, "batch 3 width height"]
     ) -> EncodedImgBatch:
+        """Encode a batch of images."""
         err_msg = f"{self.__class__.__name__} must implemented img_encode()."
         raise NotImplementedError(err_msg)
 
     def make_img_transform(self):
+        """
+        Return whatever function the backbone wants for image preprocessing.
+        This should be an evaluation transform, not a training transform, because we are using the output features of this backbone as data and not updating this backbone.
+        """
         err_msg = f"{self.__class__.__name__} must implemented make_img_transform()."
         raise NotImplementedError(err_msg)
 
@@ -70,11 +75,14 @@ def get_git_hash() -> str:
 @jaxtyped(typechecker=beartype.beartype)
 @dataclasses.dataclass(frozen=True)
 class Example:
-    """ """
+    """An individual test example."""
 
     id: str
+    """Whatever kind of ID; used to find the original image/example."""
     score: float
+    """Test score; typically 0 or 1 for classification tasks."""
     info: dict[str, object]
+    """Any additional information included. This might be the original class, the true label, etc."""
 
 
 @jaxtyped(typechecker=beartype.beartype)
