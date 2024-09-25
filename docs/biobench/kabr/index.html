@@ -56,7 +56,7 @@ We get video representations by embedding each frame of the video and taking the
 <span>def <span class="ident">aggregate_labels</span></span>(<span>args: <a title="biobench.kabr.Args" href="#biobench.kabr.Args">Args</a>, labels: jaxtyping.Int[Tensor, 'n_frames n_examples']) ‑> jaxtyping.Int[Tensor, 'n_examples']</span>
 </code></dt>
 <dd>
-<div class="desc"></div>
+<div class="desc"><p>Aggregate per-frame labels to a per-video label. Uses the most common label (mode).</p></div>
 </dd>
 <dt id="biobench.kabr.benchmark"><code class="name flex">
 <span>def <span class="ident">benchmark</span></span>(<span>args: <a title="biobench.kabr.Args" href="#biobench.kabr.Args">Args</a>, model_args: tuple[str, str]) ‑> tuple[tuple[str, str], <a title="biobench.interfaces.TaskReport" href="../interfaces.html#biobench.interfaces.TaskReport">TaskReport</a>]</span>
@@ -75,7 +75,18 @@ We get video representations by embedding each frame of the video and taking the
 </code></dt>
 <dd>
 <div class="desc"><p>Gets all model features and true labels for all frames and all examples in the dataloader.</p>
-<p>Returns it as a pair of big Tensors.</p></div>
+<p>Returns it as a pair of big tensors; other tasks like <code><a title="biobench.birds525" href="../birds525/index.html">biobench.birds525</a></code> use a dedicated class for this, but here it's just a tuple.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>args</code></strong></dt>
+<dd>KABR task arguments.</dd>
+<dt><strong><code>backbone</code></strong></dt>
+<dd>Vision backbone.</dd>
+<dt><strong><code>dataloader</code></strong></dt>
+<dd>Dataloader for whatever data you want to get features for.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>tuple of model features and true labels. See signature for shape.</p></div>
 </dd>
 </dl>
 </section>
@@ -87,7 +98,7 @@ We get video representations by embedding each frame of the video and taking the
 <span>(</span><span>seed: int = 42, datadir: str = '', device: str = 'cuda', debug: bool = False, batch_size: int = 16, n_workers: int = 4, frame_agg: Literal['mean', 'max'] = 'mean')</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Args(seed: int = 42, datadir: str = '', device: str = 'cuda', debug: bool = False, batch_size: int = 16, n_workers: int = 4, frame_agg: Literal['mean', 'max'] = 'mean')</p></div>
+<div class="desc"><p>Arguments for the KABR task.</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -95,12 +106,14 @@ We get video representations by embedding each frame of the video and taking the
 <pre><code class="python">@beartype.beartype
 @dataclasses.dataclass(frozen=True)
 class Args(interfaces.TaskArgs):
+    &#34;&#34;&#34;Arguments for the KABR task.&#34;&#34;&#34;
+
     batch_size: int = 16
-    &#34;&#34;&#34;batch size for deep model. Note that this is multiplied by 16 (number of frames)&#34;&#34;&#34;
+    &#34;&#34;&#34;Batch size for deep model. Note that this is multiplied by 16 (number of frames)&#34;&#34;&#34;
     n_workers: int = 4
-    &#34;&#34;&#34;number of dataloader worker processes.&#34;&#34;&#34;
+    &#34;&#34;&#34;Number of dataloader worker processes.&#34;&#34;&#34;
     frame_agg: typing.Literal[&#34;mean&#34;, &#34;max&#34;] = &#34;mean&#34;
-    &#34;&#34;&#34;how to aggregate features across time dimension.&#34;&#34;&#34;</code></pre>
+    &#34;&#34;&#34;How to aggregate features across time dimension.&#34;&#34;&#34;</code></pre>
 </details>
 <h3>Ancestors</h3>
 <ul class="hlist">
@@ -110,15 +123,15 @@ class Args(interfaces.TaskArgs):
 <dl>
 <dt id="biobench.kabr.Args.batch_size"><code class="name">var <span class="ident">batch_size</span> : int</code></dt>
 <dd>
-<div class="desc"><p>batch size for deep model. Note that this is multiplied by 16 (number of frames)</p></div>
+<div class="desc"><p>Batch size for deep model. Note that this is multiplied by 16 (number of frames)</p></div>
 </dd>
 <dt id="biobench.kabr.Args.frame_agg"><code class="name">var <span class="ident">frame_agg</span> : Literal['mean', 'max']</code></dt>
 <dd>
-<div class="desc"><p>how to aggregate features across time dimension.</p></div>
+<div class="desc"><p>How to aggregate features across time dimension.</p></div>
 </dd>
 <dt id="biobench.kabr.Args.n_workers"><code class="name">var <span class="ident">n_workers</span> : int</code></dt>
 <dd>
-<div class="desc"><p>number of dataloader worker processes.</p></div>
+<div class="desc"><p>Number of dataloader worker processes.</p></div>
 </dd>
 </dl>
 <h3>Inherited members</h3>
@@ -196,7 +209,9 @@ class Dataset(torch.utils.data.Dataset):
             if len(frames[video_id]) &gt;= self.n_frames
         ]
 
-    def __getitem__(self, i) -&gt; tuple[list[Float[Tensor, &#34;3 width height&#34;]], list[int]]:
+    def __getitem__(
+        self, i: int
+    ) -&gt; tuple[list[Float[Tensor, &#34;3 width height&#34;]], list[int]]:
         &#34;&#34;&#34;
         Returns 16 frames and their labels sampled every 5 frames from a clip. The start of the clip is uniformly sampled. If there are fewer
         &#34;&#34;&#34;
@@ -241,7 +256,7 @@ class Dataset(torch.utils.data.Dataset):
 <span>(</span><span>video_id: int, frames: list[str], labels: list[int])</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Video(video_id: int, frames: list[str], labels: list[int])</p></div>
+<div class="desc"><p>A single video instance as a sequence of frames.</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -249,9 +264,13 @@ class Dataset(torch.utils.data.Dataset):
 <pre><code class="python">@beartype.beartype
 @dataclasses.dataclass(frozen=True)
 class Video:
+    &#34;&#34;&#34;A single video instance as a sequence of frames.&#34;&#34;&#34;
+
     video_id: int
     frames: list[str]
+    &#34;&#34;&#34;Paths to actual frame images.&#34;&#34;&#34;
     labels: list[int]
+    &#34;&#34;&#34;Frame-level labels.&#34;&#34;&#34;
 
     def __post_init__(self):
         err_msg = f&#34;Video {self.video_id} has a different number of frames ({len(self.frames)} and labels ({len(self.labels)}).&#34;
@@ -261,11 +280,11 @@ class Video:
 <dl>
 <dt id="biobench.kabr.Video.frames"><code class="name">var <span class="ident">frames</span> : list[str]</code></dt>
 <dd>
-<div class="desc"></div>
+<div class="desc"><p>Paths to actual frame images.</p></div>
 </dd>
 <dt id="biobench.kabr.Video.labels"><code class="name">var <span class="ident">labels</span> : list[int]</code></dt>
 <dd>
-<div class="desc"></div>
+<div class="desc"><p>Frame-level labels.</p></div>
 </dd>
 <dt id="biobench.kabr.Video.video_id"><code class="name">var <span class="ident">video_id</span> : int</code></dt>
 <dd>

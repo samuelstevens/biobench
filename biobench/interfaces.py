@@ -12,7 +12,6 @@ def benchmark(args: Args, model_args: tuple[str, str]) -> tuple[tuple[str, str],
 ```
 
 In a Haskell-like signature, this is more like `Args -> (str, str) -> ((str, str), TaskReport)`.
-
 """
 
 import dataclasses

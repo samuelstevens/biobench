@@ -37,20 +37,26 @@ logger = logging.getLogger("kabr")
 @beartype.beartype
 @dataclasses.dataclass(frozen=True)
 class Args(interfaces.TaskArgs):
+    """Arguments for the KABR task."""
+
     batch_size: int = 16
-    """batch size for deep model. Note that this is multiplied by 16 (number of frames)"""
+    """Batch size for deep model. Note that this is multiplied by 16 (number of frames)"""
     n_workers: int = 4
-    """number of dataloader worker processes."""
+    """Number of dataloader worker processes."""
     frame_agg: typing.Literal["mean", "max"] = "mean"
-    """how to aggregate features across time dimension."""
+    """How to aggregate features across time dimension."""
 
 
 @beartype.beartype
 @dataclasses.dataclass(frozen=True)
 class Video:
+    """A single video instance as a sequence of frames."""
+
     video_id: int
     frames: list[str]
+    """Paths to actual frame images."""
     labels: list[int]
+    """Frame-level labels."""
 
     def __post_init__(self):
         err_msg = f"Video {self.video_id} has a different number of frames ({len(self.frames)} and labels ({len(self.labels)})."
@@ -110,7 +116,9 @@ class Dataset(torch.utils.data.Dataset):
             if len(frames[video_id]) >= self.n_frames
         ]
 
-    def __getitem__(self, i) -> tuple[list[Float[Tensor, "3 width height"]], list[int]]:
+    def __getitem__(
+        self, i: int
+    ) -> tuple[list[Float[Tensor, "3 width height"]], list[int]]:
         """
         Returns 16 frames and their labels sampled every 5 frames from a clip. The start of the clip is uniformly sampled. If there are fewer
         """
@@ -155,7 +163,15 @@ def get_features(
     """
     Gets all model features and true labels for all frames and all examples in the dataloader.
 
-    Returns it as a pair of big Tensors.
+    Returns it as a pair of big tensors; other tasks like `biobench.birds525` use a dedicated class for this, but here it's just a tuple.
+
+    Args:
+        args: KABR task arguments.
+        backbone: Vision backbone.
+        dataloader: Dataloader for whatever data you want to get features for.
+
+    Returns:
+        tuple of model features and true labels. See signature for shape.
     """
     backbone = torch.compile(backbone)
     all_features, all_labels = [], []
@@ -190,6 +206,7 @@ def get_features(
 def aggregate_labels(
     args: Args, labels: Int[Tensor, "n_frames n_examples"]
 ) -> Int[Tensor, " n_examples"]:
+    """Aggregate per-frame labels to a per-video label. Uses the most common label (mode)."""
     return torch.mode(labels, dim=0).values
 
 
@@ -209,6 +226,7 @@ def aggregate_frames(
 def benchmark(
     args: Args, model_args: interfaces.ModelArgs
 ) -> tuple[interfaces.ModelArgs, interfaces.TaskReport]:
+    """Runs KABR benchmark."""
     # 1. Load model
     backbone = registry.load_vision_backbone(*model_args)
     img_transform = backbone.make_img_transform()

@@ -3,6 +3,13 @@ Package for organizing all the code to run benchmarks.
 
 Submodules are either tasks (like `biobench.kabr`, `biobench.birds525`) or helpers for organizing code (like `biobench.registry`, `biobench.interfaces`).
 
+The most important modules to understand are:
+
+* `benchmark` because it is the launch script that runs all the tasks.
+* `biobench.interfaces` because it defines how everything hooks together.
+* Any of the task modules--`biobench.kabr` is well documented.
+* Any of the vision modules--`biobench.third_party_models.OpenClip` is highly relevant to anyone using the [open_clip](https://github.com/mlfoundations/open_clip) codebase to train models.
+
 .. include:: ./confidence-intervals.md
 """
 

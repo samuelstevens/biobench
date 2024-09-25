@@ -29,6 +29,13 @@ hljs.highlightAll();
 <section id="section-intro">
 <p>Package for organizing all the code to run benchmarks.</p>
 <p>Submodules are either tasks (like <code><a title="biobench.kabr" href="kabr/index.html">biobench.kabr</a></code>, <code><a title="biobench.birds525" href="birds525/index.html">biobench.birds525</a></code>) or helpers for organizing code (like <code><a title="biobench.registry" href="registry.html">biobench.registry</a></code>, <code><a title="biobench.interfaces" href="interfaces.html">biobench.interfaces</a></code>).</p>
+<p>The most important modules to understand are:</p>
+<ul>
+<li><code><a title="benchmark" href="../benchmark.html">benchmark</a></code> because it is the launch script that runs all the tasks.</li>
+<li><code><a title="biobench.interfaces" href="interfaces.html">biobench.interfaces</a></code> because it defines how everything hooks together.</li>
+<li>Any of the task modules&ndash;<code><a title="biobench.kabr" href="kabr/index.html">biobench.kabr</a></code> is well documented.</li>
+<li>Any of the vision modules&ndash;<code><a title="biobench.third_party_models.OpenClip" href="third_party_models.html#biobench.third_party_models.OpenClip">OpenClip</a></code> is highly relevant to anyone using the <a href="https://github.com/mlfoundations/open_clip">open_clip</a> codebase to train models.</li>
+</ul>
 <h1 id="confidence-intervals">Confidence Intervals</h1>
 <p>Recommended Reading:</p>
 <ul>
