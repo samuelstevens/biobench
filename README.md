@@ -6,6 +6,35 @@ It aims to make it easy to:
 
 1. Evaluate new models.
 2. Add new tasks.
+3. Understand meaningful (or not) differences in model performance.
+
+## Getting Started
+
+I use [uv](https://docs.astral.sh/uv/) for Python which makes it easy to manage Python versions, dependencies, virtual environments, etc.
+
+To install uv, run `curl -LsSf https://astral.sh/uv/install.sh | sh`.
+
+Then download at least one of the dataset.
+NeWT is really easy to download.
+
+```sh
+uv run biobench/newt/download.py --dir ./newt
+```
+
+Download it wherever you want on your own filesystem.
+
+Then run just the NeWT benchmark on all the models.
+
+```sh
+CUDA_VISIBLE_DEVICES=0 uv run benchmark.py \
+  --no-kabr-run \
+  --no-iwildcam-run \
+  --no-birds525-run \
+  --no-rarespecies-run \
+  --no-plantnet-run \
+  --newt-args.datadir /fs/scratch/PAS2136/samuelstevens/datasets/newt
+```
+
 
 ## Concrete Goals
 
@@ -18,23 +47,10 @@ It aims to make it easy to:
 
 [^web-deps]: Web dependencies include things like datasets being available from their original source, Huggingface datasets can be re-downloaded, model checkpoints do not change, etc.
 
-# To Do
+## Road Map
 
-1. Add RareSpecies with 1-shot and 5-shot variants
-2. Host docs on github pages somehow.
-3. Make presentation explaining this work to ml-foundations group.
-
-## Concrete Steps
-
-- Easy: currently easy to run. I need examples of how to run the script in different contexts, with different goals in mind.
-- Fast: I can still run the entire benchmark serially in under 1 hour on an A6000. As I add more tasks, I will need to make it more parallel. It's possible to run the entire benchmark for one model in under 1 hour on an A6000. However, it's not possible to run it for all four default models. I need to implement `submitit` on OSC.
-- Reproducible: Very. However, I need to add instructions on how to reproduce.
-- Understandable: results are in a machine-readable format (sqlite database), and produce graphs and a `results.csv` file for quick human viewing. But it would be nice to have a mistake viewer for each task in `notebooks/`.
-
-## Long-Term
-
-- Add Beluga whale re-id
-- Add TreeDetector (think about segmentation/object detection tasks)
-- Provide evidence that most vision tasks are accomplished with $f(img) -> \mathcal{R}^d$ as an initial step.
-- Predict trait/no trait in CUB images---use patch-level features + linear classifier for each possible trait
-
+1. Add 5-shot RareSpecies with simpleshot (like in BioCLIP paper). This is blocked because the Huggingface dataset doesn't work ([see this issue](https://huggingface.co/datasets/imageomics/rare-species/discussions/8)).
+2. Update docs. I will do this during travel, then push when I reconnect to the network.
+3. Add Beluga whale individual identification. This is nice because it is a non-classification task.
+4. Change Pl@ntNet to account for large class imbalance in training data.
+5. Add FishVista for trait prediction. This is another non-classification task, and we are specifically interested in traits. But it will take more work because we have to match bounding boxes and patch-level features which is challenging after resizes.

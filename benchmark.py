@@ -51,6 +51,8 @@ class Args:
 
     slurm: bool = False
     """whether to use submitit to run jobs on a slurm cluster."""
+    slurm_acct: str = "PAS2136"
+    """slurm account string."""
 
     model_args: typing.Annotated[
         list[tuple[ModelOrg, str]], tyro.conf.arg(name="model")
@@ -92,11 +94,11 @@ class Args:
     birds525_args: birds525.Args = dataclasses.field(default_factory=birds525.Args)
     """arguments for the Birds 525 benchmark."""
     rarespecies_run: bool = True
-    """whether to run the RareSpecies benchmark."""
+    """whether to run the Rare Species benchmark."""
     rarespecies_args: rarespecies.Args = dataclasses.field(
         default_factory=rarespecies.Args
     )
-    """arguments for the Birds 525 benchmark."""
+    """arguments for the Rare Species benchmark."""
 
     # Reporting and graphing.
     report_to: str = os.path.join(".", "reports")
@@ -105,6 +107,8 @@ class Args:
     """whether to make graphs."""
     graph_to: str = os.path.join(".", "graphs")
     """where to save graphs to."""
+    log_to: str = os.path.join(".", "logs")
+    """where to save logs to."""
 
     def to_dict(self) -> dict[str, object]:
         return dataclasses.asdict(self)
@@ -193,10 +197,17 @@ def main(args: Args):
     """
     # 1. Setup executor.
     if args.slurm:
-        raise NotImplementedError("submitit not implemented.")
-        executor = submitit.SlurmExecutor()
+        executor = submitit.SlurmExecutor(folder=args.log_to)
+        executor.update_parameters(
+            time=30,
+            gpus_per_node=1,
+            cpus_per_task=8,
+            stderr_to_stdout=True,
+            partition="debug",
+            account=args.slurm_acct,
+        )
     else:
-        executor = submitit.DebugExecutor(folder="logs")
+        executor = submitit.DebugExecutor(folder=args.log_to)
 
     # 2. Run benchmarks.
     jobs = []
@@ -305,15 +316,6 @@ def plot_task(conn: sqlite3.Connection, task: str) -> plt.Figure | None:
 
 if __name__ == "__main__":
     args = tyro.cli(Args)
-
-    # 0. Check on hardware accelerator.
-    if args.device == "cuda" and not torch.cuda.is_available():
-        logger.warning("No CUDA GPU found. Using CPU instead.")
-        # Can't use CUDA, so might be on macOS, which cannot use spawn with pickle.
-        torch.multiprocessing.set_start_method("fork")
-        args = dataclasses.replace(args, device="cpu")
-    elif args.device == "cuda" and torch.cuda.is_available():
-        torch.multiprocessing.set_start_method("spawn")
 
     soft, hard = resource.getrlimit(resource.RLIMIT_NOFILE)
     min_nofile = 1024 * 8

@@ -35,6 +35,7 @@ class Args:
 
 
 def main(args: Args):
+    os.makedirs(args.dir, exist_ok=True)
     chunk_size = int(args.chunk_size_kb * 1024)
     labels_tar_path = os.path.join(args.dir, "labels.tar")
     images_tar_path = os.path.join(args.dir, "images.tar")
