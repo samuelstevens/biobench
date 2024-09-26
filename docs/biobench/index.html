@@ -47,13 +47,13 @@ hljs.highlightAll();
 <ul>
 <li><code><a title="biobench.interfaces" href="interfaces.html">biobench.interfaces</a></code>:</li>
 <li><code><a title="biobench.registry" href="registry.html">biobench.registry</a></code>:</li>
-<li><code><a title="biobench.simpleshot" href="simpleshot.html">biobench.simpleshot</a></code>:</li>
+<li><code><a title="biobench.simpleshot" href="simpleshot.html">biobench.simpleshot</a></code>: An implementation of nearest-centroid classification from <a href="https://arxiv.org/abs/1911.04623">Simpleshot</a>.</li>
 <li><code><a title="biobench.third_party_models" href="third_party_models.html">biobench.third_party_models</a></code>:</li>
 </ul>
 <h2 id="future-tasks">Future Tasks</h2>
 <p>These are tasks that I plan on adding but are not yet done.</p>
 <ul>
-<li><code><a title="biobench.beluga" href="beluga/index.html">biobench.beluga</a></code>:</li>
+<li><code>biobench.beluga</code>:</li>
 <li><code><a title="biobench.iwildcam" href="iwildcam/index.html">biobench.iwildcam</a></code>:</li>
 <li><code><a title="biobench.rarespecies" href="rarespecies/index.html">biobench.rarespecies</a></code>:</li>
 <li><a href="https://github.com/Imageomics/Fish-Vista">FishVista</a>: I want to add trait classification: given patch-level features, can we train a linear probe to predict the presence/absense of a feature?</li>
@@ -91,10 +91,6 @@ It requires only that we have a $N$-dimensional vector of scores, where $N$ is t
 <section>
 <h2 class="section-title" id="header-submodules">Sub-modules</h2>
 <dl>
-<dt><code class="name"><a title="biobench.beluga" href="beluga/index.html">biobench.beluga</a></code></dt>
-<dd>
-<div class="desc"><p>We use a simple set of frozen features …</p></div>
-</dd>
 <dt><code class="name"><a title="biobench.birds525" href="birds525/index.html">biobench.birds525</a></code></dt>
 <dd>
 <div class="desc"><p>Species classification of 525 different bird species; this dataset is from <a href="https://www.kaggle.com/datasets/gpiosenka/100-bird-species">Kaggle</a> …</p></div>
@@ -131,11 +127,10 @@ As long …</p></div>
 </dd>
 <dt><code class="name"><a title="biobench.simpleshot" href="simpleshot.html">biobench.simpleshot</a></code></dt>
 <dd>
-<div class="desc"></div>
-</dd>
-<dt><code class="name"><a title="biobench.tasks" href="tasks/index.html">biobench.tasks</a></code></dt>
-<dd>
-<div class="desc"></div>
+<div class="desc"><p>```
+@article{wang2019simpleshot,
+title={Simpleshot: Revisiting nearest-neighbor classification for few-shot learning},
+author={Wang, Yan and Chao, …</p></div>
 </dd>
 <dt><code class="name"><a title="biobench.third_party_models" href="third_party_models.html">biobench.third_party_models</a></code></dt>
 <dd>
@@ -187,7 +182,6 @@ As long …</p></div>
 <ul id="index">
 <li><h3><a href="#header-submodules">Sub-modules</a></h3>
 <ul>
-<li><code><a title="biobench.beluga" href="beluga/index.html">biobench.beluga</a></code></li>
 <li><code><a title="biobench.birds525" href="birds525/index.html">biobench.birds525</a></code></li>
 <li><code><a title="biobench.interfaces" href="interfaces.html">biobench.interfaces</a></code></li>
 <li><code><a title="biobench.iwildcam" href="iwildcam/index.html">biobench.iwildcam</a></code></li>
@@ -197,7 +191,6 @@ As long …</p></div>
 <li><code><a title="biobench.rarespecies" href="rarespecies/index.html">biobench.rarespecies</a></code></li>
 <li><code><a title="biobench.registry" href="registry.html">biobench.registry</a></code></li>
 <li><code><a title="biobench.simpleshot" href="simpleshot.html">biobench.simpleshot</a></code></li>
-<li><code><a title="biobench.tasks" href="tasks/index.html">biobench.tasks</a></code></li>
 <li><code><a title="biobench.third_party_models" href="third_party_models.html">biobench.third_party_models</a></code></li>
 </ul>
 </li>

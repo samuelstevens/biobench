@@ -5,7 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
 <meta name="generator" content="pdoc3 0.11.1">
 <title>biobench.simpleshot API documentation</title>
-<meta name="description" content="">
+<meta name="description" content="```
+@article{wang2019simpleshot,
+title={Simpleshot: Revisiting nearest-neighbor classification for few-shot learning},
+author={Wang, Yan and Chao, …">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
@@ -27,6 +30,13 @@ hljs.highlightAll();
 <h1 class="title">Module <code>biobench.simpleshot</code></h1>
 </header>
 <section id="section-intro">
+<pre><code>@article{wang2019simpleshot,
+  title={Simpleshot: Revisiting nearest-neighbor classification for few-shot learning},
+  author={Wang, Yan and Chao, Wei-Lun and Weinberger, Kilian Q and Van Der Maaten, Laurens},
+  journal={arXiv preprint arXiv:1911.04623},
+  year={2019}
+}
+</code></pre>
 </section>
 <section>
 </section>
@@ -60,7 +70,11 @@ hljs.highlightAll();
 <span>def <span class="ident">simpleshot</span></span>(<span>x_train: jaxtyping.Float[Tensor, 'n_train dim'], y_train: jaxtyping.Int[Tensor, 'n_train'], x_test: jaxtyping.Float[Tensor, 'n_test dim'], y_test: jaxtyping.Int[Tensor, 'n_test'], batch_size: int, device: str) ‑> jaxtyping.Float[Tensor, 'n_test']</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Applies simpleshot to features. Returns the list of scores for x_test.</p></div>
+<div class="desc"><p>Applies simpleshot to features. Returns the list of scores for x_test.</p>
+<h2 id="args">Args</h2>
+<p>&hellip;</p>
+<h2 id="returns">Returns</h2>
+<p>A tensor of 0/1 scores, one for each test example, only considering exact match.</p></div>
 </dd>
 </dl>
 </section>

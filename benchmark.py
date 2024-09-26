@@ -25,7 +25,6 @@ import beartype
 import matplotlib.pyplot as plt
 import numpy as np
 import submitit
-import torch
 import tyro
 
 from biobench import (
