@@ -16,6 +16,14 @@ def get_cache_dir() -> str:
 
 @jaxtyped(typechecker=beartype.beartype)
 class OpenClip(interfaces.VisionBackbone):
+    """
+    Loads checkpoints from [open_clip](https://github.com/mlfoundations/open_clip), an open-source reproduction of the original [CLIP](https://arxiv.org/abs/2103.00020) paper.
+
+    Checkpoints are in the format `<ARCH>/<CKPT>`.
+    Look at the [results file](https://github.com/mlfoundations/open_clip/blob/main/docs/openclip_results.csv) for the pretrained models.
+    For example, to load a ViT-B/16 train on Apple's Data Filtering Networks dataset, you would use `ViT-B-16/dfn2b`.
+    """
+
     def __init__(self, ckpt: str, **kwargs):
         super().__init__()
         import open_clip
@@ -46,8 +54,11 @@ class OpenClip(interfaces.VisionBackbone):
             return interfaces.EncodedImgBatch(result, None)
 
 
+@jaxtyped(typechecker=beartype.beartype)
 class TimmVit(interfaces.VisionBackbone):
-    @jaxtyped(typechecker=beartype.beartype)
+    """ """
+
+    # TODO: docs + describe the ckpt format.
     def __init__(self, ckpt: str, **kwargs):
         super().__init__()
         import timm
@@ -62,7 +73,6 @@ class TimmVit(interfaces.VisionBackbone):
     def make_img_transform(self):
         return self.img_transform
 
-    @jaxtyped(typechecker=beartype.beartype)
     def img_encode(
         self, batch: Float[Tensor, "batch 3 width height"]
     ) -> interfaces.EncodedImgBatch:
@@ -77,3 +87,22 @@ class TimmVit(interfaces.VisionBackbone):
         patches = patches[:, self.model.num_prefix_tokens :, ...]
 
         return interfaces.EncodedImgBatch(img, patches)
+
+
+@jaxtyped(typechecker=beartype.beartype)
+class TorchvisionModel(interfaces.VisionBackbone):
+    def __init__(self, ckpt: str):
+        import torchvision
+
+        arch, weights = ckpt.split("/")
+        self.model = getattr(torchvision, arch)(weights=weights)
+        self.model.eval()
+
+    def img_encode(
+        self, batch: Float[Tensor, "batch 3 width height"]
+    ) -> interfaces.EncodedImgBatch:
+        breakpoint()
+
+    def make_img_transform(self):
+        # Per the docs, each set of weights has its own transform: https://pytorch.org/vision/stable/models.html#using-the-pre-trained-models
+        return self.model.weights.transforms()

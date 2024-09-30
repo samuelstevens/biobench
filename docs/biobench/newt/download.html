@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
 <meta name="generator" content="pdoc3 0.11.1">
 <title>biobench.newt.download API documentation</title>
-<meta name="description" content="">
+<meta name="description" content="A script to download the NeWT dataset …">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
@@ -27,6 +27,12 @@ hljs.highlightAll();
 <h1 class="title">Module <code>biobench.newt.download</code></h1>
 </header>
 <section id="section-intro">
+<p>A script to download the NeWT dataset.</p>
+<p>Run with:</p>
+<ol>
+<li><code>python biobench/newt/download.py --help</code> if <code>biobench/</code> is in your $PWD.</li>
+<li><code>python -m biobench.newt.download --help</code> if you have installed <code><a title="biobench" href="../index.html">biobench</a></code> as a package.</li>
+</ol>
 </section>
 <section>
 </section>
@@ -39,7 +45,7 @@ hljs.highlightAll();
 <span>def <span class="ident">main</span></span>(<span>args: <a title="biobench.newt.download.Args" href="#biobench.newt.download.Args">Args</a>)</span>
 </code></dt>
 <dd>
-<div class="desc"></div>
+<div class="desc"><p>Download NeWT.</p></div>
 </dd>
 </dl>
 </section>
@@ -51,41 +57,43 @@ hljs.highlightAll();
 <span>(</span><span>dir: str = '.', chunk_size_kb: int = 1, images: bool = True, labels: bool = True)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Args(dir: str = '.', chunk_size_kb: int = 1, images: bool = True, labels: bool = True)</p></div>
+<div class="desc"><p>Configure download options.</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">@dataclasses.dataclass(frozen=True)
 class Args:
+    &#34;&#34;&#34;Configure download options.&#34;&#34;&#34;
+
     dir: str = &#34;.&#34;
-    &#34;&#34;&#34;where to save data.&#34;&#34;&#34;
+    &#34;&#34;&#34;Where to save data.&#34;&#34;&#34;
 
     chunk_size_kb: int = 1
-    &#34;&#34;&#34;how many KB to download at a time before writing to file.&#34;&#34;&#34;
+    &#34;&#34;&#34;How many KB to download at a time before writing to file.&#34;&#34;&#34;
 
     images: bool = True
-    &#34;&#34;&#34;whether to download images [4.1GB].&#34;&#34;&#34;
+    &#34;&#34;&#34;Whether to download images [4.1GB].&#34;&#34;&#34;
     labels: bool = True
-    &#34;&#34;&#34;whether to download labels.&#34;&#34;&#34;</code></pre>
+    &#34;&#34;&#34;Whether to download labels.&#34;&#34;&#34;</code></pre>
 </details>
 <h3>Class variables</h3>
 <dl>
 <dt id="biobench.newt.download.Args.chunk_size_kb"><code class="name">var <span class="ident">chunk_size_kb</span> : int</code></dt>
 <dd>
-<div class="desc"><p>how many KB to download at a time before writing to file.</p></div>
+<div class="desc"><p>How many KB to download at a time before writing to file.</p></div>
 </dd>
 <dt id="biobench.newt.download.Args.dir"><code class="name">var <span class="ident">dir</span> : str</code></dt>
 <dd>
-<div class="desc"><p>where to save data.</p></div>
+<div class="desc"><p>Where to save data.</p></div>
 </dd>
 <dt id="biobench.newt.download.Args.images"><code class="name">var <span class="ident">images</span> : bool</code></dt>
 <dd>
-<div class="desc"><p>whether to download images [4.1GB].</p></div>
+<div class="desc"><p>Whether to download images [4.1GB].</p></div>
 </dd>
 <dt id="biobench.newt.download.Args.labels"><code class="name">var <span class="ident">labels</span> : bool</code></dt>
 <dd>
-<div class="desc"><p>whether to download labels.</p></div>
+<div class="desc"><p>Whether to download labels.</p></div>
 </dd>
 </dl>
 </dd>

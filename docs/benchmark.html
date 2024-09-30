@@ -33,10 +33,9 @@ Run <code>python benchmark.py --help</code> to see all the options.</p>
 <p>Note that you will have to download all the datasets, but each dataset includes its own download script with instructions.
 For example, see <code><a title="biobench.newt.download" href="biobench/newt/download.html">biobench.newt.download</a></code> for an example.</p>
 <h1 id="examples">Examples</h1>
-<p>First, run <code>python benchmark.py --help</code> to make sure all your dependencies are installed.</p>
 <h2 id="run-everything">Run Everything</h2>
 <p>Suppose you want to run all the tasks for all the default models to get started using a local GPU (device 4, for example).
-You need to specify all the <code>--&lt;TASK&gt;-args.datadir</code> so that each task knows where to load data from.</p>
+You need to specify all the <code>--TASK-args.datadir</code> so that each task knows where to load data from.</p>
 <pre><code class="language-sh">CUDA_VISIBLE_DEVICES=4 python benchmark.py \
   --kabr-args.datadir /local/scratch/stevens.994/datasets/kabr \
   --iwildcam-args.datadir /local/scratch/stevens.994/datasets/iwildcam \
@@ -44,17 +43,17 @@ You need to specify all the <code>--&lt;TASK&gt;-args.datadir</code> so that eac
   --birds525-args.datadir /local/scratch/stevens.994/datasets/birds525 \
   --newt-args.datadir /local/scratch/stevens.994/datasets/newt
 </code></pre>
-<p>More generally, you can configure options for individual tasks using <code>--&lt;TASK&gt;-args.&lt;OPTION&gt;</code>, which are all documented <code>python benchmark.py --help</code>.</p>
+<p>More generally, you can configure options for individual tasks using <code>--TASK-args.&lt;OPTION&gt;</code>, which are all documented <code>python benchmark.py --help</code>.</p>
 <h2 id="just-one-task">Just One Task</h2>
 <p>Suppose you just want to run one task (NeWT).
-Then you need to turn off the other tasks with <code>--no-&lt;TASK&gt;-run</code> and include the NeWT data directory.</p>
+Then you need to turn off the other tasks with <code>--no-TASK-run</code> and include the NeWT data directory.</p>
 <pre><code class="language-sh">CUDA_VISIBLE_DEVICES=4 python benchmark.py --no-kabr-run --no-iwildcam-run \
   --no-plantnet-run --no-birds525-run \
   --newt-args.datadir /local/scratch/stevens.994/datasets/newt
 </code></pre>
 <h2 id="just-one-model">Just One Model</h2>
 <p>Suppose you only want to run the SigLIP SO400M ViT from Open CLIP, but you want to run it on all tasks.
-Since that model is a checkpoint in Open CLIP, we can use the <code>biobench.third_party_model.OpenCLIP</code> class to load the checkpoint.</p>
+Since that model is a checkpoint in Open CLIP, we can use the <code><a title="biobench.third_party_models.OpenClip" href="biobench/third_party_models.html#biobench.third_party_models.OpenClip">OpenClip</a></code> class to load the checkpoint.</p>
 <pre><code class="language-sh">CUDA_VISIBLE_DEVICES=4 python benchmark.py \
   --kabr-args.datadir /local/scratch/stevens.994/datasets/kabr \
   --iwildcam-args.datadir /local/scratch/stevens.994/datasets/iwildcam \
@@ -75,6 +74,9 @@ It's really easy with <code><a title="biobench" href="biobench/index.html">biobe
   --slurm  # &lt;- Just add --slurm to use slurm!
 </code></pre>
 <p>Note that you don't need to specify <code>CUDA_VISIBLE_DEVICES</code> anymore because you're not running on the local machine anymore.</p>
+<h1 id="design">Design</h1>
+<p>biobench is designed to make it easy to add both models and tasks that work with other models and tasks.</p>
+<p>To add a new model, look at <code><a title="biobench.registry" href="biobench/registry.html">biobench.registry</a></code>'s documentation, which includes a tutorial for adding a new model.</p>
 </section>
 <section>
 </section>
@@ -101,7 +103,16 @@ Then report results and save to disk.</p></div>
 </code></dt>
 <dd>
 <div class="desc"><p>Plots the most recent result for each model on given task, including confidence intervals.
-Returns the figure so the caller can save or display it.</p></div>
+Returns the figure so the caller can save or display it.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>conn</code></strong></dt>
+<dd>connection to database.</dd>
+<dt><strong><code>task</code></strong></dt>
+<dd>which task to run.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>matplotlib.pyplot.Figure</p></div>
 </dd>
 <dt id="benchmark.save"><code class="name flex">
 <span>def <span class="ident">save</span></span>(<span>args: <a title="benchmark.Args" href="#benchmark.Args">Args</a>, model_args: tuple[str, str], report: <a title="biobench.interfaces.TaskReport" href="biobench/interfaces.html#biobench.interfaces.TaskReport">TaskReport</a>) ‑> None</span>
@@ -125,7 +136,7 @@ Returns the figure so the caller can save or display it.</p></div>
 <dl>
 <dt id="benchmark.Args"><code class="flex name class">
 <span>class <span class="ident">Args</span></span>
-<span>(</span><span>slurm: bool = False, slurm_acct: str = 'PAS2136', model_args: typing.Annotated[list[tuple[typing.Literal['timm-vit', 'open-clip'], str]], _ArgConfiguration(name='model', metavar=None, help=None, help_behavior_hint=None, aliases=None, prefix_name=None, constructor_factory=None)] = &lt;factory&gt;, device: Literal['cpu', 'cuda'] = 'cuda', debug: bool = False, newt_run: bool = True, newt_args: <a title="biobench.newt.Args" href="biobench/newt/index.html#biobench.newt.Args">Args</a> = &lt;factory&gt;, kabr_run: bool = True, kabr_args: <a title="biobench.kabr.Args" href="biobench/kabr/index.html#biobench.kabr.Args">Args</a> = &lt;factory&gt;, plantnet_run: bool = True, plantnet_args: <a title="biobench.plantnet.Args" href="biobench/plantnet/index.html#biobench.plantnet.Args">Args</a> = &lt;factory&gt;, iwildcam_run: bool = True, iwildcam_args: <a title="biobench.iwildcam.Args" href="biobench/iwildcam/index.html#biobench.iwildcam.Args">Args</a> = &lt;factory&gt;, birds525_run: bool = True, birds525_args: <a title="biobench.birds525.Args" href="biobench/birds525/index.html#biobench.birds525.Args">Args</a> = &lt;factory&gt;, rarespecies_run: bool = True, rarespecies_args: <a title="biobench.rarespecies.Args" href="biobench/rarespecies/index.html#biobench.rarespecies.Args">Args</a> = &lt;factory&gt;, report_to: str = './reports', graph: bool = True, graph_to: str = './graphs', log_to: str = './logs')</span>
+<span>(</span><span>slurm: bool = False, slurm_acct: str = 'PAS2136', model_args: typing.Annotated[list[tuple[typing.Literal['timm-vit', 'open-clip'], str]], _ArgConfiguration(name='model', metavar=None, help=None, aliases=None, prefix_name=None, constructor_factory=None)] = &lt;factory&gt;, device: Literal['cpu', 'cuda'] = 'cuda', debug: bool = False, newt_run: bool = True, newt_args: <a title="biobench.newt.Args" href="biobench/newt/index.html#biobench.newt.Args">Args</a> = &lt;factory&gt;, kabr_run: bool = True, kabr_args: <a title="biobench.kabr.Args" href="biobench/kabr/index.html#biobench.kabr.Args">Args</a> = &lt;factory&gt;, plantnet_run: bool = True, plantnet_args: <a title="biobench.plantnet.Args" href="biobench/plantnet/index.html#biobench.plantnet.Args">Args</a> = &lt;factory&gt;, iwildcam_run: bool = True, iwildcam_args: <a title="biobench.iwildcam.Args" href="biobench/iwildcam/index.html#biobench.iwildcam.Args">Args</a> = &lt;factory&gt;, birds525_run: bool = True, birds525_args: <a title="biobench.birds525.Args" href="biobench/birds525/index.html#biobench.birds525.Args">Args</a> = &lt;factory&gt;, rarespecies_run: bool = True, rarespecies_args: <a title="biobench.rarespecies.Args" href="biobench/rarespecies/index.html#biobench.rarespecies.Args">Args</a> = &lt;factory&gt;, report_to: str = './reports', graph: bool = True, graph_to: str = './graphs', log_to: str = './logs')</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Params to run one or more benchmarks in a parallel setting.</p></div>
@@ -327,6 +338,7 @@ class Args:
 <li><a href="#use-slurm">Use Slurm</a></li>
 </ul>
 </li>
+<li><a href="#design">Design</a></li>
 </ul>
 </div>
 <ul id="index">

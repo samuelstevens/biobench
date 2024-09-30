@@ -115,6 +115,10 @@ def benchmark(
 
 @jaxtyped(typechecker=beartype.beartype)
 class Dataset(torch.utils.data.Dataset):
+    """
+    A dataset that returns `(example id, image tensor)` tuples.
+    """
+
     def __init__(self, dir: str, df, transform):
         self.transform = transform
         self.image_ids = df.get_column("id").to_list()
@@ -134,12 +138,16 @@ class Dataset(torch.utils.data.Dataset):
 @jaxtyped(typechecker=beartype.beartype)
 @dataclasses.dataclass(frozen=True)
 class Task:
+    """
+    Task is a group of features and labels for an SVM + a train/test split.
+    """
+
     name: str
     cluster: str
-    features: Float[np.ndarray, "n_examples dim"]
-    labels: Int[np.ndarray, " n_examples"]
-    is_train: Bool[np.ndarray, " n_examples"]
-    example_ids: Shaped[np.ndarray, " n_examples"]  # Should be String[...]
+    features: Float[np.ndarray, "batch dim"]
+    labels: Int[np.ndarray, " batch"]
+    is_train: Bool[np.ndarray, " batch"]
+    example_ids: Shaped[np.ndarray, " batch"]  # Should be String[...]
 
     def __repr__(self) -> str:
         return f"Task(task={self.name}, cluster={self.cluster}, features={self.features.shape})"
@@ -151,6 +159,11 @@ class Task:
         tuple[Float[np.ndarray, "n_train dim"], Int[np.ndarray, " n_train"]],
         tuple[Float[np.ndarray, "n_test dim"], Int[np.ndarray, " n_test"]],
     ]:
+        """
+        The features and labels for train and test splits.
+
+        Returned as `(x_train, y_train), (x_test, y_test)`.
+        """
         x_train = self.features[self.is_train]
         y_train = self.labels[self.is_train]
         x_test = self.features[~self.is_train]
@@ -164,6 +177,7 @@ class Task:
 def get_all_task_specific_features(
     args: Args, backbone: interfaces.VisionBackbone
 ) -> collections.abc.Iterator[Task]:
+    """ """
     labels_csv_name = "newt2021_labels.csv"
     labels_csv_path = os.path.join(args.datadir, labels_csv_name)
     images_dir_name = "newt2021_images"
@@ -227,13 +241,15 @@ def get_all_task_specific_features(
 
 @jaxtyped(typechecker=beartype.beartype)
 def l2_normalize(
-    features: Float[np.ndarray, "n_examples dim"],
-) -> Float[np.ndarray, "n_examples dim"]:
+    features: Float[np.ndarray, "batch dim"],
+) -> Float[np.ndarray, "batch dim"]:
+    """Normalizes a batch of vectors to have L2 unit norm."""
     norms = np.linalg.norm(features, ord=2, axis=1, keepdims=True)
     return features / norms
 
 
 def init_svc():
+    """Create a new, randomly initialized SVM with a random hyperparameter search over kernel, C and gamma. It uses only 16 jobs in parallel to prevent overloading the CPUs on a shared machine."""
     return sklearn.model_selection.RandomizedSearchCV(
         sklearn.pipeline.make_pipeline(
             sklearn.preprocessing.StandardScaler(),

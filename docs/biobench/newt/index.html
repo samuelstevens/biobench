@@ -45,7 +45,7 @@ We aggregate scores across all 164 tasks.</p>
 <dl>
 <dt><code class="name"><a title="biobench.newt.download" href="download.html">biobench.newt.download</a></code></dt>
 <dd>
-<div class="desc"></div>
+<div class="desc"><p>A script to download the NeWT dataset …</p></div>
 </dd>
 </dl>
 </section>
@@ -79,13 +79,13 @@ Third, evaluate the SVM and report results.</p></div>
 <span>def <span class="ident">init_svc</span></span>(<span>)</span>
 </code></dt>
 <dd>
-<div class="desc"></div>
+<div class="desc"><p>Create a new, randomly initialized SVM with a random hyperparameter search over kernel, C and gamma. It uses only 16 jobs in parallel to prevent overloading the CPUs on a shared machine.</p></div>
 </dd>
 <dt id="biobench.newt.l2_normalize"><code class="name flex">
-<span>def <span class="ident">l2_normalize</span></span>(<span>features: jaxtyping.Float[ndarray, 'n_examples dim']) ‑> jaxtyping.Float[ndarray, 'n_examples dim']</span>
+<span>def <span class="ident">l2_normalize</span></span>(<span>features: jaxtyping.Float[ndarray, 'batch dim']) ‑> jaxtyping.Float[ndarray, 'batch dim']</span>
 </code></dt>
 <dd>
-<div class="desc"></div>
+<div class="desc"><p>Normalizes a batch of vectors to have L2 unit norm.</p></div>
 </dd>
 </dl>
 </section>
@@ -150,29 +150,17 @@ class Args(interfaces.TaskArgs):
 <span>(</span><span>dir: str, df, transform)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>An abstract class representing a :class:<code><a title="biobench.newt.Dataset" href="#biobench.newt.Dataset">Dataset</a></code>.</p>
-<p>All datasets that represent a map from keys to data samples should subclass
-it. All subclasses should overwrite :meth:<code>__getitem__</code>, supporting fetching a
-data sample for a given key. Subclasses could also optionally overwrite
-:meth:<code>__len__</code>, which is expected to return the size of the dataset by many
-:class:<code>~torch.utils.data.Sampler</code> implementations and the default options
-of :class:<code>~torch.utils.data.DataLoader</code>. Subclasses could also
-optionally implement :meth:<code>__getitems__</code>, for speedup batched samples
-loading. This method accepts list of indices of samples of batch and returns
-list of samples.</p>
-<div class="admonition note">
-<p class="admonition-title">Note</p>
-<p>:class:<code>~torch.utils.data.DataLoader</code> by default constructs an index
-sampler that yields integral indices.
-To make it work with a map-style
-dataset with non-integral indices/keys, a custom sampler must be provided.</p>
-</div></div>
+<div class="desc"><p>A dataset that returns <code>(example id, image tensor)</code> tuples.</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
 class Dataset(torch.utils.data.Dataset):
+    &#34;&#34;&#34;
+    A dataset that returns `(example id, image tensor)` tuples.
+    &#34;&#34;&#34;
+
     def __init__(self, dir: str, df, transform):
         self.transform = transform
         self.image_ids = df.get_column(&#34;id&#34;).to_list()
@@ -196,10 +184,10 @@ class Dataset(torch.utils.data.Dataset):
 </dd>
 <dt id="biobench.newt.Task"><code class="flex name class">
 <span>class <span class="ident">Task</span></span>
-<span>(</span><span>name: str, cluster: str, features: jaxtyping.Float[ndarray, 'n_examples dim'], labels: jaxtyping.Int[ndarray, 'n_examples'], is_train: jaxtyping.Bool[ndarray, 'n_examples'], example_ids: jaxtyping.Shaped[ndarray, 'n_examples'])</span>
+<span>(</span><span>name: str, cluster: str, features: jaxtyping.Float[ndarray, 'batch dim'], labels: jaxtyping.Int[ndarray, 'batch'], is_train: jaxtyping.Bool[ndarray, 'batch'], example_ids: jaxtyping.Shaped[ndarray, 'batch'])</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Task(name: str, cluster: str, features: jaxtyping.Float[ndarray, 'n_examples dim'], labels: jaxtyping.Int[ndarray, 'n_examples'], is_train: jaxtyping.Bool[ndarray, 'n_examples'], example_ids: jaxtyping.Shaped[ndarray, 'n_examples'])</p></div>
+<div class="desc"><p>Task is a group of features and labels for an SVM + a train/test split.</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -207,12 +195,16 @@ class Dataset(torch.utils.data.Dataset):
 <pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
 @dataclasses.dataclass(frozen=True)
 class Task:
+    &#34;&#34;&#34;
+    Task is a group of features and labels for an SVM + a train/test split.
+    &#34;&#34;&#34;
+
     name: str
     cluster: str
-    features: Float[np.ndarray, &#34;n_examples dim&#34;]
-    labels: Int[np.ndarray, &#34; n_examples&#34;]
-    is_train: Bool[np.ndarray, &#34; n_examples&#34;]
-    example_ids: Shaped[np.ndarray, &#34; n_examples&#34;]  # Should be String[...]
+    features: Float[np.ndarray, &#34;batch dim&#34;]
+    labels: Int[np.ndarray, &#34; batch&#34;]
+    is_train: Bool[np.ndarray, &#34; batch&#34;]
+    example_ids: Shaped[np.ndarray, &#34; batch&#34;]  # Should be String[...]
 
     def __repr__(self) -&gt; str:
         return f&#34;Task(task={self.name}, cluster={self.cluster}, features={self.features.shape})&#34;
@@ -224,6 +216,11 @@ class Task:
         tuple[Float[np.ndarray, &#34;n_train dim&#34;], Int[np.ndarray, &#34; n_train&#34;]],
         tuple[Float[np.ndarray, &#34;n_test dim&#34;], Int[np.ndarray, &#34; n_test&#34;]],
     ]:
+        &#34;&#34;&#34;
+        The features and labels for train and test splits.
+
+        Returned as `(x_train, y_train), (x_test, y_test)`.
+        &#34;&#34;&#34;
         x_train = self.features[self.is_train]
         y_train = self.labels[self.is_train]
         x_test = self.features[~self.is_train]
@@ -237,19 +234,19 @@ class Task:
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="biobench.newt.Task.example_ids"><code class="name">var <span class="ident">example_ids</span> : jaxtyping.Shaped[ndarray, 'n_examples']</code></dt>
+<dt id="biobench.newt.Task.example_ids"><code class="name">var <span class="ident">example_ids</span> : jaxtyping.Shaped[ndarray, 'batch']</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="biobench.newt.Task.features"><code class="name">var <span class="ident">features</span> : jaxtyping.Float[ndarray, 'n_examples dim']</code></dt>
+<dt id="biobench.newt.Task.features"><code class="name">var <span class="ident">features</span> : jaxtyping.Float[ndarray, 'batch dim']</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="biobench.newt.Task.is_train"><code class="name">var <span class="ident">is_train</span> : jaxtyping.Bool[ndarray, 'n_examples']</code></dt>
+<dt id="biobench.newt.Task.is_train"><code class="name">var <span class="ident">is_train</span> : jaxtyping.Bool[ndarray, 'batch']</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="biobench.newt.Task.labels"><code class="name">var <span class="ident">labels</span> : jaxtyping.Int[ndarray, 'n_examples']</code></dt>
+<dt id="biobench.newt.Task.labels"><code class="name">var <span class="ident">labels</span> : jaxtyping.Int[ndarray, 'batch']</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -262,7 +259,8 @@ class Task:
 <dl>
 <dt id="biobench.newt.Task.splits"><code class="name">prop <span class="ident">splits</span> : tuple[tuple[jaxtyping.Float[ndarray, 'n_train dim'], jaxtyping.Int[ndarray, 'n_train']], tuple[jaxtyping.Float[ndarray, 'n_test dim'], jaxtyping.Int[ndarray, 'n_test']]]</code></dt>
 <dd>
-<div class="desc"></div>
+<div class="desc"><p>The features and labels for train and test splits.</p>
+<p>Returned as <code>(x_train, y_train), (x_test, y_test)</code>.</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -274,6 +272,11 @@ def splits(
     tuple[Float[np.ndarray, &#34;n_train dim&#34;], Int[np.ndarray, &#34; n_train&#34;]],
     tuple[Float[np.ndarray, &#34;n_test dim&#34;], Int[np.ndarray, &#34; n_test&#34;]],
 ]:
+    &#34;&#34;&#34;
+    The features and labels for train and test splits.
+
+    Returned as `(x_train, y_train), (x_test, y_test)`.
+    &#34;&#34;&#34;
     x_train = self.features[self.is_train]
     y_train = self.labels[self.is_train]
     x_test = self.features[~self.is_train]

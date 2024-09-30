@@ -6,6 +6,15 @@
 #     "tyro",
 # ]
 # ///
+"""
+A script to download the NeWT dataset.
+
+Run with:
+
+1. `python biobench/newt/download.py --help` if `biobench/` is in your $PWD.
+2. `python -m biobench.newt.download --help` if you have installed `biobench` as a package.
+"""
+
 import dataclasses
 import os.path
 import tarfile
@@ -22,19 +31,22 @@ labels_url = "https://ml-inat-competition-datasets.s3.amazonaws.com/newt/newt202
 
 @dataclasses.dataclass(frozen=True)
 class Args:
+    """Configure download options."""
+
     dir: str = "."
-    """where to save data."""
+    """Where to save data."""
 
     chunk_size_kb: int = 1
-    """how many KB to download at a time before writing to file."""
+    """How many KB to download at a time before writing to file."""
 
     images: bool = True
-    """whether to download images [4.1GB]."""
+    """Whether to download images [4.1GB]."""
     labels: bool = True
-    """whether to download labels."""
+    """Whether to download labels."""
 
 
 def main(args: Args):
+    """Download NeWT."""
     os.makedirs(args.dir, exist_ok=True)
     chunk_size = int(args.chunk_size_kb * 1024)
     labels_tar_path = os.path.join(args.dir, "labels.tar")

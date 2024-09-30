@@ -8,6 +8,8 @@ Note that you will have to download all the datasets, but each dataset includes 
 For example, see `biobench.newt.download` for an example.
 
 .. include:: ./examples.md
+
+.. include:: ./design.md
 """
 
 import collections
@@ -284,6 +286,13 @@ def plot_task(conn: sqlite3.Connection, task: str) -> plt.Figure | None:
     """
     Plots the most recent result for each model on given task, including confidence intervals.
     Returns the figure so the caller can save or display it.
+
+    Args:
+        conn: connection to database.
+        task: which task to run.
+
+    Returns:
+        matplotlib.pyplot.Figure
     """
     orig_row_factory = conn.row_factory
 

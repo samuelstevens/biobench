@@ -51,16 +51,25 @@ hljs.highlightAll();
 <span>(</span><span>ckpt: str, **kwargs)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>A frozen vision model that embeds batches of images into batches of vectors.</p>
-<p>To add new models to the benchmark, you can simply create a new class that satisfies this interface and register it.
-See the tutorial on adding SAM to biobench.</p>
-<p>Initialize internal Module state, shared by both nn.Module and ScriptModule.</p></div>
+<div class="desc"><p>Loads checkpoints from <a href="https://github.com/mlfoundations/open_clip">open_clip</a>, an open-source reproduction of the original <a href="https://arxiv.org/abs/2103.00020">CLIP</a> paper.</p>
+<p>Checkpoints are in the format <code>&lt;ARCH&gt;/&lt;CKPT&gt;</code>.
+Look at the <a href="https://github.com/mlfoundations/open_clip/blob/main/docs/openclip_results.csv">results file</a> for the pretrained models.
+For example, to load a ViT-B/16 train on Apple's Data Filtering Networks dataset, you would use <code>ViT-B-16/dfn2b</code>.</p>
+<p><code>__init__</code>: Initialize a vision backbone from a single, machine-readable string description.</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
 class OpenClip(interfaces.VisionBackbone):
+    &#34;&#34;&#34;
+    Loads checkpoints from [open_clip](https://github.com/mlfoundations/open_clip), an open-source reproduction of the original [CLIP](https://arxiv.org/abs/2103.00020) paper.
+
+    Checkpoints are in the format `&lt;ARCH&gt;/&lt;CKPT&gt;`.
+    Look at the [results file](https://github.com/mlfoundations/open_clip/blob/main/docs/openclip_results.csv) for the pretrained models.
+    For example, to load a ViT-B/16 train on Apple&#39;s Data Filtering Networks dataset, you would use `ViT-B-16/dfn2b`.
+    &#34;&#34;&#34;
+
     def __init__(self, ckpt: str, **kwargs):
         super().__init__()
         import open_clip
@@ -110,16 +119,16 @@ class OpenClip(interfaces.VisionBackbone):
 <span>(</span><span>ckpt: str, **kwargs)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>A frozen vision model that embeds batches of images into batches of vectors.</p>
-<p>To add new models to the benchmark, you can simply create a new class that satisfies this interface and register it.
-See the tutorial on adding SAM to biobench.</p>
-<p>Initialize internal Module state, shared by both nn.Module and ScriptModule.</p></div>
+<div class="desc"><p><code>__init__</code>: Initialize a vision backbone from a single, machine-readable string description.</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class TimmVit(interfaces.VisionBackbone):
-    @jaxtyped(typechecker=beartype.beartype)
+<pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
+class TimmVit(interfaces.VisionBackbone):
+    &#34;&#34;&#34; &#34;&#34;&#34;
+
+    # TODO: docs + describe the ckpt format.
     def __init__(self, ckpt: str, **kwargs):
         super().__init__()
         import timm
@@ -134,7 +143,6 @@ See the tutorial on adding SAM to biobench.</p>
     def make_img_transform(self):
         return self.img_transform
 
-    @jaxtyped(typechecker=beartype.beartype)
     def img_encode(
         self, batch: Float[Tensor, &#34;batch 3 width height&#34;]
     ) -&gt; interfaces.EncodedImgBatch:
@@ -149,6 +157,52 @@ See the tutorial on adding SAM to biobench.</p>
         patches = patches[:, self.model.num_prefix_tokens :, ...]
 
         return interfaces.EncodedImgBatch(img, patches)</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="biobench.interfaces.VisionBackbone" href="interfaces.html#biobench.interfaces.VisionBackbone">VisionBackbone</a></li>
+<li>torch.nn.modules.module.Module</li>
+</ul>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="biobench.interfaces.VisionBackbone" href="interfaces.html#biobench.interfaces.VisionBackbone">VisionBackbone</a></b></code>:
+<ul class="hlist">
+<li><code><a title="biobench.interfaces.VisionBackbone.img_encode" href="interfaces.html#biobench.interfaces.VisionBackbone.img_encode">img_encode</a></code></li>
+<li><code><a title="biobench.interfaces.VisionBackbone.make_img_transform" href="interfaces.html#biobench.interfaces.VisionBackbone.make_img_transform">make_img_transform</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="biobench.third_party_models.TorchvisionModel"><code class="flex name class">
+<span>class <span class="ident">TorchvisionModel</span></span>
+<span>(</span><span>ckpt: str)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>A frozen vision model that embeds batches of images into batches of vectors.</p>
+<p>To add new models to the benchmark, you can simply create a new class that satisfies this interface and register it.
+See <code><a title="biobench.registry" href="registry.html">biobench.registry</a></code> for a tutorial on adding new vision backbones.</p>
+<p><code>__init__</code>: Initialize a vision backbone from a single, machine-readable string description.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
+class TorchvisionModel(interfaces.VisionBackbone):
+    def __init__(self, ckpt: str):
+        import torchvision
+
+        arch, weights = ckpt.split(&#34;/&#34;)
+        self.model = getattr(torchvision, arch)(weights=weights)
+        self.model.eval()
+
+    def img_encode(
+        self, batch: Float[Tensor, &#34;batch 3 width height&#34;]
+    ) -&gt; interfaces.EncodedImgBatch:
+        breakpoint()
+
+    def make_img_transform(self):
+        # Per the docs, each set of weights has its own transform: https://pytorch.org/vision/stable/models.html#using-the-pre-trained-models
+        return self.model.weights.transforms()</code></pre>
 </details>
 <h3>Ancestors</h3>
 <ul class="hlist">
@@ -190,6 +244,9 @@ See the tutorial on adding SAM to biobench.</p>
 </li>
 <li>
 <h4><code><a title="biobench.third_party_models.TimmVit" href="#biobench.third_party_models.TimmVit">TimmVit</a></code></h4>
+</li>
+<li>
+<h4><code><a title="biobench.third_party_models.TorchvisionModel" href="#biobench.third_party_models.TorchvisionModel">TorchvisionModel</a></code></h4>
 </li>
 </ul>
 </li>
