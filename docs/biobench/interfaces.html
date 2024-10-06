@@ -181,7 +181,7 @@ class TaskArgs:
 </dd>
 <dt id="biobench.interfaces.TaskReport"><code class="flex name class">
 <span>class <span class="ident">TaskReport</span></span>
-<span>(</span><span>name: str, examples: list[<a title="biobench.interfaces.Example" href="#biobench.interfaces.Example">Example</a>], calc_mean_score: Callable[[list[<a title="biobench.interfaces.Example" href="#biobench.interfaces.Example">Example</a>]], float], argv: list[str] = &lt;factory&gt;, commit: str = 'db0cb1a172338477a951461b760b0c690d226653', posix_time: float = &lt;factory&gt;, gpu_name: str = &lt;factory&gt;, hostname: str = &lt;factory&gt;)</span>
+<span>(</span><span>name: str, examples: list[<a title="biobench.interfaces.Example" href="#biobench.interfaces.Example">Example</a>], calc_mean_score: Callable[[list[<a title="biobench.interfaces.Example" href="#biobench.interfaces.Example">Example</a>]], float], argv: list[str] = &lt;factory&gt;, commit: str = 'b6a8a6c72290d4317eeffd91147e7df7d0db1e5c', posix_time: float = &lt;factory&gt;, gpu_name: str = &lt;factory&gt;, hostname: str = &lt;factory&gt;)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>The result of running a benchmark task.</p></div>
@@ -331,13 +331,13 @@ class TaskReport:
 </dd>
 <dt id="biobench.interfaces.VisionBackbone"><code class="flex name class">
 <span>class <span class="ident">VisionBackbone</span></span>
-<span>(</span><span>ckpt: str, **kwargs)</span>
+<span>(</span><span>*args, **kwargs)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>A frozen vision model that embeds batches of images into batches of vectors.</p>
 <p>To add new models to the benchmark, you can simply create a new class that satisfies this interface and register it.
 See <code><a title="biobench.registry" href="registry.html">biobench.registry</a></code> for a tutorial on adding new vision backbones.</p>
-<p><code>__init__</code>: Initialize a vision backbone from a single, machine-readable string description.</p></div>
+<p>Initialize internal Module state, shared by both nn.Module and ScriptModule.</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -350,11 +350,6 @@ class VisionBackbone(torch.nn.Module):
     To add new models to the benchmark, you can simply create a new class that satisfies this interface and register it.
     See `biobench.registry` for a tutorial on adding new vision backbones.
     &#34;&#34;&#34;
-
-    def __init__(self, ckpt: str, **kwargs) -&gt; None:
-        &#34;&#34;&#34;`__init__`: Initialize a vision backbone from a single, machine-readable string description.&#34;&#34;&#34;
-        err_msg = f&#34;{self.__class__.__name__} must implemented __init__().&#34;
-        raise NotImplementedError(err_msg)
 
     def img_encode(
         self, batch: Float[Tensor, &#34;batch 3 width height&#34;]

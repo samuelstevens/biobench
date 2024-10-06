@@ -55,7 +55,7 @@ hljs.highlightAll();
 <p>Checkpoints are in the format <code>&lt;ARCH&gt;/&lt;CKPT&gt;</code>.
 Look at the <a href="https://github.com/mlfoundations/open_clip/blob/main/docs/openclip_results.csv">results file</a> for the pretrained models.
 For example, to load a ViT-B/16 train on Apple's Data Filtering Networks dataset, you would use <code>ViT-B-16/dfn2b</code>.</p>
-<p><code>__init__</code>: Initialize a vision backbone from a single, machine-readable string description.</p></div>
+<p>Initialize internal Module state, shared by both nn.Module and ScriptModule.</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -119,7 +119,7 @@ class OpenClip(interfaces.VisionBackbone):
 <span>(</span><span>ckpt: str, **kwargs)</span>
 </code></dt>
 <dd>
-<div class="desc"><p><code>__init__</code>: Initialize a vision backbone from a single, machine-readable string description.</p></div>
+<div class="desc"><p>Initialize internal Module state, shared by both nn.Module and ScriptModule.</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -181,7 +181,7 @@ class TimmVit(interfaces.VisionBackbone):
 <div class="desc"><p>A frozen vision model that embeds batches of images into batches of vectors.</p>
 <p>To add new models to the benchmark, you can simply create a new class that satisfies this interface and register it.
 See <code><a title="biobench.registry" href="registry.html">biobench.registry</a></code> for a tutorial on adding new vision backbones.</p>
-<p><code>__init__</code>: Initialize a vision backbone from a single, machine-readable string description.</p></div>
+<p>Initialize internal Module state, shared by both nn.Module and ScriptModule.</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>

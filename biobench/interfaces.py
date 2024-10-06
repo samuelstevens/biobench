@@ -64,11 +64,6 @@ class VisionBackbone(torch.nn.Module):
     See `biobench.registry` for a tutorial on adding new vision backbones.
     """
 
-    def __init__(self, ckpt: str, **kwargs) -> None:
-        """`__init__`: Initialize a vision backbone from a single, machine-readable string description."""
-        err_msg = f"{self.__class__.__name__} must implemented __init__()."
-        raise NotImplementedError(err_msg)
-
     def img_encode(
         self, batch: Float[Tensor, "batch 3 width height"]
     ) -> EncodedImgBatch:

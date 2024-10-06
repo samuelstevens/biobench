@@ -22,8 +22,10 @@ Suppose you just want to run one task (NeWT).
 Then you need to turn off the other tasks with `--no-TASK-run` and include the NeWT data directory.
 
 ```sh
-CUDA_VISIBLE_DEVICES=4 python benchmark.py --no-kabr-run --no-iwildcam-run \
+CUDA_VISIBLE_DEVICES=4 python benchmark.py \
+  --no-kabr-run --no-iwildcam-run \
   --no-plantnet-run --no-birds525-run \
+  --no-beluga-run \
   --newt-args.datadir /local/scratch/stevens.994/datasets/newt
 ```
 

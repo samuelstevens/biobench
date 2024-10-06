@@ -47,8 +47,10 @@ You need to specify all the <code>--TASK-args.datadir</code> so that each task k
 <h2 id="just-one-task">Just One Task</h2>
 <p>Suppose you just want to run one task (NeWT).
 Then you need to turn off the other tasks with <code>--no-TASK-run</code> and include the NeWT data directory.</p>
-<pre><code class="language-sh">CUDA_VISIBLE_DEVICES=4 python benchmark.py --no-kabr-run --no-iwildcam-run \
+<pre><code class="language-sh">CUDA_VISIBLE_DEVICES=4 python benchmark.py \
+  --no-kabr-run --no-iwildcam-run \
   --no-plantnet-run --no-birds525-run \
+  --no-beluga-run \
   --newt-args.datadir /local/scratch/stevens.994/datasets/newt
 </code></pre>
 <h2 id="just-one-model">Just One Model</h2>

@@ -6,6 +6,10 @@
 #     "tyro",
 # ]
 # ///
+"""
+Downloads the Begula whale dataset from lila.science.
+"""
+
 import dataclasses
 import os
 import tarfile
@@ -19,6 +23,8 @@ train_url = "http://us-west-2.opendata.source.coop.s3.amazonaws.com/agentmorris/
 
 @dataclasses.dataclass(frozen=True)
 class Args:
+    """Configuration."""
+
     dir: str = "."
     """where to save data."""
     chunk_size_kb: int = 1
@@ -30,6 +36,7 @@ class Args:
 
 
 def main(args: Args):
+    """Download and unzip the data."""
     os.makedirs(args.dir, exist_ok=True)
 
     chunk_size = int(args.chunk_size_kb * 1024)
