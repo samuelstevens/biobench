@@ -10,14 +10,14 @@ The most important modules to understand are:
 * Any of the task modules--`biobench.newt` is well documented.
 * Any of the vision modules--`biobench.third_party_models.OpenClip` is highly relevant to anyone using the [open_clip](https://github.com/mlfoundations/open_clip) codebase to train models.
 
-## Tasks
+## Task Modules
 
 * `biobench.birds525`: 1-shot classification with nearest-neighbor of the Kaggle Birds dataset.
 * `biobench.iwildcam`: Species classification using multiclass linear regression.
 * `biobench.kabr`: Behavior classification of single-subject animals using simpleshot of mean frame representations.
 * `biobench.newt`: 164 binary classification tasks using an binary SVM trained on image features.
 
-## Helpers
+## Helper Modules
 
 * `biobench.interfaces`:
 * `biobench.registry`:

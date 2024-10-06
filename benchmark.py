@@ -24,7 +24,6 @@ import time
 import typing
 
 import beartype
-import matplotlib.pyplot as plt
 import numpy as np
 import submitit
 import tyro
@@ -94,12 +93,12 @@ class Args:
     """whether to run the Birds 525 benchmark."""
     birds525_args: birds525.Args = dataclasses.field(default_factory=birds525.Args)
     """arguments for the Birds 525 benchmark."""
-    rarespecies_run: bool = True
-    """whether to run the Rare Species benchmark."""
+    rarespecies_run: bool = False
+    """whether to run the Rare Species benchmark. False by default because Huggingface has a bug with the dataset right now."""
     rarespecies_args: rarespecies.Args = dataclasses.field(
         default_factory=rarespecies.Args
     )
-    """arguments for the Rare Species benchmark."""
+    """Arguments for the Rare Species benchmark."""
 
     # Reporting and graphing.
     report_to: str = os.path.join(".", "reports")
@@ -282,7 +281,7 @@ def main(args: Args):
 
 
 @beartype.beartype
-def plot_task(conn: sqlite3.Connection, task: str) -> plt.Figure | None:
+def plot_task(conn: sqlite3.Connection, task: str):
     """
     Plots the most recent result for each model on given task, including confidence intervals.
     Returns the figure so the caller can save or display it.
@@ -294,6 +293,8 @@ def plot_task(conn: sqlite3.Connection, task: str) -> plt.Figure | None:
     Returns:
         matplotlib.pyplot.Figure
     """
+    import matplotlib.pyplot as plt
+
     orig_row_factory = conn.row_factory
 
     conn.row_factory = sqlite3.Row
