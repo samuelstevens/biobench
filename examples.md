@@ -11,7 +11,8 @@ CUDA_VISIBLE_DEVICES=4 python benchmark.py \
   --iwildcam-args.datadir /local/scratch/stevens.994/datasets/iwildcam \
   --plantnet-args.datadir /local/scratch/stevens.994/datasets/plantnet \
   --birds525-args.datadir /local/scratch/stevens.994/datasets/birds525 \
-  --newt-args.datadir /local/scratch/stevens.994/datasets/newt
+  --newt-args.datadir /local/scratch/stevens.994/datasets/newt \
+  --beluga-args.datadir /local/scratch/stevens.994/datasets/beluga
 ```
 
 More generally, you can configure options for individual tasks using `--TASK-args.<OPTION>`, which are all documented `python benchmark.py --help`.
@@ -41,6 +42,7 @@ CUDA_VISIBLE_DEVICES=4 python benchmark.py \
   --plantnet-args.datadir /local/scratch/stevens.994/datasets/plantnet \
   --birds525-args.datadir /local/scratch/stevens.994/datasets/birds525 \
   --newt-args.datadir /local/scratch/stevens.994/datasets/newt \
+  --beluga-args.datadir /local/scratch/stevens.994/datasets/beluga \
   --model open-clip ViT-SO400M-14-SigLIP/webli  # <- This is the new line!
 ```
 
@@ -56,6 +58,7 @@ python benchmark.py \
   --plantnet-args.datadir /local/scratch/stevens.994/datasets/plantnet \
   --birds525-args.datadir /local/scratch/stevens.994/datasets/birds525 \
   --newt-args.datadir /local/scratch/stevens.994/datasets/newt \
+  --beluga-args.datadir /local/scratch/stevens.994/datasets/beluga \
   --slurm  # <- Just add --slurm to use slurm!
 ```
 

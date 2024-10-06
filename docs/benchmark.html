@@ -41,7 +41,8 @@ You need to specify all the <code>--TASK-args.datadir</code> so that each task k
   --iwildcam-args.datadir /local/scratch/stevens.994/datasets/iwildcam \
   --plantnet-args.datadir /local/scratch/stevens.994/datasets/plantnet \
   --birds525-args.datadir /local/scratch/stevens.994/datasets/birds525 \
-  --newt-args.datadir /local/scratch/stevens.994/datasets/newt
+  --newt-args.datadir /local/scratch/stevens.994/datasets/newt \
+  --beluga-args.datadir /local/scratch/stevens.994/datasets/beluga
 </code></pre>
 <p>More generally, you can configure options for individual tasks using <code>--TASK-args.&lt;OPTION&gt;</code>, which are all documented <code>python benchmark.py --help</code>.</p>
 <h2 id="just-one-task">Just One Task</h2>
@@ -62,6 +63,7 @@ Since that model is a checkpoint in Open CLIP, we can use the <code><a title="bi
   --plantnet-args.datadir /local/scratch/stevens.994/datasets/plantnet \
   --birds525-args.datadir /local/scratch/stevens.994/datasets/birds525 \
   --newt-args.datadir /local/scratch/stevens.994/datasets/newt \
+  --beluga-args.datadir /local/scratch/stevens.994/datasets/beluga \
   --model open-clip ViT-SO400M-14-SigLIP/webli  # &lt;- This is the new line!
 </code></pre>
 <h2 id="use-slurm">Use Slurm</h2>
@@ -73,6 +75,7 @@ It's really easy with <code><a title="biobench" href="biobench/index.html">biobe
   --plantnet-args.datadir /local/scratch/stevens.994/datasets/plantnet \
   --birds525-args.datadir /local/scratch/stevens.994/datasets/birds525 \
   --newt-args.datadir /local/scratch/stevens.994/datasets/newt \
+  --beluga-args.datadir /local/scratch/stevens.994/datasets/beluga \
   --slurm  # &lt;- Just add --slurm to use slurm!
 </code></pre>
 <p>Note that you don't need to specify <code>CUDA_VISIBLE_DEVICES</code> anymore because you're not running on the local machine anymore.</p>
