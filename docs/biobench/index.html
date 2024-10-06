@@ -42,6 +42,7 @@ hljs.highlightAll();
 <li><code><a title="biobench.iwildcam" href="iwildcam/index.html">biobench.iwildcam</a></code>: Species classification using multiclass linear regression.</li>
 <li><code><a title="biobench.kabr" href="kabr/index.html">biobench.kabr</a></code>: Behavior classification of single-subject animals using simpleshot of mean frame representations.</li>
 <li><code><a title="biobench.newt" href="newt/index.html">biobench.newt</a></code>: 164 binary classification tasks using an binary SVM trained on image features.</li>
+<li><code><a title="biobench.beluga" href="beluga/index.html">biobench.beluga</a></code>:</li>
 </ul>
 <h2 id="helper-modules">Helper Modules</h2>
 <ul>
@@ -53,9 +54,7 @@ hljs.highlightAll();
 <h2 id="future-tasks">Future Tasks</h2>
 <p>These are tasks that I plan on adding but are not yet done.</p>
 <ul>
-<li><code>biobench.beluga</code>:</li>
-<li><code><a title="biobench.iwildcam" href="iwildcam/index.html">biobench.iwildcam</a></code>:</li>
-<li><code><a title="biobench.rarespecies" href="rarespecies/index.html">biobench.rarespecies</a></code>:</li>
+<li><code><a title="biobench.rarespecies" href="rarespecies/index.html">biobench.rarespecies</a></code>: Waiting on <a href="https://huggingface.co/datasets/imageomics/rare-species/discussions/8">bug</a> in Huggingface.</li>
 <li><a href="https://github.com/Imageomics/Fish-Vista">FishVista</a>: I want to add trait classification: given patch-level features, can we train a linear probe to predict the presence/absense of a feature?</li>
 </ul>
 <h1 id="confidence-intervals">Confidence Intervals</h1>
@@ -91,6 +90,10 @@ It requires only that we have a $N$-dimensional vector of scores, where $N$ is t
 <section>
 <h2 class="section-title" id="header-submodules">Sub-modules</h2>
 <dl>
+<dt><code class="name"><a title="biobench.beluga" href="beluga/index.html">biobench.beluga</a></code></dt>
+<dd>
+<div class="desc"><p>Individual re-identification of Beluga whales (<em>Delphinapterus leucas</em>) using <a href="https://lila.science/datasets/beluga-id-2022/">this LILA BC dataset</a> …</p></div>
+</dd>
 <dt><code class="name"><a title="biobench.birds525" href="birds525/index.html">biobench.birds525</a></code></dt>
 <dd>
 <div class="desc"><p>Species classification of 525 different bird species; this dataset is from <a href="https://www.kaggle.com/datasets/gpiosenka/100-bird-species">Kaggle</a> …</p></div>
@@ -182,6 +185,7 @@ author={Wang, Yan and Chao, …</p></div>
 <ul id="index">
 <li><h3><a href="#header-submodules">Sub-modules</a></h3>
 <ul>
+<li><code><a title="biobench.beluga" href="beluga/index.html">biobench.beluga</a></code></li>
 <li><code><a title="biobench.birds525" href="birds525/index.html">biobench.birds525</a></code></li>
 <li><code><a title="biobench.interfaces" href="interfaces.html">biobench.interfaces</a></code></li>
 <li><code><a title="biobench.iwildcam" href="iwildcam/index.html">biobench.iwildcam</a></code></li>

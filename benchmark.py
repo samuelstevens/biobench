@@ -30,6 +30,7 @@ import tyro
 
 from biobench import (
     ModelOrg,
+    beluga,
     birds525,
     interfaces,
     iwildcam,
@@ -99,6 +100,10 @@ class Args:
         default_factory=rarespecies.Args
     )
     """Arguments for the Rare Species benchmark."""
+    beluga_run: bool = True
+    """Whether to run the Beluga whale re-ID benchmark."""
+    beluga_args: beluga.Args = dataclasses.field(default_factory=beluga.Args)
+    """Arguments for the Beluga whale re-ID benchmark."""
 
     # Reporting and graphing.
     report_to: str = os.path.join(".", "reports")
@@ -246,6 +251,12 @@ def main(args: Args):
             )
             job = executor.submit(rarespecies.benchmark, rarespecies_args, model_args)
             jobs.append(job)
+        if args.beluga_run:
+            beluga_args = dataclasses.replace(
+                args.beluga_args, device=args.device, debug=args.debug
+            )
+            job = executor.submit(beluga.benchmark, beluga_args, model_args)
+            jobs.append(job)
 
     logger.info("Submitted %d jobs.", len(jobs))
 
@@ -268,7 +279,7 @@ def main(args: Args):
     if args.graph:
         # For each combination of model/task, get the most recent version from the database. Then make a graph and save it to disk.
         conn = args.get_sqlite_connection()
-        for task in ("KABR", "NeWT", "Pl@ntNet", "iWildCam", "Birds525"):
+        for task in ("KABR", "NeWT", "Pl@ntNet", "iWildCam", "Birds525", "BelugaID"):
             fig = plot_task(conn, task)
             if fig is None:
                 continue

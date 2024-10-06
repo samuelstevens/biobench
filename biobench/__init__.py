@@ -16,6 +16,7 @@ The most important modules to understand are:
 * `biobench.iwildcam`: Species classification using multiclass linear regression.
 * `biobench.kabr`: Behavior classification of single-subject animals using simpleshot of mean frame representations.
 * `biobench.newt`: 164 binary classification tasks using an binary SVM trained on image features.
+* `biobench.beluga`:
 
 ## Helper Modules
 
@@ -28,9 +29,7 @@ The most important modules to understand are:
 
 These are tasks that I plan on adding but are not yet done.
 
-* `biobench.beluga`:
-* `biobench.iwildcam`:
-* `biobench.rarespecies`:
+* `biobench.rarespecies`: Waiting on [bug](https://huggingface.co/datasets/imageomics/rare-species/discussions/8) in Huggingface.
 * [FishVista](https://github.com/Imageomics/Fish-Vista): I want to add trait classification: given patch-level features, can we train a linear probe to predict the presence/absense of a feature?
 
 .. include:: ./confidence-intervals.md
