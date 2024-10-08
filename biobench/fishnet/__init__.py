@@ -20,18 +20,20 @@ If you use this evaluation, be sure to cite the original work:
 }
 ```
 """
-import tqdm
-import torch
-import os.path
-import sklearn
-import logging
-import beartype
+
 import dataclasses
+import logging
+import os.path
+
+import beartype
 import numpy as np
 import polars as pl
+import sklearn
+import torch
+import tqdm
+from jaxtyping import Float, Int, Shaped, jaxtyped
 from PIL import Image
 from torch import Tensor
-from jaxtyping import Bool, Float, Int, Shaped, jaxtyped
 
 from biobench import interfaces, registry
 
@@ -50,61 +52,61 @@ class Args(interfaces.TaskArgs):
     log_every: int = 10
     """how often (number of batches) to log progress."""
     n_epochs: int = 100
-    """how many epochs to fit the linear classifier."""
+    """How many epochs to train the MLP classifier."""
     learning_rate: float = 5e-4
-    """the learning rate for fine-tuning the classifier."""
+    """The learning rate for fine-tuning the classifier."""
     threshold: float = 0.5
-    """the threshold to transfer predicted logits."""
+    """The threshold to transfer predicted logits."""
 
 
 @jaxtyped(typechecker=beartype.beartype)
-@dataclasses.dataclass(frozen=True)
-class Features:
+class Features(torch.utils.data.Dataset):
     x: Float[Tensor, " n dim"]
     y: Int[Tensor, " n n_classes"]
     ids: Shaped[np.ndarray, " n"]
 
+    def __init__(
+        self,
+        x: Float[Tensor, " n dim"],
+        y: Int[Tensor, " n n_classes"],
+        ids: Shaped[np.ndarray, " n"],
+    ):
+        self.x = x
+        self.y = y
+        self.ids = ids
 
-@beartype.beartype
-class FeatureDataset(torch.utils.data.Dataset):
-    """The dataset for the Features class"""
-    def __init__(self, features: Features):
-        self.x = features.x
-        self.y = features.y
-        self.ids = features.ids
-    
-    def __len__(self):
+    @property
+    def dim(self) -> int:
+        _, dim = self.x.shape
+        return dim
+
+    def __len__(self) -> int:
         return len(self.x)
 
-    def __getitem__(self, index):
-        return (self.x[index], self.y[index], self.ids[index])
+    def __getitem__(
+        self, index
+    ) -> tuple[Float[Tensor, " dim"], Int[Tensor, " n_classes"], str]:
+        return self.x[index], self.y[index], self.ids[index]
 
 
 @beartype.beartype
-class Classifier(torch.nn.Module):
+def init_classifier(input_dim: int) -> torch.nn.Module:
     """A simple MLP classifier consistent with the design in FishNet."""
-    def __init__(self, final_layer_dim: int):
-        super(Classifier, self).__init__()
-        self.linear = torch.nn.Sequential(
-            torch.nn.Linear(final_layer_dim, 512),
-            torch.nn.Dropout(0.5),
-            torch.nn.Linear(512, 9)
-        )
-    
-    def forward(self, x):
-        """"""
-        return self.linear(x)
+    return torch.nn.Sequential(
+        torch.nn.Linear(input_dim, 512),
+        torch.nn.Dropout(0.5),
+        torch.nn.Linear(512, 9),
+    )
 
 
 @beartype.beartype
-class MeanScoreCalculator:
-    def __call__(self, examples: list[interfaces.Example]) -> float:
-        y_pred = np.array([example.info["y_pred"] for example in examples])
-        y_true = np.array([example.info["y_true"] for example in examples])
-        score = sklearn.metrics.f1_score(
-            y_true, y_pred, average="macro", labels=np.unique(y_true)
-        )
-        return score.item()
+def calc_macro_f1(examples: list[interfaces.Example]) -> float:
+    y_pred = np.array([example.info["y_pred"] for example in examples])
+    y_true = np.array([example.info["y_true"] for example in examples])
+    score = sklearn.metrics.f1_score(
+        y_true, y_pred, average="macro", labels=np.unique(y_true)
+    )
+    return score.item()
 
 
 @beartype.beartype
@@ -116,46 +118,28 @@ def benchmark(
     """
     # 1. Load model.
     backbone = registry.load_vision_backbone(*model_args)
-    for dim_index in range(3):
-        try:
-            if dim_index == 0:
-                embed_dim = backbone.model.output_dim
-            elif dim_index == 1:
-                embed_dim = backbone.model.embed_dim
-            elif dim_index == 2:
-                embed_dim = backbone.model.trunk.embed_dim
-            break
-        except AttributeError:
-            if dim_index < 3:
-                continue
-    assert embed_dim is not None, "Backbone embedding dimension type not defined."
-    classifier = Classifier(embed_dim).to(args.device)
 
     # 2. Get features.
-    train_features, test_features = get_features(args, backbone)
+    train_dataset = get_features(args, backbone, is_train=True)
+    test_dataset = get_features(args, backbone, is_train=False)
 
-    # 3. Load datasets for classifier.
-    train_dataset = FeatureDataset(train_features)
+    # 3. Set up classifier.
+    classifier = init_classifier(train_dataset.dim).to(args.device)
+
+    # 4. Load datasets for classifier.
     train_loader = torch.utils.data.DataLoader(
-        train_dataset, batch_size=args.batch_size, shuffle=True,
-        num_workers=args.n_workers, pin_memory=True
+        train_dataset, batch_size=args.batch_size, shuffle=True
     )
-    test_dataset = FeatureDataset(test_features)
     test_loader = torch.utils.data.DataLoader(
-        test_dataset, batch_size=args.batch_size, shuffle=False,
-        num_workers=args.n_workers, pin_memory=False
+        test_dataset, batch_size=args.batch_size, shuffle=False
     )
-    optimizer = torch.optim.Adam(
-        classifier.parameters(), lr=args.learning_rate
-    )
+    optimizer = torch.optim.Adam(classifier.parameters(), lr=args.learning_rate)
     criterion = torch.nn.BCEWithLogitsLoss()
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.5)
-    true_labels = test_features.y
 
-    # 4. Fit the classifier.
-    best_score = 0.
+    # 5. Fit the classifier.
     for epoch in range(args.n_epochs):
-        total = len(train_loader)
+        total = 2 if args.debug else len(train_loader)
         it = iter(train_loader)
         for b in range(total):
             features, labels, _ = next(it)
@@ -167,72 +151,68 @@ def benchmark(
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-        
+
         scheduler.step()
 
         # Evaluate the classifier.
         if (epoch + 1) % args.log_every == 0:
-            total_test = len(test_loader)
-            it_test = iter(test_loader)
-            examples = []
-            for b_test in range(total_test):
-                features_test, labels_test, ids_test = next(it_test)
-                features_test = features_test.to(args.device)
-                labels_test = labels_test.numpy()
-                ids_test = ids_test.numpy()
-                with torch.no_grad():
-                    pred_logits = classifier(features_test)
-                pred_logits = (pred_logits > args.threshold).cpu().numpy()
-                for image_id, pred, true in zip(
-                    ids_test, pred_logits, labels_test
-                ):
-                    examples.append(interfaces.Example(
-                        str(image_id),
-                        float((pred == true).all()),
-                        {"y_pred": pred.tolist(), "y_true": true.tolist()},
-                    ))
-                score = MeanScoreCalculator()(examples)
-            logger.info(f"{epoch + 1}/{args.n_epochs}: {score}")
-    
+            examples = evaluate(args, classifier, test_loader)
+            score = calc_macro_f1(examples)
+            logger.info("Epoch %d/%d: %.3f", epoch + 1, args.n_epochs, score)
+
     return model_args, interfaces.TaskReport(
-        'FishNet', examples, MeanScoreCalculator()
+        "FishNet", examples, calc_mean_score=calc_macro_f1
     )
 
 
-@jaxtyped(typechecker=beartype.beartype)
-def get_features(args, backbone) -> tuple[Features, Features]:
-    """Get the features with the specified backbone."""
-    transform = backbone.make_img_transform()
-    train_dataset = ImageDataset(args.datadir, 'train.csv',
-                                 transform=transform)
-    train_loader = torch.utils.data.DataLoader(
-        train_dataset, batch_size=args.batch_size, shuffle=True,
-        num_workers=args.n_workers, pin_memory=False
-    )
-    train_features = get_split_features(args, backbone, train_loader)
+@beartype.beartype
+def evaluate(
+    args: Args, classifier: torch.nn.Module, dataloader
+) -> list[interfaces.Example]:
+    total = 2 if args.debug else len(dataloader)
+    it = iter(dataloader)
+    examples = []
+    for b in range(total):
+        features, labels, ids = next(it)
+        features = features.to(args.device)
+        labels = labels.numpy()
+        ids = ids.numpy()
+        with torch.no_grad():
+            pred_logits = classifier(features)
+        pred_logits = (pred_logits > args.threshold).cpu().numpy()
+        for id, pred, true in zip(ids, pred_logits, labels):
+            example = interfaces.Example(
+                str(id),
+                float((pred == true).all()),
+                {"y_pred": pred.tolist(), "y_true": true.tolist()},
+            )
+            examples.append(example)
 
-    test_dataset = ImageDataset(args.datadir, 'test.csv',
-                                transform=transform)
-    test_loader = torch.utils.data.DataLoader(
-        test_dataset, batch_size=args.batch_size, shuffle=False,
-        num_workers=args.n_workers, pin_memory=False
-    )
-    test_features = get_split_features(args, backbone, test_loader)
-
-    return train_features, test_features
+    return examples
 
 
 @jaxtyped(typechecker=beartype.beartype)
 @torch.no_grad()
-def get_split_features(
-    args: Args, backbone: interfaces.VisionBackbone, dataloader
+def get_features(
+    args: Args, backbone: interfaces.VisionBackbone, *, is_train: bool
 ) -> Features:
     """Extract visual features"""
+    if not os.path.isdir(args.datadir):
+        msg = f"Path '{args.datadir}' doesn't exist. Did you download the FishNet dataset? See the docstring at the top of this file for instructions. If you did download it, pass the path with '--fishnet-args.datadir'; see --help for more."
+        raise ValueError(msg)
+
+    img_transform = backbone.make_img_transform()
     backbone = torch.compile(backbone.to(args.device))
+
+    file = "train.csv" if is_train else "test.csv"
+    dataset = ImageDataset(args.datadir, file, transform=img_transform)
+    dataloader = torch.utils.data.DataLoader(
+        dataset, batch_size=args.batch_size, num_workers=args.n_workers
+    )
 
     all_features, all_labels, all_ids = [], [], []
 
-    total = len(dataloader)
+    total = 2 if args.debug else len(dataloader)
     logger.info("Extracting features.")
     it = iter(dataloader)
     for b in tqdm.tqdm(range(total)):
@@ -243,7 +223,7 @@ def get_split_features(
         all_features.append(features.cpu())
         all_labels.append(labels)
 
-        ids = (np.arange(len(labels)) + b * args.batch_size)
+        ids = np.arange(len(labels)) + b * args.batch_size
         all_ids.append(ids)
 
     # Keep the Tensor data type for subsequent training
@@ -265,8 +245,15 @@ class ImageDataset(torch.utils.data.Dataset):
         self.csv_file = os.path.join(self.root_dir, csv_file)
         self.df = pl.read_csv(self.csv_file).with_row_index()
         self.all_columns = [
-            "FeedingPath", "Tropical", "Temperate", "Subtropical", "Boreal",
-            "Polar", "freshwater", "saltwater", "brackish"
+            "FeedingPath",
+            "Tropical",
+            "Temperate",
+            "Subtropical",
+            "Boreal",
+            "Polar",
+            "freshwater",
+            "saltwater",
+            "brackish",
         ]
         for col in self.all_columns:
             self.df = self.df.filter(self.df[col].is_not_null())
@@ -276,18 +263,16 @@ class ImageDataset(torch.utils.data.Dataset):
         self.image_col = 4
         self.folder_col = 13
         self.label_cols = [15, 16, 17, 18, 19, 20, 21, 22, 23]
-        logger.info('csv file: {} has {} item.'.format(csv_file, len(self.df)))
+        logger.info("csv file: %s has %d item.", csv_file, len(self.df))
 
     def __getitem__(
         self, index: int
-    ) -> tuple[Float[Tensor, "3 width height"], Float[Tensor, "channel"], str]:
+    ) -> tuple[Float[Tensor, "3 width height"], Float[Tensor, " channel"], str]:
         row_data = self.df.row(index)
         image_name = row_data[self.image_col]
-        image_name = image_name.split('/')[-1]
+        image_name = image_name.split("/")[-1]
         folder = row_data[self.folder_col]
-        image_path = os.path.join(
-            self.root_dir, 'Image_Library', folder, image_name
-        )
+        image_path = os.path.join(self.root_dir, "Image_Library", folder, image_name)
         image = Image.open(image_path)
 
         # Extract the required attribute labels.
@@ -300,15 +285,13 @@ class ImageDataset(torch.utils.data.Dataset):
                 elif value == "benthic":
                     value = 0
                 else:
-                    raise ValueError(
-                        "FeedingPath can only be pelagic or benthic."
-                    )
+                    raise ValueError("FeedingPath can only be pelagic or benthic.")
             label.append(value)
         label = torch.tensor(label)
 
         if self.transform:
             image = self.transform(image)
-        
+
         return image, label, image_path
 
     def __len__(self) -> int:

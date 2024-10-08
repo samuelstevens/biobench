@@ -27,6 +27,7 @@ dependencies = [
     "torchvision>=0.19.1",
     "submitit>=1.5.2",
     "pycocotools>=2.0.8",
+    "gdown>=5.2.0",
 ]
 
 [tool.ruff.lint]

@@ -20,8 +20,8 @@ import dataclasses
 import os.path
 import zipfile
 
-import requests
 import gdown
+import requests
 import tqdm
 import tyro
 
@@ -31,7 +31,7 @@ labels_urls = [
     "https://raw.githubusercontent.com/faixan-khan/FishNet/refs/heads/main/anns/train_full_meta_new.csv",
     "https://raw.githubusercontent.com/faixan-khan/FishNet/refs/heads/main/anns/train.csv",
     "https://raw.githubusercontent.com/faixan-khan/FishNet/refs/heads/main/anns/test.csv",
-    "https://raw.githubusercontent.com/faixan-khan/FishNet/refs/heads/main/anns/spec_gen_map.csv"
+    "https://raw.githubusercontent.com/faixan-khan/FishNet/refs/heads/main/anns/spec_gen_map.csv",
 ]
 
 
@@ -46,7 +46,7 @@ class Args:
     """How many KB to download at a time before writing to file."""
 
     images: bool = True
-    """Whether to download the zip file [5.4GB]."""
+    """Whether to download the images zip file [5.4GB]."""
     labels: bool = True
     """Whether to download the labels."""
     extract: bool = True
@@ -64,7 +64,7 @@ def main(args: Args):
     if args.images:
         gdown.download(dataset_url, zipfile_path, quiet=False)
         print(f"Downloaded zip file: {zipfile_path}.")
-    
+
     if args.labels:
         for labels_url in labels_urls:
             r = requests.get(labels_url, stream=True)
@@ -78,7 +78,7 @@ def main(args: Args):
 
     # Extract the zip file.
     if args.extract:
-        with zipfile.ZipFile(zipfile_path, 'r') as zip:
+        with zipfile.ZipFile(zipfile_path, "r") as zip:
             for member in tqdm.tqdm(zip.infolist(), desc="Extracting images"):
                 zip.extract(member, args.dir)
         print(f"Extracted images: {args.dir}/Image_Library.")

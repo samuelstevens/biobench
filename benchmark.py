@@ -33,13 +33,13 @@ from biobench import (
     ages,
     beluga,
     birds525,
+    fishnet,
     interfaces,
     iwildcam,
     kabr,
     newt,
     plantnet,
     rarespecies,
-    fishnet,
 )
 
 log_format = "[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s"
@@ -271,6 +271,7 @@ def main(args: Args):
                 args.fishnet_args, device=args.device, debug=args.debug
             )
             job = executor.submit(fishnet.benchmark, fishnet_args, model_args)
+            jobs.append(job)
         if args.ages_run:
             ages_args = dataclasses.replace(
                 args.ages_args, device=args.device, debug=args.debug
