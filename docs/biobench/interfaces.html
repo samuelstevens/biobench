@@ -43,6 +43,12 @@ See <code><a title="biobench.third_party_models" href="third_party_models.html">
 <section>
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
+<dt id="biobench.interfaces.default_calc_mean_score"><code class="name flex">
+<span>def <span class="ident">default_calc_mean_score</span></span>(<span>examples: list[<a title="biobench.interfaces.Example" href="#biobench.interfaces.Example">Example</a>]) ‑> float</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="biobench.interfaces.get_git_hash"><code class="name flex">
 <span>def <span class="ident">get_git_hash</span></span>(<span>) ‑> str</span>
 </code></dt>
@@ -151,8 +157,10 @@ class TaskArgs:
 </details>
 <h3>Subclasses</h3>
 <ul class="hlist">
+<li><a title="biobench.ages.Args" href="ages.html#biobench.ages.Args">Args</a></li>
 <li><a title="biobench.beluga.Args" href="beluga/index.html#biobench.beluga.Args">Args</a></li>
 <li><a title="biobench.birds525.Args" href="birds525/index.html#biobench.birds525.Args">Args</a></li>
+<li><a title="biobench.fishnet.Args" href="fishnet/index.html#biobench.fishnet.Args">Args</a></li>
 <li><a title="biobench.iwildcam.Args" href="iwildcam/index.html#biobench.iwildcam.Args">Args</a></li>
 <li><a title="biobench.kabr.Args" href="kabr/index.html#biobench.kabr.Args">Args</a></li>
 <li><a title="biobench.newt.Args" href="newt/index.html#biobench.newt.Args">Args</a></li>
@@ -181,7 +189,7 @@ class TaskArgs:
 </dd>
 <dt id="biobench.interfaces.TaskReport"><code class="flex name class">
 <span>class <span class="ident">TaskReport</span></span>
-<span>(</span><span>name: str, examples: list[<a title="biobench.interfaces.Example" href="#biobench.interfaces.Example">Example</a>], calc_mean_score: Callable[[list[<a title="biobench.interfaces.Example" href="#biobench.interfaces.Example">Example</a>]], float], argv: list[str] = &lt;factory&gt;, commit: str = '0ea9cdb56ba15e15404e5564b68dc574fe6f5328', posix_time: float = &lt;factory&gt;, gpu_name: str = &lt;factory&gt;, hostname: str = &lt;factory&gt;)</span>
+<span>(</span><span>name: str, examples: list[<a title="biobench.interfaces.Example" href="#biobench.interfaces.Example">Example</a>], *, calc_mean_score: Callable[[list[<a title="biobench.interfaces.Example" href="#biobench.interfaces.Example">Example</a>]], float] = &lt;function default_calc_mean_score&gt;, splits: dict[str, float] = &lt;factory&gt;, argv: list[str] = &lt;factory&gt;, commit: str = 'bbc491aa04b8a12e4760980257c6b6e5216456c7', posix_time: float = &lt;factory&gt;, gpu_name: str = &lt;factory&gt;, hostname: str = &lt;factory&gt;)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>The result of running a benchmark task.</p></div>
@@ -201,8 +209,11 @@ class TaskReport:
     &#34;&#34;&#34;The benchmark name.&#34;&#34;&#34;
     examples: list[Example]
     &#34;&#34;&#34;A list of (example_id, score, info) objects&#34;&#34;&#34;
-    calc_mean_score: typing.Callable[[list[Example]], float]
+    _: dataclasses.KW_ONLY
+    calc_mean_score: typing.Callable[[list[Example]], float] = default_calc_mean_score
     &#34;&#34;&#34;A way to calculate mean score from a list of examples.&#34;&#34;&#34;
+    splits: dict[str, float] = dataclasses.field(default_factory=dict)
+    &#34;&#34;&#34;Other scores that you would like to report. These do not have confidence intervals.&#34;&#34;&#34;
 
     # Stuff for trying to reproduce this result. These are filled in by default.
     argv: list[str] = dataclasses.field(default_factory=lambda: sys.argv)
@@ -277,10 +288,6 @@ class TaskReport:
 <dd>
 <div class="desc"><p>Command used to get this report.</p></div>
 </dd>
-<dt id="biobench.interfaces.TaskReport.calc_mean_score"><code class="name">var <span class="ident">calc_mean_score</span> : Callable[[list[<a title="biobench.interfaces.Example" href="#biobench.interfaces.Example">Example</a>]], float]</code></dt>
-<dd>
-<div class="desc"><p>A way to calculate mean score from a list of examples.</p></div>
-</dd>
 <dt id="biobench.interfaces.TaskReport.commit"><code class="name">var <span class="ident">commit</span> : str</code></dt>
 <dd>
 <div class="desc"><p>Git commit for this current report.</p></div>
@@ -305,9 +312,19 @@ class TaskReport:
 <dd>
 <div class="desc"><p>Time when this report was constructed.</p></div>
 </dd>
+<dt id="biobench.interfaces.TaskReport.splits"><code class="name">var <span class="ident">splits</span> : dict[str, float]</code></dt>
+<dd>
+<div class="desc"><p>Other scores that you would like to report. These do not have confidence intervals.</p></div>
+</dd>
 </dl>
 <h3>Methods</h3>
 <dl>
+<dt id="biobench.interfaces.TaskReport.calc_mean_score"><code class="name flex">
+<span>def <span class="ident">calc_mean_score</span></span>(<span>examples: list[<a title="biobench.interfaces.Example" href="#biobench.interfaces.Example">Example</a>]) ‑> float</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="biobench.interfaces.TaskReport.get_confidence_interval"><code class="name flex">
 <span>def <span class="ident">get_confidence_interval</span></span>(<span>self, statistic='mean', confidence: float = 95, n_resamples: int = 500, seed: int = 42) ‑> tuple[float, float]</span>
 </code></dt>
@@ -408,6 +425,7 @@ This should be an evaluation transform, not a training transform, because we are
 </li>
 <li><h3><a href="#header-functions">Functions</a></h3>
 <ul class="">
+<li><code><a title="biobench.interfaces.default_calc_mean_score" href="#biobench.interfaces.default_calc_mean_score">default_calc_mean_score</a></code></li>
 <li><code><a title="biobench.interfaces.get_git_hash" href="#biobench.interfaces.get_git_hash">get_git_hash</a></code></li>
 </ul>
 </li>
@@ -450,6 +468,7 @@ This should be an evaluation transform, not a training transform, because we are
 <li><code><a title="biobench.interfaces.TaskReport.hostname" href="#biobench.interfaces.TaskReport.hostname">hostname</a></code></li>
 <li><code><a title="biobench.interfaces.TaskReport.name" href="#biobench.interfaces.TaskReport.name">name</a></code></li>
 <li><code><a title="biobench.interfaces.TaskReport.posix_time" href="#biobench.interfaces.TaskReport.posix_time">posix_time</a></code></li>
+<li><code><a title="biobench.interfaces.TaskReport.splits" href="#biobench.interfaces.TaskReport.splits">splits</a></code></li>
 <li><code><a title="biobench.interfaces.TaskReport.to_dict" href="#biobench.interfaces.TaskReport.to_dict">to_dict</a></code></li>
 </ul>
 </li>

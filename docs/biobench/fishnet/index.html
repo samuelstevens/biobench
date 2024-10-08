@@ -1,0 +1,400 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+<meta name="generator" content="pdoc3 0.11.1">
+<title>biobench.fishnet API documentation</title>
+<meta name="description" content="FishNet: Fish Recognition, Detection, and Functional Traits Prediction …">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin-bottom:1em}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script type="text/x-mathjax-config">MathJax.Hub.Config({ tex2jax: { inlineMath: [ ['$','$'], ["\\(","\\)"] ], processEscapes: true } });</script>
+<script async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS_CHTML" integrity="sha256-kZafAc6mZvK3W3v1pHOcUix30OHQN6pU/NO2oFkqZVw=" crossorigin></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => {
+hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+hljs.highlightAll();
+})</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>biobench.fishnet</code></h1>
+</header>
+<section id="section-intro">
+<h1 id="fishnet-fish-recognition-detection-and-functional-traits-prediction">FishNet: Fish Recognition, Detection, and Functional Traits Prediction</h1>
+<p>FishNet is a large-scale diverse dataset containing 94,532 images from 17,357 aquatic species.
+It contains three benchmarks: fish classification, fish detection, and functional traits prediction.</p>
+<p>We mainly focus on the third task.
+We train a classifier on the visual features extracted by different model backbones, and evaluate on test data.</p>
+<p>If you use this evaluation, be sure to cite the original work:</p>
+<pre><code>@InProceedings{Khan_2023_ICCV,
+    author    = {Khan, Faizan Farooq and Li, Xiang and Temple, Andrew J. and Elhoseiny, Mohamed},
+    title     = {FishNet: A Large-scale Dataset and Benchmark for Fish Recognition, Detection, and Functional Trait Prediction},
+    booktitle = {Proceedings of the IEEE/CVF International Conference on Computer Vision (ICCV)},
+    month     = {October},
+    year      = {2023},
+    pages     = {20496-20506}
+}
+</code></pre>
+</section>
+<section>
+<h2 class="section-title" id="header-submodules">Sub-modules</h2>
+<dl>
+<dt><code class="name"><a title="biobench.fishnet.download" href="download.html">biobench.fishnet.download</a></code></dt>
+<dd>
+<div class="desc"><p>A script to download the FishNet dataset …</p></div>
+</dd>
+</dl>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-functions">Functions</h2>
+<dl>
+<dt id="biobench.fishnet.benchmark"><code class="name flex">
+<span>def <span class="ident">benchmark</span></span>(<span>args: <a title="biobench.fishnet.Args" href="#biobench.fishnet.Args">Args</a>, model_args: tuple[str, str]) ‑> tuple[tuple[str, str], <a title="biobench.interfaces.TaskReport" href="../interfaces.html#biobench.interfaces.TaskReport">TaskReport</a>]</span>
+</code></dt>
+<dd>
+<div class="desc"><p>The FishNet benchmark.</p></div>
+</dd>
+<dt id="biobench.fishnet.calc_macro_f1"><code class="name flex">
+<span>def <span class="ident">calc_macro_f1</span></span>(<span>examples: list[<a title="biobench.interfaces.Example" href="../interfaces.html#biobench.interfaces.Example">Example</a>]) ‑> float</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.fishnet.evaluate"><code class="name flex">
+<span>def <span class="ident">evaluate</span></span>(<span>args: <a title="biobench.fishnet.Args" href="#biobench.fishnet.Args">Args</a>, classifier: torch.nn.modules.module.Module, dataloader) ‑> list[<a title="biobench.interfaces.Example" href="../interfaces.html#biobench.interfaces.Example">Example</a>]</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.fishnet.get_features"><code class="name flex">
+<span>def <span class="ident">get_features</span></span>(<span>args: <a title="biobench.fishnet.Args" href="#biobench.fishnet.Args">Args</a>, backbone: <a title="biobench.interfaces.VisionBackbone" href="../interfaces.html#biobench.interfaces.VisionBackbone">VisionBackbone</a>, *, is_train: bool) ‑> <a title="biobench.fishnet.Features" href="#biobench.fishnet.Features">Features</a></span>
+</code></dt>
+<dd>
+<div class="desc"><p>Extract visual features</p></div>
+</dd>
+<dt id="biobench.fishnet.init_classifier"><code class="name flex">
+<span>def <span class="ident">init_classifier</span></span>(<span>input_dim: int) ‑> torch.nn.modules.module.Module</span>
+</code></dt>
+<dd>
+<div class="desc"><p>A simple MLP classifier consistent with the design in FishNet.</p></div>
+</dd>
+</dl>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="biobench.fishnet.Args"><code class="flex name class">
+<span>class <span class="ident">Args</span></span>
+<span>(</span><span>seed: int = 42, datadir: str = '', device: str = 'cuda', debug: bool = False, batch_size: int = 256, n_workers: int = 4, log_every: int = 10, n_epochs: int = 100, learning_rate: float = 0.0005, threshold: float = 0.5)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>FishNet task arguments.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@beartype.beartype
+@dataclasses.dataclass(frozen=True)
+class Args(interfaces.TaskArgs):
+    &#34;&#34;&#34;FishNet task arguments.&#34;&#34;&#34;
+
+    batch_size: int = 256
+    &#34;&#34;&#34;batch size for deep model.&#34;&#34;&#34;
+    n_workers: int = 4
+    &#34;&#34;&#34;number of dataloader worker processes.&#34;&#34;&#34;
+    log_every: int = 10
+    &#34;&#34;&#34;how often (number of batches) to log progress.&#34;&#34;&#34;
+    n_epochs: int = 100
+    &#34;&#34;&#34;How many epochs to train the MLP classifier.&#34;&#34;&#34;
+    learning_rate: float = 5e-4
+    &#34;&#34;&#34;The learning rate for fine-tuning the classifier.&#34;&#34;&#34;
+    threshold: float = 0.5
+    &#34;&#34;&#34;The threshold to transfer predicted logits.&#34;&#34;&#34;</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="biobench.interfaces.TaskArgs" href="../interfaces.html#biobench.interfaces.TaskArgs">TaskArgs</a></li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="biobench.fishnet.Args.batch_size"><code class="name">var <span class="ident">batch_size</span> : int</code></dt>
+<dd>
+<div class="desc"><p>batch size for deep model.</p></div>
+</dd>
+<dt id="biobench.fishnet.Args.learning_rate"><code class="name">var <span class="ident">learning_rate</span> : float</code></dt>
+<dd>
+<div class="desc"><p>The learning rate for fine-tuning the classifier.</p></div>
+</dd>
+<dt id="biobench.fishnet.Args.log_every"><code class="name">var <span class="ident">log_every</span> : int</code></dt>
+<dd>
+<div class="desc"><p>how often (number of batches) to log progress.</p></div>
+</dd>
+<dt id="biobench.fishnet.Args.n_epochs"><code class="name">var <span class="ident">n_epochs</span> : int</code></dt>
+<dd>
+<div class="desc"><p>How many epochs to train the MLP classifier.</p></div>
+</dd>
+<dt id="biobench.fishnet.Args.n_workers"><code class="name">var <span class="ident">n_workers</span> : int</code></dt>
+<dd>
+<div class="desc"><p>number of dataloader worker processes.</p></div>
+</dd>
+<dt id="biobench.fishnet.Args.threshold"><code class="name">var <span class="ident">threshold</span> : float</code></dt>
+<dd>
+<div class="desc"><p>The threshold to transfer predicted logits.</p></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="biobench.interfaces.TaskArgs" href="../interfaces.html#biobench.interfaces.TaskArgs">TaskArgs</a></b></code>:
+<ul class="hlist">
+<li><code><a title="biobench.interfaces.TaskArgs.datadir" href="../interfaces.html#biobench.interfaces.TaskArgs.datadir">datadir</a></code></li>
+<li><code><a title="biobench.interfaces.TaskArgs.debug" href="../interfaces.html#biobench.interfaces.TaskArgs.debug">debug</a></code></li>
+<li><code><a title="biobench.interfaces.TaskArgs.device" href="../interfaces.html#biobench.interfaces.TaskArgs.device">device</a></code></li>
+<li><code><a title="biobench.interfaces.TaskArgs.seed" href="../interfaces.html#biobench.interfaces.TaskArgs.seed">seed</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="biobench.fishnet.Features"><code class="flex name class">
+<span>class <span class="ident">Features</span></span>
+<span>(</span><span>x: jaxtyping.Float[Tensor, 'n dim'], y: jaxtyping.Int[Tensor, 'n n_classes'], ids: jaxtyping.Shaped[ndarray, 'n'])</span>
+</code></dt>
+<dd>
+<div class="desc"><p>An abstract class representing a :class:<code>Dataset</code>.</p>
+<p>All datasets that represent a map from keys to data samples should subclass
+it. All subclasses should overwrite :meth:<code>__getitem__</code>, supporting fetching a
+data sample for a given key. Subclasses could also optionally overwrite
+:meth:<code>__len__</code>, which is expected to return the size of the dataset by many
+:class:<code>~torch.utils.data.Sampler</code> implementations and the default options
+of :class:<code>~torch.utils.data.DataLoader</code>. Subclasses could also
+optionally implement :meth:<code>__getitems__</code>, for speedup batched samples
+loading. This method accepts list of indices of samples of batch and returns
+list of samples.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>:class:<code>~torch.utils.data.DataLoader</code> by default constructs an index
+sampler that yields integral indices.
+To make it work with a map-style
+dataset with non-integral indices/keys, a custom sampler must be provided.</p>
+</div></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
+class Features(torch.utils.data.Dataset):
+    x: Float[Tensor, &#34; n dim&#34;]
+    y: Int[Tensor, &#34; n n_classes&#34;]
+    ids: Shaped[np.ndarray, &#34; n&#34;]
+
+    def __init__(
+        self,
+        x: Float[Tensor, &#34; n dim&#34;],
+        y: Int[Tensor, &#34; n n_classes&#34;],
+        ids: Shaped[np.ndarray, &#34; n&#34;],
+    ):
+        self.x = x
+        self.y = y
+        self.ids = ids
+
+    @property
+    def dim(self) -&gt; int:
+        _, dim = self.x.shape
+        return dim
+
+    def __len__(self) -&gt; int:
+        return len(self.x)
+
+    def __getitem__(
+        self, index
+    ) -&gt; tuple[Float[Tensor, &#34; dim&#34;], Int[Tensor, &#34; n_classes&#34;], str]:
+        return self.x[index], self.y[index], self.ids[index]</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>torch.utils.data.dataset.Dataset</li>
+<li>typing.Generic</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="biobench.fishnet.Features.ids"><code class="name">var <span class="ident">ids</span> : jaxtyping.Shaped[ndarray, 'n']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.fishnet.Features.x"><code class="name">var <span class="ident">x</span> : jaxtyping.Float[Tensor, 'n dim']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.fishnet.Features.y"><code class="name">var <span class="ident">y</span> : jaxtyping.Int[Tensor, 'n n_classes']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Instance variables</h3>
+<dl>
+<dt id="biobench.fishnet.Features.dim"><code class="name">prop <span class="ident">dim</span> : int</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@property
+def dim(self) -&gt; int:
+    _, dim = self.x.shape
+    return dim</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+<dt id="biobench.fishnet.ImageDataset"><code class="flex name class">
+<span>class <span class="ident">ImageDataset</span></span>
+<span>(</span><span>root_dir: str, csv_file: str, transform)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>A dataset that loads the required attribute labels.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
+class ImageDataset(torch.utils.data.Dataset):
+    &#34;&#34;&#34;
+    A dataset that loads the required attribute labels.
+    &#34;&#34;&#34;
+
+    def __init__(self, root_dir: str, csv_file: str, transform):
+        self.root_dir = root_dir
+        self.csv_file = os.path.join(self.root_dir, csv_file)
+        self.df = pl.read_csv(self.csv_file).with_row_index()
+        self.all_columns = [
+            &#34;FeedingPath&#34;,
+            &#34;Tropical&#34;,
+            &#34;Temperate&#34;,
+            &#34;Subtropical&#34;,
+            &#34;Boreal&#34;,
+            &#34;Polar&#34;,
+            &#34;freshwater&#34;,
+            &#34;saltwater&#34;,
+            &#34;brackish&#34;,
+        ]
+        for col in self.all_columns:
+            self.df = self.df.filter(self.df[col].is_not_null())
+        self.transform = transform
+
+        # Corresponding column indices
+        self.image_col = 4
+        self.folder_col = 13
+        self.label_cols = [15, 16, 17, 18, 19, 20, 21, 22, 23]
+        logger.info(&#34;csv file: %s has %d item.&#34;, csv_file, len(self.df))
+
+    def __getitem__(
+        self, index: int
+    ) -&gt; tuple[Float[Tensor, &#34;3 width height&#34;], Float[Tensor, &#34; channel&#34;], str]:
+        row_data = self.df.row(index)
+        image_name = row_data[self.image_col]
+        image_name = image_name.split(&#34;/&#34;)[-1]
+        folder = row_data[self.folder_col]
+        image_path = os.path.join(self.root_dir, &#34;Image_Library&#34;, folder, image_name)
+        image = Image.open(image_path)
+
+        # Extract the required attribute labels.
+        label = []
+        for col in self.label_cols:
+            value = row_data[col]
+            if col == 15:
+                if value == &#34;pelagic&#34;:
+                    value = 1
+                elif value == &#34;benthic&#34;:
+                    value = 0
+                else:
+                    raise ValueError(&#34;FeedingPath can only be pelagic or benthic.&#34;)
+            label.append(value)
+        label = torch.tensor(label)
+
+        if self.transform:
+            image = self.transform(image)
+
+        return image, label, image_path
+
+    def __len__(self) -&gt; int:
+        return len(self.df)</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>torch.utils.data.dataset.Dataset</li>
+<li>typing.Generic</li>
+</ul>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<div class="toc">
+<ul>
+<li><a href="#fishnet-fish-recognition-detection-and-functional-traits-prediction">FishNet: Fish Recognition, Detection, and Functional Traits Prediction</a></li>
+</ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="biobench" href="../index.html">biobench</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-submodules">Sub-modules</a></h3>
+<ul>
+<li><code><a title="biobench.fishnet.download" href="download.html">biobench.fishnet.download</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-functions">Functions</a></h3>
+<ul class="">
+<li><code><a title="biobench.fishnet.benchmark" href="#biobench.fishnet.benchmark">benchmark</a></code></li>
+<li><code><a title="biobench.fishnet.calc_macro_f1" href="#biobench.fishnet.calc_macro_f1">calc_macro_f1</a></code></li>
+<li><code><a title="biobench.fishnet.evaluate" href="#biobench.fishnet.evaluate">evaluate</a></code></li>
+<li><code><a title="biobench.fishnet.get_features" href="#biobench.fishnet.get_features">get_features</a></code></li>
+<li><code><a title="biobench.fishnet.init_classifier" href="#biobench.fishnet.init_classifier">init_classifier</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="biobench.fishnet.Args" href="#biobench.fishnet.Args">Args</a></code></h4>
+<ul class="two-column">
+<li><code><a title="biobench.fishnet.Args.batch_size" href="#biobench.fishnet.Args.batch_size">batch_size</a></code></li>
+<li><code><a title="biobench.fishnet.Args.learning_rate" href="#biobench.fishnet.Args.learning_rate">learning_rate</a></code></li>
+<li><code><a title="biobench.fishnet.Args.log_every" href="#biobench.fishnet.Args.log_every">log_every</a></code></li>
+<li><code><a title="biobench.fishnet.Args.n_epochs" href="#biobench.fishnet.Args.n_epochs">n_epochs</a></code></li>
+<li><code><a title="biobench.fishnet.Args.n_workers" href="#biobench.fishnet.Args.n_workers">n_workers</a></code></li>
+<li><code><a title="biobench.fishnet.Args.threshold" href="#biobench.fishnet.Args.threshold">threshold</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="biobench.fishnet.Features" href="#biobench.fishnet.Features">Features</a></code></h4>
+<ul class="">
+<li><code><a title="biobench.fishnet.Features.dim" href="#biobench.fishnet.Features.dim">dim</a></code></li>
+<li><code><a title="biobench.fishnet.Features.ids" href="#biobench.fishnet.Features.ids">ids</a></code></li>
+<li><code><a title="biobench.fishnet.Features.x" href="#biobench.fishnet.Features.x">x</a></code></li>
+<li><code><a title="biobench.fishnet.Features.y" href="#biobench.fishnet.Features.y">y</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="biobench.fishnet.ImageDataset" href="#biobench.fishnet.ImageDataset">ImageDataset</a></code></h4>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.1</a>.</p>
+</footer>
+</body>
+</html>

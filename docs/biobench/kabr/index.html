@@ -64,12 +64,6 @@ We get video representations by embedding each frame of the video and taking the
 <dd>
 <div class="desc"><p>Runs KABR benchmark.</p></div>
 </dd>
-<dt id="biobench.kabr.calc_mean_score"><code class="name flex">
-<span>def <span class="ident">calc_mean_score</span></span>(<span>examples: list[<a title="biobench.interfaces.Example" href="../interfaces.html#biobench.interfaces.Example">Example</a>]) ‑> float</span>
-</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
 <dt id="biobench.kabr.get_features"><code class="name flex">
 <span>def <span class="ident">get_features</span></span>(<span>args: <a title="biobench.kabr.Args" href="#biobench.kabr.Args">Args</a>, backbone: <a title="biobench.interfaces.VisionBackbone" href="../interfaces.html#biobench.interfaces.VisionBackbone">VisionBackbone</a>, dataloader) ‑> tuple[jaxtyping.Float[Tensor, 'n_frames n_examples dim'], jaxtyping.Int[Tensor, 'n_frames n_examples']]</span>
 </code></dt>
@@ -315,7 +309,6 @@ class Video:
 <li><code><a title="biobench.kabr.aggregate_frames" href="#biobench.kabr.aggregate_frames">aggregate_frames</a></code></li>
 <li><code><a title="biobench.kabr.aggregate_labels" href="#biobench.kabr.aggregate_labels">aggregate_labels</a></code></li>
 <li><code><a title="biobench.kabr.benchmark" href="#biobench.kabr.benchmark">benchmark</a></code></li>
-<li><code><a title="biobench.kabr.calc_mean_score" href="#biobench.kabr.calc_mean_score">calc_mean_score</a></code></li>
 <li><code><a title="biobench.kabr.get_features" href="#biobench.kabr.get_features">get_features</a></code></li>
 </ul>
 </li>
