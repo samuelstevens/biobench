@@ -28,10 +28,10 @@ hljs.highlightAll();
 </header>
 <section id="section-intro">
 <h1 id="fishnet-fish-recognition-detection-and-functional-traits-prediction">FishNet: Fish Recognition, Detection, and Functional Traits Prediction</h1>
-<p>FishNet is a large-scale diverse dataset containing 94,532 images from 17,357 aquatic species.
+<p>FishNet (<a href="https://openaccess.thecvf.com/content/ICCV2023/papers/Khan_FishNet_A_Large-scale_Dataset_and_Benchmark_for_Fish_Recognition_Detection_ICCV_2023_paper.pdf">paper</a>, <a href="https://github.com/faixan-khan/FishNet">code</a>) is a large-scale diverse dataset containing 94,532 images from 17,357 aquatic species.
 It contains three benchmarks: fish classification, fish detection, and functional traits prediction.</p>
 <p>We mainly focus on the third task.
-We train a classifier on the visual features extracted by different model backbones, and evaluate on test data.</p>
+We train an two-layer MLP on the visual features extracted by different model backbones to predict the presence or absence of 9 different traits.</p>
 <p>If you use this evaluation, be sure to cite the original work:</p>
 <pre><code>@InProceedings{Khan_2023_ICCV,
     author    = {Khan, Faizan Farooq and Li, Xiang and Temple, Andrew J. and Elhoseiny, Mohamed},
@@ -67,19 +67,21 @@ We train a classifier on the visual features extracted by different model backbo
 <span>def <span class="ident">calc_macro_f1</span></span>(<span>examples: list[<a title="biobench.interfaces.Example" href="../interfaces.html#biobench.interfaces.Example">Example</a>]) ‑> float</span>
 </code></dt>
 <dd>
-<div class="desc"></div>
+<div class="desc"><p>TODO: docs.</p></div>
 </dd>
 <dt id="biobench.fishnet.evaluate"><code class="name flex">
 <span>def <span class="ident">evaluate</span></span>(<span>args: <a title="biobench.fishnet.Args" href="#biobench.fishnet.Args">Args</a>, classifier: torch.nn.modules.module.Module, dataloader) ‑> list[<a title="biobench.interfaces.Example" href="../interfaces.html#biobench.interfaces.Example">Example</a>]</span>
 </code></dt>
 <dd>
-<div class="desc"></div>
+<div class="desc"><p>Evaluates the trained classifier on a test split.</p>
+<h2 id="returns">Returns</h2>
+<p>a list of Examples.</p></div>
 </dd>
 <dt id="biobench.fishnet.get_features"><code class="name flex">
 <span>def <span class="ident">get_features</span></span>(<span>args: <a title="biobench.fishnet.Args" href="#biobench.fishnet.Args">Args</a>, backbone: <a title="biobench.interfaces.VisionBackbone" href="../interfaces.html#biobench.interfaces.VisionBackbone">VisionBackbone</a>, *, is_train: bool) ‑> <a title="biobench.fishnet.Features" href="#biobench.fishnet.Features">Features</a></span>
 </code></dt>
 <dd>
-<div class="desc"><p>Extract visual features</p></div>
+<div class="desc"><p>Extract visual features.</p></div>
 </dd>
 <dt id="biobench.fishnet.init_classifier"><code class="name flex">
 <span>def <span class="ident">init_classifier</span></span>(<span>input_dim: int) ‑> torch.nn.modules.module.Module</span>
@@ -108,17 +110,17 @@ class Args(interfaces.TaskArgs):
     &#34;&#34;&#34;FishNet task arguments.&#34;&#34;&#34;
 
     batch_size: int = 256
-    &#34;&#34;&#34;batch size for deep model.&#34;&#34;&#34;
+    &#34;&#34;&#34;Batch size for deep model and MLP classifier.&#34;&#34;&#34;
     n_workers: int = 4
     &#34;&#34;&#34;number of dataloader worker processes.&#34;&#34;&#34;
     log_every: int = 10
-    &#34;&#34;&#34;how often (number of batches) to log progress.&#34;&#34;&#34;
+    &#34;&#34;&#34;how often (number of epochs) to log progress.&#34;&#34;&#34;
     n_epochs: int = 100
     &#34;&#34;&#34;How many epochs to train the MLP classifier.&#34;&#34;&#34;
     learning_rate: float = 5e-4
-    &#34;&#34;&#34;The learning rate for fine-tuning the classifier.&#34;&#34;&#34;
+    &#34;&#34;&#34;The learning rate for training the MLP classifier.&#34;&#34;&#34;
     threshold: float = 0.5
-    &#34;&#34;&#34;The threshold to transfer predicted logits.&#34;&#34;&#34;</code></pre>
+    &#34;&#34;&#34;The threshold to predicted &#34;presence&#34; rather than &#34;absence&#34;.&#34;&#34;&#34;</code></pre>
 </details>
 <h3>Ancestors</h3>
 <ul class="hlist">
@@ -128,15 +130,15 @@ class Args(interfaces.TaskArgs):
 <dl>
 <dt id="biobench.fishnet.Args.batch_size"><code class="name">var <span class="ident">batch_size</span> : int</code></dt>
 <dd>
-<div class="desc"><p>batch size for deep model.</p></div>
+<div class="desc"><p>Batch size for deep model and MLP classifier.</p></div>
 </dd>
 <dt id="biobench.fishnet.Args.learning_rate"><code class="name">var <span class="ident">learning_rate</span> : float</code></dt>
 <dd>
-<div class="desc"><p>The learning rate for fine-tuning the classifier.</p></div>
+<div class="desc"><p>The learning rate for training the MLP classifier.</p></div>
 </dd>
 <dt id="biobench.fishnet.Args.log_every"><code class="name">var <span class="ident">log_every</span> : int</code></dt>
 <dd>
-<div class="desc"><p>how often (number of batches) to log progress.</p></div>
+<div class="desc"><p>how often (number of epochs) to log progress.</p></div>
 </dd>
 <dt id="biobench.fishnet.Args.n_epochs"><code class="name">var <span class="ident">n_epochs</span> : int</code></dt>
 <dd>
@@ -148,7 +150,7 @@ class Args(interfaces.TaskArgs):
 </dd>
 <dt id="biobench.fishnet.Args.threshold"><code class="name">var <span class="ident">threshold</span> : float</code></dt>
 <dd>
-<div class="desc"><p>The threshold to transfer predicted logits.</p></div>
+<div class="desc"><p>The threshold to predicted "presence" rather than "absence".</p></div>
 </dd>
 </dl>
 <h3>Inherited members</h3>
@@ -168,32 +170,23 @@ class Args(interfaces.TaskArgs):
 <span>(</span><span>x: jaxtyping.Float[Tensor, 'n dim'], y: jaxtyping.Int[Tensor, 'n n_classes'], ids: jaxtyping.Shaped[ndarray, 'n'])</span>
 </code></dt>
 <dd>
-<div class="desc"><p>An abstract class representing a :class:<code>Dataset</code>.</p>
-<p>All datasets that represent a map from keys to data samples should subclass
-it. All subclasses should overwrite :meth:<code>__getitem__</code>, supporting fetching a
-data sample for a given key. Subclasses could also optionally overwrite
-:meth:<code>__len__</code>, which is expected to return the size of the dataset by many
-:class:<code>~torch.utils.data.Sampler</code> implementations and the default options
-of :class:<code>~torch.utils.data.DataLoader</code>. Subclasses could also
-optionally implement :meth:<code>__getitems__</code>, for speedup batched samples
-loading. This method accepts list of indices of samples of batch and returns
-list of samples.</p>
-<div class="admonition note">
-<p class="admonition-title">Note</p>
-<p>:class:<code>~torch.utils.data.DataLoader</code> by default constructs an index
-sampler that yields integral indices.
-To make it work with a map-style
-dataset with non-integral indices/keys, a custom sampler must be provided.</p>
-</div></div>
+<div class="desc"><p>A dataset of learned features (dense vectors).</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
 class Features(torch.utils.data.Dataset):
+    &#34;&#34;&#34;
+    A dataset of learned features (dense vectors).
+    &#34;&#34;&#34;
+
     x: Float[Tensor, &#34; n dim&#34;]
-    y: Int[Tensor, &#34; n n_classes&#34;]
+    &#34;&#34;&#34;Dense feature vectors from a vision backbone.&#34;&#34;&#34;
+    y: Int[Tensor, &#34; n 9&#34;]
+    &#34;&#34;&#34;0/1 labels of absence/presence of 9 different traits.&#34;&#34;&#34;
     ids: Shaped[np.ndarray, &#34; n&#34;]
+    &#34;&#34;&#34;Image ids.&#34;&#34;&#34;
 
     def __init__(
         self,
@@ -207,6 +200,7 @@ class Features(torch.utils.data.Dataset):
 
     @property
     def dim(self) -&gt; int:
+        &#34;&#34;&#34;Dimension of the dense feature vectors.&#34;&#34;&#34;
         _, dim = self.x.shape
         return dim
 
@@ -227,28 +221,29 @@ class Features(torch.utils.data.Dataset):
 <dl>
 <dt id="biobench.fishnet.Features.ids"><code class="name">var <span class="ident">ids</span> : jaxtyping.Shaped[ndarray, 'n']</code></dt>
 <dd>
-<div class="desc"></div>
+<div class="desc"><p>Image ids.</p></div>
 </dd>
 <dt id="biobench.fishnet.Features.x"><code class="name">var <span class="ident">x</span> : jaxtyping.Float[Tensor, 'n dim']</code></dt>
 <dd>
-<div class="desc"></div>
+<div class="desc"><p>Dense feature vectors from a vision backbone.</p></div>
 </dd>
-<dt id="biobench.fishnet.Features.y"><code class="name">var <span class="ident">y</span> : jaxtyping.Int[Tensor, 'n n_classes']</code></dt>
+<dt id="biobench.fishnet.Features.y"><code class="name">var <span class="ident">y</span> : jaxtyping.Int[Tensor, 'n 9']</code></dt>
 <dd>
-<div class="desc"></div>
+<div class="desc"><p>0/1 labels of absence/presence of 9 different traits.</p></div>
 </dd>
 </dl>
 <h3>Instance variables</h3>
 <dl>
 <dt id="biobench.fishnet.Features.dim"><code class="name">prop <span class="ident">dim</span> : int</code></dt>
 <dd>
-<div class="desc"></div>
+<div class="desc"><p>Dimension of the dense feature vectors.</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">@property
 def dim(self) -&gt; int:
+    &#34;&#34;&#34;Dimension of the dense feature vectors.&#34;&#34;&#34;
     _, dim = self.x.shape
     return dim</code></pre>
 </details>
@@ -298,7 +293,7 @@ class ImageDataset(torch.utils.data.Dataset):
 
     def __getitem__(
         self, index: int
-    ) -&gt; tuple[Float[Tensor, &#34;3 width height&#34;], Float[Tensor, &#34; channel&#34;], str]:
+    ) -&gt; tuple[Float[Tensor, &#34;3 width height&#34;], Float[Tensor, &#34;9&#34;], str]:
         row_data = self.df.row(index)
         image_name = row_data[self.image_col]
         image_name = image_name.split(&#34;/&#34;)[-1]

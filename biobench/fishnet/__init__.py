@@ -1,11 +1,11 @@
 """
 # FishNet: Fish Recognition, Detection, and Functional Traits Prediction
 
-FishNet is a large-scale diverse dataset containing 94,532 images from 17,357 aquatic species.
+FishNet ([paper](https://openaccess.thecvf.com/content/ICCV2023/papers/Khan_FishNet_A_Large-scale_Dataset_and_Benchmark_for_Fish_Recognition_Detection_ICCV_2023_paper.pdf), [code](https://github.com/faixan-khan/FishNet)) is a large-scale diverse dataset containing 94,532 images from 17,357 aquatic species.
 It contains three benchmarks: fish classification, fish detection, and functional traits prediction.
 
 We mainly focus on the third task.
-We train a classifier on the visual features extracted by different model backbones, and evaluate on test data.
+We train an two-layer MLP on the visual features extracted by different model backbones to predict the presence or absence of 9 different traits.
 
 If you use this evaluation, be sure to cite the original work:
 
@@ -46,24 +46,31 @@ class Args(interfaces.TaskArgs):
     """FishNet task arguments."""
 
     batch_size: int = 256
-    """batch size for deep model."""
+    """Batch size for deep model and MLP classifier."""
     n_workers: int = 4
     """number of dataloader worker processes."""
     log_every: int = 10
-    """how often (number of batches) to log progress."""
+    """how often (number of epochs) to log progress."""
     n_epochs: int = 100
     """How many epochs to train the MLP classifier."""
     learning_rate: float = 5e-4
-    """The learning rate for fine-tuning the classifier."""
+    """The learning rate for training the MLP classifier."""
     threshold: float = 0.5
-    """The threshold to transfer predicted logits."""
+    """The threshold to predicted "presence" rather than "absence"."""
 
 
 @jaxtyped(typechecker=beartype.beartype)
 class Features(torch.utils.data.Dataset):
+    """
+    A dataset of learned features (dense vectors).
+    """
+
     x: Float[Tensor, " n dim"]
-    y: Int[Tensor, " n n_classes"]
+    """Dense feature vectors from a vision backbone."""
+    y: Int[Tensor, " n 9"]
+    """0/1 labels of absence/presence of 9 different traits."""
     ids: Shaped[np.ndarray, " n"]
+    """Image ids."""
 
     def __init__(
         self,
@@ -77,6 +84,7 @@ class Features(torch.utils.data.Dataset):
 
     @property
     def dim(self) -> int:
+        """Dimension of the dense feature vectors."""
         _, dim = self.x.shape
         return dim
 
@@ -101,6 +109,7 @@ def init_classifier(input_dim: int) -> torch.nn.Module:
 
 @beartype.beartype
 def calc_macro_f1(examples: list[interfaces.Example]) -> float:
+    """TODO: docs."""
     y_pred = np.array([example.info["y_pred"] for example in examples])
     y_true = np.array([example.info["y_true"] for example in examples])
     score = sklearn.metrics.f1_score(
@@ -169,6 +178,12 @@ def benchmark(
 def evaluate(
     args: Args, classifier: torch.nn.Module, dataloader
 ) -> list[interfaces.Example]:
+    """
+    Evaluates the trained classifier on a test split.
+
+    Returns:
+        a list of Examples.
+    """
     total = 2 if args.debug else len(dataloader)
     it = iter(dataloader)
     examples = []
@@ -196,7 +211,7 @@ def evaluate(
 def get_features(
     args: Args, backbone: interfaces.VisionBackbone, *, is_train: bool
 ) -> Features:
-    """Extract visual features"""
+    """Extract visual features."""
     if not os.path.isdir(args.datadir):
         msg = f"Path '{args.datadir}' doesn't exist. Did you download the FishNet dataset? See the docstring at the top of this file for instructions. If you did download it, pass the path with '--fishnet-args.datadir'; see --help for more."
         raise ValueError(msg)
@@ -267,7 +282,7 @@ class ImageDataset(torch.utils.data.Dataset):
 
     def __getitem__(
         self, index: int
-    ) -> tuple[Float[Tensor, "3 width height"], Float[Tensor, " channel"], str]:
+    ) -> tuple[Float[Tensor, "3 width height"], Float[Tensor, "9"], str]:
         row_data = self.df.row(index)
         image_name = row_data[self.image_col]
         image_name = image_name.split("/")[-1]

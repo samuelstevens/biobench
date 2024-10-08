@@ -3,16 +3,18 @@
 ## Run Everything
 
 Suppose you want to run all the tasks for all the default models to get started using a local GPU (device 4, for example).
-You need to specify all the `--TASK-args.datadir` so that each task knows where to load data from.
+You need to specify all the `--TASK-run` flags and `--TASK-args.datadir` so that each task knows where to load data from.
 
 ```sh
 CUDA_VISIBLE_DEVICES=4 python benchmark.py \
-  --kabr-args.datadir /local/scratch/stevens.994/datasets/kabr \
-  --iwildcam-args.datadir /local/scratch/stevens.994/datasets/iwildcam \
-  --plantnet-args.datadir /local/scratch/stevens.994/datasets/plantnet \
-  --birds525-args.datadir /local/scratch/stevens.994/datasets/birds525 \
-  --newt-args.datadir /local/scratch/stevens.994/datasets/newt \
-  --beluga-args.datadir /local/scratch/stevens.994/datasets/beluga
+  --kabr-run --kabr-args.datadir /local/scratch/stevens.994/datasets/kabr \
+  --iwildcam-run --iwildcam-args.datadir /local/scratch/stevens.994/datasets/iwildcam \
+  --plantnet-run --plantnet-args.datadir /local/scratch/stevens.994/datasets/plantnet \
+  --birds525-run --birds525-args.datadir /local/scratch/stevens.994/datasets/birds525 \
+  --newt-run --newt-args.datadir /local/scratch/stevens.994/datasets/newt \
+  --beluga-run --beluga-args.datadir /local/scratch/stevens.994/datasets/beluga \
+  --ages-run --ages-args.datadir /local/scratch/stevens.994/datasets/newt \
+  --fishnet-run --fishnet-args.datadir /local/scratch/stevens.994/datasets/fishnet
 ```
 
 More generally, you can configure options for individual tasks using `--TASK-args.<OPTION>`, which are all documented `python benchmark.py --help`.
@@ -20,14 +22,10 @@ More generally, you can configure options for individual tasks using `--TASK-arg
 ## Just One Task
 
 Suppose you just want to run one task (NeWT).
-Then you need to turn off the other tasks with `--no-TASK-run` and include the NeWT data directory.
 
 ```sh
 CUDA_VISIBLE_DEVICES=4 python benchmark.py \
-  --no-kabr-run --no-iwildcam-run \
-  --no-plantnet-run --no-birds525-run \
-  --no-beluga-run \
-  --newt-args.datadir /local/scratch/stevens.994/datasets/newt
+  --newt-run --newt-args.datadir /local/scratch/stevens.994/datasets/newt
 ```
 
 ## Just One Model
@@ -37,12 +35,14 @@ Since that model is a checkpoint in Open CLIP, we can use the `biobench.third_pa
 
 ```sh
 CUDA_VISIBLE_DEVICES=4 python benchmark.py \
-  --kabr-args.datadir /local/scratch/stevens.994/datasets/kabr \
-  --iwildcam-args.datadir /local/scratch/stevens.994/datasets/iwildcam \
-  --plantnet-args.datadir /local/scratch/stevens.994/datasets/plantnet \
-  --birds525-args.datadir /local/scratch/stevens.994/datasets/birds525 \
-  --newt-args.datadir /local/scratch/stevens.994/datasets/newt \
-  --beluga-args.datadir /local/scratch/stevens.994/datasets/beluga \
+  --kabr-run --kabr-args.datadir /local/scratch/stevens.994/datasets/kabr \
+  --iwildcam-run --iwildcam-args.datadir /local/scratch/stevens.994/datasets/iwildcam \
+  --plantnet-run --plantnet-args.datadir /local/scratch/stevens.994/datasets/plantnet \
+  --birds525-run --birds525-args.datadir /local/scratch/stevens.994/datasets/birds525 \
+  --newt-run --newt-args.datadir /local/scratch/stevens.994/datasets/newt \
+  --beluga-run --beluga-args.datadir /local/scratch/stevens.994/datasets/beluga \
+  --ages-run --ages-args.datadir /local/scratch/stevens.994/datasets/newt \
+  --fishnet-run --fishnet-args.datadir /local/scratch/stevens.994/datasets/fishnet \
   --model open-clip ViT-SO400M-14-SigLIP/webli  # <- This is the new line!
 ```
 
@@ -53,12 +53,14 @@ It's really easy with `biobench`.
 
 ```sh
 python benchmark.py \
-  --kabr-args.datadir /local/scratch/stevens.994/datasets/kabr \
-  --iwildcam-args.datadir /local/scratch/stevens.994/datasets/iwildcam \
-  --plantnet-args.datadir /local/scratch/stevens.994/datasets/plantnet \
-  --birds525-args.datadir /local/scratch/stevens.994/datasets/birds525 \
-  --newt-args.datadir /local/scratch/stevens.994/datasets/newt \
-  --beluga-args.datadir /local/scratch/stevens.994/datasets/beluga \
+  --kabr-run --kabr-args.datadir /local/scratch/stevens.994/datasets/kabr \
+  --iwildcam-run --iwildcam-args.datadir /local/scratch/stevens.994/datasets/iwildcam \
+  --plantnet-run --plantnet-args.datadir /local/scratch/stevens.994/datasets/plantnet \
+  --birds525-run --birds525-args.datadir /local/scratch/stevens.994/datasets/birds525 \
+  --newt-run --newt-args.datadir /local/scratch/stevens.994/datasets/newt \
+  --beluga-run --beluga-args.datadir /local/scratch/stevens.994/datasets/beluga \
+  --ages-run --ages-args.datadir /local/scratch/stevens.994/datasets/newt \
+  --fishnet-run --fishnet-args.datadir /local/scratch/stevens.994/datasets/fishnet \
   --slurm  # <- Just add --slurm to use slurm!
 ```
 

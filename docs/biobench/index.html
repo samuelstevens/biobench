@@ -42,19 +42,21 @@ hljs.highlightAll();
 <li><code><a title="biobench.iwildcam" href="iwildcam/index.html">biobench.iwildcam</a></code>: Species classification using multiclass linear regression.</li>
 <li><code><a title="biobench.kabr" href="kabr/index.html">biobench.kabr</a></code>: Behavior classification of single-subject animals using simpleshot of mean frame representations.</li>
 <li><code><a title="biobench.newt" href="newt/index.html">biobench.newt</a></code>: 164 binary classification tasks using an binary SVM trained on image features.</li>
-<li><code><a title="biobench.beluga" href="beluga/index.html">biobench.beluga</a></code>:</li>
+<li><code><a title="biobench.beluga" href="beluga/index.html">biobench.beluga</a></code>: Re-identification of Beluga whales using nearest neighbors.</li>
+<li><code><a title="biobench.fishnet" href="fishnet/index.html">biobench.fishnet</a></code>: Predict presense/absence of 9 different traits in images of fish.</li>
+<li><code><a title="biobench.ages" href="ages.html">biobench.ages</a></code>: Classify images of juvenile birds using only adult birds for training.</li>
 </ul>
 <h2 id="helper-modules">Helper Modules</h2>
 <ul>
-<li><code><a title="biobench.interfaces" href="interfaces.html">biobench.interfaces</a></code>:</li>
-<li><code><a title="biobench.registry" href="registry.html">biobench.registry</a></code>:</li>
+<li><code><a title="biobench.interfaces" href="interfaces.html">biobench.interfaces</a></code>: All the interfaces that describe how the different modules communicate.</li>
+<li><code><a title="biobench.registry" href="registry.html">biobench.registry</a></code>: How to add/load vision models to BioBench.</li>
 <li><code><a title="biobench.simpleshot" href="simpleshot.html">biobench.simpleshot</a></code>: An implementation of nearest-centroid classification from <a href="https://arxiv.org/abs/1911.04623">Simpleshot</a>.</li>
-<li><code><a title="biobench.third_party_models" href="third_party_models.html">biobench.third_party_models</a></code>:</li>
+<li><code><a title="biobench.third_party_models" href="third_party_models.html">biobench.third_party_models</a></code>: Some pre-written vision backbones that load checkpoints from <a href="https://github.com/mlfoundations/open_clip">open_clip</a> and <a href="https://github.com/huggingface/pytorch-image-models">timm</a>. You can use these as inspiration for writing your own vision backbones or check out <code><a title="biobench.registry" href="registry.html">biobench.registry</a></code> for a tutorial.</li>
 </ul>
 <h2 id="future-tasks">Future Tasks</h2>
 <p>These are tasks that I plan on adding but are not yet done.</p>
 <ul>
-<li><code><a title="biobench.rarespecies" href="rarespecies/index.html">biobench.rarespecies</a></code>: Waiting on <a href="https://huggingface.co/datasets/imageomics/rare-species/discussions/8">bug</a> in Huggingface.</li>
+<li><code><a title="biobench.rarespecies" href="rarespecies/index.html">biobench.rarespecies</a></code>: Waiting on a <a href="https://huggingface.co/datasets/imageomics/rare-species/discussions/8">bug</a> in Huggingface's datasets library.</li>
 <li><a href="https://github.com/Imageomics/Fish-Vista">FishVista</a>: I want to add trait classification: given patch-level features, can we train a linear probe to predict the presence/absense of a feature?</li>
 </ul>
 <h1 id="confidence-intervals">Confidence Intervals</h1>

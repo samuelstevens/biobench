@@ -16,20 +16,22 @@ The most important modules to understand are:
 * `biobench.iwildcam`: Species classification using multiclass linear regression.
 * `biobench.kabr`: Behavior classification of single-subject animals using simpleshot of mean frame representations.
 * `biobench.newt`: 164 binary classification tasks using an binary SVM trained on image features.
-* `biobench.beluga`:
+* `biobench.beluga`: Re-identification of Beluga whales using nearest neighbors.
+* `biobench.fishnet`: Predict presense/absence of 9 different traits in images of fish.
+* `biobench.ages`: Classify images of juvenile birds using only adult birds for training.
 
 ## Helper Modules
 
-* `biobench.interfaces`:
-* `biobench.registry`:
+* `biobench.interfaces`: All the interfaces that describe how the different modules communicate.
+* `biobench.registry`: How to add/load vision models to BioBench.
 * `biobench.simpleshot`: An implementation of nearest-centroid classification from [Simpleshot](https://arxiv.org/abs/1911.04623).
-* `biobench.third_party_models`:
+* `biobench.third_party_models`: Some pre-written vision backbones that load checkpoints from [open_clip](https://github.com/mlfoundations/open_clip) and [timm](https://github.com/huggingface/pytorch-image-models). You can use these as inspiration for writing your own vision backbones or check out `biobench.registry` for a tutorial.
 
 ## Future Tasks
 
 These are tasks that I plan on adding but are not yet done.
 
-* `biobench.rarespecies`: Waiting on [bug](https://huggingface.co/datasets/imageomics/rare-species/discussions/8) in Huggingface.
+* `biobench.rarespecies`: Waiting on a [bug](https://huggingface.co/datasets/imageomics/rare-species/discussions/8) in Huggingface's datasets library.
 * [FishVista](https://github.com/Imageomics/Fish-Vista): I want to add trait classification: given patch-level features, can we train a linear probe to predict the presence/absense of a feature?
 
 .. include:: ./confidence-intervals.md

@@ -76,23 +76,23 @@ class Args:
     """whether to run in debug mode."""
 
     # Individual benchmarks.
-    newt_run: bool = True
+    newt_run: bool = False
     """whether to run the NeWT benchmark."""
     newt_args: newt.Args = dataclasses.field(default_factory=newt.Args)
     """arguments for the NeWT benchmark."""
-    kabr_run: bool = True
+    kabr_run: bool = False
     """whether to run the KABR benchmark."""
     kabr_args: kabr.Args = dataclasses.field(default_factory=kabr.Args)
     """arguments for the KABR benchmark."""
-    plantnet_run: bool = True
+    plantnet_run: bool = False
     """whether to run the Pl@ntNet benchmark."""
     plantnet_args: plantnet.Args = dataclasses.field(default_factory=plantnet.Args)
     """arguments for the Pl@ntNet benchmark."""
-    iwildcam_run: bool = True
+    iwildcam_run: bool = False
     """whether to run the iWildCam benchmark."""
     iwildcam_args: iwildcam.Args = dataclasses.field(default_factory=iwildcam.Args)
     """arguments for the iWildCam benchmark."""
-    birds525_run: bool = True
+    birds525_run: bool = False
     """whether to run the Birds 525 benchmark."""
     birds525_args: birds525.Args = dataclasses.field(default_factory=birds525.Args)
     """arguments for the Birds 525 benchmark."""
@@ -101,13 +101,13 @@ class Args:
         default_factory=rarespecies.Args
     )
     """Arguments for the Rare Species benchmark."""
-    beluga_run: bool = True
+    beluga_run: bool = False
     beluga_args: beluga.Args = dataclasses.field(default_factory=beluga.Args)
     """Arguments for the Beluga whale re-ID benchmark."""
-    fishnet_run: bool = True
+    fishnet_run: bool = False
     """Whether to run the FishNet benchmark."""
     fishnet_args: fishnet.Args = dataclasses.field(default_factory=fishnet.Args)
-    ages_run: bool = True
+    ages_run: bool = False
     """Whether to run the bird age benchmark."""
     ages_args: ages.Args = dataclasses.field(default_factory=ages.Args)
     """Arguments for the bird age benchmark."""

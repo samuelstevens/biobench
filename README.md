@@ -23,16 +23,11 @@ uv run biobench/newt/download.py --dir ./newt
 
 Download it wherever you want on your own filesystem.
 
-Then run just the NeWT benchmark on all the models.
+Then run just the NeWT benchmark on all the default models.
 
 ```sh
 CUDA_VISIBLE_DEVICES=0 uv run benchmark.py \
-  --no-kabr-run \
-  --no-iwildcam-run \
-  --no-birds525-run \
-  --no-rarespecies-run \
-  --no-plantnet-run \
-  --newt-args.datadir /fs/scratch/PAS2136/samuelstevens/datasets/newt
+  --newt-run --newt-args.datadir ./newt
 ```
 
 

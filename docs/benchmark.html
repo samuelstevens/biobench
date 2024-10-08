@@ -35,47 +35,49 @@ For example, see <code><a title="biobench.newt.download" href="biobench/newt/dow
 <h1 id="examples">Examples</h1>
 <h2 id="run-everything">Run Everything</h2>
 <p>Suppose you want to run all the tasks for all the default models to get started using a local GPU (device 4, for example).
-You need to specify all the <code>--TASK-args.datadir</code> so that each task knows where to load data from.</p>
+You need to specify all the <code>--TASK-run</code> flags and <code>--TASK-args.datadir</code> so that each task knows where to load data from.</p>
 <pre><code class="language-sh">CUDA_VISIBLE_DEVICES=4 python benchmark.py \
-  --kabr-args.datadir /local/scratch/stevens.994/datasets/kabr \
-  --iwildcam-args.datadir /local/scratch/stevens.994/datasets/iwildcam \
-  --plantnet-args.datadir /local/scratch/stevens.994/datasets/plantnet \
-  --birds525-args.datadir /local/scratch/stevens.994/datasets/birds525 \
-  --newt-args.datadir /local/scratch/stevens.994/datasets/newt \
-  --beluga-args.datadir /local/scratch/stevens.994/datasets/beluga
+  --kabr-run --kabr-args.datadir /local/scratch/stevens.994/datasets/kabr \
+  --iwildcam-run --iwildcam-args.datadir /local/scratch/stevens.994/datasets/iwildcam \
+  --plantnet-run --plantnet-args.datadir /local/scratch/stevens.994/datasets/plantnet \
+  --birds525-run --birds525-args.datadir /local/scratch/stevens.994/datasets/birds525 \
+  --newt-run --newt-args.datadir /local/scratch/stevens.994/datasets/newt \
+  --beluga-run --beluga-args.datadir /local/scratch/stevens.994/datasets/beluga \
+  --ages-run --ages-args.datadir /local/scratch/stevens.994/datasets/newt \
+  --fishnet-run --fishnet-args.datadir /local/scratch/stevens.994/datasets/fishnet
 </code></pre>
 <p>More generally, you can configure options for individual tasks using <code>--TASK-args.&lt;OPTION&gt;</code>, which are all documented <code>python benchmark.py --help</code>.</p>
 <h2 id="just-one-task">Just One Task</h2>
-<p>Suppose you just want to run one task (NeWT).
-Then you need to turn off the other tasks with <code>--no-TASK-run</code> and include the NeWT data directory.</p>
+<p>Suppose you just want to run one task (NeWT).</p>
 <pre><code class="language-sh">CUDA_VISIBLE_DEVICES=4 python benchmark.py \
-  --no-kabr-run --no-iwildcam-run \
-  --no-plantnet-run --no-birds525-run \
-  --no-beluga-run \
-  --newt-args.datadir /local/scratch/stevens.994/datasets/newt
+  --newt-run --newt-args.datadir /local/scratch/stevens.994/datasets/newt
 </code></pre>
 <h2 id="just-one-model">Just One Model</h2>
 <p>Suppose you only want to run the SigLIP SO400M ViT from Open CLIP, but you want to run it on all tasks.
 Since that model is a checkpoint in Open CLIP, we can use the <code><a title="biobench.third_party_models.OpenClip" href="biobench/third_party_models.html#biobench.third_party_models.OpenClip">OpenClip</a></code> class to load the checkpoint.</p>
 <pre><code class="language-sh">CUDA_VISIBLE_DEVICES=4 python benchmark.py \
-  --kabr-args.datadir /local/scratch/stevens.994/datasets/kabr \
-  --iwildcam-args.datadir /local/scratch/stevens.994/datasets/iwildcam \
-  --plantnet-args.datadir /local/scratch/stevens.994/datasets/plantnet \
-  --birds525-args.datadir /local/scratch/stevens.994/datasets/birds525 \
-  --newt-args.datadir /local/scratch/stevens.994/datasets/newt \
-  --beluga-args.datadir /local/scratch/stevens.994/datasets/beluga \
+  --kabr-run --kabr-args.datadir /local/scratch/stevens.994/datasets/kabr \
+  --iwildcam-run --iwildcam-args.datadir /local/scratch/stevens.994/datasets/iwildcam \
+  --plantnet-run --plantnet-args.datadir /local/scratch/stevens.994/datasets/plantnet \
+  --birds525-run --birds525-args.datadir /local/scratch/stevens.994/datasets/birds525 \
+  --newt-run --newt-args.datadir /local/scratch/stevens.994/datasets/newt \
+  --beluga-run --beluga-args.datadir /local/scratch/stevens.994/datasets/beluga \
+  --ages-run --ages-args.datadir /local/scratch/stevens.994/datasets/newt \
+  --fishnet-run --fishnet-args.datadir /local/scratch/stevens.994/datasets/fishnet \
   --model open-clip ViT-SO400M-14-SigLIP/webli  # &lt;- This is the new line!
 </code></pre>
 <h2 id="use-slurm">Use Slurm</h2>
 <p>Slurm clusters with lots of GPUs can be used to run lots of tasks in parallel.
 It's really easy with <code><a title="biobench" href="biobench/index.html">biobench</a></code>.</p>
 <pre><code class="language-sh">python benchmark.py \
-  --kabr-args.datadir /local/scratch/stevens.994/datasets/kabr \
-  --iwildcam-args.datadir /local/scratch/stevens.994/datasets/iwildcam \
-  --plantnet-args.datadir /local/scratch/stevens.994/datasets/plantnet \
-  --birds525-args.datadir /local/scratch/stevens.994/datasets/birds525 \
-  --newt-args.datadir /local/scratch/stevens.994/datasets/newt \
-  --beluga-args.datadir /local/scratch/stevens.994/datasets/beluga \
+  --kabr-run --kabr-args.datadir /local/scratch/stevens.994/datasets/kabr \
+  --iwildcam-run --iwildcam-args.datadir /local/scratch/stevens.994/datasets/iwildcam \
+  --plantnet-run --plantnet-args.datadir /local/scratch/stevens.994/datasets/plantnet \
+  --birds525-run --birds525-args.datadir /local/scratch/stevens.994/datasets/birds525 \
+  --newt-run --newt-args.datadir /local/scratch/stevens.994/datasets/newt \
+  --beluga-run --beluga-args.datadir /local/scratch/stevens.994/datasets/beluga \
+  --ages-run --ages-args.datadir /local/scratch/stevens.994/datasets/newt \
+  --fishnet-run --fishnet-args.datadir /local/scratch/stevens.994/datasets/fishnet \
   --slurm  # &lt;- Just add --slurm to use slurm!
 </code></pre>
 <p>Note that you don't need to specify <code>CUDA_VISIBLE_DEVICES</code> anymore because you're not running on the local machine anymore.</p>
@@ -141,7 +143,7 @@ Returns the figure so the caller can save or display it.</p>
 <dl>
 <dt id="benchmark.Args"><code class="flex name class">
 <span>class <span class="ident">Args</span></span>
-<span>(</span><span>slurm: bool = False, slurm_acct: str = 'PAS2136', model_args: typing.Annotated[list[tuple[typing.Literal['timm-vit', 'open-clip'], str]], _ArgConfiguration(name='model', metavar=None, help=None, aliases=None, prefix_name=None, constructor_factory=None)] = &lt;factory&gt;, device: Literal['cpu', 'cuda'] = 'cuda', debug: bool = False, newt_run: bool = True, newt_args: <a title="biobench.newt.Args" href="biobench/newt/index.html#biobench.newt.Args">Args</a> = &lt;factory&gt;, kabr_run: bool = True, kabr_args: <a title="biobench.kabr.Args" href="biobench/kabr/index.html#biobench.kabr.Args">Args</a> = &lt;factory&gt;, plantnet_run: bool = True, plantnet_args: <a title="biobench.plantnet.Args" href="biobench/plantnet/index.html#biobench.plantnet.Args">Args</a> = &lt;factory&gt;, iwildcam_run: bool = True, iwildcam_args: <a title="biobench.iwildcam.Args" href="biobench/iwildcam/index.html#biobench.iwildcam.Args">Args</a> = &lt;factory&gt;, birds525_run: bool = True, birds525_args: <a title="biobench.birds525.Args" href="biobench/birds525/index.html#biobench.birds525.Args">Args</a> = &lt;factory&gt;, rarespecies_run: bool = False, rarespecies_args: <a title="biobench.rarespecies.Args" href="biobench/rarespecies/index.html#biobench.rarespecies.Args">Args</a> = &lt;factory&gt;, beluga_run: bool = True, beluga_args: <a title="biobench.beluga.Args" href="biobench/beluga/index.html#biobench.beluga.Args">Args</a> = &lt;factory&gt;, fishnet_run: bool = True, fishnet_args: <a title="biobench.fishnet.Args" href="biobench/fishnet/index.html#biobench.fishnet.Args">Args</a> = &lt;factory&gt;, ages_run: bool = True, ages_args: <a title="biobench.ages.Args" href="biobench/ages.html#biobench.ages.Args">Args</a> = &lt;factory&gt;, report_to: str = './reports', graph: bool = True, graph_to: str = './graphs', log_to: str = './logs')</span>
+<span>(</span><span>slurm: bool = False, slurm_acct: str = 'PAS2136', model_args: typing.Annotated[list[tuple[typing.Literal['timm-vit', 'open-clip'], str]], _ArgConfiguration(name='model', metavar=None, help=None, aliases=None, prefix_name=None, constructor_factory=None)] = &lt;factory&gt;, device: Literal['cpu', 'cuda'] = 'cuda', debug: bool = False, newt_run: bool = False, newt_args: <a title="biobench.newt.Args" href="biobench/newt/index.html#biobench.newt.Args">Args</a> = &lt;factory&gt;, kabr_run: bool = False, kabr_args: <a title="biobench.kabr.Args" href="biobench/kabr/index.html#biobench.kabr.Args">Args</a> = &lt;factory&gt;, plantnet_run: bool = False, plantnet_args: <a title="biobench.plantnet.Args" href="biobench/plantnet/index.html#biobench.plantnet.Args">Args</a> = &lt;factory&gt;, iwildcam_run: bool = False, iwildcam_args: <a title="biobench.iwildcam.Args" href="biobench/iwildcam/index.html#biobench.iwildcam.Args">Args</a> = &lt;factory&gt;, birds525_run: bool = False, birds525_args: <a title="biobench.birds525.Args" href="biobench/birds525/index.html#biobench.birds525.Args">Args</a> = &lt;factory&gt;, rarespecies_run: bool = False, rarespecies_args: <a title="biobench.rarespecies.Args" href="biobench/rarespecies/index.html#biobench.rarespecies.Args">Args</a> = &lt;factory&gt;, beluga_run: bool = False, beluga_args: <a title="biobench.beluga.Args" href="biobench/beluga/index.html#biobench.beluga.Args">Args</a> = &lt;factory&gt;, fishnet_run: bool = False, fishnet_args: <a title="biobench.fishnet.Args" href="biobench/fishnet/index.html#biobench.fishnet.Args">Args</a> = &lt;factory&gt;, ages_run: bool = False, ages_args: <a title="biobench.ages.Args" href="biobench/ages.html#biobench.ages.Args">Args</a> = &lt;factory&gt;, report_to: str = './reports', graph: bool = True, graph_to: str = './graphs', log_to: str = './logs')</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Params to run one or more benchmarks in a parallel setting.</p></div>
@@ -178,23 +180,23 @@ class Args:
     &#34;&#34;&#34;whether to run in debug mode.&#34;&#34;&#34;
 
     # Individual benchmarks.
-    newt_run: bool = True
+    newt_run: bool = False
     &#34;&#34;&#34;whether to run the NeWT benchmark.&#34;&#34;&#34;
     newt_args: newt.Args = dataclasses.field(default_factory=newt.Args)
     &#34;&#34;&#34;arguments for the NeWT benchmark.&#34;&#34;&#34;
-    kabr_run: bool = True
+    kabr_run: bool = False
     &#34;&#34;&#34;whether to run the KABR benchmark.&#34;&#34;&#34;
     kabr_args: kabr.Args = dataclasses.field(default_factory=kabr.Args)
     &#34;&#34;&#34;arguments for the KABR benchmark.&#34;&#34;&#34;
-    plantnet_run: bool = True
+    plantnet_run: bool = False
     &#34;&#34;&#34;whether to run the Pl@ntNet benchmark.&#34;&#34;&#34;
     plantnet_args: plantnet.Args = dataclasses.field(default_factory=plantnet.Args)
     &#34;&#34;&#34;arguments for the Pl@ntNet benchmark.&#34;&#34;&#34;
-    iwildcam_run: bool = True
+    iwildcam_run: bool = False
     &#34;&#34;&#34;whether to run the iWildCam benchmark.&#34;&#34;&#34;
     iwildcam_args: iwildcam.Args = dataclasses.field(default_factory=iwildcam.Args)
     &#34;&#34;&#34;arguments for the iWildCam benchmark.&#34;&#34;&#34;
-    birds525_run: bool = True
+    birds525_run: bool = False
     &#34;&#34;&#34;whether to run the Birds 525 benchmark.&#34;&#34;&#34;
     birds525_args: birds525.Args = dataclasses.field(default_factory=birds525.Args)
     &#34;&#34;&#34;arguments for the Birds 525 benchmark.&#34;&#34;&#34;
@@ -203,13 +205,13 @@ class Args:
         default_factory=rarespecies.Args
     )
     &#34;&#34;&#34;Arguments for the Rare Species benchmark.&#34;&#34;&#34;
-    beluga_run: bool = True
+    beluga_run: bool = False
     beluga_args: beluga.Args = dataclasses.field(default_factory=beluga.Args)
     &#34;&#34;&#34;Arguments for the Beluga whale re-ID benchmark.&#34;&#34;&#34;
-    fishnet_run: bool = True
+    fishnet_run: bool = False
     &#34;&#34;&#34;Whether to run the FishNet benchmark.&#34;&#34;&#34;
     fishnet_args: fishnet.Args = dataclasses.field(default_factory=fishnet.Args)
-    ages_run: bool = True
+    ages_run: bool = False
     &#34;&#34;&#34;Whether to run the bird age benchmark.&#34;&#34;&#34;
     ages_args: ages.Args = dataclasses.field(default_factory=ages.Args)
     &#34;&#34;&#34;Arguments for the bird age benchmark.&#34;&#34;&#34;
