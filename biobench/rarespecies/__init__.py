@@ -48,11 +48,7 @@ def benchmark(
         interfaces.Example(str(id), float(score), {})
         for id, score in zip(features.ids[test_i], scores.tolist())
     ]
-    return model_args, interfaces.TaskReport("RareSpecies", examples, calc_mean_score)
-
-
-def calc_mean_score(examples: list[interfaces.Example]) -> float:
-    return np.mean([example.score for example in examples]).item()
+    return model_args, interfaces.TaskReport("RareSpecies", examples)
 
 
 class LabelProcessor:

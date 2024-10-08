@@ -110,7 +110,7 @@ def benchmark(
         itertools.chain.from_iterable((result.pop("examples") for result in results))
     )
 
-    return model_args, interfaces.TaskReport("NeWT", examples, calc_mean_score)
+    return model_args, interfaces.TaskReport("NeWT", examples)
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -264,7 +264,3 @@ def init_svc():
         n_jobs=16,
         random_state=42,
     )
-
-
-def calc_mean_score(examples: list[interfaces.Example]) -> float:
-    return np.mean([example.score for example in examples]).item()

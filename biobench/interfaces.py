@@ -100,6 +100,10 @@ class Example:
     """Any additional information included. This might be the original class, the true label, etc."""
 
 
+def default_calc_mean_score(examples: list[Example]) -> float:
+    return np.mean([example.score for example in examples]).item()
+
+
 @jaxtyped(typechecker=beartype.beartype)
 @dataclasses.dataclass(frozen=True)
 class TaskReport:
@@ -112,8 +116,11 @@ class TaskReport:
     """The benchmark name."""
     examples: list[Example]
     """A list of (example_id, score, info) objects"""
-    calc_mean_score: typing.Callable[[list[Example]], float]
+    _: dataclasses.KW_ONLY
+    calc_mean_score: typing.Callable[[list[Example]], float] = default_calc_mean_score
     """A way to calculate mean score from a list of examples."""
+    splits: dict[str, float] = dataclasses.field(default_factory=dict)
+    """Other scores that you would like to report. These do not have confidence intervals."""
 
     # Stuff for trying to reproduce this result. These are filled in by default.
     argv: list[str] = dataclasses.field(default_factory=lambda: sys.argv)

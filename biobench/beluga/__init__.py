@@ -35,7 +35,6 @@ import logging
 import os.path
 
 import beartype
-import numpy as np
 import sklearn.neighbors
 import torch
 import torchvision.datasets
@@ -87,7 +86,7 @@ def benchmark(
     ]
     logger.info("%d examples done.", len(examples))
 
-    return model_args, interfaces.TaskReport("BelugaID", examples, calc_mean_score)
+    return model_args, interfaces.TaskReport("BelugaID", examples)
 
 
 class Lookup:
@@ -195,7 +194,3 @@ def get_features(args: Args, backbone: interfaces.VisionBackbone) -> Features:
     logger.info("Got features for %d images.", len(all_ids))
 
     return Features(all_features, all_labels, all_ids)
-
-
-def calc_mean_score(examples: list[interfaces.Example]) -> float:
-    return np.mean([example.score for example in examples]).item()

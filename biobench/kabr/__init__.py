@@ -270,8 +270,4 @@ def benchmark(
         for id, score in zip(video_ids, scores.tolist())
     ]
     # TODO: include example-specific info (class? something else)
-    return model_args, interfaces.TaskReport("KABR", examples, calc_mean_score)
-
-
-def calc_mean_score(examples: list[interfaces.Example]) -> float:
-    return np.mean([example.score for example in examples]).item()
+    return model_args, interfaces.TaskReport("KABR", examples)

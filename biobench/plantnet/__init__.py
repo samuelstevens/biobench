@@ -42,27 +42,6 @@ class Features:
 
 
 @beartype.beartype
-class MeanScoreCalculator:
-    """
-    Macro top-1 accuracy.
-    """
-
-    def __call__(self, examples: list[interfaces.Example]) -> float:
-        cls_examples = {}
-        for example in examples:
-            true_cls = example.info["y_true"]
-            if true_cls not in cls_examples:
-                cls_examples[true_cls] = []
-
-            cls_examples[true_cls].append(example)
-
-        cls_accs = []
-        for examples in cls_examples.values():
-            cls_accs.append(np.mean([example.score for example in examples]))
-        return np.mean(cls_accs).item()
-
-
-@beartype.beartype
 def benchmark(
     args: Args, model_args: interfaces.ModelArgs
 ) -> tuple[interfaces.ModelArgs, interfaces.TaskReport]:
@@ -94,11 +73,13 @@ def benchmark(
         for image_id, pred, true in zip(val_features.ids, pred_labels, true_labels)
     ]
 
-    report = interfaces.TaskReport("Pl@ntNet", examples, calc_mean_score)
+    report = interfaces.TaskReport(
+        "Pl@ntNet", examples, calc_mean_score=calc_macro_top1
+    )
     return model_args, report
 
 
-def calc_mean_score(examples: list[interfaces.Example]) -> float:
+def calc_macro_top1(examples: list[interfaces.Example]) -> float:
     """
     Macro top-1 accuracy.
     """

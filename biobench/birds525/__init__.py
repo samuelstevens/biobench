@@ -86,7 +86,9 @@ def benchmark(
 
     # We sort of cheat here. We run simpleshot n_repeats (100) times, then when we want to calculate the confidence intervals, we just choose the score of one of these simpleshot runs, regardless of what examples are passed.
     return model_args, interfaces.TaskReport(
-        "Birds525-1shot", examples, ChooseRandomCachedResult(args.seed, all_scores)
+        "Birds525-1shot",
+        examples,
+        calc_mean_score=ChooseRandomCachedResult(args.seed, all_scores),
     )
 
 
