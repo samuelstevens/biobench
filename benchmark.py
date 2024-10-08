@@ -38,6 +38,7 @@ from biobench import (
     newt,
     plantnet,
     rarespecies,
+    fishnet,
 )
 
 log_format = "[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s"
@@ -103,6 +104,10 @@ class Args:
     beluga_run: bool = True
     """Whether to run the Beluga whale re-ID benchmark."""
     beluga_args: beluga.Args = dataclasses.field(default_factory=beluga.Args)
+    """Arguments for the Beluga whale re-ID benchmark."""
+    fishnet_run: bool = True
+    """Whether to run the Beluga whale re-ID benchmark."""
+    fishnet_args: fishnet.Args = dataclasses.field(default_factory=fishnet.Args)
     """Arguments for the Beluga whale re-ID benchmark."""
 
     # Reporting and graphing.
@@ -257,6 +262,12 @@ def main(args: Args):
             )
             job = executor.submit(beluga.benchmark, beluga_args, model_args)
             jobs.append(job)
+        if args.fishnet_run:
+            fishnet_args = dataclasses.replace(
+                args.fishnet_args, device=args.device, debug=args.debug
+            )
+            job = executor.submit(fishnet.benchmark, fishnet_args, model_args)
+            jobs.append(job)
 
     logger.info("Submitted %d jobs.", len(jobs))
 
@@ -279,7 +290,7 @@ def main(args: Args):
     if args.graph:
         # For each combination of model/task, get the most recent version from the database. Then make a graph and save it to disk.
         conn = args.get_sqlite_connection()
-        for task in ("KABR", "NeWT", "Pl@ntNet", "iWildCam", "Birds525", "BelugaID"):
+        for task in ("KABR", "NeWT", "Pl@ntNet", "iWildCam", "Birds525", "BelugaID", "FishNet"):
             fig = plot_task(conn, task)
             if fig is None:
                 continue
