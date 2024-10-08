@@ -30,6 +30,7 @@ import tyro
 
 from biobench import (
     ModelOrg,
+    ages,
     beluga,
     birds525,
     interfaces,
@@ -96,19 +97,20 @@ class Args:
     birds525_args: birds525.Args = dataclasses.field(default_factory=birds525.Args)
     """arguments for the Birds 525 benchmark."""
     rarespecies_run: bool = False
-    """whether to run the Rare Species benchmark. False by default because Huggingface has a bug with the dataset right now."""
     rarespecies_args: rarespecies.Args = dataclasses.field(
         default_factory=rarespecies.Args
     )
     """Arguments for the Rare Species benchmark."""
     beluga_run: bool = True
-    """Whether to run the Beluga whale re-ID benchmark."""
     beluga_args: beluga.Args = dataclasses.field(default_factory=beluga.Args)
     """Arguments for the Beluga whale re-ID benchmark."""
     fishnet_run: bool = True
-    """Whether to run the Beluga whale re-ID benchmark."""
+    """Whether to run the FishNet benchmark."""
     fishnet_args: fishnet.Args = dataclasses.field(default_factory=fishnet.Args)
-    """Arguments for the Beluga whale re-ID benchmark."""
+    ages_run: bool = True
+    """Whether to run the bird age benchmark."""
+    ages_args: ages.Args = dataclasses.field(default_factory=ages.Args)
+    """Arguments for the bird age benchmark."""
 
     # Reporting and graphing.
     report_to: str = os.path.join(".", "reports")
@@ -269,6 +271,11 @@ def main(args: Args):
                 args.fishnet_args, device=args.device, debug=args.debug
             )
             job = executor.submit(fishnet.benchmark, fishnet_args, model_args)
+        if args.ages_run:
+            ages_args = dataclasses.replace(
+                args.ages_args, device=args.device, debug=args.debug
+            )
+            job = executor.submit(ages.benchmark, ages_args, model_args)
             jobs.append(job)
 
     logger.info("Submitted %d jobs.", len(jobs))
@@ -292,7 +299,17 @@ def main(args: Args):
     if args.graph:
         # For each combination of model/task, get the most recent version from the database. Then make a graph and save it to disk.
         conn = args.get_sqlite_connection()
-        for task in ("KABR", "NeWT", "Pl@ntNet", "iWildCam", "Birds525", "BelugaID", "FishNet"):
+        tasks = (
+            "KABR",
+            "NeWT",
+            "Pl@ntNet",
+            "iWildCam",
+            "Birds525",
+            "BelugaID",
+            "Ages",
+            "FishNet",
+        )
+        for task in tasks:
             fig = plot_task(conn, task)
             if fig is None:
                 continue
