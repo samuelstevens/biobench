@@ -19,6 +19,8 @@ If you use this evaluation, be sure to cite the original work:
     pages     = {20496-20506}
 }
 ```
+
+This task was contributed by [Jianyang Gu](https://vimar-gu.github.io/).
 """
 
 import dataclasses

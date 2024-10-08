@@ -45,6 +45,5 @@ CUDA_VISIBLE_DEVICES=0 uv run benchmark.py \
 ## Road Map
 
 1. Add 5-shot RareSpecies with simpleshot (like in BioCLIP paper). This is blocked because the Huggingface dataset doesn't work ([see this issue](https://huggingface.co/datasets/imageomics/rare-species/discussions/8)).
-2. Update docs. I will do this during travel, then push when I reconnect to the network.
-3. Change Pl@ntNet to account for large class imbalance in training data.
-4. Add FishVista for trait prediction. This is another non-classification task, and we are specifically interested in traits. But it will take more work because we have to match bounding boxes and patch-level features which is challenging after resizes.
+2. Change Pl@ntNet to account for large class imbalance in training data.
+3. Add FishVista for localized trait prediction. This is another non-classification task, and we are specifically interested in traits. But it will take more work because we have to match bounding boxes and patch-level features which is challenging after resizes.
