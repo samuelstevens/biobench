@@ -42,6 +42,14 @@ CUDA_VISIBLE_DEVICES=0 uv run benchmark.py \
 
 [^web-deps]: Web dependencies include things like datasets being available from their original source, Huggingface datasets can be re-downloaded, model checkpoints do not change, etc.
 
+
+We at [Imageomics](https://imageomics.osu.edu) use this library for testing [BioCLIP](https://imageomics.github.io/bioclip) and other internal models  during development.
+Because of this, there are two main classes of tasks:
+
+1. Downstream applications. These are tasks like [KABR](https://samuelstevens.me/biobench/biobench/kabr/index.html) or [Beluga whale re-ID](https://samuelstevens.me/biobench/biobench/beluga/index.html). These tasks represent real problems that computer vision systems fail to solve today.
+2. Benchmarks. These are made-up tasks like [Birds525](https://samuelstevens.me/biobench/biobench/birds525/index.html) or [RareSpecies](https://samuelstevens.me/biobench/biobench/rarespecies/index.html) that are artificial tasks, created to help us understand how useful a model might be in the real world for similar tasks.
+
+
 ## Road Map
 
 1. Add 5-shot RareSpecies with simpleshot (like in BioCLIP paper). This is blocked because the Huggingface dataset doesn't work ([see this issue](https://huggingface.co/datasets/imageomics/rare-species/discussions/8)).

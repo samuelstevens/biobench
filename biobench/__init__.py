@@ -35,6 +35,18 @@ These are tasks that I plan on adding but are not yet done.
 * [FishVista](https://github.com/Imageomics/Fish-Vista): I want to add trait classification: given patch-level features, can we train a linear probe to predict the presence/absense of a feature?
 
 .. include:: ./confidence-intervals.md
+
+## Discussion of Task Importance
+
+(TODO)
+
+Main points:
+
+* Some tasks are real tasks (KABR, Beluga).
+* Others are made up (Birds525, RareSpecies).
+* Some are in-between (NeWT, FishNet).
+* Likely, the real tasks are most important, but they are also the most specialized (and thus least likely to predict performance on other tasks).
+
 """
 
 import typing

@@ -44,7 +44,7 @@ hljs.highlightAll();
 <li><code><a title="biobench.newt" href="newt/index.html">biobench.newt</a></code>: 164 binary classification tasks using an binary SVM trained on image features.</li>
 <li><code><a title="biobench.beluga" href="beluga/index.html">biobench.beluga</a></code>: Re-identification of Beluga whales using nearest neighbors.</li>
 <li><code><a title="biobench.fishnet" href="fishnet/index.html">biobench.fishnet</a></code>: Predict presense/absence of 9 different traits in images of fish.</li>
-<li><code><a title="biobench.ages" href="ages.html">biobench.ages</a></code>: Classify images of juvenile birds using only adult birds for training.</li>
+<li><code><a title="biobench.ages" href="ages/index.html">biobench.ages</a></code>: Classify images of juvenile birds using only adult birds for training.</li>
 </ul>
 <h2 id="helper-modules">Helper Modules</h2>
 <ul>
@@ -80,6 +80,15 @@ Non-parametric methods like nearest centroid classifiers or KNN are particularly
 Parametric methods like linear classifiers or SVMs are slow to train, so we don't want to repeat the training step 200+ times.</p>
 <p>In practice, however, we simply bootstrap test set predictions because it can be cheaply applied to all benchmarks regardless of training or inference cost.
 It requires only that we have a $N$-dimensional vector of scores, where $N$ is the number of test examples, which is always under 10M, so at most a 40MB vector.</p>
+<h2 id="discussion-of-task-importance">Discussion of Task Importance</h2>
+<p>(TODO)</p>
+<p>Main points:</p>
+<ul>
+<li>Some tasks are real tasks (KABR, Beluga).</li>
+<li>Others are made up (Birds525, RareSpecies).</li>
+<li>Some are in-between (NeWT, FishNet).</li>
+<li>Likely, the real tasks are most important, but they are also the most specialized (and thus least likely to predict performance on other tasks).</li>
+</ul>
 <div class="footnote">
 <hr>
 <ol>
@@ -92,7 +101,7 @@ It requires only that we have a $N$-dimensional vector of scores, where $N$ is t
 <section>
 <h2 class="section-title" id="header-submodules">Sub-modules</h2>
 <dl>
-<dt><code class="name"><a title="biobench.ages" href="ages.html">biobench.ages</a></code></dt>
+<dt><code class="name"><a title="biobench.ages" href="ages/index.html">biobench.ages</a></code></dt>
 <dd>
 <div class="desc"><p>This task measures changes in performance with respect to the stage of life of a bird.
 Specifically, we measure classification accuracy among 11 …</p></div>
@@ -189,6 +198,7 @@ author={Wang, Yan and Chao, …</p></div>
 <li><a href="#confidence-intervals">Confidence Intervals</a><ul>
 <li><a href="#biobench-confidence-intervals">BioBench Confidence Intervals</a></li>
 <li><a href="#note-on-confidence-interval-types">Note on Confidence Interval Types</a></li>
+<li><a href="#discussion-of-task-importance">Discussion of Task Importance</a></li>
 </ul>
 </li>
 </ul>
@@ -196,7 +206,7 @@ author={Wang, Yan and Chao, …</p></div>
 <ul id="index">
 <li><h3><a href="#header-submodules">Sub-modules</a></h3>
 <ul>
-<li><code><a title="biobench.ages" href="ages.html">biobench.ages</a></code></li>
+<li><code><a title="biobench.ages" href="ages/index.html">biobench.ages</a></code></li>
 <li><code><a title="biobench.beluga" href="beluga/index.html">biobench.beluga</a></code></li>
 <li><code><a title="biobench.birds525" href="birds525/index.html">biobench.birds525</a></code></li>
 <li><code><a title="biobench.fishnet" href="fishnet/index.html">biobench.fishnet</a></code></li>
