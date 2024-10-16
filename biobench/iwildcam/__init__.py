@@ -18,7 +18,7 @@ import wilds
 import wilds.common.data_loaders
 from jaxtyping import Float, Int, Shaped, jaxtyped
 
-from biobench import interfaces, registry
+from biobench import helpers, interfaces, registry
 
 logger = logging.getLogger("iwildcam")
 
@@ -122,7 +122,7 @@ def get_features(
     total = len(dataloader) if not args.debug else 2
     it = iter(dataloader)
     logger.debug("Need to embed %d batches of %d images.", total, args.batch_size)
-    for b in range(total):
+    for b in helpers.progress(range(total), every=args.log_every):
         images, labels, _ = next(it)
         images = images.to(args.device)
 

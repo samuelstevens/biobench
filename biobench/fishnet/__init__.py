@@ -32,12 +32,11 @@ import numpy as np
 import polars as pl
 import sklearn
 import torch
-import tqdm
 from jaxtyping import Float, Int, Shaped, jaxtyped
 from PIL import Image
 from torch import Tensor
 
-from biobench import interfaces, registry
+from biobench import helpers, interfaces, registry
 
 logger = logging.getLogger("fishnet")
 
@@ -230,9 +229,8 @@ def get_features(
     all_features, all_labels, all_ids = [], [], []
 
     total = 2 if args.debug else len(dataloader)
-    logger.info("Extracting features.")
     it = iter(dataloader)
-    for b in tqdm.tqdm(range(total)):
+    for b in helpers.progress(range(total), every=args.log_every, desc=file):
         images, labels, _ = next(it)
         images = images.to(args.device)
 

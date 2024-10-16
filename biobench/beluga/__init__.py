@@ -41,7 +41,7 @@ import torchvision.datasets
 from jaxtyping import Float, Int, jaxtyped
 from torch import Tensor
 
-from biobench import interfaces, registry
+from biobench import helpers, interfaces, registry
 
 logger = logging.getLogger("beluga")
 
@@ -171,8 +171,7 @@ def get_features(args: Args, backbone: interfaces.VisionBackbone) -> Features:
 
     total = len(dataloader) if not args.debug else 2
     it = iter(dataloader)
-    logger.debug("Need to embed %d batches of %d images.", total, args.batch_size)
-    for b in range(total):
+    for b in helpers.progress(range(total), every=args.log_every, desc="embed"):
         images, metadata = next(it)
         labels = [label_lookup[meta[0]["name"]] for meta in metadata]
         images = torch.stack(images).to(args.device)
@@ -184,9 +183,6 @@ def get_features(args: Args, backbone: interfaces.VisionBackbone) -> Features:
         all_features.append(features.cpu())
         all_labels.extend(labels)
         all_ids.extend(ids)
-
-        if (b + 1) % args.log_every == 0:
-            logger.info("%d/%d", b + 1, total)
 
     all_features = torch.cat(all_features, dim=0).cpu()
     all_ids = torch.tensor(all_ids)

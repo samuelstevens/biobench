@@ -1,5 +1,3 @@
-__all__ = ["Args", "benchmark"]
-
 import dataclasses
 import logging
 import os
@@ -15,7 +13,7 @@ from jaxtyping import Float, Int, Shaped, jaxtyped
 from PIL import Image
 from torch import Tensor
 
-from biobench import interfaces, registry
+from biobench import helpers, interfaces, registry
 
 logger = logging.getLogger("plantnet")
 
@@ -48,7 +46,7 @@ def benchmark(
     """
     Steps:
     1. Get features for all images.
-    2. Select lambda using validation data.
+    2. Select lambda using cross validation splits.
     3. Report score on test data.
     """
     backbone = registry.load_vision_backbone(*model_args)
@@ -153,8 +151,9 @@ def get_features(
 
     total = len(dataloader) if not args.debug else 2
     it = iter(dataloader)
-    logger.info("Need to embed %d batches of %d images.", total, args.batch_size)
-    for b in range(total):
+    for b in helpers.progress(
+        range(total), every=args.log_every, desc=f"Embed {split}"
+    ):
         ids, images, labels = next(it)
         images = images.to(args.device)
 
@@ -164,8 +163,6 @@ def get_features(
 
         all_ids.extend(ids)
         all_labels.extend(labels)
-        if (b + 1) % args.log_every == 0:
-            logger.info("%d/%d", b + 1, total)
 
     # Convert labels to one single np.ndarray
     all_features = torch.cat(all_features, axis=0).cpu().numpy()
