@@ -55,8 +55,8 @@ hljs.highlightAll();
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="biobench.iwildcam.init_ridge"><code class="name flex">
-<span>def <span class="ident">init_ridge</span></span>(<span>args: <a title="biobench.iwildcam.Args" href="#biobench.iwildcam.Args">Args</a>)</span>
+<dt id="biobench.iwildcam.init_clf"><code class="name flex">
+<span>def <span class="ident">init_clf</span></span>(<span>args: <a title="biobench.iwildcam.Args" href="#biobench.iwildcam.Args">Args</a>)</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
@@ -119,10 +119,10 @@ class Args(interfaces.TaskArgs):
 </dd>
 <dt id="biobench.iwildcam.Features"><code class="flex name class">
 <span>class <span class="ident">Features</span></span>
-<span>(</span><span>x: jaxtyping.Float[ndarray, 'n dim'], y: jaxtyping.Int[ndarray, 'n n_classes'], ids: jaxtyping.Shaped[ndarray, 'n'])</span>
+<span>(</span><span>x: jaxtyping.Float[ndarray, 'n dim'], y: jaxtyping.Int[ndarray, 'n'], ids: jaxtyping.Shaped[ndarray, 'n'])</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Features(x: jaxtyping.Float[ndarray, 'n dim'], y: jaxtyping.Int[ndarray, 'n n_classes'], ids: jaxtyping.Shaped[ndarray, 'n'])</p></div>
+<div class="desc"><p>Features(x: jaxtyping.Float[ndarray, 'n dim'], y: jaxtyping.Int[ndarray, 'n'], ids: jaxtyping.Shaped[ndarray, 'n'])</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -130,8 +130,8 @@ class Args(interfaces.TaskArgs):
 <pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
 @dataclasses.dataclass(frozen=True)
 class Features:
-    x: Float[np.ndarray, &#34; n dim&#34;]
-    y: Int[np.ndarray, &#34; n n_classes&#34;]
+    x: Float[np.ndarray, &#34;n dim&#34;]
+    y: Int[np.ndarray, &#34; n&#34;]
     ids: Shaped[np.ndarray, &#34; n&#34;]</code></pre>
 </details>
 <h3>Class variables</h3>
@@ -144,7 +144,7 @@ class Features:
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="biobench.iwildcam.Features.y"><code class="name">var <span class="ident">y</span> : jaxtyping.Int[ndarray, 'n n_classes']</code></dt>
+<dt id="biobench.iwildcam.Features.y"><code class="name">var <span class="ident">y</span> : jaxtyping.Int[ndarray, 'n']</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -192,7 +192,7 @@ class MeanScoreCalculator:
 <ul class="">
 <li><code><a title="biobench.iwildcam.benchmark" href="#biobench.iwildcam.benchmark">benchmark</a></code></li>
 <li><code><a title="biobench.iwildcam.get_features" href="#biobench.iwildcam.get_features">get_features</a></code></li>
-<li><code><a title="biobench.iwildcam.init_ridge" href="#biobench.iwildcam.init_ridge">init_ridge</a></code></li>
+<li><code><a title="biobench.iwildcam.init_clf" href="#biobench.iwildcam.init_clf">init_clf</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>

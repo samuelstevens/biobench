@@ -48,8 +48,26 @@ hljs.highlightAll();
 <dd>
 <div class="desc"><p>Steps:
 1. Get features for all images.
-2. Select lambda using validation data.
+2. Select lambda using cross validation splits.
 3. Report score on test data.</p></div>
+</dd>
+<dt id="biobench.plantnet.calc_macro_top1"><code class="name flex">
+<span>def <span class="ident">calc_macro_top1</span></span>(<span>examples: list[<a title="biobench.interfaces.Example" href="../interfaces.html#biobench.interfaces.Example">Example</a>]) ‑> float</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Macro top-1 accuracy.</p></div>
+</dd>
+<dt id="biobench.plantnet.get_features"><code class="name flex">
+<span>def <span class="ident">get_features</span></span>(<span>args: <a title="biobench.plantnet.Args" href="#biobench.plantnet.Args">Args</a>, backbone: <a title="biobench.interfaces.VisionBackbone" href="../interfaces.html#biobench.interfaces.VisionBackbone">VisionBackbone</a>, *, split: str) ‑> <a title="biobench.plantnet.Features" href="#biobench.plantnet.Features">Features</a></span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.plantnet.init_clf"><code class="name flex">
+<span>def <span class="ident">init_clf</span></span>(<span>args: <a title="biobench.plantnet.Args" href="#biobench.plantnet.Args">Args</a>)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
 </dd>
 </dl>
 </section>
@@ -107,6 +125,141 @@ class Args(interfaces.TaskArgs):
 </li>
 </ul>
 </dd>
+<dt id="biobench.plantnet.Dataset"><code class="flex name class">
+<span>class <span class="ident">Dataset</span></span>
+<span>(</span><span>root: str, transform)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>An abstract class representing a :class:<code><a title="biobench.plantnet.Dataset" href="#biobench.plantnet.Dataset">Dataset</a></code>.</p>
+<p>All datasets that represent a map from keys to data samples should subclass
+it. All subclasses should overwrite :meth:<code>__getitem__</code>, supporting fetching a
+data sample for a given key. Subclasses could also optionally overwrite
+:meth:<code>__len__</code>, which is expected to return the size of the dataset by many
+:class:<code>~torch.utils.data.Sampler</code> implementations and the default options
+of :class:<code>~torch.utils.data.DataLoader</code>. Subclasses could also
+optionally implement :meth:<code>__getitems__</code>, for speedup batched samples
+loading. This method accepts list of indices of samples of batch and returns
+list of samples.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>:class:<code>~torch.utils.data.DataLoader</code> by default constructs an index
+sampler that yields integral indices.
+To make it work with a map-style
+dataset with non-integral indices/keys, a custom sampler must be provided.</p>
+</div></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
+class Dataset(torch.utils.data.Dataset):
+    transform: typing.Any | None
+    &#34;&#34;&#34;Optional function function that transforms an image into a format expected by a neural network.&#34;&#34;&#34;
+    samples: list[tuple[str, str, str]]
+    &#34;&#34;&#34;List of all image ids, image paths, and classnames.&#34;&#34;&#34;
+
+    def __init__(self, root: str, transform):
+        self.transform = transform
+        self.samples = []
+        if not os.path.exists(root) or not os.path.isdir(root):
+            msg = f&#34;Path &#39;{root}&#39; doesn&#39;t exist. Did you download the Pl@ntNet dataset? See the docstring at the top of this file for instructions. If you did download it, pass the path as --dataset-dir PATH&#34;
+            raise RuntimeError(msg)
+
+        for dirpath, dirnames, filenames in os.walk(root):
+            image_class = os.path.relpath(dirpath, root)
+            for filename in filenames:
+                image_id = filename.removesuffix(&#34;.jpg&#34;)
+                image_path = os.path.join(dirpath, filename)
+                self.samples.append((image_id, image_path, image_class))
+
+    def __getitem__(self, i: int) -&gt; tuple[str, Float[Tensor, &#34;3 width height&#34;], str]:
+        image_id, image_path, image_class = self.samples[i]
+        image = Image.open(image_path)
+        if self.transform is not None:
+            image = self.transform(image)
+        return image_id, image, image_class
+
+    def __len__(self) -&gt; int:
+        return len(self.samples)</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>torch.utils.data.dataset.Dataset</li>
+<li>typing.Generic</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="biobench.plantnet.Dataset.samples"><code class="name">var <span class="ident">samples</span> : list[tuple[str, str, str]]</code></dt>
+<dd>
+<div class="desc"><p>List of all image ids, image paths, and classnames.</p></div>
+</dd>
+<dt id="biobench.plantnet.Dataset.transform"><code class="name">var <span class="ident">transform</span> : typing.Any | None</code></dt>
+<dd>
+<div class="desc"><p>Optional function function that transforms an image into a format expected by a neural network.</p></div>
+</dd>
+</dl>
+</dd>
+<dt id="biobench.plantnet.Features"><code class="flex name class">
+<span>class <span class="ident">Features</span></span>
+<span>(</span><span>x: jaxtyping.Float[ndarray, 'n dim'], y: jaxtyping.Int[ndarray, 'n'], ids: jaxtyping.Shaped[ndarray, 'n'])</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Features(x: jaxtyping.Float[ndarray, 'n dim'], y: jaxtyping.Int[ndarray, 'n'], ids: jaxtyping.Shaped[ndarray, 'n'])</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
+@dataclasses.dataclass(frozen=True)
+class Features:
+    x: Float[np.ndarray, &#34;n dim&#34;]
+    y: Int[np.ndarray, &#34; n&#34;]
+    ids: Shaped[np.ndarray, &#34; n&#34;]</code></pre>
+</details>
+<h3>Class variables</h3>
+<dl>
+<dt id="biobench.plantnet.Features.ids"><code class="name">var <span class="ident">ids</span> : jaxtyping.Shaped[ndarray, 'n']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.plantnet.Features.x"><code class="name">var <span class="ident">x</span> : jaxtyping.Float[ndarray, 'n dim']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.plantnet.Features.y"><code class="name">var <span class="ident">y</span> : jaxtyping.Int[ndarray, 'n']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="biobench.plantnet.LabelProcessor"><code class="flex name class">
+<span>class <span class="ident">LabelProcessor</span></span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class LabelProcessor:
+    def __init__(self):
+        self._lookup = {}
+
+    def transform(self, label) -&gt; int:
+        if label not in self._lookup:
+            self._lookup[label] = len(self._lookup)
+        return self._lookup[label]</code></pre>
+</details>
+<h3>Methods</h3>
+<dl>
+<dt id="biobench.plantnet.LabelProcessor.transform"><code class="name flex">
+<span>def <span class="ident">transform</span></span>(<span>self, label) ‑> int</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
 </dl>
 </section>
 </article>
@@ -128,6 +281,9 @@ class Args(interfaces.TaskArgs):
 <li><h3><a href="#header-functions">Functions</a></h3>
 <ul class="">
 <li><code><a title="biobench.plantnet.benchmark" href="#biobench.plantnet.benchmark">benchmark</a></code></li>
+<li><code><a title="biobench.plantnet.calc_macro_top1" href="#biobench.plantnet.calc_macro_top1">calc_macro_top1</a></code></li>
+<li><code><a title="biobench.plantnet.get_features" href="#biobench.plantnet.get_features">get_features</a></code></li>
+<li><code><a title="biobench.plantnet.init_clf" href="#biobench.plantnet.init_clf">init_clf</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>
@@ -138,6 +294,27 @@ class Args(interfaces.TaskArgs):
 <li><code><a title="biobench.plantnet.Args.batch_size" href="#biobench.plantnet.Args.batch_size">batch_size</a></code></li>
 <li><code><a title="biobench.plantnet.Args.log_every" href="#biobench.plantnet.Args.log_every">log_every</a></code></li>
 <li><code><a title="biobench.plantnet.Args.n_workers" href="#biobench.plantnet.Args.n_workers">n_workers</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="biobench.plantnet.Dataset" href="#biobench.plantnet.Dataset">Dataset</a></code></h4>
+<ul class="">
+<li><code><a title="biobench.plantnet.Dataset.samples" href="#biobench.plantnet.Dataset.samples">samples</a></code></li>
+<li><code><a title="biobench.plantnet.Dataset.transform" href="#biobench.plantnet.Dataset.transform">transform</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="biobench.plantnet.Features" href="#biobench.plantnet.Features">Features</a></code></h4>
+<ul class="">
+<li><code><a title="biobench.plantnet.Features.ids" href="#biobench.plantnet.Features.ids">ids</a></code></li>
+<li><code><a title="biobench.plantnet.Features.x" href="#biobench.plantnet.Features.x">x</a></code></li>
+<li><code><a title="biobench.plantnet.Features.y" href="#biobench.plantnet.Features.y">y</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="biobench.plantnet.LabelProcessor" href="#biobench.plantnet.LabelProcessor">LabelProcessor</a></code></h4>
+<ul class="">
+<li><code><a title="biobench.plantnet.LabelProcessor.transform" href="#biobench.plantnet.LabelProcessor.transform">transform</a></code></li>
 </ul>
 </li>
 </ul>

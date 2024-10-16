@@ -38,13 +38,14 @@ hljs.highlightAll();
 </ul>
 <h2 id="task-modules">Task Modules</h2>
 <ul>
+<li><code><a title="biobench.ages" href="ages/index.html">biobench.ages</a></code>: Classify images of juvenile birds using only adult birds for training.</li>
+<li><code><a title="biobench.beluga" href="beluga/index.html">biobench.beluga</a></code>: Re-identification of Beluga whales using nearest neighbors.</li>
 <li><code><a title="biobench.birds525" href="birds525/index.html">biobench.birds525</a></code>: 1-shot classification with nearest-neighbor of the Kaggle Birds dataset.</li>
+<li><code><a title="biobench.fishnet" href="fishnet/index.html">biobench.fishnet</a></code>: Predict presense/absence of 9 different traits in images of fish.</li>
 <li><code><a title="biobench.iwildcam" href="iwildcam/index.html">biobench.iwildcam</a></code>: Species classification using multiclass linear regression.</li>
 <li><code><a title="biobench.kabr" href="kabr/index.html">biobench.kabr</a></code>: Behavior classification of single-subject animals using simpleshot of mean frame representations.</li>
 <li><code><a title="biobench.newt" href="newt/index.html">biobench.newt</a></code>: 164 binary classification tasks using an binary SVM trained on image features.</li>
-<li><code><a title="biobench.beluga" href="beluga/index.html">biobench.beluga</a></code>: Re-identification of Beluga whales using nearest neighbors.</li>
-<li><code><a title="biobench.fishnet" href="fishnet/index.html">biobench.fishnet</a></code>: Predict presense/absence of 9 different traits in images of fish.</li>
-<li><code><a title="biobench.ages" href="ages/index.html">biobench.ages</a></code>: Classify images of juvenile birds using only adult birds for training.</li>
+<li><code><a title="biobench.plantnet" href="plantnet/index.html">biobench.plantnet</a></code>:</li>
 </ul>
 <h2 id="helper-modules">Helper Modules</h2>
 <ul>
@@ -87,7 +88,9 @@ It requires only that we have a $N$-dimensional vector of scores, where $N$ is t
 <li>Some tasks are real tasks (KABR, Beluga).</li>
 <li>Others are made up (Birds525, RareSpecies).</li>
 <li>Some are in-between (NeWT, FishNet).</li>
+<li>Some are made up and we hypothesize that they predict performance on real tasks (ImageNet-1K, iNat2021).</li>
 <li>Likely, the real tasks are most important, but they are also the most specialized (and thus least likely to predict performance on other tasks).</li>
+<li>We don't know if ImageNet-1K or iNat2021 still predict performance on real, specialized tasks. They definitely did 2-5 years ago&mdash;is that still true with new models?</li>
 </ul>
 <div class="footnote">
 <hr>
@@ -117,6 +120,19 @@ Specifically, we measure classification accuracy among 11 …</p></div>
 <dt><code class="name"><a title="biobench.fishnet" href="fishnet/index.html">biobench.fishnet</a></code></dt>
 <dd>
 <div class="desc"><p>FishNet: Fish Recognition, Detection, and Functional Traits Prediction …</p></div>
+</dd>
+<dt><code class="name"><a title="biobench.helpers" href="helpers.html">biobench.helpers</a></code></dt>
+<dd>
+<div class="desc"><p>Useful helpers for more than two tasks that don't fit anywhere else.</p></div>
+</dd>
+<dt><code class="name"><a title="biobench.imagenet" href="imagenet/index.html">biobench.imagenet</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt><code class="name"><a title="biobench.inat21" href="inat21/index.html">biobench.inat21</a></code></dt>
+<dd>
+<div class="desc"><p>Trains a simple ridge regression classifier on visual representations for the iNat21 challenge.
+In the challenge, there are 10K different species …</p></div>
 </dd>
 <dt><code class="name"><a title="biobench.interfaces" href="interfaces.html">biobench.interfaces</a></code></dt>
 <dd>
@@ -210,6 +226,9 @@ author={Wang, Yan and Chao, …</p></div>
 <li><code><a title="biobench.beluga" href="beluga/index.html">biobench.beluga</a></code></li>
 <li><code><a title="biobench.birds525" href="birds525/index.html">biobench.birds525</a></code></li>
 <li><code><a title="biobench.fishnet" href="fishnet/index.html">biobench.fishnet</a></code></li>
+<li><code><a title="biobench.helpers" href="helpers.html">biobench.helpers</a></code></li>
+<li><code><a title="biobench.imagenet" href="imagenet/index.html">biobench.imagenet</a></code></li>
+<li><code><a title="biobench.inat21" href="inat21/index.html">biobench.inat21</a></code></li>
 <li><code><a title="biobench.interfaces" href="interfaces.html">biobench.interfaces</a></code></li>
 <li><code><a title="biobench.iwildcam" href="iwildcam/index.html">biobench.iwildcam</a></code></li>
 <li><code><a title="biobench.kabr" href="kabr/index.html">biobench.kabr</a></code></li>

@@ -143,7 +143,7 @@ Returns the figure so the caller can save or display it.</p>
 <dl>
 <dt id="benchmark.Args"><code class="flex name class">
 <span>class <span class="ident">Args</span></span>
-<span>(</span><span>slurm: bool = False, slurm_acct: str = 'PAS2136', model_args: typing.Annotated[list[tuple[typing.Literal['timm-vit', 'open-clip'], str]], _ArgConfiguration(name='model', metavar=None, help=None, aliases=None, prefix_name=None, constructor_factory=None)] = &lt;factory&gt;, device: Literal['cpu', 'cuda'] = 'cuda', debug: bool = False, newt_run: bool = False, newt_args: <a title="biobench.newt.Args" href="biobench/newt/index.html#biobench.newt.Args">Args</a> = &lt;factory&gt;, kabr_run: bool = False, kabr_args: <a title="biobench.kabr.Args" href="biobench/kabr/index.html#biobench.kabr.Args">Args</a> = &lt;factory&gt;, plantnet_run: bool = False, plantnet_args: <a title="biobench.plantnet.Args" href="biobench/plantnet/index.html#biobench.plantnet.Args">Args</a> = &lt;factory&gt;, iwildcam_run: bool = False, iwildcam_args: <a title="biobench.iwildcam.Args" href="biobench/iwildcam/index.html#biobench.iwildcam.Args">Args</a> = &lt;factory&gt;, birds525_run: bool = False, birds525_args: <a title="biobench.birds525.Args" href="biobench/birds525/index.html#biobench.birds525.Args">Args</a> = &lt;factory&gt;, rarespecies_run: bool = False, rarespecies_args: <a title="biobench.rarespecies.Args" href="biobench/rarespecies/index.html#biobench.rarespecies.Args">Args</a> = &lt;factory&gt;, beluga_run: bool = False, beluga_args: <a title="biobench.beluga.Args" href="biobench/beluga/index.html#biobench.beluga.Args">Args</a> = &lt;factory&gt;, fishnet_run: bool = False, fishnet_args: <a title="biobench.fishnet.Args" href="biobench/fishnet/index.html#biobench.fishnet.Args">Args</a> = &lt;factory&gt;, ages_run: bool = False, ages_args: <a title="biobench.ages.Args" href="biobench/ages/index.html#biobench.ages.Args">Args</a> = &lt;factory&gt;, report_to: str = './reports', graph: bool = True, graph_to: str = './graphs', log_to: str = './logs')</span>
+<span>(</span><span>slurm: bool = False, slurm_acct: str = 'PAS2136', model_args: typing.Annotated[list[tuple[str, str]], _ArgConfiguration(name='model', metavar=None, help=None, aliases=None, prefix_name=None, constructor_factory=None)] = &lt;factory&gt;, device: Literal['cpu', 'cuda'] = 'cuda', debug: bool = False, newt_run: bool = False, newt_args: <a title="biobench.newt.Args" href="biobench/newt/index.html#biobench.newt.Args">Args</a> = &lt;factory&gt;, kabr_run: bool = False, kabr_args: <a title="biobench.kabr.Args" href="biobench/kabr/index.html#biobench.kabr.Args">Args</a> = &lt;factory&gt;, plantnet_run: bool = False, plantnet_args: <a title="biobench.plantnet.Args" href="biobench/plantnet/index.html#biobench.plantnet.Args">Args</a> = &lt;factory&gt;, iwildcam_run: bool = False, iwildcam_args: <a title="biobench.iwildcam.Args" href="biobench/iwildcam/index.html#biobench.iwildcam.Args">Args</a> = &lt;factory&gt;, birds525_run: bool = False, birds525_args: <a title="biobench.birds525.Args" href="biobench/birds525/index.html#biobench.birds525.Args">Args</a> = &lt;factory&gt;, rarespecies_run: bool = False, rarespecies_args: <a title="biobench.rarespecies.Args" href="biobench/rarespecies/index.html#biobench.rarespecies.Args">Args</a> = &lt;factory&gt;, beluga_run: bool = False, beluga_args: <a title="biobench.beluga.Args" href="biobench/beluga/index.html#biobench.beluga.Args">Args</a> = &lt;factory&gt;, fishnet_run: bool = False, fishnet_args: <a title="biobench.fishnet.Args" href="biobench/fishnet/index.html#biobench.fishnet.Args">Args</a> = &lt;factory&gt;, ages_run: bool = False, ages_args: <a title="biobench.ages.Args" href="biobench/ages/index.html#biobench.ages.Args">Args</a> = &lt;factory&gt;, inat21_run: bool = False, inat21_args: <a title="biobench.inat21.Args" href="biobench/inat21/index.html#biobench.inat21.Args">Args</a> = &lt;factory&gt;, imagenet_run: bool = False, imagenet_args: <a title="biobench.imagenet.Args" href="biobench/imagenet/index.html#biobench.imagenet.Args">Args</a> = &lt;factory&gt;, report_to: str = './reports', graph: bool = True, graph_to: str = './graphs', log_to: str = './logs')</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Params to run one or more benchmarks in a parallel setting.</p></div>
@@ -161,17 +161,17 @@ class Args:
     slurm_acct: str = &#34;PAS2136&#34;
     &#34;&#34;&#34;slurm account string.&#34;&#34;&#34;
 
-    model_args: typing.Annotated[
-        list[tuple[ModelOrg, str]], tyro.conf.arg(name=&#34;model&#34;)
-    ] = dataclasses.field(
-        default_factory=lambda: [
-            (&#34;open-clip&#34;, &#34;RN50/openai&#34;),
-            (&#34;open-clip&#34;, &#34;ViT-B-16/openai&#34;),
-            (&#34;open-clip&#34;, &#34;ViT-B-16/laion400m_e32&#34;),
-            (&#34;open-clip&#34;, &#34;hf-hub:imageomics/bioclip&#34;),
-            (&#34;open-clip&#34;, &#34;ViT-B-16-SigLIP/webli&#34;),
-            (&#34;timm-vit&#34;, &#34;vit_base_patch14_reg4_dinov2.lvd142m&#34;),
-        ]
+    model_args: typing.Annotated[list[tuple[str, str]], tyro.conf.arg(name=&#34;model&#34;)] = (
+        dataclasses.field(
+            default_factory=lambda: [
+                (&#34;open-clip&#34;, &#34;RN50/openai&#34;),
+                (&#34;open-clip&#34;, &#34;ViT-B-16/openai&#34;),
+                (&#34;open-clip&#34;, &#34;ViT-B-16/laion400m_e32&#34;),
+                (&#34;open-clip&#34;, &#34;hf-hub:imageomics/bioclip&#34;),
+                (&#34;open-clip&#34;, &#34;ViT-B-16-SigLIP/webli&#34;),
+                (&#34;timm-vit&#34;, &#34;vit_base_patch14_reg4_dinov2.lvd142m&#34;),
+            ]
+        )
     )
     &#34;&#34;&#34;model; a pair of model org (interface) and checkpoint.&#34;&#34;&#34;
     device: typing.Literal[&#34;cpu&#34;, &#34;cuda&#34;] = &#34;cuda&#34;
@@ -215,6 +215,14 @@ class Args:
     &#34;&#34;&#34;Whether to run the bird age benchmark.&#34;&#34;&#34;
     ages_args: ages.Args = dataclasses.field(default_factory=ages.Args)
     &#34;&#34;&#34;Arguments for the bird age benchmark.&#34;&#34;&#34;
+    inat21_run: bool = False
+    &#34;&#34;&#34;Whether to run the iNat21 benchmark.&#34;&#34;&#34;
+    inat21_args: inat21.Args = dataclasses.field(default_factory=inat21.Args)
+    &#34;&#34;&#34;Arguments for the iNat21 benchmark.&#34;&#34;&#34;
+    imagenet_run: bool = False
+    &#34;&#34;&#34;Whether to run the ImageNet-1K benchmark.&#34;&#34;&#34;
+    imagenet_args: imagenet.Args = dataclasses.field(default_factory=imagenet.Args)
+    &#34;&#34;&#34;Arguments for the ImageNet-1K benchmark.&#34;&#34;&#34;
 
     # Reporting and graphing.
     report_to: str = os.path.join(&#34;.&#34;, &#34;reports&#34;)
@@ -286,6 +294,22 @@ class Args:
 <dd>
 <div class="desc"><p>where to save graphs to.</p></div>
 </dd>
+<dt id="benchmark.Args.imagenet_args"><code class="name">var <span class="ident">imagenet_args</span> : <a title="biobench.imagenet.Args" href="biobench/imagenet/index.html#biobench.imagenet.Args">Args</a></code></dt>
+<dd>
+<div class="desc"><p>Arguments for the ImageNet-1K benchmark.</p></div>
+</dd>
+<dt id="benchmark.Args.imagenet_run"><code class="name">var <span class="ident">imagenet_run</span> : bool</code></dt>
+<dd>
+<div class="desc"><p>Whether to run the ImageNet-1K benchmark.</p></div>
+</dd>
+<dt id="benchmark.Args.inat21_args"><code class="name">var <span class="ident">inat21_args</span> : <a title="biobench.inat21.Args" href="biobench/inat21/index.html#biobench.inat21.Args">Args</a></code></dt>
+<dd>
+<div class="desc"><p>Arguments for the iNat21 benchmark.</p></div>
+</dd>
+<dt id="benchmark.Args.inat21_run"><code class="name">var <span class="ident">inat21_run</span> : bool</code></dt>
+<dd>
+<div class="desc"><p>Whether to run the iNat21 benchmark.</p></div>
+</dd>
 <dt id="benchmark.Args.iwildcam_args"><code class="name">var <span class="ident">iwildcam_args</span> : <a title="biobench.iwildcam.Args" href="biobench/iwildcam/index.html#biobench.iwildcam.Args">Args</a></code></dt>
 <dd>
 <div class="desc"><p>arguments for the iWildCam benchmark.</p></div>
@@ -306,7 +330,7 @@ class Args:
 <dd>
 <div class="desc"><p>where to save logs to.</p></div>
 </dd>
-<dt id="benchmark.Args.model_args"><code class="name">var <span class="ident">model_args</span> : list[tuple[typing.Literal['timm-vit', 'open-clip'], str]]</code></dt>
+<dt id="benchmark.Args.model_args"><code class="name">var <span class="ident">model_args</span> : list[tuple[str, str]]</code></dt>
 <dd>
 <div class="desc"><p>model; a pair of model org (interface) and checkpoint.</p></div>
 </dd>
@@ -408,6 +432,10 @@ class Args:
 <li><code><a title="benchmark.Args.get_sqlite_connection" href="#benchmark.Args.get_sqlite_connection">get_sqlite_connection</a></code></li>
 <li><code><a title="benchmark.Args.graph" href="#benchmark.Args.graph">graph</a></code></li>
 <li><code><a title="benchmark.Args.graph_to" href="#benchmark.Args.graph_to">graph_to</a></code></li>
+<li><code><a title="benchmark.Args.imagenet_args" href="#benchmark.Args.imagenet_args">imagenet_args</a></code></li>
+<li><code><a title="benchmark.Args.imagenet_run" href="#benchmark.Args.imagenet_run">imagenet_run</a></code></li>
+<li><code><a title="benchmark.Args.inat21_args" href="#benchmark.Args.inat21_args">inat21_args</a></code></li>
+<li><code><a title="benchmark.Args.inat21_run" href="#benchmark.Args.inat21_run">inat21_run</a></code></li>
 <li><code><a title="benchmark.Args.iwildcam_args" href="#benchmark.Args.iwildcam_args">iwildcam_args</a></code></li>
 <li><code><a title="benchmark.Args.iwildcam_run" href="#benchmark.Args.iwildcam_run">iwildcam_run</a></code></li>
 <li><code><a title="benchmark.Args.kabr_args" href="#benchmark.Args.kabr_args">kabr_args</a></code></li>

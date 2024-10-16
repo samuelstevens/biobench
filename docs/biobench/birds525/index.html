@@ -180,7 +180,7 @@ class ChooseRandomCachedResult:
 <span>(</span><span>root: str, transform: Optional[Callable] = None, target_transform: Optional[Callable] = None, loader: Callable[[str], Any] = &lt;function default_loader&gt;, is_valid_file: Optional[Callable[[str], bool]] = None, allow_empty: bool = False)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Overwrites ImageFolder so that <code>__getitem__</code> includes the path, which we use as the ID.</p></div>
+<div class="desc"><p>Subclasses ImageFolder so that <code>__getitem__</code> includes the path, which we use as the ID.</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -188,7 +188,7 @@ class ChooseRandomCachedResult:
 <pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
 class Dataset(torchvision.datasets.ImageFolder):
     &#34;&#34;&#34;
-    Overwrites ImageFolder so that `__getitem__` includes the path, which we use as the ID.
+    Subclasses ImageFolder so that `__getitem__` includes the path, which we use as the ID.
     &#34;&#34;&#34;
 
     def __getitem__(self, index: int) -&gt; tuple[str, object, object]:
