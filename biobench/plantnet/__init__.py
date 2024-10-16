@@ -34,8 +34,8 @@ class Args(interfaces.TaskArgs):
 @jaxtyped(typechecker=beartype.beartype)
 @dataclasses.dataclass(frozen=True)
 class Features:
-    x: Float[np.ndarray, " n dim"]
-    y: Int[np.ndarray, " n n_classes"]
+    x: Float[np.ndarray, "n dim"]
+    y: Int[np.ndarray, " n"]
     ids: Shaped[np.ndarray, " n"]
 
 
@@ -56,11 +56,11 @@ def benchmark(
     train_features = get_features(args, backbone, split="train")
 
     # 2. Fit model.
-    model = init_ridge()
-    model.fit(train_features.x, train_features.y)
+    clf = init_clf(args)
+    clf.fit(train_features.x, train_features.y)
 
-    true_labels = val_features.y.argmax(axis=1)
-    pred_labels = model.predict(val_features.x).argmax(axis=1)
+    true_labels = val_features.y
+    pred_labels = clf.predict(val_features.x)
 
     examples = [
         interfaces.Example(
@@ -127,6 +127,16 @@ class Dataset(torch.utils.data.Dataset):
         return len(self.samples)
 
 
+class LabelProcessor:
+    def __init__(self):
+        self._lookup = {}
+
+    def transform(self, label) -> int:
+        if label not in self._lookup:
+            self._lookup[label] = len(self._lookup)
+        return self._lookup[label]
+
+
 @jaxtyped(typechecker=beartype.beartype)
 @torch.no_grad()
 def get_features(
@@ -147,6 +157,8 @@ def get_features(
         pin_memory=False,
         persistent_workers=False,
     )
+    label_processor = LabelProcessor()
+
     all_ids, all_features, all_labels = [], [], []
 
     total = len(dataloader) if not args.debug else 2
@@ -162,46 +174,32 @@ def get_features(
             all_features.append(features.cpu())
 
         all_ids.extend(ids)
+
+        labels = [label_processor.transform(label) for label in labels]
         all_labels.extend(labels)
 
-    # Convert labels to one single np.ndarray
     all_features = torch.cat(all_features, axis=0).cpu().numpy()
-    # Convert ids to np.ndarray of strings
+    all_labels = torch.tensor(all_labels).numpy()
     all_ids = np.array(all_ids)
 
-    # Make one-hot encoding np.ndarray
-    ##################################
-
-    # First make a label mapping from label_str to label_int
-    label_lookup = {}
-    for label in sorted(set(all_labels)):
-        assert label not in label_lookup
-        label_lookup[label] = len(label_lookup)
-    all_labels = torch.tensor([label_lookup[label] for label in all_labels])
-
-    n_examples = len(all_labels)
-    assert n_classes == len(label_lookup)
-
-    # Then one-hot encode the labels
-    all_onehots = torch.full((n_examples, n_classes), -1, dtype=all_labels.dtype)
-    index = all_labels[:, None]
-    # .scatter_(): all_onehots[i][index[i][j]] = src[i][j] for dim=1
-    all_onehots.scatter_(dim=1, index=index, src=torch.ones_like(index))
-    assert (all_onehots == 1).sum() == n_examples
-    all_onehots = all_onehots.numpy()
-
-    logger.info("Got features for %d images.", n_examples)
-
-    return Features(all_features, all_onehots, all_ids)
+    logger.info("Got features for %d images.", len(all_ids))
+    return Features(all_features, all_labels, all_ids)
 
 
-def init_ridge():
+@beartype.beartype
+def init_clf(args: Args):
+    alpha = np.pow(2.0, np.arange(-20, 11))
+    if args.debug:
+        alpha = np.pow(2.0, np.arange(-2, 2))
+
     return sklearn.model_selection.GridSearchCV(
         sklearn.pipeline.make_pipeline(
             sklearn.preprocessing.StandardScaler(),
-            sklearn.linear_model.Ridge(1.0),
+            sklearn.linear_model.RidgeClassifier(1.0, class_weight="balanced"),
         ),
-        {"ridge__alpha": np.pow(2.0, np.arange(-20, 11))},
+        {"ridgeclassifier__alpha": alpha},
         n_jobs=16,
         verbose=2,
+        # This uses sklearn.metrics.f1_score with average="macro"
+        scoring="f1_macro",
     )

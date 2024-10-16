@@ -29,7 +29,6 @@ import submitit
 import tyro
 
 from biobench import (
-    ModelOrg,
     ages,
     beluga,
     birds525,
@@ -57,17 +56,17 @@ class Args:
     slurm_acct: str = "PAS2136"
     """slurm account string."""
 
-    model_args: typing.Annotated[
-        list[tuple[ModelOrg, str]], tyro.conf.arg(name="model")
-    ] = dataclasses.field(
-        default_factory=lambda: [
-            ("open-clip", "RN50/openai"),
-            ("open-clip", "ViT-B-16/openai"),
-            ("open-clip", "ViT-B-16/laion400m_e32"),
-            ("open-clip", "hf-hub:imageomics/bioclip"),
-            ("open-clip", "ViT-B-16-SigLIP/webli"),
-            ("timm-vit", "vit_base_patch14_reg4_dinov2.lvd142m"),
-        ]
+    model_args: typing.Annotated[list[tuple[str, str]], tyro.conf.arg(name="model")] = (
+        dataclasses.field(
+            default_factory=lambda: [
+                ("open-clip", "RN50/openai"),
+                ("open-clip", "ViT-B-16/openai"),
+                ("open-clip", "ViT-B-16/laion400m_e32"),
+                ("open-clip", "hf-hub:imageomics/bioclip"),
+                ("open-clip", "ViT-B-16-SigLIP/webli"),
+                ("timm-vit", "vit_base_patch14_reg4_dinov2.lvd142m"),
+            ]
+        )
     )
     """model; a pair of model org (interface) and checkpoint."""
     device: typing.Literal["cpu", "cuda"] = "cuda"
@@ -179,7 +178,12 @@ def export_to_csv(args: Args) -> None:
     Exports (and writes) to a wide table format for viewing (long table formats are better for additional manipulation/graphing, but wide is easy for viewing).
     """
     conn = args.get_sqlite_connection()
-    stmt = "SELECT model_ckpt, task_name, mean_score, MAX(posix) AS posix FROM reports GROUP BY model_ckpt, task_name ORDER BY model_ckpt ASC;"
+    stmt = """
+    SELECT model_ckpt, task_name, mean_score, MAX(posix) AS posix 
+    FROM reports 
+    GROUP BY model_ckpt, task_name 
+    ORDER BY model_ckpt ASC;
+    """
     data = conn.execute(stmt, ()).fetchall()
 
     tasks = set()
