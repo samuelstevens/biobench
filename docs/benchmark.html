@@ -143,7 +143,7 @@ Returns the figure so the caller can save or display it.</p>
 <dl>
 <dt id="benchmark.Args"><code class="flex name class">
 <span>class <span class="ident">Args</span></span>
-<span>(</span><span>slurm: bool = False, slurm_acct: str = 'PAS2136', model_args: typing.Annotated[list[tuple[str, str]], _ArgConfiguration(name='model', metavar=None, help=None, aliases=None, prefix_name=None, constructor_factory=None)] = &lt;factory&gt;, device: Literal['cpu', 'cuda'] = 'cuda', debug: bool = False, newt_run: bool = False, newt_args: <a title="biobench.newt.Args" href="biobench/newt/index.html#biobench.newt.Args">Args</a> = &lt;factory&gt;, kabr_run: bool = False, kabr_args: <a title="biobench.kabr.Args" href="biobench/kabr/index.html#biobench.kabr.Args">Args</a> = &lt;factory&gt;, plantnet_run: bool = False, plantnet_args: <a title="biobench.plantnet.Args" href="biobench/plantnet/index.html#biobench.plantnet.Args">Args</a> = &lt;factory&gt;, iwildcam_run: bool = False, iwildcam_args: <a title="biobench.iwildcam.Args" href="biobench/iwildcam/index.html#biobench.iwildcam.Args">Args</a> = &lt;factory&gt;, birds525_run: bool = False, birds525_args: <a title="biobench.birds525.Args" href="biobench/birds525/index.html#biobench.birds525.Args">Args</a> = &lt;factory&gt;, rarespecies_run: bool = False, rarespecies_args: <a title="biobench.rarespecies.Args" href="biobench/rarespecies/index.html#biobench.rarespecies.Args">Args</a> = &lt;factory&gt;, beluga_run: bool = False, beluga_args: <a title="biobench.beluga.Args" href="biobench/beluga/index.html#biobench.beluga.Args">Args</a> = &lt;factory&gt;, fishnet_run: bool = False, fishnet_args: <a title="biobench.fishnet.Args" href="biobench/fishnet/index.html#biobench.fishnet.Args">Args</a> = &lt;factory&gt;, ages_run: bool = False, ages_args: <a title="biobench.ages.Args" href="biobench/ages/index.html#biobench.ages.Args">Args</a> = &lt;factory&gt;, inat21_run: bool = False, inat21_args: <a title="biobench.inat21.Args" href="biobench/inat21/index.html#biobench.inat21.Args">Args</a> = &lt;factory&gt;, imagenet_run: bool = False, imagenet_args: <a title="biobench.imagenet.Args" href="biobench/imagenet/index.html#biobench.imagenet.Args">Args</a> = &lt;factory&gt;, report_to: str = './reports', graph: bool = True, graph_to: str = './graphs', log_to: str = './logs')</span>
+<span>(</span><span>slurm: bool = False, slurm_acct: str = 'PAS2136', model_args: typing.Annotated[list[tuple[str, str]], _ArgConfiguration(name='model', metavar=None, help=None, aliases=None, prefix_name=None, constructor_factory=None)] = &lt;factory&gt;, device: Literal['cpu', 'cuda'] = 'cuda', debug: bool = False, newt_run: bool = False, newt_args: <a title="biobench.newt.Args" href="biobench/newt/index.html#biobench.newt.Args">Args</a> = &lt;factory&gt;, kabr_run: bool = False, kabr_args: <a title="biobench.kabr.Args" href="biobench/kabr/index.html#biobench.kabr.Args">Args</a> = &lt;factory&gt;, plantnet_run: bool = False, plantnet_args: <a title="biobench.plantnet.Args" href="biobench/plantnet/index.html#biobench.plantnet.Args">Args</a> = &lt;factory&gt;, iwildcam_run: bool = False, iwildcam_args: <a title="biobench.iwildcam.Args" href="biobench/iwildcam/index.html#biobench.iwildcam.Args">Args</a> = &lt;factory&gt;, birds525_run: bool = False, birds525_args: <a title="biobench.birds525.Args" href="biobench/birds525/index.html#biobench.birds525.Args">Args</a> = &lt;factory&gt;, rarespecies_run: bool = False, rarespecies_args: <a title="biobench.rarespecies.Args" href="biobench/rarespecies/index.html#biobench.rarespecies.Args">Args</a> = &lt;factory&gt;, beluga_run: bool = False, beluga_args: <a title="biobench.beluga.Args" href="biobench/beluga/index.html#biobench.beluga.Args">Args</a> = &lt;factory&gt;, fishnet_run: bool = False, fishnet_args: <a title="biobench.fishnet.Args" href="biobench/fishnet/index.html#biobench.fishnet.Args">Args</a> = &lt;factory&gt;, ages_run: bool = False, ages_args: <a title="biobench.ages.Args" href="biobench/ages/index.html#biobench.ages.Args">Args</a> = &lt;factory&gt;, inat21_run: bool = False, inat21_args: <a title="biobench.inat21.Args" href="biobench/inat21/index.html#biobench.inat21.Args">Args</a> = &lt;factory&gt;, imagenet_run: bool = False, imagenet_args: <a title="biobench.imagenet.Args" href="biobench/imagenet/index.html#biobench.imagenet.Args">Args</a> = &lt;factory&gt;, plankton_run: bool = False, plankton_args: <a title="biobench.plankton.Args" href="biobench/plankton/index.html#biobench.plankton.Args">Args</a> = &lt;factory&gt;, report_to: str = './reports', graph: bool = True, graph_to: str = './graphs', log_to: str = './logs')</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Params to run one or more benchmarks in a parallel setting.</p></div>
@@ -223,6 +223,10 @@ class Args:
     &#34;&#34;&#34;Whether to run the ImageNet-1K benchmark.&#34;&#34;&#34;
     imagenet_args: imagenet.Args = dataclasses.field(default_factory=imagenet.Args)
     &#34;&#34;&#34;Arguments for the ImageNet-1K benchmark.&#34;&#34;&#34;
+    plankton_run: bool = False
+    &#34;&#34;&#34;Whether to run the Plankton benchmark.&#34;&#34;&#34;
+    plankton_args: plankton.Args = dataclasses.field(default_factory=plankton.Args)
+    &#34;&#34;&#34;Arguments for the Plankton benchmark.&#34;&#34;&#34;
 
     # Reporting and graphing.
     report_to: str = os.path.join(&#34;.&#34;, &#34;reports&#34;)
@@ -342,6 +346,14 @@ class Args:
 <dd>
 <div class="desc"><p>whether to run the NeWT benchmark.</p></div>
 </dd>
+<dt id="benchmark.Args.plankton_args"><code class="name">var <span class="ident">plankton_args</span> : <a title="biobench.plankton.Args" href="biobench/plankton/index.html#biobench.plankton.Args">Args</a></code></dt>
+<dd>
+<div class="desc"><p>Arguments for the Plankton benchmark.</p></div>
+</dd>
+<dt id="benchmark.Args.plankton_run"><code class="name">var <span class="ident">plankton_run</span> : bool</code></dt>
+<dd>
+<div class="desc"><p>Whether to run the Plankton benchmark.</p></div>
+</dd>
 <dt id="benchmark.Args.plantnet_args"><code class="name">var <span class="ident">plantnet_args</span> : <a title="biobench.plantnet.Args" href="biobench/plantnet/index.html#biobench.plantnet.Args">Args</a></code></dt>
 <dd>
 <div class="desc"><p>arguments for the Pl@ntNet benchmark.</p></div>
@@ -444,6 +456,8 @@ class Args:
 <li><code><a title="benchmark.Args.model_args" href="#benchmark.Args.model_args">model_args</a></code></li>
 <li><code><a title="benchmark.Args.newt_args" href="#benchmark.Args.newt_args">newt_args</a></code></li>
 <li><code><a title="benchmark.Args.newt_run" href="#benchmark.Args.newt_run">newt_run</a></code></li>
+<li><code><a title="benchmark.Args.plankton_args" href="#benchmark.Args.plankton_args">plankton_args</a></code></li>
+<li><code><a title="benchmark.Args.plankton_run" href="#benchmark.Args.plankton_run">plankton_run</a></code></li>
 <li><code><a title="benchmark.Args.plantnet_args" href="#benchmark.Args.plantnet_args">plantnet_args</a></code></li>
 <li><code><a title="benchmark.Args.plantnet_run" href="#benchmark.Args.plantnet_run">plantnet_run</a></code></li>
 <li><code><a title="benchmark.Args.rarespecies_args" href="#benchmark.Args.rarespecies_args">rarespecies_args</a></code></li>

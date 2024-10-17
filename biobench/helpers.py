@@ -6,7 +6,10 @@ import collections.abc
 import logging
 import time
 
+import beartype
 
+
+@beartype.beartype
 class progress:
     def __init__(self, it, *, every: int = 10, desc: str = "progress"):
         """
@@ -44,5 +47,5 @@ class progress:
                 else:
                     self.logger.info("%d/? | %.1f it/m", i + 1, per_min)
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.it)

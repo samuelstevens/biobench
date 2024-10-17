@@ -160,34 +160,6 @@ class Features:
 </dd>
 </dl>
 </dd>
-<dt id="biobench.rarespecies.LabelProcessor"><code class="flex name class">
-<span>class <span class="ident">LabelProcessor</span></span>
-</code></dt>
-<dd>
-<div class="desc"></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class LabelProcessor:
-    def __init__(self):
-        self._lookup = {}
-
-    def transform(self, label) -&gt; int:
-        if label not in self._lookup:
-            self._lookup[label] = len(self._lookup)
-        return self._lookup[label]</code></pre>
-</details>
-<h3>Methods</h3>
-<dl>
-<dt id="biobench.rarespecies.LabelProcessor.transform"><code class="name flex">
-<span>def <span class="ident">transform</span></span>(<span>self, label) ‑> int</span>
-</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-</dd>
 <dt id="biobench.rarespecies.Preprocess"><code class="flex name class">
 <span>class <span class="ident">Preprocess</span></span>
 <span>(</span><span>img_transform)</span>
@@ -259,12 +231,6 @@ class Features:
 <li><code><a title="biobench.rarespecies.Features.ids" href="#biobench.rarespecies.Features.ids">ids</a></code></li>
 <li><code><a title="biobench.rarespecies.Features.x" href="#biobench.rarespecies.Features.x">x</a></code></li>
 <li><code><a title="biobench.rarespecies.Features.y" href="#biobench.rarespecies.Features.y">y</a></code></li>
-</ul>
-</li>
-<li>
-<h4><code><a title="biobench.rarespecies.LabelProcessor" href="#biobench.rarespecies.LabelProcessor">LabelProcessor</a></code></h4>
-<ul class="">
-<li><code><a title="biobench.rarespecies.LabelProcessor.transform" href="#biobench.rarespecies.LabelProcessor.transform">transform</a></code></li>
 </ul>
 </li>
 <li>

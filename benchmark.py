@@ -37,6 +37,7 @@ from biobench import (
     iwildcam,
     kabr,
     newt,
+    plankton,
     plantnet,
     rarespecies,
 )
@@ -110,6 +111,10 @@ class Args:
     """Whether to run the bird age benchmark."""
     ages_args: ages.Args = dataclasses.field(default_factory=ages.Args)
     """Arguments for the bird age benchmark."""
+    plankton_run: bool = False
+    """Whether to run the Plankton benchmark."""
+    plankton_args: plankton.Args = dataclasses.field(default_factory=plankton.Args)
+    """Arguments for the Plankton benchmark."""
 
     # Reporting and graphing.
     report_to: str = os.path.join(".", "reports")
@@ -173,7 +178,7 @@ def save(
 
 
 @beartype.beartype
-def export_to_csv(args: Args) -> None:
+def export_to_csv(args: Args) -> set[str]:
     """
     Exports (and writes) to a wide table format for viewing (long table formats are better for additional manipulation/graphing, but wide is easy for viewing).
     """
@@ -205,6 +210,7 @@ def export_to_csv(args: Args) -> None:
                 [model, scores["mean"]] + [scores[task] for task in sorted(tasks)]
             )
     logger.info("Wrote results to '%s'.", path)
+    return tasks
 
 
 @beartype.beartype
@@ -282,6 +288,12 @@ def main(args: Args):
             )
             job = executor.submit(ages.benchmark, ages_args, model_args)
             jobs.append(job)
+        if args.plankton_run:
+            plankton_args = dataclasses.replace(
+                args.plankton_args, device=args.device, debug=args.debug
+            )
+            job = executor.submit(plankton.benchmark, plankton_args, model_args)
+            jobs.append(job)
 
     logger.info("Submitted %d jobs.", len(jobs))
 
@@ -298,23 +310,13 @@ def main(args: Args):
         logger.info("Finished %d/%d jobs.", i + 1, len(jobs))
 
     # 4. Save results to CSV file for committing to git.
-    export_to_csv(args)
+    tasks = export_to_csv(args)
 
     # 5. Make graphs.
     if args.graph:
         # For each combination of model/task, get the most recent version from the database. Then make a graph and save it to disk.
         conn = args.get_sqlite_connection()
-        tasks = (
-            "KABR",
-            "NeWT",
-            "Pl@ntNet",
-            "iWildCam",
-            "Birds525",
-            "BelugaID",
-            "Ages",
-            "FishNet",
-        )
-        for task in tasks:
+        for task in sorted(tasks):
             fig = plot_task(conn, task)
             if fig is None:
                 continue

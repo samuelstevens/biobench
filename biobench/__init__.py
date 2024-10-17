@@ -20,6 +20,7 @@ The most important modules to understand are:
 * `kabr`: Behavior classification of single-subject animals using simpleshot of mean frame representations.
 * `newt`: 164 binary classification tasks using an binary SVM trained on image features.
 * `plantnet`:
+* `plankton`: classification of microscopic images of phytoplankton.
 
 ## Helper Modules
 
