@@ -26,6 +26,7 @@ import typing
 import beartype
 import numpy as np
 import sklearn.experimental.enable_halving_search_cv
+import sklearn.linear_model
 import sklearn.model_selection
 import sklearn.pipeline
 import sklearn.preprocessing
@@ -98,7 +99,11 @@ def benchmark(
             float(pred == true),
             {"y_pred": pred.item(), "y_true": true.item()},
         )
-        for image_id, pred, true in zip(val_features.ids, pred_labels, true_labels)
+        for image_id, pred, true in zip(
+            helpers.progress(val_features.ids, desc="Making examples", every=1_000),
+            pred_labels,
+            true_labels,
+        )
     ]
 
     report = interfaces.TaskReport(

@@ -17,7 +17,6 @@ The most important modules to understand are:
 * `birds525`: 1-shot classification with nearest-neighbor of the Kaggle Birds dataset.
 * `fishnet`: Predict presense/absence of 9 different traits in images of fish.
 * `iwildcam`: Species classification from camera trap imagery using multiclass ridge regression.
-* `iwildcam`: Species classification using multiclass linear regression.
 * `kabr`: Behavior classification of single-subject animals using simpleshot of mean frame representations.
 * `newt`: 164 binary classification tasks using an binary SVM trained on image features.
 * `plantnet`:

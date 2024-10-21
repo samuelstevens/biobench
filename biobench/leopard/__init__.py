@@ -25,6 +25,7 @@ import beartype
 import joblib
 import numpy as np
 import sklearn.neighbors
+import sklearn.preprocessing
 import torch
 import torchvision.datasets
 from jaxtyping import Float, Shaped, jaxtyped
