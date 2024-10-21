@@ -36,6 +36,7 @@ from biobench import (
     interfaces,
     iwildcam,
     kabr,
+    leopard,
     newt,
     plankton,
     plantnet,
@@ -84,6 +85,10 @@ class Args:
     """whether to run the KABR benchmark."""
     kabr_args: kabr.Args = dataclasses.field(default_factory=kabr.Args)
     """arguments for the KABR benchmark."""
+    leopard_run: bool = False
+    """Whether to run the leopard re-ID benchmark."""
+    leopard_args: leopard.Args = dataclasses.field(default_factory=leopard.Args)
+    """Arguments for the leopard re-ID benchmark."""
     plantnet_run: bool = False
     """whether to run the Pl@ntNet benchmark."""
     plantnet_args: plantnet.Args = dataclasses.field(default_factory=plantnet.Args)
@@ -287,6 +292,12 @@ def main(args: Args):
                 args.ages_args, device=args.device, debug=args.debug
             )
             job = executor.submit(ages.benchmark, ages_args, model_args)
+            jobs.append(job)
+        if args.leopard_run:
+            leopard_args = dataclasses.replace(
+                args.leopard_args, device=args.device, debug=args.debug
+            )
+            job = executor.submit(leopard.benchmark, leopard_args, model_args)
             jobs.append(job)
         if args.plankton_run:
             plankton_args = dataclasses.replace(

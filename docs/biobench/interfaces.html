@@ -130,6 +130,36 @@ class Example:
 </dd>
 </dl>
 </dd>
+<dt id="biobench.interfaces.ModelArgs"><code class="flex name class">
+<span>class <span class="ident">ModelArgs</span></span>
+<span>(</span><span>org: str, ckpt: str)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>ModelArgs(org, ckpt)</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ModelArgs(typing.NamedTuple):
+    org: str
+    ckpt: str</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>builtins.tuple</li>
+</ul>
+<h3>Instance variables</h3>
+<dl>
+<dt id="biobench.interfaces.ModelArgs.ckpt"><code class="name">var <span class="ident">ckpt</span> : str</code></dt>
+<dd>
+<div class="desc"><p>Alias for field number 1</p></div>
+</dd>
+<dt id="biobench.interfaces.ModelArgs.org"><code class="name">var <span class="ident">org</span> : str</code></dt>
+<dd>
+<div class="desc"><p>Alias for field number 0</p></div>
+</dd>
+</dl>
+</dd>
 <dt id="biobench.interfaces.TaskArgs"><code class="flex name class">
 <span>class <span class="ident">TaskArgs</span></span>
 <span>(</span><span>seed: int = 42, datadir: str = '', device: str = 'cuda', debug: bool = False)</span>
@@ -165,6 +195,7 @@ class TaskArgs:
 <li><a title="biobench.inat21.Args" href="inat21/index.html#biobench.inat21.Args">Args</a></li>
 <li><a title="biobench.iwildcam.Args" href="iwildcam/index.html#biobench.iwildcam.Args">Args</a></li>
 <li><a title="biobench.kabr.Args" href="kabr/index.html#biobench.kabr.Args">Args</a></li>
+<li><a title="biobench.leopard.Args" href="leopard/index.html#biobench.leopard.Args">Args</a></li>
 <li><a title="biobench.newt.Args" href="newt/index.html#biobench.newt.Args">Args</a></li>
 <li><a title="biobench.plankton.Args" href="plankton/index.html#biobench.plankton.Args">Args</a></li>
 <li><a title="biobench.plantnet.Args" href="plantnet/index.html#biobench.plantnet.Args">Args</a></li>
@@ -192,7 +223,7 @@ class TaskArgs:
 </dd>
 <dt id="biobench.interfaces.TaskReport"><code class="flex name class">
 <span>class <span class="ident">TaskReport</span></span>
-<span>(</span><span>name: str, examples: list[<a title="biobench.interfaces.Example" href="#biobench.interfaces.Example">Example</a>], *, calc_mean_score: Callable[[list[<a title="biobench.interfaces.Example" href="#biobench.interfaces.Example">Example</a>]], float] = &lt;function default_calc_mean_score&gt;, splits: dict[str, float] = &lt;factory&gt;, argv: list[str] = &lt;factory&gt;, commit: str = '7895c1750ab06cd8f0ffc958836a6121c77a96c8', posix_time: float = &lt;factory&gt;, gpu_name: str = &lt;factory&gt;, hostname: str = &lt;factory&gt;)</span>
+<span>(</span><span>name: str, examples: list[<a title="biobench.interfaces.Example" href="#biobench.interfaces.Example">Example</a>], *, calc_mean_score: Callable[[list[<a title="biobench.interfaces.Example" href="#biobench.interfaces.Example">Example</a>]], float] = &lt;function default_calc_mean_score&gt;, splits: dict[str, float] = &lt;factory&gt;, argv: list[str] = &lt;factory&gt;, commit: str = '056a46d7712b71db39f24d3dbf1e2fd80a80c74f', posix_time: float = &lt;factory&gt;, gpu_name: str = &lt;factory&gt;, hostname: str = &lt;factory&gt;)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>The result of running a benchmark task.</p></div>
@@ -447,6 +478,13 @@ This should be an evaluation transform, not a training transform, because we are
 <li><code><a title="biobench.interfaces.Example.id" href="#biobench.interfaces.Example.id">id</a></code></li>
 <li><code><a title="biobench.interfaces.Example.info" href="#biobench.interfaces.Example.info">info</a></code></li>
 <li><code><a title="biobench.interfaces.Example.score" href="#biobench.interfaces.Example.score">score</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="biobench.interfaces.ModelArgs" href="#biobench.interfaces.ModelArgs">ModelArgs</a></code></h4>
+<ul class="">
+<li><code><a title="biobench.interfaces.ModelArgs.ckpt" href="#biobench.interfaces.ModelArgs.ckpt">ckpt</a></code></li>
+<li><code><a title="biobench.interfaces.ModelArgs.org" href="#biobench.interfaces.ModelArgs.org">org</a></code></li>
 </ul>
 </li>
 <li>

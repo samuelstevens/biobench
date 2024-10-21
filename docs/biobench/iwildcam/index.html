@@ -44,7 +44,7 @@ hljs.highlightAll();
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
 <dt id="biobench.iwildcam.benchmark"><code class="name flex">
-<span>def <span class="ident">benchmark</span></span>(<span>args: <a title="biobench.iwildcam.Args" href="#biobench.iwildcam.Args">Args</a>, model_args: tuple[str, str]) ‑> tuple[tuple[str, str], <a title="biobench.interfaces.TaskReport" href="../interfaces.html#biobench.interfaces.TaskReport">TaskReport</a>]</span>
+<span>def <span class="ident">benchmark</span></span>(<span>args: <a title="biobench.iwildcam.Args" href="#biobench.iwildcam.Args">Args</a>, model_args: <a title="biobench.interfaces.ModelArgs" href="../interfaces.html#biobench.interfaces.ModelArgs">ModelArgs</a>) ‑> tuple[<a title="biobench.interfaces.ModelArgs" href="../interfaces.html#biobench.interfaces.ModelArgs">ModelArgs</a>, <a title="biobench.interfaces.TaskReport" href="../interfaces.html#biobench.interfaces.TaskReport">TaskReport</a>]</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
@@ -71,7 +71,7 @@ hljs.highlightAll();
 <span>(</span><span>seed: int = 42, datadir: str = '', device: str = 'cuda', debug: bool = False, batch_size: int = 2048, n_workers: int = 4, log_every: int = 10)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Args(seed: int = 42, datadir: str = '', device: str = 'cuda', debug: bool = False, batch_size: int = 2048, n_workers: int = 4, log_every: int = 10)</p></div>
+<div class="desc"><p>Arguments for the iWildCam task.</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -79,6 +79,8 @@ hljs.highlightAll();
 <pre><code class="python">@beartype.beartype
 @dataclasses.dataclass(frozen=True)
 class Args(interfaces.TaskArgs):
+    &#34;&#34;&#34;Arguments for the iWildCam task.&#34;&#34;&#34;
+
     batch_size: int = 2048
     &#34;&#34;&#34;batch size for deep model.&#34;&#34;&#34;
     n_workers: int = 4
