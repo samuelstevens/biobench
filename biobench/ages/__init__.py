@@ -7,6 +7,7 @@ Specifically, we measure classification accuracy among 11 species in multiple se
 3. Training images are adult, evaluation images are juvenile. This measures whether model representations are robust to changes in stage of life, which is the opposite of what the original NeWT task measures. We report this number as the primary score.
 
 We use the 11 juvenile vs adult tasks from NeWT, so if you use this task, be sure to cite that work (below).
+We use a multiclass SVM from scikit learn.
 
 To download the original data, follow the instructions in `biobench.newt.download`.
 
@@ -60,6 +61,16 @@ class Args(interfaces.TaskArgs):
 def benchmark(
     args: Args, model_args: interfaces.ModelArgs
 ) -> tuple[interfaces.ModelArgs, interfaces.TaskReport]:
+    """
+    Run benchmark.
+
+    Args:
+        args: configuration for age task.
+        model_args: args to load vision backbone.
+
+    Returns:
+        A tuple of model_args and the report describing the results.
+    """
     # 1. Load model
     backbone = registry.load_vision_backbone(*model_args)
 
@@ -69,18 +80,10 @@ def benchmark(
     # 3. For each task outlined above, evaluate representation quality.
     splits = {}
     for name, train, test in tasks:
-        x_mean = train.x.mean(axis=0, keepdims=True)
+        clf = init_clf()
 
-        x_train = train.x - x_mean
-        x_train = l2_normalize(x_train)
-
-        x_test = test.x - x_mean
-        x_test = l2_normalize(x_test)
-
-        svc = init_svc()
-
-        svc.fit(x_train, train.y)
-        y_pred = svc.predict(x_test)
+        clf.fit(train.x, train.y)
+        y_pred = clf.predict(test.x)
         examples = [
             interfaces.Example(str(id), float(pred == true), {})
             for id, pred, true in zip(test.ids, y_pred, test.y)
@@ -94,7 +97,7 @@ def benchmark(
 @jaxtyped(typechecker=beartype.beartype)
 class Dataset(torch.utils.data.Dataset):
     """
-    A dataset that returns `(example id, image tensor)` tuples.
+    A dataset that returns `(example id, image tensor, integer label)` tuples.
     """
 
     def __init__(self, dir: str, df, transform):
@@ -117,6 +120,8 @@ class Dataset(torch.utils.data.Dataset):
 @jaxtyped(typechecker=beartype.beartype)
 @dataclasses.dataclass(frozen=True)
 class Features:
+    """Inputs and outputs for a given task."""
+
     x: Float[np.ndarray, " n dim"]
     """Input features; from a `biobench.interfaces.VisionBackbone`."""
     y: Int[np.ndarray, " n"]
@@ -130,7 +135,16 @@ class Features:
 def get_all_tasks(
     args: Args, backbone: interfaces.VisionBackbone
 ) -> collections.abc.Iterator[tuple[str, Features, Features]]:
-    """ """
+    """
+    Gets train and test features for all the different tasks being evaluated.
+
+    Args:
+        args: configuration for the ages task.
+        backbone: the particular vision backbone being evaluated.
+
+    Returns:
+        An iterator of (taskname, train features, test features) tuples, one for each task (described in this module's docstring).
+    """
     labels_csv_name = "newt2021_labels.csv"
     labels_csv_path = os.path.join(args.datadir, labels_csv_name)
     images_dir_name = "newt2021_images"
@@ -164,7 +178,6 @@ def get_all_tasks(
 
     total = len(dataloader) if not args.debug else 2
     it = iter(dataloader)
-    logger.debug("Need to embed %d batches of %d images.", total, args.batch_size)
     for b in helpers.progress(range(total), every=args.log_every, desc="Embedding"):
         ids, images, labels = next(it)
         images = images.to(args.device)
@@ -180,7 +193,6 @@ def get_all_tasks(
     all_features = torch.cat(all_features, dim=0).cpu().numpy()
     all_labels = torch.tensor(all_labels).numpy()
     all_ids = np.array(all_ids)
-    logger.info("Got features for %d images.", len(all_ids))
 
     tasks = (("adult", "adult"), ("not_adult", "not_adult"), ("adult", "not_adult"))
     for train, test in tasks:
@@ -202,17 +214,10 @@ def get_all_tasks(
         )
 
 
-@jaxtyped(typechecker=beartype.beartype)
-def l2_normalize(
-    features: Float[np.ndarray, "batch dim"],
-) -> Float[np.ndarray, "batch dim"]:
-    """Normalizes a batch of vectors to have L2 unit norm."""
-    norms = np.linalg.norm(features, ord=2, axis=1, keepdims=True)
-    return features / norms
-
-
-def init_svc():
-    """Create a new, randomly initialized SVM with a random hyperparameter search over kernel, C and gamma. It uses only 16 jobs in parallel to prevent overloading the CPUs on a shared machine."""
+def init_clf():
+    """
+    Create a new, randomly initialized SVM with a random hyperparameter search over kernel, C and gamma. It uses only 16 jobs in parallel to prevent overloading the CPUs on a shared machine.
+    """
     return sklearn.model_selection.RandomizedSearchCV(
         sklearn.pipeline.make_pipeline(
             sklearn.preprocessing.StandardScaler(),
