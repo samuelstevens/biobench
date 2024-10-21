@@ -33,6 +33,8 @@ from biobench import (
     beluga,
     birds525,
     fishnet,
+    imagenet,
+    inat21,
     interfaces,
     iwildcam,
     kabr,
@@ -58,17 +60,17 @@ class Args:
     slurm_acct: str = "PAS2136"
     """slurm account string."""
 
-    model_args: typing.Annotated[list[tuple[str, str]], tyro.conf.arg(name="model")] = (
-        dataclasses.field(
-            default_factory=lambda: [
-                ("open-clip", "RN50/openai"),
-                ("open-clip", "ViT-B-16/openai"),
-                ("open-clip", "ViT-B-16/laion400m_e32"),
-                ("open-clip", "hf-hub:imageomics/bioclip"),
-                ("open-clip", "ViT-B-16-SigLIP/webli"),
-                ("timm-vit", "vit_base_patch14_reg4_dinov2.lvd142m"),
-            ]
-        )
+    model_args: typing.Annotated[
+        list[interfaces.ModelArgs], tyro.conf.arg(name="model")
+    ] = dataclasses.field(
+        default_factory=lambda: [
+            interfaces.ModelArgs("open-clip", "RN50/openai"),
+            interfaces.ModelArgs("open-clip", "ViT-B-16/openai"),
+            interfaces.ModelArgs("open-clip", "ViT-B-16/laion400m_e32"),
+            interfaces.ModelArgs("open-clip", "hf-hub:imageomics/bioclip"),
+            interfaces.ModelArgs("open-clip", "ViT-B-16-SigLIP/webli"),
+            interfaces.ModelArgs("timm-vit", "vit_base_patch14_reg4_dinov2.lvd142m"),
+        ]
     )
     """model; a pair of model org (interface) and checkpoint."""
     device: typing.Literal["cpu", "cuda"] = "cuda"
@@ -77,10 +79,34 @@ class Args:
     """whether to run in debug mode."""
 
     # Individual benchmarks.
-    newt_run: bool = False
-    """whether to run the NeWT benchmark."""
-    newt_args: newt.Args = dataclasses.field(default_factory=newt.Args)
-    """arguments for the NeWT benchmark."""
+    ages_run: bool = False
+    """Whether to run the bird age benchmark."""
+    ages_args: ages.Args = dataclasses.field(default_factory=ages.Args)
+    """Arguments for the bird age benchmark."""
+    beluga_run: bool = False
+    """Whether to run the Beluga whale re-ID benchmark."""
+    beluga_args: beluga.Args = dataclasses.field(default_factory=beluga.Args)
+    """Arguments for the Beluga whale re-ID benchmark."""
+    birds525_run: bool = False
+    """whether to run the Birds 525 benchmark."""
+    birds525_args: birds525.Args = dataclasses.field(default_factory=birds525.Args)
+    """arguments for the Birds 525 benchmark."""
+    fishnet_run: bool = False
+    """Whether to run the FishNet benchmark."""
+    fishnet_args: fishnet.Args = dataclasses.field(default_factory=fishnet.Args)
+    """Arguments for the FishNet benchmark."""
+    imagenet_run: bool = False
+    """Whether to run the ImageNet-1K benchmark."""
+    imagenet_args: imagenet.Args = dataclasses.field(default_factory=imagenet.Args)
+    """Arguments for the ImageNet-1K benchmark."""
+    inat21_run: bool = False
+    """Whether to run the iNat21 benchmark."""
+    inat21_args: inat21.Args = dataclasses.field(default_factory=inat21.Args)
+    """Arguments for the iNat21 benchmark."""
+    iwildcam_run: bool = False
+    """whether to run the iWildCam benchmark."""
+    iwildcam_args: iwildcam.Args = dataclasses.field(default_factory=iwildcam.Args)
+    """arguments for the iWildCam benchmark."""
     kabr_run: bool = False
     """whether to run the KABR benchmark."""
     kabr_args: kabr.Args = dataclasses.field(default_factory=kabr.Args)
@@ -89,37 +115,23 @@ class Args:
     """Whether to run the leopard re-ID benchmark."""
     leopard_args: leopard.Args = dataclasses.field(default_factory=leopard.Args)
     """Arguments for the leopard re-ID benchmark."""
+    newt_run: bool = False
+    """whether to run the NeWT benchmark."""
+    newt_args: newt.Args = dataclasses.field(default_factory=newt.Args)
+    """arguments for the NeWT benchmark."""
+    plankton_run: bool = False
+    """Whether to run the Plankton benchmark."""
+    plankton_args: plankton.Args = dataclasses.field(default_factory=plankton.Args)
+    """Arguments for the Plankton benchmark."""
     plantnet_run: bool = False
     """whether to run the Pl@ntNet benchmark."""
     plantnet_args: plantnet.Args = dataclasses.field(default_factory=plantnet.Args)
     """arguments for the Pl@ntNet benchmark."""
-    iwildcam_run: bool = False
-    """whether to run the iWildCam benchmark."""
-    iwildcam_args: iwildcam.Args = dataclasses.field(default_factory=iwildcam.Args)
-    """arguments for the iWildCam benchmark."""
-    birds525_run: bool = False
-    """whether to run the Birds 525 benchmark."""
-    birds525_args: birds525.Args = dataclasses.field(default_factory=birds525.Args)
-    """arguments for the Birds 525 benchmark."""
     rarespecies_run: bool = False
     rarespecies_args: rarespecies.Args = dataclasses.field(
         default_factory=rarespecies.Args
     )
     """Arguments for the Rare Species benchmark."""
-    beluga_run: bool = False
-    beluga_args: beluga.Args = dataclasses.field(default_factory=beluga.Args)
-    """Arguments for the Beluga whale re-ID benchmark."""
-    fishnet_run: bool = False
-    """Whether to run the FishNet benchmark."""
-    fishnet_args: fishnet.Args = dataclasses.field(default_factory=fishnet.Args)
-    ages_run: bool = False
-    """Whether to run the bird age benchmark."""
-    ages_args: ages.Args = dataclasses.field(default_factory=ages.Args)
-    """Arguments for the bird age benchmark."""
-    plankton_run: bool = False
-    """Whether to run the Plankton benchmark."""
-    plankton_args: plankton.Args = dataclasses.field(default_factory=plankton.Args)
-    """Arguments for the Plankton benchmark."""
 
     # Reporting and graphing.
     report_to: str = os.path.join(".", "reports")
@@ -241,39 +253,11 @@ def main(args: Args):
     # 2. Run benchmarks.
     jobs = []
     for model_args in args.model_args:
-        if args.newt_run:
-            newt_args = dataclasses.replace(
-                args.newt_args, device=args.device, debug=args.debug
+        if args.ages_run:
+            ages_args = dataclasses.replace(
+                args.ages_args, device=args.device, debug=args.debug
             )
-            jobs.append(executor.submit(newt.benchmark, newt_args, model_args))
-        if args.kabr_run:
-            kabr_args = dataclasses.replace(
-                args.kabr_args, device=args.device, debug=args.debug
-            )
-            jobs.append(executor.submit(kabr.benchmark, kabr_args, model_args))
-        if args.plantnet_run:
-            plantnet_args = dataclasses.replace(
-                args.plantnet_args, device=args.device, debug=args.debug
-            )
-            job = executor.submit(plantnet.benchmark, plantnet_args, model_args)
-            jobs.append(job)
-        if args.iwildcam_run:
-            iwildcam_args = dataclasses.replace(
-                args.iwildcam_args, device=args.device, debug=args.debug
-            )
-            job = executor.submit(iwildcam.benchmark, iwildcam_args, model_args)
-            jobs.append(job)
-        if args.birds525_run:
-            birds525_args = dataclasses.replace(
-                args.birds525_args, device=args.device, debug=args.debug
-            )
-            job = executor.submit(birds525.benchmark, birds525_args, model_args)
-            jobs.append(job)
-        if args.rarespecies_run:
-            rarespecies_args = dataclasses.replace(
-                args.rarespecies_args, device=args.device, debug=args.debug
-            )
-            job = executor.submit(rarespecies.benchmark, rarespecies_args, model_args)
+            job = executor.submit(ages.benchmark, ages_args, model_args)
             jobs.append(job)
         if args.beluga_run:
             beluga_args = dataclasses.replace(
@@ -281,29 +265,69 @@ def main(args: Args):
             )
             job = executor.submit(beluga.benchmark, beluga_args, model_args)
             jobs.append(job)
+        if args.birds525_run:
+            birds525_args = dataclasses.replace(
+                args.birds525_args, device=args.device, debug=args.debug
+            )
+            job = executor.submit(birds525.benchmark, birds525_args, model_args)
+            jobs.append(job)
         if args.fishnet_run:
             fishnet_args = dataclasses.replace(
                 args.fishnet_args, device=args.device, debug=args.debug
             )
             job = executor.submit(fishnet.benchmark, fishnet_args, model_args)
             jobs.append(job)
-        if args.ages_run:
-            ages_args = dataclasses.replace(
-                args.ages_args, device=args.device, debug=args.debug
+        if args.imagenet_run:
+            imagenet_args = dataclasses.replace(
+                args.imagenet_args, device=args.device, debug=args.debug
             )
-            job = executor.submit(ages.benchmark, ages_args, model_args)
+            job = executor.submit(imagenet.benchmark, imagenet_args, model_args)
             jobs.append(job)
+        if args.inat21_run:
+            inat21_args = dataclasses.replace(
+                args.inat21_args, device=args.device, debug=args.debug
+            )
+            job = executor.submit(inat21.benchmark, inat21_args, model_args)
+            jobs.append(job)
+        if args.iwildcam_run:
+            iwildcam_args = dataclasses.replace(
+                args.iwildcam_args, device=args.device, debug=args.debug
+            )
+            job = executor.submit(iwildcam.benchmark, iwildcam_args, model_args)
+            jobs.append(job)
+        if args.kabr_run:
+            kabr_args = dataclasses.replace(
+                args.kabr_args, device=args.device, debug=args.debug
+            )
+            jobs.append(executor.submit(kabr.benchmark, kabr_args, model_args))
         if args.leopard_run:
             leopard_args = dataclasses.replace(
                 args.leopard_args, device=args.device, debug=args.debug
             )
             job = executor.submit(leopard.benchmark, leopard_args, model_args)
             jobs.append(job)
+        if args.newt_run:
+            newt_args = dataclasses.replace(
+                args.newt_args, device=args.device, debug=args.debug
+            )
+            jobs.append(executor.submit(newt.benchmark, newt_args, model_args))
         if args.plankton_run:
             plankton_args = dataclasses.replace(
                 args.plankton_args, device=args.device, debug=args.debug
             )
             job = executor.submit(plankton.benchmark, plankton_args, model_args)
+            jobs.append(job)
+        if args.plantnet_run:
+            plantnet_args = dataclasses.replace(
+                args.plantnet_args, device=args.device, debug=args.debug
+            )
+            job = executor.submit(plantnet.benchmark, plantnet_args, model_args)
+            jobs.append(job)
+        if args.rarespecies_run:
+            rarespecies_args = dataclasses.replace(
+                args.rarespecies_args, device=args.device, debug=args.debug
+            )
+            job = executor.submit(rarespecies.benchmark, rarespecies_args, model_args)
             jobs.append(job)
 
     logger.info("Submitted %d jobs.", len(jobs))

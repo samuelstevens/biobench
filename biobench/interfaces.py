@@ -192,4 +192,6 @@ class TaskReport:
         }
 
 
-ModelArgs = tuple[str, str]
+class ModelArgs(typing.NamedTuple):
+    org: str
+    ckpt: str

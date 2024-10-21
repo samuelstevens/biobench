@@ -121,6 +121,10 @@ def benchmark(
     clf = init_clf(args)
     clf.fit(train_features.x, train_features.y(encoder))
 
+    helpers.write_hparam_sweep_plot("plankton", model_args.ckpt, clf)
+    alpha = clf.best_params_["ridgeclassifier__alpha"].item()
+    logger.info("alpha=%.2g scored %.3f.", alpha, clf.best_score_.item())
+
     # 3. Predict.
     pred_labels = clf.predict(val_features.x)
     logger.info("Predicted classes for %d examples.", len(val_features.x))
@@ -229,7 +233,7 @@ def init_clf(args: Args):
     """
     Make a grid search cross-validation version of a RidgeClassifier.
     """
-    alpha = np.pow(2.0, np.arange(-20, 11))
+    alpha = np.pow(2.0, np.arange(-15, 11))
     if args.debug:
         alpha = np.pow(2.0, np.arange(-2, 2))
 

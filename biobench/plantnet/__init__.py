@@ -25,6 +25,7 @@ import typing
 
 import beartype
 import numpy as np
+import sklearn.experimental.enable_halving_search_cv
 import sklearn.model_selection
 import sklearn.pipeline
 import sklearn.preprocessing
@@ -83,6 +84,10 @@ def benchmark(
     # 2. Fit model.
     clf = init_clf(args)
     clf.fit(train_features.x, train_features.y(encoder))
+
+    helpers.write_hparam_sweep_plot("plantnet", model_args.ckpt, clf)
+    alpha = clf.best_params_["ridgeclassifier__alpha"].item()
+    logger.info("alpha=%.2g scored %.3f.", alpha, clf.best_score_.item())
 
     true_labels = val_features.y(encoder)
     pred_labels = clf.predict(val_features.x)
@@ -200,11 +205,11 @@ def get_features(
 
 @beartype.beartype
 def init_clf(args: Args):
-    alpha = np.pow(2.0, np.arange(-20, 11))
+    alpha = np.pow(2.0, np.arange(-15, 11))
     if args.debug:
         alpha = np.pow(2.0, np.arange(-2, 2))
 
-    return sklearn.model_selection.GridSearchCV(
+    return sklearn.model_selection.HalvingGridSearchCV(
         sklearn.pipeline.make_pipeline(
             sklearn.preprocessing.StandardScaler(),
             sklearn.linear_model.RidgeClassifier(1.0, class_weight="balanced"),
@@ -214,4 +219,5 @@ def init_clf(args: Args):
         verbose=2,
         # This uses sklearn.metrics.f1_score with average="macro"
         scoring="f1_macro",
+        factor=3,
     )

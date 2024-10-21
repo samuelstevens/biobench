@@ -26,6 +26,8 @@ logger = logging.getLogger("iwildcam")
 @beartype.beartype
 @dataclasses.dataclass(frozen=True)
 class Args(interfaces.TaskArgs):
+    """Arguments for the iWildCam task."""
+
     batch_size: int = 2048
     """batch size for deep model."""
     n_workers: int = 4
@@ -76,6 +78,7 @@ def benchmark(
         num_workers=args.n_workers,
     )
     test_features = get_features(args, backbone, test_dataloader)
+    logger.info("Got test features.")
 
     train_dataset = dataset.get_subset("train", transform=transform)
     train_dataloader = wilds.common.data_loaders.get_train_loader(
@@ -85,25 +88,31 @@ def benchmark(
         num_workers=args.n_workers,
     )
     train_features = get_features(args, backbone, train_dataloader)
+    logger.info("Got train features.")
 
     # 2. Fit model.
     clf = init_clf(args)
     clf.fit(train_features.x, train_features.y)
 
+    helpers.write_hparam_sweep_plot("iwildcam", model_args, clf)
+    alpha = clf.best_params_["ridgeclassifier__alpha"].item()
+    logger.info("alpha=%.2g scored %.3f.", alpha, clf.best_score_.item())
+
     true_labels = test_features.y
     pred_labels = clf.predict(test_features.x)
 
-    # TODO: I don't know why this is so slow. 42K examples should be faster than 40 seconds.
-    logger.info("Constructing examples.")
     examples = [
         interfaces.Example(
             str(image_id),
             float(pred == true),
             {"y_pred": pred.item(), "y_true": true.item()},
         )
-        for image_id, pred, true in zip(test_features.ids, pred_labels, true_labels)
+        for image_id, pred, true in zip(
+            helpers.progress(test_features.ids, desc="making examples", every=1_000),
+            pred_labels,
+            true_labels,
+        )
     ]
-    logger.info("%d examples done.", len(examples))
 
     return model_args, interfaces.TaskReport(
         "iWildCam", examples, calc_mean_score=MeanScoreCalculator()
@@ -122,7 +131,6 @@ def get_features(
     # I don't do `for ... in dataloader` because early breaks were throwing exceptions.
     total = len(dataloader) if not args.debug else 2
     it = iter(dataloader)
-    logger.debug("Need to embed %d batches of %d images.", total, args.batch_size)
     for b in helpers.progress(range(total), every=args.log_every):
         images, labels, _ = next(it)
         images = images.to(args.device)
@@ -139,13 +147,12 @@ def get_features(
     all_features = torch.cat(all_features, axis=0).cpu().numpy()
     all_labels = torch.tensor(all_labels).numpy()
     all_ids = np.concatenate(all_ids, axis=0)
-    logger.info("Got features for %d images.", len(all_ids))
 
     return Features(all_features, all_labels, all_ids)
 
 
 def init_clf(args: Args):
-    alpha = np.pow(2.0, np.arange(-20, 11))
+    alpha = np.pow(2.0, np.arange(-15, 5))
     if args.debug:
         alpha = np.pow(2.0, np.arange(-2, 2))
 
@@ -155,6 +162,8 @@ def init_clf(args: Args):
             sklearn.linear_model.RidgeClassifier(1.0),
         ),
         {"ridgeclassifier__alpha": alpha},
-        n_jobs=8,
+        n_jobs=16,
         verbose=2,
+        # This uses sklearn.metrics.f1_score with average="macro", just like our final score calculator.
+        scoring="f1_macro",
     )

@@ -4,6 +4,7 @@ Useful helpers for more than two tasks that don't fit anywhere else.
 
 import collections.abc
 import logging
+import os.path
 import time
 
 import beartype
@@ -49,3 +50,46 @@ class progress:
 
     def __len__(self) -> int:
         return len(self.it)
+
+
+@beartype.beartype
+def fs_safe(string: str) -> str:
+    """Makes a string safe for filesystems by removing typical special characters."""
+    return string.replace(":", "_").replace("/", "_")
+
+
+@beartype.beartype
+def write_hparam_sweep_plot(
+    task: str,
+    model: str,
+    clf,
+    x: str = "param_ridgeclassifier__alpha",
+    y: str = "mean_test_score",
+) -> str:
+    import matplotlib.pyplot as plt
+    import polars as pl
+
+    df = pl.DataFrame(clf.cv_results_)
+
+    fig, ax = plt.subplots()
+
+    if "n_resources" in df.columns:
+        for n_resources in df.get_column("n_resources").unique().sort():
+            ax.scatter(
+                x=df.filter(pl.col("n_resources") == n_resources)[x],
+                y=df.filter(pl.col("n_resources") == n_resources)[y],
+                label=f"{n_resources} ex.",
+            )
+        fig.legend()
+    else:
+        ax.scatter(x=df[x], y=df[y])
+
+    ax.set_xlabel(x)
+    ax.set_ylabel(y)
+    ax.set_xscale("log")
+    ax.set_title(model)
+
+    fig.tight_layout()
+    filepath = os.path.join("logs", f"{task}_{fs_safe(model)}_hparam.png")
+    fig.savefig(filepath)
+    return filepath
