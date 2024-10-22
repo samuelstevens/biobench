@@ -43,12 +43,93 @@ hljs.highlightAll();
 <li><code><a title="biobench.birds525" href="birds525/index.html">biobench.birds525</a></code>: 1-shot classification with nearest-neighbor of the Kaggle Birds dataset.</li>
 <li><code><a title="biobench.fishnet" href="fishnet/index.html">biobench.fishnet</a></code>: Predict presense/absence of 9 different traits in images of fish.</li>
 <li><code><a title="biobench.iwildcam" href="iwildcam/index.html">biobench.iwildcam</a></code>: Species classification from camera trap imagery using multiclass ridge regression.</li>
-<li><code><a title="biobench.iwildcam" href="iwildcam/index.html">biobench.iwildcam</a></code>: Species classification using multiclass linear regression.</li>
 <li><code><a title="biobench.kabr" href="kabr/index.html">biobench.kabr</a></code>: Behavior classification of single-subject animals using simpleshot of mean frame representations.</li>
 <li><code><a title="biobench.newt" href="newt/index.html">biobench.newt</a></code>: 164 binary classification tasks using an binary SVM trained on image features.</li>
 <li><code><a title="biobench.plantnet" href="plantnet/index.html">biobench.plantnet</a></code>:</li>
 <li><code><a title="biobench.plankton" href="plankton/index.html">biobench.plankton</a></code>: classification of microscopic images of phytoplankton.</li>
 </ul>
+<p>We can also compare tasks by the fundamental task and the types of images used.</p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Fundamental Task</th>
+<th>Image Distribution</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code><a title="biobench.ages" href="ages/index.html">biobench.ages</a></code></td>
+<td>Classification</td>
+<td>object-centric in-situ RGB photos</td>
+</tr>
+<tr>
+<td><code><a title="biobench.beluga" href="beluga/index.html">biobench.beluga</a></code></td>
+<td>Re-identification (via KNN)</td>
+<td>top-down cropped RGB photos</td>
+</tr>
+<tr>
+<td><code><a title="biobench.birds525" href="birds525/index.html">biobench.birds525</a></code></td>
+<td>Classification</td>
+<td>object-centric in-situ RGB photos</td>
+</tr>
+<tr>
+<td><code><a title="biobench.fishnet" href="fishnet/index.html">biobench.fishnet</a></code></td>
+<td>Functional trait prediction</td>
+<td>lab specimen RGB photos</td>
+</tr>
+<tr>
+<td><code><a title="biobench.imagenet" href="imagenet/index.html">biobench.imagenet</a></code></td>
+<td>Classification</td>
+<td>object-centric in-situ RGB photos</td>
+</tr>
+<tr>
+<td><code><a title="biobench.inat21" href="inat21/index.html">biobench.inat21</a></code></td>
+<td>Classification</td>
+<td>object-centric in-situ RGB photos</td>
+</tr>
+<tr>
+<td><code><a title="biobench.iwildcam" href="iwildcam/index.html">biobench.iwildcam</a></code></td>
+<td>Classification</td>
+<td>camera-trap images, black-and-white</td>
+</tr>
+<tr>
+<td><code><a title="biobench.kabr" href="kabr/index.html">biobench.kabr</a></code></td>
+<td>Classification (Behavior)</td>
+<td></td>
+</tr>
+<tr>
+<td><code><a title="biobench.leopard" href="leopard/index.html">biobench.leopard</a></code></td>
+<td>Re-identification (via SVM)</td>
+<td></td>
+</tr>
+<tr>
+<td><code><a title="biobench.newt" href="newt/index.html">biobench.newt</a></code></td>
+<td></td>
+<td>object-centric in-situ RGB photos</td>
+</tr>
+<tr>
+<td><code><a title="biobench.plantnet" href="plantnet/index.html">biobench.plantnet</a></code></td>
+<td>Classification</td>
+<td>object-centric in-situ RGB photos</td>
+</tr>
+<tr>
+<td><code><a title="biobench.plankton" href="plankton/index.html">biobench.plankton</a></code></td>
+<td>Classification</td>
+<td>microscopic black-and-white slides</td>
+</tr>
+<tr>
+<td><code><a title="biobench.rarespecies" href="rarespecies/index.html">biobench.rarespecies</a></code></td>
+<td>Classification</td>
+<td>object-centric in-situ RGB photos</td>
+</tr>
+</tbody>
+</table>
+<p>Most of our tasks are species classification.
+The only non-species classification tasks are Belgua whale and leopard re-identification, FishNet's functional trait prediction, and KABR's <em>behavior</em> classification.
+The age task includes a train/test mismatch and iWildCam and the plankton task are different image distributions.
+But Birds525, ImageNet, iNat21, Pl@ntNet, and RareSpecies all fill the same hole.
+I would expect performance on these tasks to be extremely correlated.</p>
 <h1 id="helper-modules">Helper Modules</h1>
 <ul>
 <li><code><a title="biobench.interfaces" href="interfaces.html">biobench.interfaces</a></code>: All the interfaces that describe how the different modules communicate.</li>

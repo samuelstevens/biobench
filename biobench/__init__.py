@@ -10,7 +10,10 @@ The most important modules to understand are:
 * Any of the task modules--`newt` is well documented.
 * Any of the vision modules--`third_party_models.OpenClip` is highly relevant to anyone using the [open_clip](https://github.com/mlfoundations/open_clip) codebase to train models.
 
+
+
 # Task Modules
+
 
 * `ages`: Classify images of juvenile birds using only adult birds for training.
 * `beluga`: Re-identification of Beluga whales using nearest neighbors.
@@ -19,8 +22,32 @@ The most important modules to understand are:
 * `iwildcam`: Species classification from camera trap imagery using multiclass ridge regression.
 * `kabr`: Behavior classification of single-subject animals using simpleshot of mean frame representations.
 * `newt`: 164 binary classification tasks using an binary SVM trained on image features.
-* `plantnet`:
+* `plantnet`: long-tail classification of plant species.
 * `plankton`: classification of microscopic images of phytoplankton.
+
+We can also compare tasks by the fundamental task and the types of images used.
+
+| Name | Fundamental Task | Image Distribution |
+|---|---|---|
+| `ages` | Classification | object-centric in-situ RGB photos |
+| `beluga` | Re-identification (via KNN) | top-down cropped RGB photos |
+| `birds525` | Classification | object-centric in-situ RGB photos |
+| `fishnet` | Functional trait prediction | lab specimen RGB photos |
+| `imagenet` | Classification | object-centric in-situ RGB photos |
+| `inat21` | Classification | object-centric in-situ RGB photos |
+| `iwildcam` | Classification | camera-trap images, black-and-white |
+| `kabr` | Classification (Behavior) | |
+| `leopard` | Re-identification (via SVM) |
+| `newt` | | object-centric in-situ RGB photos |
+| `plantnet` | Classification | object-centric in-situ RGB photos |
+| `plankton` | Classification | microscopic black-and-white slides |
+| `rarespecies` | Classification | object-centric in-situ RGB photos |
+
+Most of our tasks are species classification.
+The only non-species classification tasks are Belgua whale and leopard re-identification, FishNet's functional trait prediction, and KABR's *behavior* classification.
+The age task includes a train/test mismatch and iWildCam and the plankton task are different image distributions.
+But Birds525, ImageNet, iNat21, Pl@ntNet, and RareSpecies all fill the same hole.
+I would expect performance on these tasks to be extremely correlated.
 
 # Helper Modules
 
