@@ -10,10 +10,7 @@ The most important modules to understand are:
 * Any of the task modules--`newt` is well documented.
 * Any of the vision modules--`third_party_models.OpenClip` is highly relevant to anyone using the [open_clip](https://github.com/mlfoundations/open_clip) codebase to train models.
 
-
-
 # Task Modules
-
 
 * `ages`: Classify images of juvenile birds using only adult birds for training.
 * `beluga`: Re-identification of Beluga whales using nearest neighbors.
@@ -24,6 +21,32 @@ The most important modules to understand are:
 * `newt`: 164 binary classification tasks using an binary SVM trained on image features.
 * `plantnet`: long-tail classification of plant species.
 * `plankton`: classification of microscopic images of phytoplankton.
+# Helper Modules
+
+* `interfaces`: All the interfaces that describe how the different modules communicate.
+* `registry`: How to add/load vision models to BioBench.
+* `simpleshot`: An implementation of nearest-centroid classification from [Simpleshot](https://arxiv.org/abs/1911.04623).
+* `third_party_models`: Some pre-written vision backbones that load checkpoints from [open_clip](https://github.com/mlfoundations/open_clip) and [timm](https://github.com/huggingface/pytorch-image-models). You can use these as inspiration for writing your own vision backbones or check out `biobench.registry` for a tutorial.
+
+# Future Tasks
+
+These are tasks that I plan on adding but are not yet done.
+
+* `rarespecies`: Waiting on a [bug](https://huggingface.co/datasets/imageomics/rare-species/discussions/8) in Huggingface's datasets library.
+* [FishVista](https://github.com/Imageomics/Fish-Vista): I want to add trait classification: given patch-level features, can we train a linear probe to predict the presence/absense of a feature?
+
+# Discussion of Task Importance
+
+(TODO)
+
+Main points:
+
+* Some tasks are real tasks (KABR, Beluga).
+* Others are made up (Birds525, RareSpecies).
+* Some are in-between (NeWT, FishNet).
+* Some are made up and we hypothesize that they predict performance on real tasks (ImageNet-1K, iNat2021).
+* Likely, the real tasks are most important, but they are also the most specialized (and thus least likely to predict performance on other tasks).
+* We don't know if ImageNet-1K or iNat2021 still predict performance on real, specialized tasks. They definitely did 2-5 years ago---is that still true with new models?
 
 We can also compare tasks by the fundamental task and the types of images used.
 
@@ -46,36 +69,11 @@ We can also compare tasks by the fundamental task and the types of images used.
 Most of our tasks are species classification.
 The only non-species classification tasks are Belgua whale and leopard re-identification, FishNet's functional trait prediction, and KABR's *behavior* classification.
 The age task includes a train/test mismatch and iWildCam and the plankton task are different image distributions.
-But Birds525, ImageNet, iNat21, Pl@ntNet, and RareSpecies all fill the same hole.
+
+But Birds525, ImageNet, iNat21, Pl@ntNet, and RareSpecies all fill the same role.
 I would expect performance on these tasks to be extremely correlated.
 
-# Helper Modules
-
-* `interfaces`: All the interfaces that describe how the different modules communicate.
-* `registry`: How to add/load vision models to BioBench.
-* `simpleshot`: An implementation of nearest-centroid classification from [Simpleshot](https://arxiv.org/abs/1911.04623).
-* `third_party_models`: Some pre-written vision backbones that load checkpoints from [open_clip](https://github.com/mlfoundations/open_clip) and [timm](https://github.com/huggingface/pytorch-image-models). You can use these as inspiration for writing your own vision backbones or check out `biobench.registry` for a tutorial.
-
-# Future Tasks
-
-These are tasks that I plan on adding but are not yet done.
-
-* `rarespecies`: Waiting on a [bug](https://huggingface.co/datasets/imageomics/rare-species/discussions/8) in Huggingface's datasets library.
-* [FishVista](https://github.com/Imageomics/Fish-Vista): I want to add trait classification: given patch-level features, can we train a linear probe to predict the presence/absense of a feature?
-
-
-# Discussion of Task Importance
-
-(TODO)
-
-Main points:
-
-* Some tasks are real tasks (KABR, Beluga).
-* Others are made up (Birds525, RareSpecies).
-* Some are in-between (NeWT, FishNet).
-* Some are made up and we hypothesize that they predict performance on real tasks (ImageNet-1K, iNat2021).
-* Likely, the real tasks are most important, but they are also the most specialized (and thus least likely to predict performance on other tasks).
-* We don't know if ImageNet-1K or iNat2021 still predict performance on real, specialized tasks. They definitely did 2-5 years ago---is that still true with new models?
+This raises the question: why do we have multiple tasks that fill the same role?
 
 .. include:: ./confidence-intervals.md
 """

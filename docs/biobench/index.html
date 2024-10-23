@@ -45,8 +45,32 @@ hljs.highlightAll();
 <li><code><a title="biobench.iwildcam" href="iwildcam/index.html">biobench.iwildcam</a></code>: Species classification from camera trap imagery using multiclass ridge regression.</li>
 <li><code><a title="biobench.kabr" href="kabr/index.html">biobench.kabr</a></code>: Behavior classification of single-subject animals using simpleshot of mean frame representations.</li>
 <li><code><a title="biobench.newt" href="newt/index.html">biobench.newt</a></code>: 164 binary classification tasks using an binary SVM trained on image features.</li>
-<li><code><a title="biobench.plantnet" href="plantnet/index.html">biobench.plantnet</a></code>:</li>
+<li><code><a title="biobench.plantnet" href="plantnet/index.html">biobench.plantnet</a></code>: long-tail classification of plant species.</li>
 <li><code><a title="biobench.plankton" href="plankton/index.html">biobench.plankton</a></code>: classification of microscopic images of phytoplankton.</li>
+</ul>
+<h1 id="helper-modules">Helper Modules</h1>
+<ul>
+<li><code><a title="biobench.interfaces" href="interfaces.html">biobench.interfaces</a></code>: All the interfaces that describe how the different modules communicate.</li>
+<li><code><a title="biobench.registry" href="registry.html">biobench.registry</a></code>: How to add/load vision models to BioBench.</li>
+<li><code><a title="biobench.simpleshot" href="simpleshot.html">biobench.simpleshot</a></code>: An implementation of nearest-centroid classification from <a href="https://arxiv.org/abs/1911.04623">Simpleshot</a>.</li>
+<li><code><a title="biobench.third_party_models" href="third_party_models.html">biobench.third_party_models</a></code>: Some pre-written vision backbones that load checkpoints from <a href="https://github.com/mlfoundations/open_clip">open_clip</a> and <a href="https://github.com/huggingface/pytorch-image-models">timm</a>. You can use these as inspiration for writing your own vision backbones or check out <code><a title="biobench.registry" href="registry.html">biobench.registry</a></code> for a tutorial.</li>
+</ul>
+<h1 id="future-tasks">Future Tasks</h1>
+<p>These are tasks that I plan on adding but are not yet done.</p>
+<ul>
+<li><code><a title="biobench.rarespecies" href="rarespecies/index.html">biobench.rarespecies</a></code>: Waiting on a <a href="https://huggingface.co/datasets/imageomics/rare-species/discussions/8">bug</a> in Huggingface's datasets library.</li>
+<li><a href="https://github.com/Imageomics/Fish-Vista">FishVista</a>: I want to add trait classification: given patch-level features, can we train a linear probe to predict the presence/absense of a feature?</li>
+</ul>
+<h1 id="discussion-of-task-importance">Discussion of Task Importance</h1>
+<p>(TODO)</p>
+<p>Main points:</p>
+<ul>
+<li>Some tasks are real tasks (KABR, Beluga).</li>
+<li>Others are made up (Birds525, RareSpecies).</li>
+<li>Some are in-between (NeWT, FishNet).</li>
+<li>Some are made up and we hypothesize that they predict performance on real tasks (ImageNet-1K, iNat2021).</li>
+<li>Likely, the real tasks are most important, but they are also the most specialized (and thus least likely to predict performance on other tasks).</li>
+<li>We don't know if ImageNet-1K or iNat2021 still predict performance on real, specialized tasks. They definitely did 2-5 years ago&mdash;is that still true with new models?</li>
 </ul>
 <p>We can also compare tasks by the fundamental task and the types of images used.</p>
 <table>
@@ -127,33 +151,10 @@ hljs.highlightAll();
 </table>
 <p>Most of our tasks are species classification.
 The only non-species classification tasks are Belgua whale and leopard re-identification, FishNet's functional trait prediction, and KABR's <em>behavior</em> classification.
-The age task includes a train/test mismatch and iWildCam and the plankton task are different image distributions.
-But Birds525, ImageNet, iNat21, Pl@ntNet, and RareSpecies all fill the same hole.
+The age task includes a train/test mismatch and iWildCam and the plankton task are different image distributions.</p>
+<p>But Birds525, ImageNet, iNat21, Pl@ntNet, and RareSpecies all fill the same role.
 I would expect performance on these tasks to be extremely correlated.</p>
-<h1 id="helper-modules">Helper Modules</h1>
-<ul>
-<li><code><a title="biobench.interfaces" href="interfaces.html">biobench.interfaces</a></code>: All the interfaces that describe how the different modules communicate.</li>
-<li><code><a title="biobench.registry" href="registry.html">biobench.registry</a></code>: How to add/load vision models to BioBench.</li>
-<li><code><a title="biobench.simpleshot" href="simpleshot.html">biobench.simpleshot</a></code>: An implementation of nearest-centroid classification from <a href="https://arxiv.org/abs/1911.04623">Simpleshot</a>.</li>
-<li><code><a title="biobench.third_party_models" href="third_party_models.html">biobench.third_party_models</a></code>: Some pre-written vision backbones that load checkpoints from <a href="https://github.com/mlfoundations/open_clip">open_clip</a> and <a href="https://github.com/huggingface/pytorch-image-models">timm</a>. You can use these as inspiration for writing your own vision backbones or check out <code><a title="biobench.registry" href="registry.html">biobench.registry</a></code> for a tutorial.</li>
-</ul>
-<h1 id="future-tasks">Future Tasks</h1>
-<p>These are tasks that I plan on adding but are not yet done.</p>
-<ul>
-<li><code><a title="biobench.rarespecies" href="rarespecies/index.html">biobench.rarespecies</a></code>: Waiting on a <a href="https://huggingface.co/datasets/imageomics/rare-species/discussions/8">bug</a> in Huggingface's datasets library.</li>
-<li><a href="https://github.com/Imageomics/Fish-Vista">FishVista</a>: I want to add trait classification: given patch-level features, can we train a linear probe to predict the presence/absense of a feature?</li>
-</ul>
-<h1 id="discussion-of-task-importance">Discussion of Task Importance</h1>
-<p>(TODO)</p>
-<p>Main points:</p>
-<ul>
-<li>Some tasks are real tasks (KABR, Beluga).</li>
-<li>Others are made up (Birds525, RareSpecies).</li>
-<li>Some are in-between (NeWT, FishNet).</li>
-<li>Some are made up and we hypothesize that they predict performance on real tasks (ImageNet-1K, iNat2021).</li>
-<li>Likely, the real tasks are most important, but they are also the most specialized (and thus least likely to predict performance on other tasks).</li>
-<li>We don't know if ImageNet-1K or iNat2021 still predict performance on real, specialized tasks. They definitely did 2-5 years ago&mdash;is that still true with new models?</li>
-</ul>
+<p>This raises the question: why do we have multiple tasks that fill the same role?</p>
 <h1 id="confidence-intervals">Confidence Intervals</h1>
 <p>Recommended Reading:</p>
 <ul>
