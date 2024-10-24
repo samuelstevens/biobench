@@ -21,7 +21,7 @@ import torchvision.datasets
 from jaxtyping import Float, Int, Shaped, jaxtyped
 from torch import Tensor
 
-from biobench import interfaces, registry, simpleshot
+from biobench import helpers, interfaces, registry, simpleshot
 
 logger = logging.getLogger("birds525")
 
@@ -126,7 +126,7 @@ class Features:
 @jaxtyped(typechecker=beartype.beartype)
 class Dataset(torchvision.datasets.ImageFolder):
     """
-    Overwrites ImageFolder so that `__getitem__` includes the path, which we use as the ID.
+    Subclasses ImageFolder so that `__getitem__` includes the path, which we use as the ID.
     """
 
     def __getitem__(self, index: int) -> tuple[str, object, object]:
@@ -176,7 +176,7 @@ def get_features(
         batch_size=args.batch_size,
         num_workers=args.n_workers,
         drop_last=False,
-        shuffle=False,  # We use dataset.shuffle instead
+        shuffle=True,
     )
 
     all_features, all_labels, all_ids = [], [], []
@@ -184,9 +184,8 @@ def get_features(
     total = len(dataloader) if not args.debug else 2
     it = iter(dataloader)
     logger.debug("Need to embed %d batches of %d images.", total, args.batch_size)
-    for b in range(total):
+    for b in helpers.progress(range(total), every=args.log_every, desc=split):
         ids, images, labels = next(it)
-
         images = images.to(args.device)
 
         with torch.amp.autocast("cuda"):
@@ -195,9 +194,6 @@ def get_features(
         all_features.append(features.cpu())
         all_labels.extend(labels)
         all_ids.extend(ids)
-
-        if (b + 1) % args.log_every == 0:
-            logger.info("%d/%d", b + 1, total)
 
     all_features = torch.cat(all_features, dim=0).cpu()
     all_ids = np.array(all_ids)

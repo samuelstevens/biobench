@@ -4,8 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
 <meta name="generator" content="pdoc3 0.11.1">
-<title>biobench.rarespecies API documentation</title>
-<meta name="description" content="">
+<title>biobench.inat21 API documentation</title>
+<meta name="description" content="Trains a simple ridge regression classifier on visual representations for the iNat21 challenge.
+In the challenge, there are 10K different species …">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
@@ -24,59 +25,65 @@ hljs.highlightAll();
 <main>
 <article id="content">
 <header>
-<h1 class="title">Module <code>biobench.rarespecies</code></h1>
+<h1 class="title">Module <code>biobench.inat21</code></h1>
 </header>
 <section id="section-intro">
+<p>Trains a simple ridge regression classifier on visual representations for the iNat21 challenge.
+In the challenge, there are 10K different species (classes).
+We use the mini training set with 50 images per species, and test on the validation set, which has 10 images per species.</p>
+<p>This task is a benchmark: it should help you understand how general a vision backbone's representations are.
+This is not a true, real-world task.</p>
+<p>If you use this task, be sure to cite the original iNat21 dataset paper:</p>
+<pre><code>@misc{inat2021,
+  author={Van Horn, Grant and Mac Aodha, Oisin},
+  title={iNat Challenge 2021 - FGVC8},
+  publisher={Kaggle},
+  year={2021},
+  url={https://kaggle.com/competitions/inaturalist-2021}
+}
+</code></pre>
 </section>
 <section>
+<h2 class="section-title" id="header-submodules">Sub-modules</h2>
+<dl>
+<dt><code class="name"><a title="biobench.inat21.download" href="download.html">biobench.inat21.download</a></code></dt>
+<dd>
+<div class="desc"><p>A script to download the iNat21 (mini) dataset …</p></div>
+</dd>
+</dl>
 </section>
 <section>
 </section>
 <section>
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
-<dt id="biobench.rarespecies.batched_idx"><code class="name flex">
-<span>def <span class="ident">batched_idx</span></span>(<span>total_size: int, batch_size: int) ‑> collections.abc.Iterator[tuple[int, int]]</span>
+<dt id="biobench.inat21.benchmark"><code class="name flex">
+<span>def <span class="ident">benchmark</span></span>(<span>args: <a title="biobench.inat21.Args" href="#biobench.inat21.Args">Args</a>, model_args: <a title="biobench.interfaces.ModelArgs" href="../interfaces.html#biobench.interfaces.ModelArgs">ModelArgs</a>) ‑> tuple[<a title="biobench.interfaces.ModelArgs" href="../interfaces.html#biobench.interfaces.ModelArgs">ModelArgs</a>, <a title="biobench.interfaces.TaskReport" href="../interfaces.html#biobench.interfaces.TaskReport">TaskReport</a>]</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Steps:
+1. Get features for all images.
+2. Select lambda using validation data.
+3. Report score on test data.</p></div>
+</dd>
+<dt id="biobench.inat21.get_features"><code class="name flex">
+<span>def <span class="ident">get_features</span></span>(<span>args: <a title="biobench.inat21.Args" href="#biobench.inat21.Args">Args</a>, backbone: <a title="biobench.interfaces.VisionBackbone" href="../interfaces.html#biobench.interfaces.VisionBackbone">VisionBackbone</a>, *, is_train: bool) ‑> <a title="biobench.inat21.Features" href="#biobench.inat21.Features">Features</a></span>
 </code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="biobench.rarespecies.benchmark"><code class="name flex">
-<span>def <span class="ident">benchmark</span></span>(<span>args: <a title="biobench.rarespecies.Args" href="#biobench.rarespecies.Args">Args</a>, model_args: <a title="biobench.interfaces.ModelArgs" href="../interfaces.html#biobench.interfaces.ModelArgs">ModelArgs</a>) ‑> tuple[<a title="biobench.interfaces.ModelArgs" href="../interfaces.html#biobench.interfaces.ModelArgs">ModelArgs</a>, <a title="biobench.interfaces.TaskReport" href="../interfaces.html#biobench.interfaces.TaskReport">TaskReport</a>]</span>
+<dt id="biobench.inat21.init_clf"><code class="name flex">
+<span>def <span class="ident">init_clf</span></span>(<span>args: <a title="biobench.inat21.Args" href="#biobench.inat21.Args">Args</a>)</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
-</dd>
-<dt id="biobench.rarespecies.get_features"><code class="name flex">
-<span>def <span class="ident">get_features</span></span>(<span>args: <a title="biobench.rarespecies.Args" href="#biobench.rarespecies.Args">Args</a>, backbone: <a title="biobench.interfaces.VisionBackbone" href="../interfaces.html#biobench.interfaces.VisionBackbone">VisionBackbone</a>) ‑> <a title="biobench.rarespecies.Features" href="#biobench.rarespecies.Features">Features</a></span>
-</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="biobench.rarespecies.l2_normalize"><code class="name flex">
-<span>def <span class="ident">l2_normalize</span></span>(<span>features: jaxtyping.Float[Tensor, 'n_examples dim']) ‑> jaxtyping.Float[Tensor, 'n_examples dim']</span>
-</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="biobench.rarespecies.make_split"><code class="name flex">
-<span>def <span class="ident">make_split</span></span>(<span>labels: jaxtyping.Int[Tensor, 'n_examples'], *, k: int) ‑> tuple[jaxtyping.Int[Tensor, 'n_train'], jaxtyping.Int[Tensor, 'n_test']]</span>
-</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="biobench.rarespecies.simpleshot"><code class="name flex">
-<span>def <span class="ident">simpleshot</span></span>(<span>args: <a title="biobench.rarespecies.Args" href="#biobench.rarespecies.Args">Args</a>, x_train: jaxtyping.Float[Tensor, 'n_train dim'], y_train: jaxtyping.Int[Tensor, 'n_train'], x_test: jaxtyping.Float[Tensor, 'n_test dim'], y_test: jaxtyping.Int[Tensor, 'n_test']) ‑> jaxtyping.Float[Tensor, 'n_test']</span>
-</code></dt>
-<dd>
-<div class="desc"><p>Applies simpleshot to the video clips. We assign each clip the majority label. Return the list of scores for x_test.</p></div>
 </dd>
 </dl>
 </section>
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
-<dt id="biobench.rarespecies.Args"><code class="flex name class">
+<dt id="biobench.inat21.Args"><code class="flex name class">
 <span>class <span class="ident">Args</span></span>
 <span>(</span><span>seed: int = 42, datadir: str = '', device: str = 'cuda', debug: bool = False, batch_size: int = 256, n_workers: int = 4, log_every: int = 10)</span>
 </code></dt>
@@ -102,15 +109,15 @@ class Args(interfaces.TaskArgs):
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="biobench.rarespecies.Args.batch_size"><code class="name">var <span class="ident">batch_size</span> : int</code></dt>
+<dt id="biobench.inat21.Args.batch_size"><code class="name">var <span class="ident">batch_size</span> : int</code></dt>
 <dd>
 <div class="desc"><p>batch size for deep model.</p></div>
 </dd>
-<dt id="biobench.rarespecies.Args.log_every"><code class="name">var <span class="ident">log_every</span> : int</code></dt>
+<dt id="biobench.inat21.Args.log_every"><code class="name">var <span class="ident">log_every</span> : int</code></dt>
 <dd>
 <div class="desc"><p>how often (number of batches) to log progress.</p></div>
 </dd>
-<dt id="biobench.rarespecies.Args.n_workers"><code class="name">var <span class="ident">n_workers</span> : int</code></dt>
+<dt id="biobench.inat21.Args.n_workers"><code class="name">var <span class="ident">n_workers</span> : int</code></dt>
 <dd>
 <div class="desc"><p>number of dataloader worker processes.</p></div>
 </dd>
@@ -127,12 +134,54 @@ class Args(interfaces.TaskArgs):
 </li>
 </ul>
 </dd>
-<dt id="biobench.rarespecies.Features"><code class="flex name class">
-<span>class <span class="ident">Features</span></span>
-<span>(</span><span>x: jaxtyping.Float[Tensor, 'n dim'], y: jaxtyping.Int[Tensor, 'n'], ids: jaxtyping.Shaped[ndarray, 'n'])</span>
+<dt id="biobench.inat21.Dataset"><code class="flex name class">
+<span>class <span class="ident">Dataset</span></span>
+<span>(</span><span>root: str, transform: Optional[Callable] = None, target_transform: Optional[Callable] = None, loader: Callable[[str], Any] = &lt;function default_loader&gt;, is_valid_file: Optional[Callable[[str], bool]] = None, allow_empty: bool = False)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Features(x: jaxtyping.Float[Tensor, 'n dim'], y: jaxtyping.Int[Tensor, 'n'], ids: jaxtyping.Shaped[ndarray, 'n'])</p></div>
+<div class="desc"><p>Subclasses ImageFolder so that <code>__getitem__</code> includes the path, which we use as the ID.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
+class Dataset(torchvision.datasets.ImageFolder):
+    &#34;&#34;&#34;
+    Subclasses ImageFolder so that `__getitem__` includes the path, which we use as the ID.
+    &#34;&#34;&#34;
+
+    def __getitem__(self, index: int) -&gt; tuple[str, object, object]:
+        &#34;&#34;&#34;
+        Args:
+            index (int): Index
+
+        Returns:
+            tuple: (path, sample, target) where target is class_index of the target class.
+        &#34;&#34;&#34;
+        path, target = self.samples[index]
+        sample = self.loader(path)
+        if self.transform is not None:
+            sample = self.transform(sample)
+        if self.target_transform is not None:
+            target = self.target_transform(target)
+
+        return path, sample, target</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>torchvision.datasets.folder.ImageFolder</li>
+<li>torchvision.datasets.folder.DatasetFolder</li>
+<li>torchvision.datasets.vision.VisionDataset</li>
+<li>torch.utils.data.dataset.Dataset</li>
+<li>typing.Generic</li>
+</ul>
+</dd>
+<dt id="biobench.inat21.Features"><code class="flex name class">
+<span>class <span class="ident">Features</span></span>
+<span>(</span><span>x: jaxtyping.Float[ndarray, 'n dim'], y: jaxtyping.Int[ndarray, 'n'], ids: jaxtyping.Shaped[ndarray, 'n'])</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Features(x: jaxtyping.Float[ndarray, 'n dim'], y: jaxtyping.Int[ndarray, 'n'], ids: jaxtyping.Shaped[ndarray, 'n'])</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -140,57 +189,25 @@ class Args(interfaces.TaskArgs):
 <pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
 @dataclasses.dataclass(frozen=True)
 class Features:
-    x: Float[Tensor, &#34; n dim&#34;]
-    y: Int[Tensor, &#34; n&#34;]
+    x: Float[np.ndarray, &#34;n dim&#34;]
+    y: Int[np.ndarray, &#34; n&#34;]
     ids: Shaped[np.ndarray, &#34; n&#34;]</code></pre>
 </details>
 <h3>Class variables</h3>
 <dl>
-<dt id="biobench.rarespecies.Features.ids"><code class="name">var <span class="ident">ids</span> : jaxtyping.Shaped[ndarray, 'n']</code></dt>
+<dt id="biobench.inat21.Features.ids"><code class="name">var <span class="ident">ids</span> : jaxtyping.Shaped[ndarray, 'n']</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="biobench.rarespecies.Features.x"><code class="name">var <span class="ident">x</span> : jaxtyping.Float[Tensor, 'n dim']</code></dt>
+<dt id="biobench.inat21.Features.x"><code class="name">var <span class="ident">x</span> : jaxtyping.Float[ndarray, 'n dim']</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="biobench.rarespecies.Features.y"><code class="name">var <span class="ident">y</span> : jaxtyping.Int[Tensor, 'n']</code></dt>
+<dt id="biobench.inat21.Features.y"><code class="name">var <span class="ident">y</span> : jaxtyping.Int[ndarray, 'n']</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
 </dl>
-</dd>
-<dt id="biobench.rarespecies.Preprocess"><code class="flex name class">
-<span>class <span class="ident">Preprocess</span></span>
-<span>(</span><span>img_transform)</span>
-</code></dt>
-<dd>
-<div class="desc"></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class Preprocess:
-    def __init__(self, img_transform):
-        self._img_transform = img_transform
-
-    def __call__(self, example):
-        example[&#34;image&#34;] = example[&#34;image&#34;].convert(&#34;RGB&#34;)
-        example[&#34;image&#34;] = self._img_transform(example[&#34;image&#34;])
-        example[&#34;label&#34;] = &#34;-&#34;.join(
-            example[key]
-            for key in [
-                &#34;kingdom&#34;,
-                &#34;phylum&#34;,
-                &#34;class&#34;,
-                &#34;order&#34;,
-                &#34;family&#34;,
-                &#34;genus&#34;,
-                &#34;species&#34;,
-            ]
-        )
-        return example</code></pre>
-</details>
 </dd>
 </dl>
 </section>
@@ -205,36 +222,38 @@ class Features:
 <li><code><a title="biobench" href="../index.html">biobench</a></code></li>
 </ul>
 </li>
+<li><h3><a href="#header-submodules">Sub-modules</a></h3>
+<ul>
+<li><code><a title="biobench.inat21.download" href="download.html">biobench.inat21.download</a></code></li>
+</ul>
+</li>
 <li><h3><a href="#header-functions">Functions</a></h3>
-<ul class="two-column">
-<li><code><a title="biobench.rarespecies.batched_idx" href="#biobench.rarespecies.batched_idx">batched_idx</a></code></li>
-<li><code><a title="biobench.rarespecies.benchmark" href="#biobench.rarespecies.benchmark">benchmark</a></code></li>
-<li><code><a title="biobench.rarespecies.get_features" href="#biobench.rarespecies.get_features">get_features</a></code></li>
-<li><code><a title="biobench.rarespecies.l2_normalize" href="#biobench.rarespecies.l2_normalize">l2_normalize</a></code></li>
-<li><code><a title="biobench.rarespecies.make_split" href="#biobench.rarespecies.make_split">make_split</a></code></li>
-<li><code><a title="biobench.rarespecies.simpleshot" href="#biobench.rarespecies.simpleshot">simpleshot</a></code></li>
+<ul class="">
+<li><code><a title="biobench.inat21.benchmark" href="#biobench.inat21.benchmark">benchmark</a></code></li>
+<li><code><a title="biobench.inat21.get_features" href="#biobench.inat21.get_features">get_features</a></code></li>
+<li><code><a title="biobench.inat21.init_clf" href="#biobench.inat21.init_clf">init_clf</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
 <li>
-<h4><code><a title="biobench.rarespecies.Args" href="#biobench.rarespecies.Args">Args</a></code></h4>
+<h4><code><a title="biobench.inat21.Args" href="#biobench.inat21.Args">Args</a></code></h4>
 <ul class="">
-<li><code><a title="biobench.rarespecies.Args.batch_size" href="#biobench.rarespecies.Args.batch_size">batch_size</a></code></li>
-<li><code><a title="biobench.rarespecies.Args.log_every" href="#biobench.rarespecies.Args.log_every">log_every</a></code></li>
-<li><code><a title="biobench.rarespecies.Args.n_workers" href="#biobench.rarespecies.Args.n_workers">n_workers</a></code></li>
+<li><code><a title="biobench.inat21.Args.batch_size" href="#biobench.inat21.Args.batch_size">batch_size</a></code></li>
+<li><code><a title="biobench.inat21.Args.log_every" href="#biobench.inat21.Args.log_every">log_every</a></code></li>
+<li><code><a title="biobench.inat21.Args.n_workers" href="#biobench.inat21.Args.n_workers">n_workers</a></code></li>
 </ul>
 </li>
 <li>
-<h4><code><a title="biobench.rarespecies.Features" href="#biobench.rarespecies.Features">Features</a></code></h4>
-<ul class="">
-<li><code><a title="biobench.rarespecies.Features.ids" href="#biobench.rarespecies.Features.ids">ids</a></code></li>
-<li><code><a title="biobench.rarespecies.Features.x" href="#biobench.rarespecies.Features.x">x</a></code></li>
-<li><code><a title="biobench.rarespecies.Features.y" href="#biobench.rarespecies.Features.y">y</a></code></li>
-</ul>
+<h4><code><a title="biobench.inat21.Dataset" href="#biobench.inat21.Dataset">Dataset</a></code></h4>
 </li>
 <li>
-<h4><code><a title="biobench.rarespecies.Preprocess" href="#biobench.rarespecies.Preprocess">Preprocess</a></code></h4>
+<h4><code><a title="biobench.inat21.Features" href="#biobench.inat21.Features">Features</a></code></h4>
+<ul class="">
+<li><code><a title="biobench.inat21.Features.ids" href="#biobench.inat21.Features.ids">ids</a></code></li>
+<li><code><a title="biobench.inat21.Features.x" href="#biobench.inat21.Features.x">x</a></code></li>
+<li><code><a title="biobench.inat21.Features.y" href="#biobench.inat21.Features.y">y</a></code></li>
+</ul>
 </li>
 </ul>
 </li>

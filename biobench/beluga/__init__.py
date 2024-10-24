@@ -35,13 +35,14 @@ import logging
 import os.path
 
 import beartype
+import numpy as np
 import sklearn.neighbors
 import torch
 import torchvision.datasets
-from jaxtyping import Float, Int, jaxtyped
+from jaxtyping import Float, Shaped, jaxtyped
 from torch import Tensor
 
-from biobench import interfaces, registry
+from biobench import helpers, interfaces, registry
 
 logger = logging.getLogger("beluga")
 
@@ -70,9 +71,12 @@ def benchmark(
 
     # Embed all images.
     features = get_features(args, backbone)
+    # Convert string names into integer labels.
+    encoder = sklearn.preprocessing.OrdinalEncoder(dtype=int)
+    y = encoder.fit_transform(features.labels.reshape(-1, 1)).reshape(-1)
 
     clf = sklearn.neighbors.NearestNeighbors(n_neighbors=1)
-    clf.fit(features.x, features.y)
+    clf.fit(features.x, y)
     preds = clf.kneighbors(return_distance=False)
 
     logger.info("Constructing examples.")
@@ -82,36 +86,13 @@ def benchmark(
             float(pred == true),
             {"y_pred": pred.item(), "y_true": true.item()},
         )
-        for image_id, pred, true in zip((features.ids), preds, features.y)
+        for image_id, pred, true in zip(
+            helpers.progress(features.ids, every=1_000), preds, y
+        )
     ]
     logger.info("%d examples done.", len(examples))
 
     return model_args, interfaces.TaskReport("BelugaID", examples)
-
-
-class Lookup:
-    """
-    Converts hashable items into numeric IDs.
-
-    ```py
-    lookup = Lookup()
-
-    lookup["name1"]  # -> 0
-    lookup["hello"]  # -> 1
-    lookup[1234567]  # -> 2
-    lookup["name1"]  # -> 0
-    lookup["name1"]  # -> 0
-    ```
-    """
-
-    def __init__(self):
-        self.dct = {}
-
-    def __getitem__(self, key):
-        if key not in self.dct:
-            self.dct[key] = len(self.dct)
-
-        return self.dct[key]
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -123,12 +104,19 @@ class Features:
     Note: In Jax, this could be a tuple of arrays, all with a leading dimension of `n`. Instead, in PyTorch, it's easier to make it its own class. Oh well.
     """
 
-    x: Float[Tensor, " n dim"]
+    x: Float[Tensor, "n dim"]
     """Input features; from a `biobench.interfaces.VisionBackbone`."""
-    y: Int[Tensor, " n"]
-    """Class label."""
-    ids: Int[Tensor, " n"]
+    labels: Shaped[np.ndarray, " n"]
+    """Individual name."""
+    ids: Shaped[np.ndarray, " n"]
     """Array of image ids."""
+
+    def y(self, encoder):
+        return encoder.transform(self.labels.reshape(-1, 1)).reshape(-1)
+
+    @property
+    def n(self) -> int:
+        return len(self.ids)
 
 
 @beartype.beartype
@@ -165,32 +153,26 @@ def get_features(args: Args, backbone: interfaces.VisionBackbone) -> Features:
         collate_fn=lambda batch: tuple(zip(*batch)),
     )
 
-    label_lookup = Lookup()
-
     all_features, all_labels, all_ids = [], [], []
 
     total = len(dataloader) if not args.debug else 2
     it = iter(dataloader)
-    logger.debug("Need to embed %d batches of %d images.", total, args.batch_size)
-    for b in range(total):
+    for b in helpers.progress(range(total), every=args.log_every, desc="embed"):
         images, metadata = next(it)
-        labels = [label_lookup[meta[0]["name"]] for meta in metadata]
         images = torch.stack(images).to(args.device)
-        ids = [meta[0]["image_id"] for meta in metadata]
 
         with torch.amp.autocast("cuda"):
             features = backbone.img_encode(images).img_features
+
+        labels = [meta[0]["name"] for meta in metadata]
+        ids = [str(meta[0]["image_id"]) for meta in metadata]
 
         all_features.append(features.cpu())
         all_labels.extend(labels)
         all_ids.extend(ids)
 
-        if (b + 1) % args.log_every == 0:
-            logger.info("%d/%d", b + 1, total)
-
     all_features = torch.cat(all_features, dim=0).cpu()
-    all_ids = torch.tensor(all_ids)
-    all_labels = torch.tensor(all_labels)
-    logger.info("Got features for %d images.", len(all_ids))
+    all_ids = np.array(all_ids)
+    all_labels = np.array(all_labels)
 
     return Features(all_features, all_labels, all_ids)

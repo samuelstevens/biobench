@@ -29,6 +29,7 @@ dependencies = [
     "pycocotools>=2.0.8",
     "gdown>=5.2.0",
     "transformers>=0.39.1",
+    "altair>=5.4.1",
 ]
 
 [tool.ruff.lint]

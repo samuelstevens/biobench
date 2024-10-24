@@ -1,21 +1,55 @@
 """
-Pl@ntNet is a "dataset with high label ambiguity and a long-tailed distribution" from NeurIPS 2021.
-We fit a ridge classifier from scikit-learn to a backbone's embeddings and evaluate on the validation split.
+Classification of phytoplankton using ridge classifiers.
+This task is particularly challenging because the image distribution is very different to typical pre-training datasets; it's all microscopic images in mono-channel (black and white).
 
+If you use this task, please cite the original paper to propose this train/test split and the original datasets as well:
 
-There are two pieces that make Pl@ntNet more than a simple classification task:
+Paper:
 
-1. Because of the long tail, we use `class_weight='balanced'` which adjusts weights based on class frequency.
-2. We use macro F1 both to choose the alpha parameter and to evaluate the final classifier rather than accuracy due to the massive class imbalance.
-
-If you use this task, please cite the original paper:
-
-@inproceedings{plantnet-300k,
-    author={Garcin, Camille and Joly, Alexis and Bonnet, Pierre and Lombardo, Jean-Christophe and Affouard, Antoine and Chouet, Mathias and Servajean, Maximilien and Lorieul, Titouan and Salmon, Joseph},
-    booktitle={NeurIPS Datasets and Benchmarks 2021},
-    title={{Pl@ntNet-300K}: a plant image dataset with high label ambiguity and a long-tailed distribution},
-    year={2021},
+```
+@article{kaisa2022towards,
+    author={Kraft, Kaisa  and Velhonoja, Otso  and Eerola, Tuomas  and Suikkanen, Sanna  and Tamminen, Timo  and Haraguchi, Lumi  and Ylöstalo, Pasi  and Kielosto, Sami  and Johansson, Milla  and Lensu, Lasse  and Kälviäinen, Heikki  and Haario, Heikki  and Seppälä, Jukka },
+    title={Towards operational phytoplankton recognition with automated high-throughput imaging, near-real-time data processing, and convolutional neural networks},
+    journal={Frontiers in Marine Science},
+    volume={9},
+    year={2022},
+    url={https://www.frontiersin.org/journals/marine-science/articles/10.3389/fmars.2022.867695},
+    doi={10.3389/fmars.2022.867695},
+    issn={2296-7745},
 }
+```
+
+Training data:
+
+```
+@misc{kaisa2022syke
+    doi = {10.23728/B2SHARE.ABF913E5A6AD47E6BAA273AE0ED6617A},
+    url = {https://b2share.eudat.eu/records/abf913e5a6ad47e6baa273ae0ed6617a},
+    author = {Kraft, Kaisa and Velhonoja, Otso and Seppälä, Jukka and Hällfors, Heidi and Suikkanen, Sanna and Ylöstalo, Pasi and Anglès, Sílvia and Kielosto, Sami and Kuosa, Harri and Lehtinen, Sirpa and Oja, Johanna and Tamminen, Timo},
+    keywords = {3.1.21 → Biology → Marine biology, phytoplankton image data set, imaging flow cytometry, Imaging FlowCytobot, IFCB, phytoplankton, Baltic Sea, image data, SYKE, Finnish Environment Institute, Marine Research Centre, Marine Ecological Research Laboratory, plankton image data, FINMARI},
+    title = {SYKE-plankton_IFCB_2022},
+    publisher = {https://b2share.eudat.eu},
+    year = {2022},
+    copyright = {open}
+}
+```
+
+Evaluation data:
+
+```
+@misc{kaisa2021syke,
+  doi = {10.23728/B2SHARE.7C273B6F409C47E98A868D6517BE3AE3},
+  url = {https://b2share.eudat.eu/records/7c273b6f409c47e98a868d6517be3ae3},
+  author = {Kraft, Kaisa and Haraguchi, Lumi and Velhonoja, Otso and Seppälä, Jukka},
+  keywords = {3.1.21 → Biology → Marine biology, phytoplankton image data set, imaging flow cytometry, Imaging FlowCytobot, IFCB, Baltic Sea, image data, SYKE, Finnish Environment Institute, Marine Research Centre, Marine Ecological Research Laboratory, plankton image data, FINMARI, phytoplankton},
+  title = {SYKE-plankton_IFCB_Utö_2021},
+  publisher = {https://b2share.eudat.eu},
+  year = {2022},
+  copyright = {open}
+}
+```
+
+This task was added because of interesting conversations with [Ekaterina Nepovinnykh](https://scholar.google.com/citations?user=lmYki4gAAAAJ) and [Heikki Kälviäinen](https://www.lut.fi/en/profiles/heikki-kalviainen).
 """
 
 import dataclasses
@@ -25,11 +59,10 @@ import typing
 
 import beartype
 import numpy as np
-import sklearn.experimental.enable_halving_search_cv
-import sklearn.linear_model
 import sklearn.model_selection
 import sklearn.pipeline
 import sklearn.preprocessing
+import sklearn.svm
 import torch
 from jaxtyping import Float, Shaped, jaxtyped
 from PIL import Image
@@ -37,12 +70,14 @@ from torch import Tensor
 
 from biobench import helpers, interfaces, registry
 
-logger = logging.getLogger("plantnet")
+logger = logging.getLogger("plankton")
 
 
 @beartype.beartype
 @dataclasses.dataclass(frozen=True)
 class Args(interfaces.TaskArgs):
+    """Plankton task arguments."""
+
     batch_size: int = 256
     """batch size for deep model."""
     n_workers: int = 4
@@ -75,8 +110,8 @@ def benchmark(
     backbone = registry.load_vision_backbone(*model_args)
 
     # 1. Get features
-    val_features = get_features(args, backbone, split="val")
     train_features = get_features(args, backbone, split="train")
+    val_features = get_features(args, backbone, split="val")
 
     encoder = sklearn.preprocessing.OrdinalEncoder()
     all_labels = np.concatenate((val_features.labels, train_features.labels))
@@ -86,12 +121,14 @@ def benchmark(
     clf = init_clf(args)
     clf.fit(train_features.x, train_features.y(encoder))
 
-    helpers.write_hparam_sweep_plot("plantnet", model_args.ckpt, clf)
+    helpers.write_hparam_sweep_plot("plankton", model_args.ckpt, clf)
     alpha = clf.best_params_["ridgeclassifier__alpha"].item()
     logger.info("alpha=%.2g scored %.3f.", alpha, clf.best_score_.item())
 
-    true_labels = val_features.y(encoder)
+    # 3. Predict.
     pred_labels = clf.predict(val_features.x)
+    logger.info("Predicted classes for %d examples.", len(val_features.x))
+    true_labels = val_features.y(encoder)
 
     examples = [
         interfaces.Example(
@@ -106,28 +143,7 @@ def benchmark(
         )
     ]
 
-    report = interfaces.TaskReport(
-        "Pl@ntNet", examples, calc_mean_score=calc_macro_top1
-    )
-    return model_args, report
-
-
-def calc_macro_top1(examples: list[interfaces.Example]) -> float:
-    """
-    Macro top-1 accuracy.
-    """
-    cls_examples = {}
-    for example in examples:
-        true_cls = example.info["y_true"]
-        if true_cls not in cls_examples:
-            cls_examples[true_cls] = []
-
-        cls_examples[true_cls].append(example)
-
-    cls_accs = []
-    for examples in cls_examples.values():
-        cls_accs.append(np.mean([example.score for example in examples]))
-    return np.mean(cls_accs).item()
+    return model_args, interfaces.TaskReport("Plankton", examples)
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -141,19 +157,23 @@ class Dataset(torch.utils.data.Dataset):
         self.transform = transform
         self.samples = []
         if not os.path.exists(root) or not os.path.isdir(root):
-            msg = f"Path '{root}' doesn't exist. Did you download the Pl@ntNet dataset? See the docstring at the top of this file for instructions. If you did download it, pass the path as --dataset-dir PATH"
+            msg = f"Path '{root}' doesn't exist. Did you download the plankton dataset? See the docstring at the top of this file for instructions. If you did download it, pass the path as --plankton-args.datadir PATH."
             raise RuntimeError(msg)
 
         for dirpath, dirnames, filenames in os.walk(root):
+            # TODO: there are random PDFs in these directories. You have to be careful to only get directories that are actually full of images.
+            # Also need to assign the same integers to the same classnames.
             image_class = os.path.relpath(dirpath, root)
             for filename in filenames:
-                image_id = filename.removesuffix(".jpg")
+                if not filename.endswith(".png"):
+                    continue
+                image_id = filename.removesuffix(".png")
                 image_path = os.path.join(dirpath, filename)
                 self.samples.append((image_id, image_path, image_class))
 
     def __getitem__(self, i: int) -> tuple[str, Float[Tensor, "3 width height"], str]:
         image_id, image_path, image_class = self.samples[i]
-        image = Image.open(image_path)
+        image = Image.open(image_path).convert("RGB")
         if self.transform is not None:
             image = self.transform(image)
         return image_id, image, image_class
@@ -167,7 +187,7 @@ class Dataset(torch.utils.data.Dataset):
 def get_features(
     args: Args, backbone: interfaces.VisionBackbone, *, split: str
 ) -> Features:
-    images_dir_path = os.path.join(args.datadir, "images", split)
+    images_dir_path = os.path.join(args.datadir, split)
 
     img_transform = backbone.make_img_transform()
     backbone = torch.compile(backbone.to(args.device))
@@ -210,11 +230,14 @@ def get_features(
 
 @beartype.beartype
 def init_clf(args: Args):
+    """
+    Make a grid search cross-validation version of a RidgeClassifier.
+    """
     alpha = np.pow(2.0, np.arange(-15, 11))
     if args.debug:
         alpha = np.pow(2.0, np.arange(-2, 2))
 
-    return sklearn.model_selection.HalvingGridSearchCV(
+    return sklearn.model_selection.GridSearchCV(
         sklearn.pipeline.make_pipeline(
             sklearn.preprocessing.StandardScaler(),
             sklearn.linear_model.RidgeClassifier(1.0, class_weight="balanced"),
@@ -222,7 +245,4 @@ def init_clf(args: Args):
         {"ridgeclassifier__alpha": alpha},
         n_jobs=16,
         verbose=2,
-        # This uses sklearn.metrics.f1_score with average="macro"
-        scoring="f1_macro",
-        factor=3,
     )

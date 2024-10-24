@@ -27,6 +27,8 @@ import torch
 from jaxtyping import Float, jaxtyped
 from torch import Tensor
 
+from biobench import helpers
+
 
 @jaxtyped(typechecker=beartype.beartype)
 @dataclasses.dataclass(frozen=True)
@@ -167,7 +169,7 @@ class TaskReport:
         )
 
         scores = []
-        for choice in choices:
+        for choice in helpers.progress(choices, desc=f"CI for {self.name}"):
             scores.append(self.calc_mean_score([self.examples[i] for i in choice]))
 
         percentiles = (100 - confidence) / 2, (100 - confidence) / 2 + confidence
@@ -190,4 +192,6 @@ class TaskReport:
         }
 
 
-ModelArgs = tuple[str, str]
+class ModelArgs(typing.NamedTuple):
+    org: str
+    ckpt: str

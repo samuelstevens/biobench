@@ -11,9 +11,8 @@ import torch
 from jaxtyping import Float, Int, Shaped, jaxtyped
 from torch import Tensor
 
-from biobench import interfaces, registry
+from biobench import helpers, interfaces, registry
 
-__all__ = ["Args", "benchmark"]
 logger = logging.getLogger("rare-species")
 
 
@@ -119,7 +118,7 @@ def get_features(args: Args, backbone: interfaces.VisionBackbone) -> Features:
     total = math.ceil(11984 / args.batch_size) if not args.debug else 2
     it = iter(dataloader)
     logger.debug("Need to embed %d batches of %d images.", total, args.batch_size)
-    for b in range(total):
+    for b in helpers.progress(range(total), every=args.log_every, desc="embed"):
         batch = next(it)
 
         images = batch["image"].to(args.device)
@@ -133,8 +132,6 @@ def get_features(args: Args, backbone: interfaces.VisionBackbone) -> Features:
         all_labels.extend(labels)
 
         all_ids.extend(batch["rarespecies_id"])
-        if (b + 1) % args.log_every == 0:
-            logger.info("%d/%d", b + 1, total)
 
     all_features = torch.cat(all_features, dim=0).cpu()
     all_ids = np.array(all_ids)

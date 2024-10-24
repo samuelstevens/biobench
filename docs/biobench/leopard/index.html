@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
 <meta name="generator" content="pdoc3 0.11.1">
-<title>biobench.rarespecies API documentation</title>
-<meta name="description" content="">
+<title>biobench.leopard API documentation</title>
+<meta name="description" content="Individual re-identification of African leopards (*Panthera pardus*) using [this LILA BC dataset](https://lila.science/datasets/leopard-id-2022/) …">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
@@ -24,64 +24,68 @@ hljs.highlightAll();
 <main>
 <article id="content">
 <header>
-<h1 class="title">Module <code>biobench.rarespecies</code></h1>
+<h1 class="title">Module <code>biobench.leopard</code></h1>
 </header>
 <section id="section-intro">
+<p>Individual re-identification of African leopards (<em>Panthera pardus</em>) using <a href="https://lila.science/datasets/leopard-id-2022/">this LILA BC dataset</a>.</p>
+<p>We use a simple but computationally expensive method, first proposed by Andrej Karpathy <a href="https://github.com/karpathy/randomfun/blob/master/knn_vs_svm.ipynb">in this notebook</a>:</p>
+<ol>
+<li>Embed all images using a vision backbone.</li>
+<li>For each image, treat it as a test image and train a new SVC predicting the query image as positive and the other images as negative.</li>
+<li>Choose the closest negative image based on the SVC's decision boundary as the returned image.</li>
+<li>Give a score of 1.0 if this returned image is the same individual, otherwise 0.0.</li>
+</ol>
+<p>Because this method requires training an SVM on every query image, it will train ~6800 SVMs.
+However, this is an embarrassingly parallel task because none of the SVMs depend on each other.
+We use the <a href="https://joblib.readthedocs.io/en/stable/index.html">joblib</a> library and its <code>joblib.Parallel</code> class (<a href="https://joblib.readthedocs.io/en/stable/parallel.html">see this guide</a>).</p>
+<p>With 16 jobs, using multiprocessing, it takes about ~20 minutes on my lab's server.
+With 16 jobs using <em>threading</em> it was predicted to take over 80 minutes.
+I let it run for 10 minutes and it was stable in predicting 60+ minutes, so I settled on multiprocessing but with 24 jobs for more speed.</p>
 </section>
 <section>
+<h2 class="section-title" id="header-submodules">Sub-modules</h2>
+<dl>
+<dt><code class="name"><a title="biobench.leopard.download" href="download.html">biobench.leopard.download</a></code></dt>
+<dd>
+<div class="desc"><p>Downloads the leopard re-id dataset from lila.science.</p></div>
+</dd>
+</dl>
 </section>
 <section>
 </section>
 <section>
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
-<dt id="biobench.rarespecies.batched_idx"><code class="name flex">
-<span>def <span class="ident">batched_idx</span></span>(<span>total_size: int, batch_size: int) ‑> collections.abc.Iterator[tuple[int, int]]</span>
+<dt id="biobench.leopard.benchmark"><code class="name flex">
+<span>def <span class="ident">benchmark</span></span>(<span>args: <a title="biobench.leopard.Args" href="#biobench.leopard.Args">Args</a>, model_args: <a title="biobench.interfaces.ModelArgs" href="../interfaces.html#biobench.interfaces.ModelArgs">ModelArgs</a>) ‑> tuple[<a title="biobench.interfaces.ModelArgs" href="../interfaces.html#biobench.interfaces.ModelArgs">ModelArgs</a>, <a title="biobench.interfaces.TaskReport" href="../interfaces.html#biobench.interfaces.TaskReport">TaskReport</a>]</span>
 </code></dt>
 <dd>
-<div class="desc"></div>
+<div class="desc"><p>Run the leopard re-ID benchmark. See this module's documentation for more details.</p></div>
 </dd>
-<dt id="biobench.rarespecies.benchmark"><code class="name flex">
-<span>def <span class="ident">benchmark</span></span>(<span>args: <a title="biobench.rarespecies.Args" href="#biobench.rarespecies.Args">Args</a>, model_args: <a title="biobench.interfaces.ModelArgs" href="../interfaces.html#biobench.interfaces.ModelArgs">ModelArgs</a>) ‑> tuple[<a title="biobench.interfaces.ModelArgs" href="../interfaces.html#biobench.interfaces.ModelArgs">ModelArgs</a>, <a title="biobench.interfaces.TaskReport" href="../interfaces.html#biobench.interfaces.TaskReport">TaskReport</a>]</span>
+<dt id="biobench.leopard.get_features"><code class="name flex">
+<span>def <span class="ident">get_features</span></span>(<span>args: <a title="biobench.leopard.Args" href="#biobench.leopard.Args">Args</a>, backbone: <a title="biobench.interfaces.VisionBackbone" href="../interfaces.html#biobench.interfaces.VisionBackbone">VisionBackbone</a>) ‑> <a title="biobench.leopard.Features" href="#biobench.leopard.Features">Features</a></span>
 </code></dt>
 <dd>
-<div class="desc"></div>
-</dd>
-<dt id="biobench.rarespecies.get_features"><code class="name flex">
-<span>def <span class="ident">get_features</span></span>(<span>args: <a title="biobench.rarespecies.Args" href="#biobench.rarespecies.Args">Args</a>, backbone: <a title="biobench.interfaces.VisionBackbone" href="../interfaces.html#biobench.interfaces.VisionBackbone">VisionBackbone</a>) ‑> <a title="biobench.rarespecies.Features" href="#biobench.rarespecies.Features">Features</a></span>
-</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="biobench.rarespecies.l2_normalize"><code class="name flex">
-<span>def <span class="ident">l2_normalize</span></span>(<span>features: jaxtyping.Float[Tensor, 'n_examples dim']) ‑> jaxtyping.Float[Tensor, 'n_examples dim']</span>
-</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="biobench.rarespecies.make_split"><code class="name flex">
-<span>def <span class="ident">make_split</span></span>(<span>labels: jaxtyping.Int[Tensor, 'n_examples'], *, k: int) ‑> tuple[jaxtyping.Int[Tensor, 'n_train'], jaxtyping.Int[Tensor, 'n_test']]</span>
-</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="biobench.rarespecies.simpleshot"><code class="name flex">
-<span>def <span class="ident">simpleshot</span></span>(<span>args: <a title="biobench.rarespecies.Args" href="#biobench.rarespecies.Args">Args</a>, x_train: jaxtyping.Float[Tensor, 'n_train dim'], y_train: jaxtyping.Int[Tensor, 'n_train'], x_test: jaxtyping.Float[Tensor, 'n_test dim'], y_test: jaxtyping.Int[Tensor, 'n_test']) ‑> jaxtyping.Float[Tensor, 'n_test']</span>
-</code></dt>
-<dd>
-<div class="desc"><p>Applies simpleshot to the video clips. We assign each clip the majority label. Return the list of scores for x_test.</p></div>
+<div class="desc"><p>Get a block of features from a vision backbone.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>args</code></strong></dt>
+<dd>LeopardID arguments.</dd>
+<dt><strong><code>backbone</code></strong></dt>
+<dd>visual backbone.</dd>
+</dl></div>
 </dd>
 </dl>
 </section>
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
-<dt id="biobench.rarespecies.Args"><code class="flex name class">
+<dt id="biobench.leopard.Args"><code class="flex name class">
 <span>class <span class="ident">Args</span></span>
-<span>(</span><span>seed: int = 42, datadir: str = '', device: str = 'cuda', debug: bool = False, batch_size: int = 256, n_workers: int = 4, log_every: int = 10)</span>
+<span>(</span><span>seed: int = 42, datadir: str = '', device: str = 'cuda', debug: bool = False, batch_size: int = 256, n_workers: int = 8, log_every: int = 10, n_jobs: int = 16)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Args(seed: int = 42, datadir: str = '', device: str = 'cuda', debug: bool = False, batch_size: int = 256, n_workers: int = 4, log_every: int = 10)</p></div>
+<div class="desc"><p>Configuration for Leopard re-ID task.</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -89,12 +93,16 @@ hljs.highlightAll();
 <pre><code class="python">@beartype.beartype
 @dataclasses.dataclass(frozen=True)
 class Args(interfaces.TaskArgs):
+    &#34;&#34;&#34;Configuration for Leopard re-ID task.&#34;&#34;&#34;
+
     batch_size: int = 256
-    &#34;&#34;&#34;batch size for deep model.&#34;&#34;&#34;
-    n_workers: int = 4
-    &#34;&#34;&#34;number of dataloader worker processes.&#34;&#34;&#34;
+    &#34;&#34;&#34;Batch size for the vision backbone.&#34;&#34;&#34;
+    n_workers: int = 8
+    &#34;&#34;&#34;Number of dataloader workers.&#34;&#34;&#34;
     log_every: int = 10
-    &#34;&#34;&#34;how often (number of batches) to log progress.&#34;&#34;&#34;</code></pre>
+    &#34;&#34;&#34;How often to log while getting features.&#34;&#34;&#34;
+    n_jobs: int = 16
+    &#34;&#34;&#34;How many SVMs to train in parallel.&#34;&#34;&#34;</code></pre>
 </details>
 <h3>Ancestors</h3>
 <ul class="hlist">
@@ -102,17 +110,21 @@ class Args(interfaces.TaskArgs):
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="biobench.rarespecies.Args.batch_size"><code class="name">var <span class="ident">batch_size</span> : int</code></dt>
+<dt id="biobench.leopard.Args.batch_size"><code class="name">var <span class="ident">batch_size</span> : int</code></dt>
 <dd>
-<div class="desc"><p>batch size for deep model.</p></div>
+<div class="desc"><p>Batch size for the vision backbone.</p></div>
 </dd>
-<dt id="biobench.rarespecies.Args.log_every"><code class="name">var <span class="ident">log_every</span> : int</code></dt>
+<dt id="biobench.leopard.Args.log_every"><code class="name">var <span class="ident">log_every</span> : int</code></dt>
 <dd>
-<div class="desc"><p>how often (number of batches) to log progress.</p></div>
+<div class="desc"><p>How often to log while getting features.</p></div>
 </dd>
-<dt id="biobench.rarespecies.Args.n_workers"><code class="name">var <span class="ident">n_workers</span> : int</code></dt>
+<dt id="biobench.leopard.Args.n_jobs"><code class="name">var <span class="ident">n_jobs</span> : int</code></dt>
 <dd>
-<div class="desc"><p>number of dataloader worker processes.</p></div>
+<div class="desc"><p>How many SVMs to train in parallel.</p></div>
+</dd>
+<dt id="biobench.leopard.Args.n_workers"><code class="name">var <span class="ident">n_workers</span> : int</code></dt>
+<dd>
+<div class="desc"><p>Number of dataloader workers.</p></div>
 </dd>
 </dl>
 <h3>Inherited members</h3>
@@ -127,12 +139,13 @@ class Args(interfaces.TaskArgs):
 </li>
 </ul>
 </dd>
-<dt id="biobench.rarespecies.Features"><code class="flex name class">
+<dt id="biobench.leopard.Features"><code class="flex name class">
 <span>class <span class="ident">Features</span></span>
-<span>(</span><span>x: jaxtyping.Float[Tensor, 'n dim'], y: jaxtyping.Int[Tensor, 'n'], ids: jaxtyping.Shaped[ndarray, 'n'])</span>
+<span>(</span><span>x: jaxtyping.Float[Tensor, 'n dim'], labels: jaxtyping.Shaped[ndarray, 'n'], ids: jaxtyping.Shaped[ndarray, 'n'])</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Features(x: jaxtyping.Float[Tensor, 'n dim'], y: jaxtyping.Int[Tensor, 'n'], ids: jaxtyping.Shaped[ndarray, 'n'])</p></div>
+<div class="desc"><p>A block of features.</p>
+<p>Note: In Jax, this could be a tuple of arrays, all with a leading dimension of <code>n</code>. Instead, in PyTorch, it's easier to make it its own class. Oh well.</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -140,57 +153,53 @@ class Args(interfaces.TaskArgs):
 <pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
 @dataclasses.dataclass(frozen=True)
 class Features:
-    x: Float[Tensor, &#34; n dim&#34;]
-    y: Int[Tensor, &#34; n&#34;]
-    ids: Shaped[np.ndarray, &#34; n&#34;]</code></pre>
+    &#34;&#34;&#34;
+    A block of features.
+
+    Note: In Jax, this could be a tuple of arrays, all with a leading dimension of `n`. Instead, in PyTorch, it&#39;s easier to make it its own class. Oh well.
+    &#34;&#34;&#34;
+
+    x: Float[Tensor, &#34;n dim&#34;]
+    &#34;&#34;&#34;Input features; from a `biobench.interfaces.VisionBackbone`.&#34;&#34;&#34;
+    labels: Shaped[np.ndarray, &#34; n&#34;]
+    &#34;&#34;&#34;Individual name.&#34;&#34;&#34;
+    ids: Shaped[np.ndarray, &#34; n&#34;]
+    &#34;&#34;&#34;Array of image ids.&#34;&#34;&#34;
+
+    @property
+    def n(self) -&gt; int:
+        return len(self.ids)</code></pre>
 </details>
 <h3>Class variables</h3>
 <dl>
-<dt id="biobench.rarespecies.Features.ids"><code class="name">var <span class="ident">ids</span> : jaxtyping.Shaped[ndarray, 'n']</code></dt>
+<dt id="biobench.leopard.Features.ids"><code class="name">var <span class="ident">ids</span> : jaxtyping.Shaped[ndarray, 'n']</code></dt>
 <dd>
-<div class="desc"></div>
+<div class="desc"><p>Array of image ids.</p></div>
 </dd>
-<dt id="biobench.rarespecies.Features.x"><code class="name">var <span class="ident">x</span> : jaxtyping.Float[Tensor, 'n dim']</code></dt>
+<dt id="biobench.leopard.Features.labels"><code class="name">var <span class="ident">labels</span> : jaxtyping.Shaped[ndarray, 'n']</code></dt>
 <dd>
-<div class="desc"></div>
+<div class="desc"><p>Individual name.</p></div>
 </dd>
-<dt id="biobench.rarespecies.Features.y"><code class="name">var <span class="ident">y</span> : jaxtyping.Int[Tensor, 'n']</code></dt>
+<dt id="biobench.leopard.Features.x"><code class="name">var <span class="ident">x</span> : jaxtyping.Float[Tensor, 'n dim']</code></dt>
 <dd>
-<div class="desc"></div>
+<div class="desc"><p>Input features; from a <code><a title="biobench.interfaces.VisionBackbone" href="../interfaces.html#biobench.interfaces.VisionBackbone">VisionBackbone</a></code>.</p></div>
 </dd>
 </dl>
-</dd>
-<dt id="biobench.rarespecies.Preprocess"><code class="flex name class">
-<span>class <span class="ident">Preprocess</span></span>
-<span>(</span><span>img_transform)</span>
-</code></dt>
+<h3>Instance variables</h3>
+<dl>
+<dt id="biobench.leopard.Features.n"><code class="name">prop <span class="ident">n</span> : int</code></dt>
 <dd>
 <div class="desc"></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class Preprocess:
-    def __init__(self, img_transform):
-        self._img_transform = img_transform
-
-    def __call__(self, example):
-        example[&#34;image&#34;] = example[&#34;image&#34;].convert(&#34;RGB&#34;)
-        example[&#34;image&#34;] = self._img_transform(example[&#34;image&#34;])
-        example[&#34;label&#34;] = &#34;-&#34;.join(
-            example[key]
-            for key in [
-                &#34;kingdom&#34;,
-                &#34;phylum&#34;,
-                &#34;class&#34;,
-                &#34;order&#34;,
-                &#34;family&#34;,
-                &#34;genus&#34;,
-                &#34;species&#34;,
-            ]
-        )
-        return example</code></pre>
+<pre><code class="python">@property
+def n(self) -&gt; int:
+    return len(self.ids)</code></pre>
 </details>
+</dd>
+</dl>
 </dd>
 </dl>
 </section>
@@ -205,36 +214,36 @@ class Features:
 <li><code><a title="biobench" href="../index.html">biobench</a></code></li>
 </ul>
 </li>
+<li><h3><a href="#header-submodules">Sub-modules</a></h3>
+<ul>
+<li><code><a title="biobench.leopard.download" href="download.html">biobench.leopard.download</a></code></li>
+</ul>
+</li>
 <li><h3><a href="#header-functions">Functions</a></h3>
-<ul class="two-column">
-<li><code><a title="biobench.rarespecies.batched_idx" href="#biobench.rarespecies.batched_idx">batched_idx</a></code></li>
-<li><code><a title="biobench.rarespecies.benchmark" href="#biobench.rarespecies.benchmark">benchmark</a></code></li>
-<li><code><a title="biobench.rarespecies.get_features" href="#biobench.rarespecies.get_features">get_features</a></code></li>
-<li><code><a title="biobench.rarespecies.l2_normalize" href="#biobench.rarespecies.l2_normalize">l2_normalize</a></code></li>
-<li><code><a title="biobench.rarespecies.make_split" href="#biobench.rarespecies.make_split">make_split</a></code></li>
-<li><code><a title="biobench.rarespecies.simpleshot" href="#biobench.rarespecies.simpleshot">simpleshot</a></code></li>
+<ul class="">
+<li><code><a title="biobench.leopard.benchmark" href="#biobench.leopard.benchmark">benchmark</a></code></li>
+<li><code><a title="biobench.leopard.get_features" href="#biobench.leopard.get_features">get_features</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
 <li>
-<h4><code><a title="biobench.rarespecies.Args" href="#biobench.rarespecies.Args">Args</a></code></h4>
+<h4><code><a title="biobench.leopard.Args" href="#biobench.leopard.Args">Args</a></code></h4>
 <ul class="">
-<li><code><a title="biobench.rarespecies.Args.batch_size" href="#biobench.rarespecies.Args.batch_size">batch_size</a></code></li>
-<li><code><a title="biobench.rarespecies.Args.log_every" href="#biobench.rarespecies.Args.log_every">log_every</a></code></li>
-<li><code><a title="biobench.rarespecies.Args.n_workers" href="#biobench.rarespecies.Args.n_workers">n_workers</a></code></li>
+<li><code><a title="biobench.leopard.Args.batch_size" href="#biobench.leopard.Args.batch_size">batch_size</a></code></li>
+<li><code><a title="biobench.leopard.Args.log_every" href="#biobench.leopard.Args.log_every">log_every</a></code></li>
+<li><code><a title="biobench.leopard.Args.n_jobs" href="#biobench.leopard.Args.n_jobs">n_jobs</a></code></li>
+<li><code><a title="biobench.leopard.Args.n_workers" href="#biobench.leopard.Args.n_workers">n_workers</a></code></li>
 </ul>
 </li>
 <li>
-<h4><code><a title="biobench.rarespecies.Features" href="#biobench.rarespecies.Features">Features</a></code></h4>
+<h4><code><a title="biobench.leopard.Features" href="#biobench.leopard.Features">Features</a></code></h4>
 <ul class="">
-<li><code><a title="biobench.rarespecies.Features.ids" href="#biobench.rarespecies.Features.ids">ids</a></code></li>
-<li><code><a title="biobench.rarespecies.Features.x" href="#biobench.rarespecies.Features.x">x</a></code></li>
-<li><code><a title="biobench.rarespecies.Features.y" href="#biobench.rarespecies.Features.y">y</a></code></li>
+<li><code><a title="biobench.leopard.Features.ids" href="#biobench.leopard.Features.ids">ids</a></code></li>
+<li><code><a title="biobench.leopard.Features.labels" href="#biobench.leopard.Features.labels">labels</a></code></li>
+<li><code><a title="biobench.leopard.Features.n" href="#biobench.leopard.Features.n">n</a></code></li>
+<li><code><a title="biobench.leopard.Features.x" href="#biobench.leopard.Features.x">x</a></code></li>
 </ul>
-</li>
-<li>
-<h4><code><a title="biobench.rarespecies.Preprocess" href="#biobench.rarespecies.Preprocess">Preprocess</a></code></h4>
 </li>
 </ul>
 </li>

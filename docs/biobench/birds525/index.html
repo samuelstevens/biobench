@@ -50,7 +50,7 @@ This gives a pretty tight confidence interval because <code><a title="biobench.i
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
 <dt id="biobench.birds525.benchmark"><code class="name flex">
-<span>def <span class="ident">benchmark</span></span>(<span>args: <a title="biobench.birds525.Args" href="#biobench.birds525.Args">Args</a>, model_args: tuple[str, str]) ‑> tuple[tuple[str, str], <a title="biobench.interfaces.TaskReport" href="../interfaces.html#biobench.interfaces.TaskReport">TaskReport</a>]</span>
+<span>def <span class="ident">benchmark</span></span>(<span>args: <a title="biobench.birds525.Args" href="#biobench.birds525.Args">Args</a>, model_args: <a title="biobench.interfaces.ModelArgs" href="../interfaces.html#biobench.interfaces.ModelArgs">ModelArgs</a>) ‑> tuple[<a title="biobench.interfaces.ModelArgs" href="../interfaces.html#biobench.interfaces.ModelArgs">ModelArgs</a>, <a title="biobench.interfaces.TaskReport" href="../interfaces.html#biobench.interfaces.TaskReport">TaskReport</a>]</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Runs simpleshot <code><a title="biobench.birds525.Args.n_repeats" href="#biobench.birds525.Args.n_repeats">Args.n_repeats</a></code> times (default 100) with 1 training example per class, then evaluates on the validation split.</p></div>
@@ -180,7 +180,7 @@ class ChooseRandomCachedResult:
 <span>(</span><span>root: str, transform: Optional[Callable] = None, target_transform: Optional[Callable] = None, loader: Callable[[str], Any] = &lt;function default_loader&gt;, is_valid_file: Optional[Callable[[str], bool]] = None, allow_empty: bool = False)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Overwrites ImageFolder so that <code>__getitem__</code> includes the path, which we use as the ID.</p></div>
+<div class="desc"><p>Subclasses ImageFolder so that <code>__getitem__</code> includes the path, which we use as the ID.</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -188,7 +188,7 @@ class ChooseRandomCachedResult:
 <pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
 class Dataset(torchvision.datasets.ImageFolder):
     &#34;&#34;&#34;
-    Overwrites ImageFolder so that `__getitem__` includes the path, which we use as the ID.
+    Subclasses ImageFolder so that `__getitem__` includes the path, which we use as the ID.
     &#34;&#34;&#34;
 
     def __getitem__(self, index: int) -&gt; tuple[str, object, object]:

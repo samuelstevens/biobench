@@ -18,7 +18,7 @@ import wilds
 import wilds.common.data_loaders
 from jaxtyping import Float, Int, Shaped, jaxtyped
 
-from biobench import interfaces, registry
+from biobench import helpers, interfaces, registry
 
 logger = logging.getLogger("iwildcam")
 
@@ -26,6 +26,8 @@ logger = logging.getLogger("iwildcam")
 @beartype.beartype
 @dataclasses.dataclass(frozen=True)
 class Args(interfaces.TaskArgs):
+    """Arguments for the iWildCam task."""
+
     batch_size: int = 2048
     """batch size for deep model."""
     n_workers: int = 4
@@ -37,8 +39,8 @@ class Args(interfaces.TaskArgs):
 @jaxtyped(typechecker=beartype.beartype)
 @dataclasses.dataclass(frozen=True)
 class Features:
-    x: Float[np.ndarray, " n dim"]
-    y: Int[np.ndarray, " n n_classes"]
+    x: Float[np.ndarray, "n dim"]
+    y: Int[np.ndarray, " n"]
     ids: Shaped[np.ndarray, " n"]
 
 
@@ -58,6 +60,7 @@ def benchmark(
     args: Args, model_args: interfaces.ModelArgs
 ) -> tuple[interfaces.ModelArgs, interfaces.TaskReport]:
     backbone = registry.load_vision_backbone(*model_args)
+
     # 1. Load dataloaders.
     transform = backbone.make_img_transform()
     if not os.path.exists(args.datadir) or not os.path.isdir(args.datadir):
@@ -75,6 +78,7 @@ def benchmark(
         num_workers=args.n_workers,
     )
     test_features = get_features(args, backbone, test_dataloader)
+    logger.info("Got test features.")
 
     train_dataset = dataset.get_subset("train", transform=transform)
     train_dataloader = wilds.common.data_loaders.get_train_loader(
@@ -84,25 +88,31 @@ def benchmark(
         num_workers=args.n_workers,
     )
     train_features = get_features(args, backbone, train_dataloader)
+    logger.info("Got train features.")
 
     # 2. Fit model.
-    model = init_ridge(args)
-    model.fit(train_features.x, train_features.y)
+    clf = init_clf(args)
+    clf.fit(train_features.x, train_features.y)
 
-    true_labels = test_features.y.argmax(axis=1)
-    pred_labels = model.predict(test_features.x).argmax(axis=1)
+    helpers.write_hparam_sweep_plot("iwildcam", model_args, clf)
+    alpha = clf.best_params_["ridgeclassifier__alpha"].item()
+    logger.info("alpha=%.2g scored %.3f.", alpha, clf.best_score_.item())
 
-    # TODO: I don't know why this is so slow. 42K examples should be faster than 40 seconds.
-    logger.info("Constructing examples.")
+    true_labels = test_features.y
+    pred_labels = clf.predict(test_features.x)
+
     examples = [
         interfaces.Example(
             str(image_id),
             float(pred == true),
             {"y_pred": pred.item(), "y_true": true.item()},
         )
-        for image_id, pred, true in zip((test_features.ids), pred_labels, true_labels)
+        for image_id, pred, true in zip(
+            helpers.progress(test_features.ids, desc="making examples", every=1_000),
+            pred_labels,
+            true_labels,
+        )
     ]
-    logger.info("%d examples done.", len(examples))
 
     return model_args, interfaces.TaskReport(
         "iWildCam", examples, calc_mean_score=MeanScoreCalculator()
@@ -121,8 +131,7 @@ def get_features(
     # I don't do `for ... in dataloader` because early breaks were throwing exceptions.
     total = len(dataloader) if not args.debug else 2
     it = iter(dataloader)
-    logger.debug("Need to embed %d batches of %d images.", total, args.batch_size)
-    for b in range(total):
+    for b in helpers.progress(range(total), every=args.log_every):
         images, labels, _ = next(it)
         images = images.to(args.device)
 
@@ -130,50 +139,31 @@ def get_features(
             features = backbone.img_encode(images).img_features
             all_features.append(features.cpu())
 
-        all_labels.append(labels)
+        all_labels.extend(labels)
 
         ids = (np.arange(len(labels)) + b * args.batch_size).astype(str)
         all_ids.append(ids)
-        if (b + 1) % args.log_every == 0:
-            logger.info("%d/%d", b + 1, total)
 
-    # Convert labels to one single np.ndarray
     all_features = torch.cat(all_features, axis=0).cpu().numpy()
-
-    # Leave as Tensor so we can reference the dtype later.
-    all_labels = torch.cat(all_labels, axis=0)
-
-    # Convert ids to np.ndarray of strings
+    all_labels = torch.tensor(all_labels).numpy()
     all_ids = np.concatenate(all_ids, axis=0)
 
-    # Make one-hot encoding np.ndarray
-    ##################################
-    n_examples = len(all_labels)
-    n_classes = dataloader.dataset.n_classes
-
-    # First one-hot encode the labels
-    all_onehots = torch.full((n_examples, n_classes), -1, dtype=all_labels.dtype)
-    index = all_labels[:, None]
-    # .scatter_(): all_onehots[i][index[i][j]] = src[i][j] for dim=1
-    all_onehots.scatter_(dim=1, index=index, src=torch.ones_like(index))
-    assert (all_onehots == 1).sum() == n_examples
-    all_onehots = all_onehots.numpy()
-
-    logger.info("Embedded %d images.", n_examples)
-
-    return Features(all_features, all_onehots, all_ids)
+    return Features(all_features, all_labels, all_ids)
 
 
-def init_ridge(args: Args):
-    alpha = np.pow(2.0, np.arange(-20, 11))
+def init_clf(args: Args):
+    alpha = np.pow(2.0, np.arange(-15, 5))
     if args.debug:
         alpha = np.pow(2.0, np.arange(-2, 2))
+
     return sklearn.model_selection.GridSearchCV(
         sklearn.pipeline.make_pipeline(
             sklearn.preprocessing.StandardScaler(),
-            sklearn.linear_model.Ridge(1.0),
+            sklearn.linear_model.RidgeClassifier(1.0),
         ),
-        {"ridge__alpha": alpha},
+        {"ridgeclassifier__alpha": alpha},
         n_jobs=16,
         verbose=2,
+        # This uses sklearn.metrics.f1_score with average="macro", just like our final score calculator.
+        scoring="f1_macro",
     )

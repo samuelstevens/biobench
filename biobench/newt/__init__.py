@@ -37,7 +37,7 @@ from jaxtyping import Bool, Float, Int, Shaped, jaxtyped
 from PIL import Image
 from torch import Tensor
 
-from biobench import interfaces, registry
+from biobench import helpers, interfaces, registry
 
 logger = logging.getLogger("newt")
 
@@ -207,8 +207,7 @@ def get_all_task_specific_features(
 
     total = len(dataloader) if not args.debug else 2
     it = iter(dataloader)
-    logger.debug("Need to embed %d batches of %d images.", total, args.batch_size)
-    for b in range(total):
+    for b in helpers.progress(range(total), every=args.log_every, desc="embed"):
         ids, images = next(it)
         images = images.to(args.device)
 
@@ -218,12 +217,9 @@ def get_all_task_specific_features(
             all_features.append(features.cpu())
 
         all_ids.extend(ids)
-        if (b + 1) % args.log_every == 0:
-            logger.info("%d/%d", b + 1, total)
 
     all_features = torch.cat(all_features, dim=0).cpu()
     all_ids = np.array(all_ids)
-    logger.info("Got features for %d images.", len(all_ids))
 
     for task in df.get_column("task").unique():
         task_df = df.filter(pl.col("task") == task)
