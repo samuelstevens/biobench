@@ -1,3 +1,4 @@
+import logging
 import os
 
 import beartype
@@ -6,12 +7,35 @@ from torch import Tensor
 
 from biobench import interfaces
 
+logger = logging.getLogger("third_party")
 
+
+@beartype.beartype
 def get_cache_dir() -> str:
     cache_dir = ""
     for var in ("BIOBENCH_CACHE", "HF_HOME", "HF_HUB_CACHE"):
         cache_dir = cache_dir or os.environ.get(var, "")
     return cache_dir or "."
+
+
+@beartype.beartype
+def get_ssl() -> bool:
+    """
+    Checks whether BIOBENCH_DISABLE_SSL is present in the environment.
+
+    We use environment variables rather than a boolean argument because
+
+    1. This is only needed on some systems, like OSC.
+    2. Every benchmark needs it in exactly the same way, so it would show up in every benchmark script as more "noise".
+    3. It is not manipulated throughout the running of the program. It's a global variable that's set at the start of the jobs.
+
+    But in general, we should not use environment variables to manage program state.
+
+    Returns:
+        A boolean that's true if we should use SSL and false if not.
+    """
+    disable = os.environ.get("BIOBENCH_DISABLE_SSL", None)
+    return not disable
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -27,6 +51,14 @@ class OpenClip(interfaces.VisionBackbone):
     def __init__(self, ckpt: str, **kwargs):
         super().__init__()
         import open_clip
+
+        if not get_ssl():
+            logger.warning("Ignoring SSL certs. Try not to do this!")
+            # https://github.com/openai/whisper/discussions/734#discussioncomment-4491761
+            # Ideally we don't have to disable SSL but we are only downloading weights.
+            import ssl
+
+            ssl._create_default_https_context = ssl._create_unverified_context
 
         if ckpt.startswith("hf-hub:"):
             clip, self.img_transform = open_clip.create_model_from_pretrained(ckpt)

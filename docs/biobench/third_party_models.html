@@ -41,6 +41,21 @@ hljs.highlightAll();
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="biobench.third_party_models.get_ssl"><code class="name flex">
+<span>def <span class="ident">get_ssl</span></span>(<span>) ‑> bool</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Checks whether BIOBENCH_DISABLE_SSL is present in the environment.</p>
+<p>We use environment variables rather than a boolean argument because</p>
+<ol>
+<li>This is only needed on some systems, like OSC.</li>
+<li>Every benchmark needs it in exactly the same way, so it would show up in every benchmark script as more "noise".</li>
+<li>It is not manipulated throughout the running of the program. It's a global variable that's set at the start of the jobs.</li>
+</ol>
+<p>But in general, we should not use environment variables to manage program state.</p>
+<h2 id="returns">Returns</h2>
+<p>A boolean that's true if we should use SSL and false if not.</p></div>
+</dd>
 </dl>
 </section>
 <section>
@@ -73,6 +88,14 @@ class OpenClip(interfaces.VisionBackbone):
     def __init__(self, ckpt: str, **kwargs):
         super().__init__()
         import open_clip
+
+        if not get_ssl():
+            logger.warning(&#34;Ignoring SSL certs. Try not to do this!&#34;)
+            # https://github.com/openai/whisper/discussions/734#discussioncomment-4491761
+            # Ideally we don&#39;t have to disable SSL but we are only downloading weights.
+            import ssl
+
+            ssl._create_default_https_context = ssl._create_unverified_context
 
         if ckpt.startswith(&#34;hf-hub:&#34;):
             clip, self.img_transform = open_clip.create_model_from_pretrained(ckpt)
@@ -235,6 +258,7 @@ class TorchvisionModel(interfaces.VisionBackbone):
 <li><h3><a href="#header-functions">Functions</a></h3>
 <ul class="">
 <li><code><a title="biobench.third_party_models.get_cache_dir" href="#biobench.third_party_models.get_cache_dir">get_cache_dir</a></code></li>
+<li><code><a title="biobench.third_party_models.get_ssl" href="#biobench.third_party_models.get_ssl">get_ssl</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>
