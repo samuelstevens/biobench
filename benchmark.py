@@ -68,6 +68,7 @@ class Args:
             interfaces.ModelArgs("open-clip", "ViT-B-16/openai"),
             interfaces.ModelArgs("open-clip", "ViT-B-16/laion400m_e32"),
             interfaces.ModelArgs("open-clip", "hf-hub:imageomics/bioclip"),
+            interfaces.ModelArgs("open-clip", "ViT-B-16/facebook/dinov2-base"),
             interfaces.ModelArgs("open-clip", "ViT-B-16-SigLIP/webli"),
             interfaces.ModelArgs("timm-vit", "vit_base_patch14_reg4_dinov2.lvd142m"),
         ]
@@ -398,7 +399,7 @@ def plot_task(conn: sqlite3.Connection, task: str):
     if not data:
         return
 
-    xs = [row["model_ckpt"] for row in data]
+    xs = [row["model_ckpt"].split("/")[-1] for row in data]
     ys = [row["mean_score"] for row in data]
 
     yerr = np.array([ys, ys])
