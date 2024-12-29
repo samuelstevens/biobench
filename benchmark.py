@@ -77,6 +77,8 @@ class Args:
     """which kind of accelerator to use."""
     debug: bool = False
     """whether to run in debug mode."""
+    ssl: bool = True
+    """Use SSL when connecting to remote servers to download checkpoints; use --no-ssl if your machine has certificate issues. See `biobench.third_party_models.get_ssl()` for a discussion of how this works."""
 
     # Individual benchmarks.
     ages_run: bool = False
@@ -247,8 +249,14 @@ def main(args: Args):
             partition="debug",
             account=args.slurm_acct,
         )
+        # See biobench.third_party_models.get_ssl() for a discussion of this variable.
+        if not args.ssl:
+            executor.update_parameters(setup=["export BIOBENCH_DISABLE_SSL=1"])
     else:
         executor = submitit.DebugExecutor(folder=args.log_to)
+        # See biobench.third_party_models.get_ssl() for a discussion of this variable.
+        if not args.ssl:
+            os.environ["BIOBENCH_DISABLE_SSL"] = "1"
 
     # 2. Run benchmarks.
     jobs = []
