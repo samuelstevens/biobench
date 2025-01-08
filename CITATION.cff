@@ -1,0 +1,23 @@
+# This CITATION.cff file was generated with cffinit.
+# Visit https://bit.ly/cffinit to generate yours today!
+
+cff-version: 1.2.0
+title: BioBench
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file.
+type: software
+authors:
+  - given-names: Samuel
+    family-names: Stevens
+    email: samuel.robert.stevens@gmail.com
+  - given-names: Jianyang
+    family-names: Gu
+repository-code: 'https://github.com/samuelstevens/biobench/'
+url: 'https://samuelstevens.me/biobench/'
+abstract: ' Computer vision benchmarks for evolutionary biology-related tasks. '
+keywords:
+  - benchmarking
+  - computer vision
+  - evolutionary biology
+license: MIT
