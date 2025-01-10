@@ -70,7 +70,6 @@ class OpenClip(interfaces.VisionBackbone):
             if "facebook" in ckpt and "dino" in ckpt:
                 dino_model = DINOv2Model(
                     ckpt,
-                    pretrained=True,
                     embed_dim=0
                 )
                 clip, _, self.img_transform = open_clip.create_model_and_transforms(arch)
@@ -78,10 +77,9 @@ class OpenClip(interfaces.VisionBackbone):
             elif "dino" in ckpt:
                 dino_model = DINOv2Model(
                     "facebook/dinov2-base",
-                    pretrained=False,
                     embed_dim=512
                 )
-                clip, _, self.img_transform = open_clip.create_model_and_transforms(arch, force_image_size=336)
+                clip, _, self.img_transform = open_clip.create_model_and_transforms(arch)
                 clip.visual = dino_model
                 clip.load_state_dict(load_state_dict(ckpt))
             else:

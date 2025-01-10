@@ -2,6 +2,7 @@
 """
 import beartype
 from jaxtyping import jaxtyped
+from collections import OrderedDict
 
 import torch
 import torch.nn as nn
@@ -25,10 +26,14 @@ class DINOv2Model(nn.Module):
 
         prev_chs = self.backbone.config.hidden_size
         self.backbone.embeddings.mask_token.requires_grad_(False)
-        if embed_dim == 0:
-            self.head = None
+
+        if embed_dim > 0:
+            head_layers = OrderedDict()
+            head_layers['drop'] = nn.Dropout(0.)
+            head_layers['proj'] = nn.Linear(prev_chs, embed_dim, bias=False)
+            self.head = nn.Sequential(head_layers)
         else:
-            self.head = nn.Linear(prev_chs, embed_dim, bias=False)
+            self.head = nn.Identity()
 
     def get_cast_dtype(self) -> torch.dtype:
         return self.head.proj.weight.dtype
