@@ -59,8 +59,7 @@ Because of this, there are two main classes of tasks:
 
 ## Road Map
 
-1. Add leaderboard to docs website.
-2. Add contributing guide.
-3. Add example images for each task to the docs.
-4. Add 5-shot RareSpecies with simpleshot (like in BioCLIP paper). This is blocked because the Huggingface dataset doesn't work ([see this issue](https://huggingface.co/datasets/imageomics/rare-species/discussions/8)).
-5. Add FishVista for localized trait prediction. This is another non-classification task, and we are specifically interested in traits. But it will take more work because we have to match bounding boxes and patch-level features which is challenging after resizes.
+1. Add contributing guide.
+2. Add example images for each task to the docs.
+3. Add 5-shot RareSpecies with simpleshot (like in BioCLIP paper). This is blocked because the Huggingface dataset doesn't work ([see this issue](https://huggingface.co/datasets/imageomics/rare-species/discussions/8)).
+4. Add FishVista for localized trait prediction. This is another non-classification task, and we are specifically interested in traits. But it will take more work because we have to match bounding boxes and patch-level features which is challenging after resizes.
