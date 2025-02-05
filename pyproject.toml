@@ -30,6 +30,7 @@ dependencies = [
     "gdown>=5.2.0",
     "transformers>=0.39.1",
     "altair>=5.4.1",
+    "av<14.0",
 ]
 
 [tool.ruff.lint]

@@ -43,6 +43,7 @@ from biobench import (
     plankton,
     plantnet,
     rarespecies,
+    mammalnet,
 )
 
 log_format = "[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s"
@@ -135,6 +136,10 @@ class Args:
         default_factory=rarespecies.Args
     )
     """Arguments for the Rare Species benchmark."""
+    mammalnet_run: bool = False
+    """Whether to run the MammalNet benchmark."""
+    mammalnet_args: mammalnet.Args = dataclasses.field(default_factory=mammalnet.Args)
+    """Arguments for the MammalNet benchmark."""
 
     # Reporting and graphing.
     report_to: str = os.path.join(".", "reports")
@@ -337,6 +342,12 @@ def main(args: Args):
                 args.rarespecies_args, device=args.device, debug=args.debug
             )
             job = executor.submit(rarespecies.benchmark, rarespecies_args, model_args)
+            jobs.append(job)
+        if args.mammalnet_run:
+            mammalnet_args = dataclasses.replace(
+                args.mammalnet_args, device=args.device, debug=args.debug
+            )
+            job = executor.submit(mammalnet.benchmark, mammalnet_args, model_args)
             jobs.append(job)
 
     logger.info("Submitted %d jobs.", len(jobs))
