@@ -6,6 +6,7 @@ from jaxtyping import Float, jaxtyped
 from torch import Tensor
 
 from biobench import interfaces
+from biobench.dinov2_model import DINOv2Model
 
 logger = logging.getLogger("third_party")
 
@@ -63,10 +64,28 @@ class OpenClip(interfaces.VisionBackbone):
         if ckpt.startswith("hf-hub:"):
             clip, self.img_transform = open_clip.create_model_from_pretrained(ckpt)
         else:
-            arch, ckpt = ckpt.split("/")
-            clip, self.img_transform = open_clip.create_model_from_pretrained(
-                arch, pretrained=ckpt, cache_dir=get_cache_dir()
-            )
+            from open_clip.factory import load_state_dict
+            arch = ckpt.split("/")[0]
+            ckpt = "/".join(ckpt.split("/")[1:])
+            if "facebook" in ckpt and "dino" in ckpt:
+                dino_model = DINOv2Model(
+                    ckpt,
+                    embed_dim=0
+                )
+                clip, _, self.img_transform = open_clip.create_model_and_transforms(arch)
+                clip.visual = dino_model
+            elif "dino" in ckpt:
+                dino_model = DINOv2Model(
+                    "facebook/dinov2-base",
+                    embed_dim=512
+                )
+                clip, _, self.img_transform = open_clip.create_model_and_transforms(arch)
+                clip.visual = dino_model
+                clip.load_state_dict(load_state_dict(ckpt))
+            else:
+                clip, _, self.img_transform = open_clip.create_model_and_transforms(
+                    arch, pretrained=ckpt, cache_dir=get_cache_dir()
+                )
 
         self.model = clip.visual
         self.model.output_tokens = True  # type: ignore

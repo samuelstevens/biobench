@@ -52,9 +52,9 @@ class Args(interfaces.TaskArgs):
     """number of dataloader worker processes."""
     log_every: int = 10
     """how often (number of epochs) to log progress."""
-    n_epochs: int = 100
+    n_epochs: int = 50
     """How many epochs to train the MLP classifier."""
-    learning_rate: float = 5e-4
+    learning_rate: float = 1e-4
     """The learning rate for training the MLP classifier."""
     threshold: float = 0.5
     """The threshold to predicted "presence" rather than "absence"."""
@@ -113,10 +113,10 @@ def calc_macro_f1(examples: list[interfaces.Example]) -> float:
     """TODO: docs."""
     y_pred = np.array([example.info["y_pred"] for example in examples])
     y_true = np.array([example.info["y_true"] for example in examples])
-    score = sklearn.metrics.f1_score(
-        y_true, y_pred, average="macro", labels=np.unique(y_true)
-    )
-    return score.item()
+
+    correct = np.all(y_pred == y_true, axis=1)
+    acc = np.sum(correct) / len(y_pred)
+    return acc
 
 
 @beartype.beartype
@@ -168,7 +168,7 @@ def benchmark(
         if (epoch + 1) % args.log_every == 0:
             examples = evaluate(args, classifier, test_loader)
             score = calc_macro_f1(examples)
-            logger.info("Epoch %d/%d: %.3f", epoch + 1, args.n_epochs, score)
+            logger.info(f"Epoch {epoch + 1}/{args.n_epochs}: {score:.3f}")
 
     return model_args, interfaces.TaskReport(
         "FishNet", examples, calc_mean_score=calc_macro_f1
