@@ -83,62 +83,98 @@ class Args:
     """Use SSL when connecting to remote servers to download checkpoints; use --no-ssl if your machine has certificate issues. See `biobench.third_party_models.get_ssl()` for a discussion of how this works."""
 
     # Individual benchmarks.
-    ages_run: bool = False
-    """Whether to run the bird age benchmark."""
+    ages_run_cvml: bool = False
+    """Whether to run the bird age benchmark with CV+ML."""
+    ages_run_vlm: bool = False
+    """Whether to run the bird age benchmark with VLM."""
     ages_args: ages.Args = dataclasses.field(default_factory=ages.Args)
     """Arguments for the bird age benchmark."""
-    beluga_run: bool = False
-    """Whether to run the Beluga whale re-ID benchmark."""
+    
+    beluga_run_cvml: bool = False
+    """Whether to run the Beluga whale re-ID benchmark with CV+ML."""
+    beluga_run_vlm: bool = False
+    """Whether to run the Beluga whale re-ID benchmark with VLM."""
     beluga_args: beluga.Args = dataclasses.field(default_factory=beluga.Args)
     """Arguments for the Beluga whale re-ID benchmark."""
-    birds525_run: bool = False
-    """whether to run the Birds 525 benchmark."""
+    
+    birds525_run_cvml: bool = False
+    """Whether to run the Birds 525 benchmark with CV+ML."""
+    birds525_run_vlm: bool = False
+    """Whether to run the Birds 525 benchmark with VLM."""
     birds525_args: birds525.Args = dataclasses.field(default_factory=birds525.Args)
-    """arguments for the Birds 525 benchmark."""
-    fishnet_run: bool = False
-    """Whether to run the FishNet benchmark."""
+    """Arguments for the Birds 525 benchmark."""
+    
+    fishnet_run_cvml: bool = False
+    """Whether to run the FishNet benchmark with CV+ML."""
+    fishnet_run_vlm: bool = False
+    """Whether to run the FishNet benchmark with VLM."""
     fishnet_args: fishnet.Args = dataclasses.field(default_factory=fishnet.Args)
     """Arguments for the FishNet benchmark."""
-    imagenet_run: bool = False
-    """Whether to run the ImageNet-1K benchmark."""
+    
+    imagenet_run_cvml: bool = False
+    """Whether to run the ImageNet-1K benchmark with CV+ML."""
+    imagenet_run_vlm: bool = False
+    """Whether to run the ImageNet-1K benchmark with VLM."""
     imagenet_args: imagenet.Args = dataclasses.field(default_factory=imagenet.Args)
     """Arguments for the ImageNet-1K benchmark."""
-    inat21_run: bool = False
-    """Whether to run the iNat21 benchmark."""
+    
+    inat21_run_cvml: bool = False
+    """Whether to run the iNat21 benchmark with CV+ML."""
+    inat21_run_vlm: bool = False
+    """Whether to run the iNat21 benchmark with VLM."""
     inat21_args: inat21.Args = dataclasses.field(default_factory=inat21.Args)
     """Arguments for the iNat21 benchmark."""
-    iwildcam_run: bool = False
-    """whether to run the iWildCam benchmark."""
+    
+    iwildcam_run_cvml: bool = False
+    """Whether to run the iWildCam benchmark with CV+ML."""
+    iwildcam_run_vlm: bool = False
+    """Whether to run the iWildCam benchmark with VLM."""
     iwildcam_args: iwildcam.Args = dataclasses.field(default_factory=iwildcam.Args)
-    """arguments for the iWildCam benchmark."""
-    kabr_run: bool = False
-    """whether to run the KABR benchmark."""
+    """Arguments for the iWildCam benchmark."""
+    
+    kabr_run_cvml: bool = False
+    """Whether to run the KABR benchmark with CV+ML."""
+    kabr_run_vlm: bool = False
+    """Whether to run the KABR benchmark with VLM."""
     kabr_args: kabr.Args = dataclasses.field(default_factory=kabr.Args)
-    """arguments for the KABR benchmark."""
-    leopard_run: bool = False
-    """Whether to run the leopard re-ID benchmark."""
+    """Arguments for the KABR benchmark."""
+    
+    leopard_run_cvml: bool = False
+    """Whether to run the leopard re-ID benchmark with CV+ML."""
+    leopard_run_vlm: bool = False
+    """Whether to run the leopard re-ID benchmark with VLM."""
     leopard_args: leopard.Args = dataclasses.field(default_factory=leopard.Args)
     """Arguments for the leopard re-ID benchmark."""
-    newt_run_vlm: bool = False
-    """Whether to run the NeWT benchmark with the VLM."""
+    
     newt_run_cvml: bool = False
-    """Whether to run the NeWT benchmark with the CV+ML system."""
+    """Whether to run the NeWT benchmark with CV+ML."""
+    newt_run_vlm: bool = False
+    """Whether to run the NeWT benchmark with VLM."""
     newt_args: newt.Args = dataclasses.field(default_factory=newt.Args)
-    """Argument for the NeWT benchmark."""
-    plankton_run: bool = False
-    """Whether to run the Plankton benchmark."""
+    """Arguments for the NeWT benchmark."""
+    
+    plankton_run_cvml: bool = False
+    """Whether to run the Plankton benchmark with CV+ML."""
+    plankton_run_vlm: bool = False
+    """Whether to run the Plankton benchmark with VLM."""
     plankton_args: plankton.Args = dataclasses.field(default_factory=plankton.Args)
     """Arguments for the Plankton benchmark."""
-    plantnet_run: bool = False
-    """whether to run the Pl@ntNet benchmark."""
+    
+    plantnet_run_cvml: bool = False
+    """Whether to run the Pl@ntNet benchmark with CV+ML."""
+    plantnet_run_vlm: bool = False
+    """Whether to run the Pl@ntNet benchmark with VLM."""
     plantnet_args: plantnet.Args = dataclasses.field(default_factory=plantnet.Args)
-    """arguments for the Pl@ntNet benchmark."""
-    rarespecies_run: bool = False
+    """Arguments for the Pl@ntNet benchmark."""
+    
+    rarespecies_run_cvml: bool = False
+    """Whether to run the Rare Species benchmark with CV+ML."""
+    rarespecies_run_vlm: bool = False
+    """Whether to run the Rare Species benchmark with VLM."""
     rarespecies_args: rarespecies.Args = dataclasses.field(
         default_factory=rarespecies.Args
     )
     """Arguments for the Rare Species benchmark."""
-    # Change all _run args to _run_cvml and _run_vlm args like in newt_run_cvml and newt_run_vlm. AI!
 
     # Reporting and graphing.
     report_to: str = os.path.join(".", "reports")
@@ -266,49 +302,49 @@ def main(args: Args):
     # 2. Run benchmarks.
     jobs = []
     for model_args in args.models_cvml:
-        if args.ages_run:
+        if args.ages_run_cvml:
             ages_args = dataclasses.replace(
                 args.ages_args, device=args.device, debug=args.debug
             )
             job = executor.submit(ages.benchmark_cvml, ages_args, model_args)
             jobs.append(job)
-        if args.beluga_run:
+        if args.beluga_run_cvml:
             beluga_args = dataclasses.replace(
                 args.beluga_args, device=args.device, debug=args.debug
             )
             job = executor.submit(beluga.benchmark_cvml, beluga_args, model_args)
             jobs.append(job)
-        if args.birds525_run:
+        if args.birds525_run_cvml:
             birds525_args = dataclasses.replace(
                 args.birds525_args, device=args.device, debug=args.debug
             )
             job = executor.submit(birds525.benchmark_cvml, birds525_args, model_args)
             jobs.append(job)
-        if args.fishnet_run:
+        if args.fishnet_run_cvml:
             fishnet_args = dataclasses.replace(
                 args.fishnet_args, device=args.device, debug=args.debug
             )
             job = executor.submit(fishnet.benchmark_cvml, fishnet_args, model_args)
             jobs.append(job)
-        if args.imagenet_run:
+        if args.imagenet_run_cvml:
             imagenet_args = dataclasses.replace(
                 args.imagenet_args, device=args.device, debug=args.debug
             )
             job = executor.submit(imagenet.benchmark_cvml, imagenet_args, model_args)
             jobs.append(job)
-        if args.inat21_run:
+        if args.inat21_run_cvml:
             inat21_args = dataclasses.replace(
                 args.inat21_args, device=args.device, debug=args.debug
             )
             job = executor.submit(inat21.benchmark_cvml, inat21_args, model_args)
             jobs.append(job)
-        if args.iwildcam_run:
+        if args.iwildcam_run_cvml:
             iwildcam_args = dataclasses.replace(
                 args.iwildcam_args, device=args.device, debug=args.debug
             )
             job = executor.submit(iwildcam.benchmark_cvml, iwildcam_args, model_args)
             jobs.append(job)
-        if args.kabr_run:
+        if args.kabr_run_cvml:
             kabr_args = dataclasses.replace(
                 args.kabr_args, device=args.device, debug=args.debug
             )
@@ -326,19 +362,19 @@ def main(args: Args):
             )
             jobs.append(executor.submit(newt.benchmark_cvml, newt_args, model_args))
 
-        if args.plankton_run:
+        if args.plankton_run_cvml:
             plankton_args = dataclasses.replace(
                 args.plankton_args, device=args.device, debug=args.debug
             )
             job = executor.submit(plankton.benchmark, plankton_args, model_args)
             jobs.append(job)
-        if args.plantnet_run:
+        if args.plantnet_run_cvml:
             plantnet_args = dataclasses.replace(
                 args.plantnet_args, device=args.device, debug=args.debug
             )
             job = executor.submit(plantnet.benchmark, plantnet_args, model_args)
             jobs.append(job)
-        if args.rarespecies_run:
+        if args.rarespecies_run_cvml:
             rarespecies_args = dataclasses.replace(
                 args.rarespecies_args, device=args.device, debug=args.debug
             )
