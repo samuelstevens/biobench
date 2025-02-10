@@ -60,16 +60,18 @@ class Args:
     slurm_acct: str = "PAS2136"
     """slurm account string."""
 
-    model_args: typing.Annotated[
-        list[interfaces.ModelArgs], tyro.conf.arg(name="model")
+    models_cvml: typing.Annotated[
+        list[interfaces.ModelArgsCvml], tyro.conf.arg(name="model")
     ] = dataclasses.field(
         default_factory=lambda: [
-            interfaces.ModelArgs("open-clip", "RN50/openai"),
-            interfaces.ModelArgs("open-clip", "ViT-B-16/openai"),
-            interfaces.ModelArgs("open-clip", "ViT-B-16/laion400m_e32"),
-            interfaces.ModelArgs("open-clip", "hf-hub:imageomics/bioclip"),
-            interfaces.ModelArgs("open-clip", "ViT-B-16-SigLIP/webli"),
-            interfaces.ModelArgs("timm-vit", "vit_base_patch14_reg4_dinov2.lvd142m"),
+            interfaces.ModelArgsCvml("open-clip", "RN50/openai"),
+            interfaces.ModelArgsCvml("open-clip", "ViT-B-16/openai"),
+            interfaces.ModelArgsCvml("open-clip", "ViT-B-16/laion400m_e32"),
+            interfaces.ModelArgsCvml("open-clip", "hf-hub:imageomics/bioclip"),
+            interfaces.ModelArgsCvml("open-clip", "ViT-B-16-SigLIP/webli"),
+            interfaces.ModelArgsCvml(
+                "timm-vit", "vit_base_patch14_reg4_dinov2.lvd142m"
+            ),
         ]
     )
     """model; a pair of model org (interface) and checkpoint."""
@@ -117,10 +119,12 @@ class Args:
     """Whether to run the leopard re-ID benchmark."""
     leopard_args: leopard.Args = dataclasses.field(default_factory=leopard.Args)
     """Arguments for the leopard re-ID benchmark."""
-    newt_run: bool = False
-    """whether to run the NeWT benchmark."""
+    newt_run_vlm: bool = False
+    """Whether to run the NeWT benchmark with the VLM."""
+    newt_run_cvml: bool = False
+    """Whether to run the NeWT benchmark with the CV+ML system."""
     newt_args: newt.Args = dataclasses.field(default_factory=newt.Args)
-    """arguments for the NeWT benchmark."""
+    """Argument for the NeWT benchmark."""
     plankton_run: bool = False
     """Whether to run the Plankton benchmark."""
     plankton_args: plankton.Args = dataclasses.field(default_factory=plankton.Args)
@@ -134,6 +138,7 @@ class Args:
         default_factory=rarespecies.Args
     )
     """Arguments for the Rare Species benchmark."""
+    # Change all _run args to _run_cvml and _run_vlm args like in newt_run_cvml and newt_run_vlm. AI!
 
     # Reporting and graphing.
     report_to: str = os.path.join(".", "reports")
@@ -157,8 +162,8 @@ class Args:
 
 
 @beartype.beartype
-def save(
-    args: Args, model_args: interfaces.ModelArgs, report: interfaces.TaskReport
+def save_cvml(
+    args: Args, model_args: interfaces.ModelArgsCvml, report: interfaces.TaskReport
 ) -> None:
     """
     Saves the report to disk in a machine-readable SQLite format.
@@ -260,65 +265,67 @@ def main(args: Args):
 
     # 2. Run benchmarks.
     jobs = []
-    for model_args in args.model_args:
+    for model_args in args.models_cvml:
         if args.ages_run:
             ages_args = dataclasses.replace(
                 args.ages_args, device=args.device, debug=args.debug
             )
-            job = executor.submit(ages.benchmark, ages_args, model_args)
+            job = executor.submit(ages.benchmark_cvml, ages_args, model_args)
             jobs.append(job)
         if args.beluga_run:
             beluga_args = dataclasses.replace(
                 args.beluga_args, device=args.device, debug=args.debug
             )
-            job = executor.submit(beluga.benchmark, beluga_args, model_args)
+            job = executor.submit(beluga.benchmark_cvml, beluga_args, model_args)
             jobs.append(job)
         if args.birds525_run:
             birds525_args = dataclasses.replace(
                 args.birds525_args, device=args.device, debug=args.debug
             )
-            job = executor.submit(birds525.benchmark, birds525_args, model_args)
+            job = executor.submit(birds525.benchmark_cvml, birds525_args, model_args)
             jobs.append(job)
         if args.fishnet_run:
             fishnet_args = dataclasses.replace(
                 args.fishnet_args, device=args.device, debug=args.debug
             )
-            job = executor.submit(fishnet.benchmark, fishnet_args, model_args)
+            job = executor.submit(fishnet.benchmark_cvml, fishnet_args, model_args)
             jobs.append(job)
         if args.imagenet_run:
             imagenet_args = dataclasses.replace(
                 args.imagenet_args, device=args.device, debug=args.debug
             )
-            job = executor.submit(imagenet.benchmark, imagenet_args, model_args)
+            job = executor.submit(imagenet.benchmark_cvml, imagenet_args, model_args)
             jobs.append(job)
         if args.inat21_run:
             inat21_args = dataclasses.replace(
                 args.inat21_args, device=args.device, debug=args.debug
             )
-            job = executor.submit(inat21.benchmark, inat21_args, model_args)
+            job = executor.submit(inat21.benchmark_cvml, inat21_args, model_args)
             jobs.append(job)
         if args.iwildcam_run:
             iwildcam_args = dataclasses.replace(
                 args.iwildcam_args, device=args.device, debug=args.debug
             )
-            job = executor.submit(iwildcam.benchmark, iwildcam_args, model_args)
+            job = executor.submit(iwildcam.benchmark_cvml, iwildcam_args, model_args)
             jobs.append(job)
         if args.kabr_run:
             kabr_args = dataclasses.replace(
                 args.kabr_args, device=args.device, debug=args.debug
             )
-            jobs.append(executor.submit(kabr.benchmark, kabr_args, model_args))
-        if args.leopard_run:
+            jobs.append(executor.submit(kabr.benchmark_cvml, kabr_args, model_args))
+        if args.leopard_run_cvml:
             leopard_args = dataclasses.replace(
                 args.leopard_args, device=args.device, debug=args.debug
             )
-            job = executor.submit(leopard.benchmark, leopard_args, model_args)
+            job = executor.submit(leopard.benchmark_cvml, leopard_args, model_args)
             jobs.append(job)
-        if args.newt_run:
+        # Newt
+        if args.newt_run_cvml:
             newt_args = dataclasses.replace(
                 args.newt_args, device=args.device, debug=args.debug
             )
-            jobs.append(executor.submit(newt.benchmark, newt_args, model_args))
+            jobs.append(executor.submit(newt.benchmark_cvml, newt_args, model_args))
+
         if args.plankton_run:
             plankton_args = dataclasses.replace(
                 args.plankton_args, device=args.device, debug=args.debug
@@ -338,6 +345,85 @@ def main(args: Args):
             job = executor.submit(rarespecies.benchmark, rarespecies_args, model_args)
             jobs.append(job)
 
+    for model_args in args.models_vlm:
+        if args.ages_run:
+            ages_args = dataclasses.replace(
+                args.ages_args, device=args.device, debug=args.debug
+            )
+            job = executor.submit(ages.benchmark_vlm, ages_args, model_args)
+            jobs.append(job)
+        if args.beluga_run:
+            beluga_args = dataclasses.replace(
+                args.beluga_args, device=args.device, debug=args.debug
+            )
+            job = executor.submit(beluga.benchmark_vlm, beluga_args, model_args)
+            jobs.append(job)
+        if args.birds525_run:
+            birds525_args = dataclasses.replace(
+                args.birds525_args, device=args.device, debug=args.debug
+            )
+            job = executor.submit(birds525.benchmark_vlm, birds525_args, model_args)
+            jobs.append(job)
+        if args.fishnet_run:
+            fishnet_args = dataclasses.replace(
+                args.fishnet_args, device=args.device, debug=args.debug
+            )
+            job = executor.submit(fishnet.benchmark_vlm, fishnet_args, model_args)
+            jobs.append(job)
+        if args.imagenet_run:
+            imagenet_args = dataclasses.replace(
+                args.imagenet_args, device=args.device, debug=args.debug
+            )
+            job = executor.submit(imagenet.benchmark_vlm, imagenet_args, model_args)
+            jobs.append(job)
+        if args.inat21_run:
+            inat21_args = dataclasses.replace(
+                args.inat21_args, device=args.device, debug=args.debug
+            )
+            job = executor.submit(inat21.benchmark_vlm, inat21_args, model_args)
+            jobs.append(job)
+        if args.iwildcam_run:
+            iwildcam_args = dataclasses.replace(
+                args.iwildcam_args, device=args.device, debug=args.debug
+            )
+            job = executor.submit(iwildcam.benchmark_vlm, iwildcam_args, model_args)
+            jobs.append(job)
+        if args.kabr_run:
+            kabr_args = dataclasses.replace(
+                args.kabr_args, device=args.device, debug=args.debug
+            )
+            jobs.append(executor.submit(kabr.benchmark_vlm, kabr_args, model_args))
+        if args.leopard_run_cvml:
+            leopard_args = dataclasses.replace(
+                args.leopard_args, device=args.device, debug=args.debug
+            )
+            job = executor.submit(leopard.benchmark_vlm, leopard_args, model_args)
+            jobs.append(job)
+        # Newt
+        if args.newt_run_cvml:
+            newt_args = dataclasses.replace(
+                args.newt_args, device=args.device, debug=args.debug
+            )
+            jobs.append(executor.submit(newt.benchmark_vlm, newt_args, model_args))
+
+        if args.plankton_run:
+            plankton_args = dataclasses.replace(
+                args.plankton_args, device=args.device, debug=args.debug
+            )
+            job = executor.submit(plankton.benchmark, plankton_args, model_args)
+            jobs.append(job)
+        if args.plantnet_run:
+            plantnet_args = dataclasses.replace(
+                args.plantnet_args, device=args.device, debug=args.debug
+            )
+            job = executor.submit(plantnet.benchmark, plantnet_args, model_args)
+            jobs.append(job)
+        if args.rarespecies_run:
+            rarespecies_args = dataclasses.replace(
+                args.rarespecies_args, device=args.device, debug=args.debug
+            )
+            job = executor.submit(rarespecies.benchmark, rarespecies_args, model_args)
+            jobs.append(job)
     logger.info("Submitted %d jobs.", len(jobs))
 
     # 3. Display results.
@@ -349,7 +435,7 @@ def main(args: Args):
             continue
 
         model_args, report = future.result()
-        save(args, model_args, report)
+        save_cvml(args, model_args, report)
         logger.info("Finished %d/%d jobs.", i + 1, len(jobs))
 
     # 4. Save results to CSV file for committing to git.
