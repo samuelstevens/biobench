@@ -1,5 +1,7 @@
 """
+Implements normalized nearest-centroid classifiers, as described in [this paper](https://arxiv.org/abs/1911.04623).
 
+If you use this work, be sure to cite the original work:
 
 ```
 @article{wang2019simpleshot,
@@ -25,7 +27,14 @@ from torch import Tensor
 def l2_normalize(
     features: Float[Tensor, "n_examples dim"],
 ) -> Float[Tensor, "n_examples dim"]:
-    """L2-normalize a batch of features."""
+    """L2-normalize a batch of features.
+
+    Args:
+        features: batch of $d$-dimensional vectors.
+
+    Returns:
+        batch of $d$-dimensional vectors with unit L2 norm.
+    """
     norms = np.linalg.norm(features, ord=2, axis=1, keepdims=True)
     return features / norms
 
