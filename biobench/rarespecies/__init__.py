@@ -4,13 +4,13 @@ import logging
 import math
 
 import beartype
-import datasets
 import numpy as np
 import sklearn.neighbors
 import torch
 from jaxtyping import Float, Int, Shaped, jaxtyped
 from torch import Tensor
 
+import datasets
 from biobench import helpers, interfaces, registry
 
 logger = logging.getLogger("rare-species")
@@ -29,8 +29,8 @@ class Args(interfaces.TaskArgs):
 
 @beartype.beartype
 def benchmark(
-    args: Args, model_args: interfaces.ModelArgs
-) -> tuple[interfaces.ModelArgs, interfaces.TaskReport]:
+    args: Args, model_args: interfaces.ModelArgsCvml
+) -> tuple[interfaces.ModelArgsCvml, interfaces.TaskReport]:
     backbone = registry.load_vision_backbone(*model_args)
     features = get_features(args, backbone)
 
@@ -44,7 +44,7 @@ def benchmark(
         features.y[test_i],
     )
     examples = [
-        interfaces.Example(str(id), float(score), {})
+        interfaces.Prediction(str(id), float(score), {})
         for id, score in zip(features.ids[test_i], scores.tolist())
     ]
     return model_args, interfaces.TaskReport("RareSpecies", examples)

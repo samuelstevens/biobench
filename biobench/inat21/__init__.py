@@ -60,8 +60,8 @@ class Features:
 
 @beartype.beartype
 def benchmark(
-    args: Args, model_args: interfaces.ModelArgs
-) -> tuple[interfaces.ModelArgs, interfaces.TaskReport]:
+    args: Args, model_args: interfaces.ModelArgsCvml
+) -> tuple[interfaces.ModelArgsCvml, interfaces.TaskReport]:
     """
     Steps:
     1. Get features for all images.

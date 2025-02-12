@@ -109,7 +109,7 @@ def init_classifier(input_dim: int) -> torch.nn.Module:
 
 
 @beartype.beartype
-def calc_macro_f1(examples: list[interfaces.Example]) -> float:
+def calc_macro_f1(examples: list[interfaces.Prediction]) -> float:
     """TODO: docs."""
     y_pred = np.array([example.info["y_pred"] for example in examples])
     y_true = np.array([example.info["y_true"] for example in examples])
@@ -121,8 +121,8 @@ def calc_macro_f1(examples: list[interfaces.Example]) -> float:
 
 @beartype.beartype
 def benchmark(
-    args: Args, model_args: interfaces.ModelArgs
-) -> tuple[interfaces.ModelArgs, interfaces.TaskReport]:
+    args: Args, model_args: interfaces.ModelArgsCvml
+) -> tuple[interfaces.ModelArgsCvml, interfaces.TaskReport]:
     """
     The FishNet benchmark.
     """
@@ -178,7 +178,7 @@ def benchmark(
 @beartype.beartype
 def evaluate(
     args: Args, classifier: torch.nn.Module, dataloader
-) -> list[interfaces.Example]:
+) -> list[interfaces.Prediction]:
     """
     Evaluates the trained classifier on a test split.
 
@@ -197,7 +197,7 @@ def evaluate(
             pred_logits = classifier(features)
         pred_logits = (pred_logits > args.threshold).cpu().numpy()
         for id, pred, true in zip(ids, pred_logits, labels):
-            example = interfaces.Example(
+            example = interfaces.Prediction(
                 str(id),
                 float((pred == true).all()),
                 {"y_pred": pred.tolist(), "y_true": true.tolist()},

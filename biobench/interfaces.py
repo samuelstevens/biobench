@@ -91,8 +91,8 @@ def get_git_hash() -> str:
 
 @jaxtyped(typechecker=beartype.beartype)
 @dataclasses.dataclass(frozen=True)
-class Example:
-    """An individual test example."""
+class Prediction:
+    """An individual test prediction."""
 
     id: str
     """Whatever kind of ID; used to find the original image/example."""
@@ -102,8 +102,17 @@ class Example:
     """Any additional information included. This might be the original class, the true label, etc."""
 
 
-def default_calc_mean_score(examples: list[Example]) -> float:
-    return np.mean([example.score for example in examples]).item()
+@beartype.beartype
+def default_calc_mean_score(predictions: list[Prediction]) -> float:
+    return np.mean([prediction.score for prediction in predictions]).item()
+
+
+@beartype.beartype
+def get_gpu_name() -> str:
+    if torch.cuda.is_available():
+        return torch.cuda.get_device_properties(0).name
+    else:
+        return ""
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -116,11 +125,15 @@ class TaskReport:
     # Actual details of the report
     name: str
     """The benchmark name."""
-    examples: list[Example]
+    max_examples: int
+    """The maximum number of training examples used."""
+    predictions: list[Prediction]
     """A list of (example_id, score, info) objects"""
     _: dataclasses.KW_ONLY
-    calc_mean_score: typing.Callable[[list[Example]], float] = default_calc_mean_score
-    """A way to calculate mean score from a list of examples."""
+    calc_mean_score: typing.Callable[[list[Prediction]], float] = (
+        default_calc_mean_score
+    )
+    """A way to calculate mean score from a list of predictions."""
     splits: dict[str, float] = dataclasses.field(default_factory=dict)
     """Other scores that you would like to report. These do not have confidence intervals."""
 
@@ -131,24 +144,22 @@ class TaskReport:
     """Git commit for this current report."""
     posix_time: float = dataclasses.field(default_factory=time.time)
     """Time when this report was constructed."""
-    gpu_name: str = dataclasses.field(
-        default_factory=lambda: torch.cuda.get_device_properties(0).name
-    )
+    gpu_name: str = dataclasses.field(default_factory=get_gpu_name)
     """Name of the GPU that ran this experiment."""
     hostname: str = dataclasses.field(default_factory=socket.gethostname)
     """Machine hostname that ran this experiment."""
 
     def __repr__(self):
-        return f"Report({self.name} with {len(self.examples)} examples)"
+        return f"Report({self.name} with {len(self.predictions)} predictions)"
 
     def __str__(self):
         return repr(self)
 
     def get_mean_score(self) -> float:
         """
-        Get the mean score of all examples.
+        Get the mean score of all predictions.
         """
-        return self.calc_mean_score(self.examples)
+        return self.calc_mean_score(self.predictions)
 
     def get_confidence_interval(
         self,
@@ -158,19 +169,21 @@ class TaskReport:
         seed: int = 42,
     ) -> tuple[float, float]:
         """
-        Get the confidence interval for the statistics (mean) by bootstrapping individual scores of the examples.
+        Get the confidence interval for the statistics (mean) by bootstrapping individual scores of the predictions.
 
-        NOTE: it's crazy how much easier this would be in Jax. PyTrees of Examples would simply contains batch dimensions, and then I would `jax.vmap(get_mean_score)(batched_examples)`.
+        NOTE: it's crazy how much easier this would be in Jax. PyTrees of Predictions would simply contains batch dimensions, and then I would `jax.vmap(get_mean_score)(batched_predictions)`.
         """
 
         rng = np.random.default_rng(seed=seed)
         choices = rng.choice(
-            len(self.examples), size=(n_resamples, len(self.examples)), replace=True
+            len(self.predictions),
+            size=(n_resamples, len(self.predictions)),
+            replace=True,
         )
 
         scores = []
         for choice in helpers.progress(choices, desc=f"CI for {self.name}"):
-            scores.append(self.calc_mean_score([self.examples[i] for i in choice]))
+            scores.append(self.calc_mean_score([self.predictions[i] for i in choice]))
 
         percentiles = (100 - confidence) / 2, (100 - confidence) / 2 + confidence
         lower, upper = np.percentile(scores, percentiles).tolist()
@@ -183,7 +196,9 @@ class TaskReport:
         """
         return {
             "name": self.name,
-            "examples": [dataclasses.asdict(example) for example in self.examples],
+            "predictions": [
+                dataclasses.asdict(prediction) for prediction in self.predictions
+            ],
             "argv": self.argv,
             "commit": self.commit,
             "posix_time": self.posix_time,
@@ -192,6 +207,15 @@ class TaskReport:
         }
 
 
-class ModelArgs(typing.NamedTuple):
+@beartype.beartype
+@dataclasses.dataclass(frozen=True)
+class ModelArgsCvml:
     org: str
     ckpt: str
+
+
+@beartype.beartype
+@dataclasses.dataclass(frozen=True)
+class ModelArgsVlm:
+    ckpt: str
+    temp: float = 1.0

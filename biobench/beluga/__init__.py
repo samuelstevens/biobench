@@ -61,9 +61,9 @@ class Args(interfaces.TaskArgs):
 
 
 @beartype.beartype
-def benchmark(
-    args: Args, model_args: interfaces.ModelArgs
-) -> tuple[interfaces.ModelArgs, interfaces.TaskReport]:
+def benchmark_cvml(
+    args: Args, model_args: interfaces.ModelArgsCvml
+) -> tuple[interfaces.ModelArgsCvml, interfaces.TaskReport]:
     """
     Run the BelugaID benchmark. See this module's documentation for more details.
     """

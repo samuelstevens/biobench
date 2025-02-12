@@ -44,7 +44,7 @@ See <code><a title="biobench.third_party_models" href="third_party_models.html">
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
 <dt id="biobench.interfaces.default_calc_mean_score"><code class="name flex">
-<span>def <span class="ident">default_calc_mean_score</span></span>(<span>examples: list[<a title="biobench.interfaces.Example" href="#biobench.interfaces.Example">Example</a>]) ‑> float</span>
+<span>def <span class="ident">default_calc_mean_score</span></span>(<span>predictions: list[<a title="biobench.interfaces.Prediction" href="#biobench.interfaces.Prediction">Prediction</a>]) ‑> float</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
@@ -54,6 +54,12 @@ See <code><a title="biobench.third_party_models" href="third_party_models.html">
 </code></dt>
 <dd>
 <div class="desc"><p>Returns the hash of the current git commit, assuming we are in a git repo.</p></div>
+</dd>
+<dt id="biobench.interfaces.get_gpu_name"><code class="name flex">
+<span>def <span class="ident">get_gpu_name</span></span>(<span>) ‑> str</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
 </dd>
 </dl>
 </section>
@@ -92,20 +98,76 @@ class EncodedImgBatch:
 </dd>
 </dl>
 </dd>
-<dt id="biobench.interfaces.Example"><code class="flex name class">
-<span>class <span class="ident">Example</span></span>
+<dt id="biobench.interfaces.ModelArgsCvml"><code class="flex name class">
+<span>class <span class="ident">ModelArgsCvml</span></span>
+<span>(</span><span>org: str, ckpt: str)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>ModelArgsCvml(org: str, ckpt: str)</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@beartype.beartype
+@dataclasses.dataclass(frozen=True)
+class ModelArgsCvml:
+    org: str
+    ckpt: str</code></pre>
+</details>
+<h3>Class variables</h3>
+<dl>
+<dt id="biobench.interfaces.ModelArgsCvml.ckpt"><code class="name">var <span class="ident">ckpt</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.interfaces.ModelArgsCvml.org"><code class="name">var <span class="ident">org</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="biobench.interfaces.ModelArgsVlm"><code class="flex name class">
+<span>class <span class="ident">ModelArgsVlm</span></span>
+<span>(</span><span>ckpt: str, temp: float = 1.0)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>ModelArgsVlm(ckpt: str, temp: float = 1.0)</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@beartype.beartype
+@dataclasses.dataclass(frozen=True)
+class ModelArgsVlm:
+    ckpt: str
+    temp: float = 1.0</code></pre>
+</details>
+<h3>Class variables</h3>
+<dl>
+<dt id="biobench.interfaces.ModelArgsVlm.ckpt"><code class="name">var <span class="ident">ckpt</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.interfaces.ModelArgsVlm.temp"><code class="name">var <span class="ident">temp</span> : float</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="biobench.interfaces.Prediction"><code class="flex name class">
+<span>class <span class="ident">Prediction</span></span>
 <span>(</span><span>id: str, score: float, info: dict[str, object])</span>
 </code></dt>
 <dd>
-<div class="desc"><p>An individual test example.</p></div>
+<div class="desc"><p>An individual test prediction.</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
 @dataclasses.dataclass(frozen=True)
-class Example:
-    &#34;&#34;&#34;An individual test example.&#34;&#34;&#34;
+class Prediction:
+    &#34;&#34;&#34;An individual test prediction.&#34;&#34;&#34;
 
     id: str
     &#34;&#34;&#34;Whatever kind of ID; used to find the original image/example.&#34;&#34;&#34;
@@ -116,47 +178,17 @@ class Example:
 </details>
 <h3>Class variables</h3>
 <dl>
-<dt id="biobench.interfaces.Example.id"><code class="name">var <span class="ident">id</span> : str</code></dt>
+<dt id="biobench.interfaces.Prediction.id"><code class="name">var <span class="ident">id</span> : str</code></dt>
 <dd>
 <div class="desc"><p>Whatever kind of ID; used to find the original image/example.</p></div>
 </dd>
-<dt id="biobench.interfaces.Example.info"><code class="name">var <span class="ident">info</span> : dict[str, object]</code></dt>
+<dt id="biobench.interfaces.Prediction.info"><code class="name">var <span class="ident">info</span> : dict[str, object]</code></dt>
 <dd>
 <div class="desc"><p>Any additional information included. This might be the original class, the true label, etc.</p></div>
 </dd>
-<dt id="biobench.interfaces.Example.score"><code class="name">var <span class="ident">score</span> : float</code></dt>
+<dt id="biobench.interfaces.Prediction.score"><code class="name">var <span class="ident">score</span> : float</code></dt>
 <dd>
 <div class="desc"><p>Test score; typically 0 or 1 for classification tasks.</p></div>
-</dd>
-</dl>
-</dd>
-<dt id="biobench.interfaces.ModelArgs"><code class="flex name class">
-<span>class <span class="ident">ModelArgs</span></span>
-<span>(</span><span>org: str, ckpt: str)</span>
-</code></dt>
-<dd>
-<div class="desc"><p>ModelArgs(org, ckpt)</p></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class ModelArgs(typing.NamedTuple):
-    org: str
-    ckpt: str</code></pre>
-</details>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li>builtins.tuple</li>
-</ul>
-<h3>Instance variables</h3>
-<dl>
-<dt id="biobench.interfaces.ModelArgs.ckpt"><code class="name">var <span class="ident">ckpt</span> : str</code></dt>
-<dd>
-<div class="desc"><p>Alias for field number 1</p></div>
-</dd>
-<dt id="biobench.interfaces.ModelArgs.org"><code class="name">var <span class="ident">org</span> : str</code></dt>
-<dd>
-<div class="desc"><p>Alias for field number 0</p></div>
 </dd>
 </dl>
 </dd>
@@ -189,14 +221,12 @@ class TaskArgs:
 <ul class="hlist">
 <li><a title="biobench.ages.Args" href="ages/index.html#biobench.ages.Args">Args</a></li>
 <li><a title="biobench.beluga.Args" href="beluga/index.html#biobench.beluga.Args">Args</a></li>
-<li><a title="biobench.birds525.Args" href="birds525/index.html#biobench.birds525.Args">Args</a></li>
 <li><a title="biobench.fishnet.Args" href="fishnet/index.html#biobench.fishnet.Args">Args</a></li>
 <li><a title="biobench.imagenet.Args" href="imagenet/index.html#biobench.imagenet.Args">Args</a></li>
 <li><a title="biobench.inat21.Args" href="inat21/index.html#biobench.inat21.Args">Args</a></li>
 <li><a title="biobench.iwildcam.Args" href="iwildcam/index.html#biobench.iwildcam.Args">Args</a></li>
 <li><a title="biobench.kabr.Args" href="kabr/index.html#biobench.kabr.Args">Args</a></li>
 <li><a title="biobench.leopard.Args" href="leopard/index.html#biobench.leopard.Args">Args</a></li>
-<li><a title="biobench.newt.Args" href="newt/index.html#biobench.newt.Args">Args</a></li>
 <li><a title="biobench.plankton.Args" href="plankton/index.html#biobench.plankton.Args">Args</a></li>
 <li><a title="biobench.plantnet.Args" href="plantnet/index.html#biobench.plantnet.Args">Args</a></li>
 <li><a title="biobench.rarespecies.Args" href="rarespecies/index.html#biobench.rarespecies.Args">Args</a></li>
@@ -223,7 +253,7 @@ class TaskArgs:
 </dd>
 <dt id="biobench.interfaces.TaskReport"><code class="flex name class">
 <span>class <span class="ident">TaskReport</span></span>
-<span>(</span><span>name: str, examples: list[<a title="biobench.interfaces.Example" href="#biobench.interfaces.Example">Example</a>], *, calc_mean_score: Callable[[list[<a title="biobench.interfaces.Example" href="#biobench.interfaces.Example">Example</a>]], float] = &lt;function default_calc_mean_score&gt;, splits: dict[str, float] = &lt;factory&gt;, argv: list[str] = &lt;factory&gt;, commit: str = '3c9b7724c5297096466fa3d1263ba329378ea9ce', posix_time: float = &lt;factory&gt;, gpu_name: str = &lt;factory&gt;, hostname: str = &lt;factory&gt;)</span>
+<span>(</span><span>name: str, max_examples: int, predictions: list[<a title="biobench.interfaces.Prediction" href="#biobench.interfaces.Prediction">Prediction</a>], *, calc_mean_score: Callable[[list[<a title="biobench.interfaces.Prediction" href="#biobench.interfaces.Prediction">Prediction</a>]], float] = &lt;function default_calc_mean_score&gt;, splits: dict[str, float] = &lt;factory&gt;, argv: list[str] = &lt;factory&gt;, commit: str = '87bb839bdbe7d077a86d5ddf918689dfdc68d837', posix_time: float = &lt;factory&gt;, gpu_name: str = &lt;factory&gt;, hostname: str = &lt;factory&gt;)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>The result of running a benchmark task.</p></div>
@@ -241,11 +271,15 @@ class TaskReport:
     # Actual details of the report
     name: str
     &#34;&#34;&#34;The benchmark name.&#34;&#34;&#34;
-    examples: list[Example]
+    max_examples: int
+    &#34;&#34;&#34;The maximum number of training examples used.&#34;&#34;&#34;
+    predictions: list[Prediction]
     &#34;&#34;&#34;A list of (example_id, score, info) objects&#34;&#34;&#34;
     _: dataclasses.KW_ONLY
-    calc_mean_score: typing.Callable[[list[Example]], float] = default_calc_mean_score
-    &#34;&#34;&#34;A way to calculate mean score from a list of examples.&#34;&#34;&#34;
+    calc_mean_score: typing.Callable[[list[Prediction]], float] = (
+        default_calc_mean_score
+    )
+    &#34;&#34;&#34;A way to calculate mean score from a list of predictions.&#34;&#34;&#34;
     splits: dict[str, float] = dataclasses.field(default_factory=dict)
     &#34;&#34;&#34;Other scores that you would like to report. These do not have confidence intervals.&#34;&#34;&#34;
 
@@ -256,24 +290,22 @@ class TaskReport:
     &#34;&#34;&#34;Git commit for this current report.&#34;&#34;&#34;
     posix_time: float = dataclasses.field(default_factory=time.time)
     &#34;&#34;&#34;Time when this report was constructed.&#34;&#34;&#34;
-    gpu_name: str = dataclasses.field(
-        default_factory=lambda: torch.cuda.get_device_properties(0).name
-    )
+    gpu_name: str = dataclasses.field(default_factory=get_gpu_name)
     &#34;&#34;&#34;Name of the GPU that ran this experiment.&#34;&#34;&#34;
     hostname: str = dataclasses.field(default_factory=socket.gethostname)
     &#34;&#34;&#34;Machine hostname that ran this experiment.&#34;&#34;&#34;
 
     def __repr__(self):
-        return f&#34;Report({self.name} with {len(self.examples)} examples)&#34;
+        return f&#34;Report({self.name} with {len(self.predictions)} predictions)&#34;
 
     def __str__(self):
         return repr(self)
 
     def get_mean_score(self) -&gt; float:
         &#34;&#34;&#34;
-        Get the mean score of all examples.
+        Get the mean score of all predictions.
         &#34;&#34;&#34;
-        return self.calc_mean_score(self.examples)
+        return self.calc_mean_score(self.predictions)
 
     def get_confidence_interval(
         self,
@@ -283,19 +315,21 @@ class TaskReport:
         seed: int = 42,
     ) -&gt; tuple[float, float]:
         &#34;&#34;&#34;
-        Get the confidence interval for the statistics (mean) by bootstrapping individual scores of the examples.
+        Get the confidence interval for the statistics (mean) by bootstrapping individual scores of the predictions.
 
-        NOTE: it&#39;s crazy how much easier this would be in Jax. PyTrees of Examples would simply contains batch dimensions, and then I would `jax.vmap(get_mean_score)(batched_examples)`.
+        NOTE: it&#39;s crazy how much easier this would be in Jax. PyTrees of Predictions would simply contains batch dimensions, and then I would `jax.vmap(get_mean_score)(batched_predictions)`.
         &#34;&#34;&#34;
 
         rng = np.random.default_rng(seed=seed)
         choices = rng.choice(
-            len(self.examples), size=(n_resamples, len(self.examples)), replace=True
+            len(self.predictions),
+            size=(n_resamples, len(self.predictions)),
+            replace=True,
         )
 
         scores = []
         for choice in helpers.progress(choices, desc=f&#34;CI for {self.name}&#34;):
-            scores.append(self.calc_mean_score([self.examples[i] for i in choice]))
+            scores.append(self.calc_mean_score([self.predictions[i] for i in choice]))
 
         percentiles = (100 - confidence) / 2, (100 - confidence) / 2 + confidence
         lower, upper = np.percentile(scores, percentiles).tolist()
@@ -308,7 +342,9 @@ class TaskReport:
         &#34;&#34;&#34;
         return {
             &#34;name&#34;: self.name,
-            &#34;examples&#34;: [dataclasses.asdict(example) for example in self.examples],
+            &#34;predictions&#34;: [
+                dataclasses.asdict(prediction) for prediction in self.predictions
+            ],
             &#34;argv&#34;: self.argv,
             &#34;commit&#34;: self.commit,
             &#34;posix_time&#34;: self.posix_time,
@@ -326,10 +362,6 @@ class TaskReport:
 <dd>
 <div class="desc"><p>Git commit for this current report.</p></div>
 </dd>
-<dt id="biobench.interfaces.TaskReport.examples"><code class="name">var <span class="ident">examples</span> : list[<a title="biobench.interfaces.Example" href="#biobench.interfaces.Example">Example</a>]</code></dt>
-<dd>
-<div class="desc"><p>A list of (example_id, score, info) objects</p></div>
-</dd>
 <dt id="biobench.interfaces.TaskReport.gpu_name"><code class="name">var <span class="ident">gpu_name</span> : str</code></dt>
 <dd>
 <div class="desc"><p>Name of the GPU that ran this experiment.</p></div>
@@ -337,6 +369,10 @@ class TaskReport:
 <dt id="biobench.interfaces.TaskReport.hostname"><code class="name">var <span class="ident">hostname</span> : str</code></dt>
 <dd>
 <div class="desc"><p>Machine hostname that ran this experiment.</p></div>
+</dd>
+<dt id="biobench.interfaces.TaskReport.max_examples"><code class="name">var <span class="ident">max_examples</span> : int</code></dt>
+<dd>
+<div class="desc"><p>The maximum number of training examples used.</p></div>
 </dd>
 <dt id="biobench.interfaces.TaskReport.name"><code class="name">var <span class="ident">name</span> : str</code></dt>
 <dd>
@@ -346,6 +382,10 @@ class TaskReport:
 <dd>
 <div class="desc"><p>Time when this report was constructed.</p></div>
 </dd>
+<dt id="biobench.interfaces.TaskReport.predictions"><code class="name">var <span class="ident">predictions</span> : list[<a title="biobench.interfaces.Prediction" href="#biobench.interfaces.Prediction">Prediction</a>]</code></dt>
+<dd>
+<div class="desc"><p>A list of (example_id, score, info) objects</p></div>
+</dd>
 <dt id="biobench.interfaces.TaskReport.splits"><code class="name">var <span class="ident">splits</span> : dict[str, float]</code></dt>
 <dd>
 <div class="desc"><p>Other scores that you would like to report. These do not have confidence intervals.</p></div>
@@ -354,7 +394,7 @@ class TaskReport:
 <h3>Methods</h3>
 <dl>
 <dt id="biobench.interfaces.TaskReport.calc_mean_score"><code class="name flex">
-<span>def <span class="ident">calc_mean_score</span></span>(<span>examples: list[<a title="biobench.interfaces.Example" href="#biobench.interfaces.Example">Example</a>]) ‑> float</span>
+<span>def <span class="ident">calc_mean_score</span></span>(<span>predictions: list[<a title="biobench.interfaces.Prediction" href="#biobench.interfaces.Prediction">Prediction</a>]) ‑> float</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
@@ -363,14 +403,14 @@ class TaskReport:
 <span>def <span class="ident">get_confidence_interval</span></span>(<span>self, statistic='mean', confidence: float = 95, n_resamples: int = 500, seed: int = 42) ‑> tuple[float, float]</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Get the confidence interval for the statistics (mean) by bootstrapping individual scores of the examples.</p>
-<p>NOTE: it's crazy how much easier this would be in Jax. PyTrees of Examples would simply contains batch dimensions, and then I would <code>jax.vmap(get_mean_score)(batched_examples)</code>.</p></div>
+<div class="desc"><p>Get the confidence interval for the statistics (mean) by bootstrapping individual scores of the predictions.</p>
+<p>NOTE: it's crazy how much easier this would be in Jax. PyTrees of Predictions would simply contains batch dimensions, and then I would <code>jax.vmap(get_mean_score)(batched_predictions)</code>.</p></div>
 </dd>
 <dt id="biobench.interfaces.TaskReport.get_mean_score"><code class="name flex">
 <span>def <span class="ident">get_mean_score</span></span>(<span>self) ‑> float</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Get the mean score of all examples.</p></div>
+<div class="desc"><p>Get the mean score of all predictions.</p></div>
 </dd>
 <dt id="biobench.interfaces.TaskReport.to_dict"><code class="name flex">
 <span>def <span class="ident">to_dict</span></span>(<span>self) ‑> dict[str, object]</span>
@@ -461,6 +501,7 @@ This should be an evaluation transform, not a training transform, because we are
 <ul class="">
 <li><code><a title="biobench.interfaces.default_calc_mean_score" href="#biobench.interfaces.default_calc_mean_score">default_calc_mean_score</a></code></li>
 <li><code><a title="biobench.interfaces.get_git_hash" href="#biobench.interfaces.get_git_hash">get_git_hash</a></code></li>
+<li><code><a title="biobench.interfaces.get_gpu_name" href="#biobench.interfaces.get_gpu_name">get_gpu_name</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>
@@ -473,18 +514,25 @@ This should be an evaluation transform, not a training transform, because we are
 </ul>
 </li>
 <li>
-<h4><code><a title="biobench.interfaces.Example" href="#biobench.interfaces.Example">Example</a></code></h4>
+<h4><code><a title="biobench.interfaces.ModelArgsCvml" href="#biobench.interfaces.ModelArgsCvml">ModelArgsCvml</a></code></h4>
 <ul class="">
-<li><code><a title="biobench.interfaces.Example.id" href="#biobench.interfaces.Example.id">id</a></code></li>
-<li><code><a title="biobench.interfaces.Example.info" href="#biobench.interfaces.Example.info">info</a></code></li>
-<li><code><a title="biobench.interfaces.Example.score" href="#biobench.interfaces.Example.score">score</a></code></li>
+<li><code><a title="biobench.interfaces.ModelArgsCvml.ckpt" href="#biobench.interfaces.ModelArgsCvml.ckpt">ckpt</a></code></li>
+<li><code><a title="biobench.interfaces.ModelArgsCvml.org" href="#biobench.interfaces.ModelArgsCvml.org">org</a></code></li>
 </ul>
 </li>
 <li>
-<h4><code><a title="biobench.interfaces.ModelArgs" href="#biobench.interfaces.ModelArgs">ModelArgs</a></code></h4>
+<h4><code><a title="biobench.interfaces.ModelArgsVlm" href="#biobench.interfaces.ModelArgsVlm">ModelArgsVlm</a></code></h4>
 <ul class="">
-<li><code><a title="biobench.interfaces.ModelArgs.ckpt" href="#biobench.interfaces.ModelArgs.ckpt">ckpt</a></code></li>
-<li><code><a title="biobench.interfaces.ModelArgs.org" href="#biobench.interfaces.ModelArgs.org">org</a></code></li>
+<li><code><a title="biobench.interfaces.ModelArgsVlm.ckpt" href="#biobench.interfaces.ModelArgsVlm.ckpt">ckpt</a></code></li>
+<li><code><a title="biobench.interfaces.ModelArgsVlm.temp" href="#biobench.interfaces.ModelArgsVlm.temp">temp</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="biobench.interfaces.Prediction" href="#biobench.interfaces.Prediction">Prediction</a></code></h4>
+<ul class="">
+<li><code><a title="biobench.interfaces.Prediction.id" href="#biobench.interfaces.Prediction.id">id</a></code></li>
+<li><code><a title="biobench.interfaces.Prediction.info" href="#biobench.interfaces.Prediction.info">info</a></code></li>
+<li><code><a title="biobench.interfaces.Prediction.score" href="#biobench.interfaces.Prediction.score">score</a></code></li>
 </ul>
 </li>
 <li>
@@ -502,13 +550,14 @@ This should be an evaluation transform, not a training transform, because we are
 <li><code><a title="biobench.interfaces.TaskReport.argv" href="#biobench.interfaces.TaskReport.argv">argv</a></code></li>
 <li><code><a title="biobench.interfaces.TaskReport.calc_mean_score" href="#biobench.interfaces.TaskReport.calc_mean_score">calc_mean_score</a></code></li>
 <li><code><a title="biobench.interfaces.TaskReport.commit" href="#biobench.interfaces.TaskReport.commit">commit</a></code></li>
-<li><code><a title="biobench.interfaces.TaskReport.examples" href="#biobench.interfaces.TaskReport.examples">examples</a></code></li>
 <li><code><a title="biobench.interfaces.TaskReport.get_confidence_interval" href="#biobench.interfaces.TaskReport.get_confidence_interval">get_confidence_interval</a></code></li>
 <li><code><a title="biobench.interfaces.TaskReport.get_mean_score" href="#biobench.interfaces.TaskReport.get_mean_score">get_mean_score</a></code></li>
 <li><code><a title="biobench.interfaces.TaskReport.gpu_name" href="#biobench.interfaces.TaskReport.gpu_name">gpu_name</a></code></li>
 <li><code><a title="biobench.interfaces.TaskReport.hostname" href="#biobench.interfaces.TaskReport.hostname">hostname</a></code></li>
+<li><code><a title="biobench.interfaces.TaskReport.max_examples" href="#biobench.interfaces.TaskReport.max_examples">max_examples</a></code></li>
 <li><code><a title="biobench.interfaces.TaskReport.name" href="#biobench.interfaces.TaskReport.name">name</a></code></li>
 <li><code><a title="biobench.interfaces.TaskReport.posix_time" href="#biobench.interfaces.TaskReport.posix_time">posix_time</a></code></li>
+<li><code><a title="biobench.interfaces.TaskReport.predictions" href="#biobench.interfaces.TaskReport.predictions">predictions</a></code></li>
 <li><code><a title="biobench.interfaces.TaskReport.splits" href="#biobench.interfaces.TaskReport.splits">splits</a></code></li>
 <li><code><a title="biobench.interfaces.TaskReport.to_dict" href="#biobench.interfaces.TaskReport.to_dict">to_dict</a></code></li>
 </ul>

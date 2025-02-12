@@ -53,8 +53,8 @@ class Args(interfaces.TaskArgs):
 
 @beartype.beartype
 def benchmark(
-    args: Args, model_args: interfaces.ModelArgs
-) -> tuple[interfaces.ModelArgs, interfaces.TaskReport]:
+    args: Args, model_args: interfaces.ModelArgsCvml
+) -> tuple[interfaces.ModelArgsCvml, interfaces.TaskReport]:
     """
     Run the leopard re-ID benchmark. See this module's documentation for more details.
     """
@@ -67,7 +67,7 @@ def benchmark(
     y = encoder.fit_transform(features.labels.reshape(-1, 1)).reshape(-1)
 
     @beartype.beartype
-    def predict(i: int, image_id) -> interfaces.Example:
+    def predict(i: int, image_id) -> interfaces.Prediction:
         clf = sklearn.svm.LinearSVC(
             class_weight="balanced", verbose=False, max_iter=10000, tol=1e-6, C=0.1
         )
@@ -81,7 +81,7 @@ def benchmark(
         # Something like:
         #   pred_i = scipy.stats.mode(np.argsort(sims)[1:args.k+1]).mode
 
-        example = interfaces.Example(str(image_id), float(y[pred_i] == y[i]), {})
+        example = interfaces.Prediction(str(image_id), float(y[pred_i] == y[i]), {})
         return example
 
     examples = joblib.Parallel(n_jobs=args.n_jobs)(

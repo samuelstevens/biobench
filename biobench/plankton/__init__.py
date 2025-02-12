@@ -99,8 +99,8 @@ class Features:
 
 @beartype.beartype
 def benchmark(
-    args: Args, model_args: interfaces.ModelArgs
-) -> tuple[interfaces.ModelArgs, interfaces.TaskReport]:
+    args: Args, model_args: interfaces.ModelArgsCvml
+) -> tuple[interfaces.ModelArgsCvml, interfaces.TaskReport]:
     """
     Steps:
     1. Get features for all images.
@@ -131,7 +131,7 @@ def benchmark(
     true_labels = val_features.y(encoder)
 
     examples = [
-        interfaces.Example(
+        interfaces.Prediction(
             str(image_id),
             float(pred == true),
             {"y_pred": pred.item(), "y_true": true.item()},

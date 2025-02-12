@@ -28,10 +28,20 @@ logger = logging.getLogger("birds525")
 
 @beartype.beartype
 @dataclasses.dataclass(frozen=True)
-class Args(interfaces.TaskArgs):
+class Args:
     """
     Arguments for Birds525.
     """
+
+    seed: int = 42
+    """random seed."""
+    datadir: str = ""
+    """dataset directory; where you downloaded this task's data to."""
+    # Computed at runtime.
+    device: str = "cuda"
+    """(computed at runtime) which kind of accelerator to use."""
+    debug: bool = False
+    """(computed at runtime) whether to run in debug mode."""
 
     batch_size: int = 256
     """batch size for deep model."""
@@ -44,9 +54,9 @@ class Args(interfaces.TaskArgs):
 
 
 @beartype.beartype
-def benchmark(
-    args: Args, model_args: interfaces.ModelArgs
-) -> tuple[interfaces.ModelArgs, interfaces.TaskReport]:
+def benchmark_cvml(
+    args: Args, model_args: interfaces.ModelArgsCvml
+) -> tuple[interfaces.ModelArgsCvml, interfaces.TaskReport]:
     """
     Runs simpleshot `Args.n_repeats` times (default 100) with 1 training example per class, then evaluates on the validation split.
     """
@@ -80,7 +90,7 @@ def benchmark(
 
     # Just choose the last sampled result's examples.
     examples = [
-        interfaces.Example(str(id), float(score), {})
+        interfaces.Prediction(str(id), float(score), {})
         for id, score in zip(test_features.ids, scores.tolist())
     ]
 
@@ -102,7 +112,7 @@ class ChooseRandomCachedResult:
         self._scores = scores
         self._rng = np.random.default_rng(seed=seed)
 
-    def __call__(self, examples: list[interfaces.Example]) -> float:
+    def __call__(self, examples: list[interfaces.Prediction]) -> float:
         return self._rng.choice(self._scores).item()
 
 

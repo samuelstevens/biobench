@@ -44,7 +44,7 @@ hljs.highlightAll();
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
 <dt id="biobench.iwildcam.benchmark"><code class="name flex">
-<span>def <span class="ident">benchmark</span></span>(<span>args: <a title="biobench.iwildcam.Args" href="#biobench.iwildcam.Args">Args</a>, model_args: <a title="biobench.interfaces.ModelArgs" href="../interfaces.html#biobench.interfaces.ModelArgs">ModelArgs</a>) ‑> tuple[<a title="biobench.interfaces.ModelArgs" href="../interfaces.html#biobench.interfaces.ModelArgs">ModelArgs</a>, <a title="biobench.interfaces.TaskReport" href="../interfaces.html#biobench.interfaces.TaskReport">TaskReport</a>]</span>
+<span>def <span class="ident">benchmark</span></span>(<span>args: <a title="biobench.iwildcam.Args" href="#biobench.iwildcam.Args">Args</a>, model_args: <a title="biobench.interfaces.ModelArgsCvml" href="../interfaces.html#biobench.interfaces.ModelArgsCvml">ModelArgsCvml</a>) ‑> tuple[<a title="biobench.interfaces.ModelArgsCvml" href="../interfaces.html#biobench.interfaces.ModelArgsCvml">ModelArgsCvml</a>, <a title="biobench.interfaces.TaskReport" href="../interfaces.html#biobench.interfaces.TaskReport">TaskReport</a>]</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
@@ -163,7 +163,7 @@ class Features:
 </summary>
 <pre><code class="python">@beartype.beartype
 class MeanScoreCalculator:
-    def __call__(self, examples: list[interfaces.Example]) -&gt; float:
+    def __call__(self, examples: list[interfaces.Prediction]) -&gt; float:
         y_pred = np.array([example.info[&#34;y_pred&#34;] for example in examples])
         y_true = np.array([example.info[&#34;y_true&#34;] for example in examples])
         score = sklearn.metrics.f1_score(

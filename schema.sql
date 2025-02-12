@@ -1,7 +1,6 @@
 CREATE TABLE IF NOT EXISTS reports (
     -- 
-    model_org TEXT NOT NULL,
-    model_ckpt TEXT NOT NULL,
+    model_config TEXT NOT NULL,
     task_name TEXT NOT NULL,
     posix INTEGER NOT NULL,
     -- Results

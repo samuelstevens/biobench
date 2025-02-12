@@ -64,8 +64,8 @@ class Features:
 
 @beartype.beartype
 def benchmark(
-    args: Args, model_args: interfaces.ModelArgs
-) -> tuple[interfaces.ModelArgs, interfaces.TaskReport]:
+    args: Args, model_args: interfaces.ModelArgsCvml
+) -> tuple[interfaces.ModelArgsCvml, interfaces.TaskReport]:
     """
     Steps:
     1. Get features for all images.
@@ -94,7 +94,7 @@ def benchmark(
     pred_labels = clf.predict(val_features.x)
 
     examples = [
-        interfaces.Example(
+        interfaces.Prediction(
             str(image_id),
             float(pred == true),
             {"y_pred": pred.item(), "y_true": true.item()},
@@ -112,7 +112,7 @@ def benchmark(
     return model_args, report
 
 
-def calc_macro_top1(examples: list[interfaces.Example]) -> float:
+def calc_macro_top1(examples: list[interfaces.Prediction]) -> float:
     """
     Macro top-1 accuracy.
     """

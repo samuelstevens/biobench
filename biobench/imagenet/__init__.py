@@ -5,7 +5,6 @@ import logging
 import math
 
 import beartype
-import datasets
 import numpy as np
 import sklearn.experimental.enable_halving_search_cv
 import sklearn.linear_model
@@ -15,6 +14,7 @@ import sklearn.preprocessing
 import torch
 from jaxtyping import Float, Int, Shaped, jaxtyped
 
+import datasets
 from biobench import helpers, interfaces, registry
 
 logger = logging.getLogger("imagenet")
@@ -41,8 +41,8 @@ class Features:
 
 @beartype.beartype
 def benchmark(
-    args: Args, model_args: interfaces.ModelArgs
-) -> tuple[interfaces.ModelArgs, interfaces.TaskReport]:
+    args: Args, model_args: interfaces.ModelArgsCvml
+) -> tuple[interfaces.ModelArgsCvml, interfaces.TaskReport]:
     backbone = registry.load_vision_backbone(*model_args)
     test_features = get_features(args, backbone, is_train=False)
     train_features = get_features(args, backbone, is_train=True)
@@ -58,7 +58,7 @@ def benchmark(
     pred_labels = clf.predict(test_features.x)
 
     examples = [
-        interfaces.Example(
+        interfaces.Prediction(
             str(image_id),
             float(pred == true),
             {"y_pred": pred.item(), "y_true": true.item()},

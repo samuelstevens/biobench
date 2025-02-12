@@ -223,9 +223,9 @@ def aggregate_frames(
 
 
 @beartype.beartype
-def benchmark(
-    args: Args, model_args: interfaces.ModelArgs
-) -> tuple[interfaces.ModelArgs, interfaces.TaskReport]:
+def benchmark_cvml(
+    args: Args, model_args: interfaces.ModelArgsCvml
+) -> tuple[interfaces.ModelArgsCvml, interfaces.TaskReport]:
     """Runs KABR benchmark."""
     # 1. Load model
     backbone = registry.load_vision_backbone(*model_args)
@@ -266,7 +266,7 @@ def benchmark(
     # Return benchmark report.
     video_ids = [video.video_id for video in val_dataset.videos]
     examples = [
-        interfaces.Example(str(id), float(score), {})
+        interfaces.Prediction(str(id), float(score), {})
         for id, score in zip(video_ids, scores.tolist())
     ]
     # TODO: include example-specific info (class? something else)
