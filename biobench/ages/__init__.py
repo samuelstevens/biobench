@@ -21,10 +21,14 @@ To download the original data, follow the instructions in `biobench.newt.downloa
 ```
 """
 
+import asyncio
 import collections.abc
 import dataclasses
+import difflib
 import logging
 import os
+import random
+import re
 
 import beartype
 import numpy as np
@@ -35,30 +39,44 @@ import sklearn.pipeline
 import sklearn.preprocessing
 import sklearn.svm
 import torch
-from jaxtyping import Float, Int, Shaped, jaxtyped
+from jaxtyping import Float, Int, Integer, Shaped, jaxtyped
 from PIL import Image
 from torch import Tensor
 
-from biobench import helpers, interfaces, registry
+from .. import helpers, interfaces, llms, registry
 
 logger = logging.getLogger("ages")
 
 
 @beartype.beartype
 @dataclasses.dataclass(frozen=True)
-class Args(interfaces.TaskArgs):
+class Args:
     """Ages task arguments."""
 
-    batch_size: int = 256
-    """batch size for deep model."""
+    data: str = ""
+    """dataset directory; where you downloaded this task's data to."""
+    batch_size_cv: int = 256
+    """batch size for computer vision model."""
     n_workers: int = 4
     """number of dataloader worker processes."""
     log_every: int = 10
     """how often (number of batches) to log progress."""
+    seed: int = 42
+    """random seed."""
+    max_examples: int = -1
+    """Number of maximum training samples. Negative number means use all of them."""
+    parallel: int = 5
+    """Concurrent requests per second."""
+
+    # Computed at runtime.
+    device: str = "cuda"
+    """(computed at runtime) which kind of accelerator to use."""
+    debug: bool = False
+    """(computed at runtime) whether to run in debug mode."""
 
 
 @beartype.beartype
-def benchmark(
+def benchmark_cvml(
     args: Args, model_args: interfaces.ModelArgsCvml
 ) -> tuple[interfaces.ModelArgsCvml, interfaces.TaskReport]:
     """
@@ -75,7 +93,7 @@ def benchmark(
     backbone = registry.load_vision_backbone(*model_args)
 
     # 2. Get features.
-    tasks = get_all_tasks(args, backbone)
+    tasks = get_all_tasks_cvml(args, backbone)
 
     # 3. For each task outlined above, evaluate representation quality.
     splits = {}
@@ -94,8 +112,97 @@ def benchmark(
     return model_args, interfaces.TaskReport("Ages", examples, splits=splits)
 
 
+@beartype.beartype
+def benchmark_vlm(
+    args: Args, model_args: interfaces.ModelArgsVlm
+) -> tuple[interfaces.ModelArgsVlm, interfaces.TaskReport]:
+    rng = random.Random(args.seed)
+
+    splits = {}
+    with asyncio.Runner() as loop:
+        for task, dataset in get_all_tasks_vlm(args):
+            limiter = llms.RateLimiter(args.parallel)
+            semaphore = asyncio.Semaphore(args.parallel)
+
+            @beartype.beartype
+            async def run_one(
+                fewshot_examples: list[llms.Example], test_example: SampleVlm
+            ) -> interfaces.Prediction:
+                async with semaphore:
+                    await limiter.acquire()
+                    assistant = await llms.send(
+                        model_args,
+                        fewshot_examples,
+                        test_example.image,
+                        test_example.make_user(rng),
+                    )
+                    pred = test_example.parse_assistant(assistant)
+                    return interfaces.Prediction(
+                        test_example.image_id,
+                        float(pred == test_example.classname),
+                        info={
+                            "task": task.name,
+                            "gold": test_example.classname,
+                            "pred": pred,
+                        },
+                    )
+
+            @beartype.beartype
+            async def run_all(
+                submissions: list[tuple[list[llms.Example], SampleVlm]],
+            ) -> list[interfaces.Prediction]:
+                if args.debug:
+                    submissions = submissions[:10]
+                tasks = [asyncio.create_task(run_one(*args)) for args in submissions]
+                preds = []
+                for task in helpers.progress(tasks):
+                    pred: interfaces.Prediction = await task
+                    preds.append(pred)
+                return preds
+
+            llm_args = []
+            i_train = rng.choices(task.train, k=args.max_examples)
+
+            for i in task.test:
+                test_example = dataset[i]
+
+                # Try to fit them into a prompt.
+                n_examples = 0
+                fewshot_examples = []
+                # If args.max_examples is negative, add as many examples as possible. If it's 0 or positive, use that many examples, capped by llm.fits. AI!
+                while (
+                    llms.fits(
+                        model_args,
+                        fewshot_examples,
+                        test_example.image,
+                        test_example.make_user(rng),
+                    )
+                    and n_examples < args.max_examples
+                ):
+                    # Add another example.
+                    n_examples += 1
+                    fewshot_examples = [
+                        dataset[j].to_example(rng) for j in i_train[:n_examples]
+                    ]
+
+                llm_args.append((fewshot_examples, test_example))
+
+            preds = loop.run(run_all(llm_args))
+            test_acc = np.mean([pred.score for pred in preds]).item()
+            splits[task.name] = test_acc
+
+    return model_args, interfaces.TaskReport(
+        "Ages", args.max_examples, preds, splits=splits
+    )
+
+
+#########
+# CV/ML #
+#########
+
+
 @jaxtyped(typechecker=beartype.beartype)
-class Dataset(torch.utils.data.Dataset):
+class DatasetCvml(torch.utils.data.Dataset):
     """
     A dataset that returns `(example id, image tensor, integer label)` tuples.
     """
@@ -132,7 +239,7 @@ class Features:
 
 @jaxtyped(typechecker=beartype.beartype)
 @torch.no_grad()
-def get_all_tasks(
+def get_all_tasks_cvml(
     args: Args, backbone: interfaces.VisionBackbone
 ) -> collections.abc.Iterator[tuple[str, Features, Features]]:
     """
@@ -146,12 +253,12 @@ def get_all_tasks(
         An iterator of (taskname, train features, test features) tuples, one for each task (described in this module's docstring).
     """
     labels_csv_name = "newt2021_labels.csv"
-    labels_csv_path = os.path.join(args.datadir, labels_csv_name)
+    labels_csv_path = os.path.join(args.data, labels_csv_name)
     images_dir_name = "newt2021_images"
-    images_dir_path = os.path.join(args.datadir, images_dir_name)
+    images_dir_path = os.path.join(args.data, images_dir_name)
 
     if not os.path.isfile(labels_csv_path):
-        msg = f"Path '{labels_csv_path}' doesn't exist. Did you download the Newt dataset? See the docstring at the top of this file for instructions. If you did download it, pass the path with '--ages-args.datadir'; see --help for more."
+        msg = f"Path '{labels_csv_path}' doesn't exist. Did you download the Newt dataset? See the docstring at the top of this file for instructions. If you did download it, pass the path with '--ages-args.data'; see --help for more."
         raise RuntimeError(msg)
 
     df = pl.read_csv(labels_csv_path).with_row_index()
@@ -163,7 +270,7 @@ def get_all_tasks(
     img_transform = backbone.make_img_transform()
     backbone = torch.compile(backbone.to(args.device))
 
-    dataset = Dataset(images_dir_path, df, img_transform)
+    dataset = DatasetCvml(images_dir_path, df, img_transform)
     dataloader = torch.utils.data.DataLoader(
         dataset,
         batch_size=args.batch_size,
@@ -232,3 +339,147 @@ def init_clf():
         n_jobs=16,
         random_state=42,
     )
+
+
+#######
+# VLM #
+#######
+
+RAW_TO_CLASSNAME = {
+    "ml_age_coopers_hawk": "Cooper's hawk",
+    "ml_age_black_bellied_plover": "black-bellied plover",
+    "ml_age_semipalmated_plover": "semipalmated plover",
+    "ml_age_whimbrel": "whimbrel",
+    "ml_age_rough_legged_hawk": "rough-legged hawk",
+    "ml_age_swainsons_hawk": "Swainson's hawk",
+    "ml_age_bald_eagle": "bald eagle",
+    "ml_age_sanderling": "sanderling",
+    "ml_age_dunlin": "dunlin",
+    "ml_age_western_sandpiper": "western sandpiper",
+    "ml_age_least_sandpiper": "least sandpiper",
+    "ml_age_sharp_shinned_hawk": "sharp-shinned hawk",
+}
+
+CLASSNAMES = list(RAW_TO_CLASSNAME.values())
+
+
+@beartype.beartype
+@dataclasses.dataclass(frozen=True)
+class SampleVlm:
+    image_id: str
+    image: Image.Image
+    classname: str
+
+    def make_user(self, rng: random.Random) -> str:
+        classnames = rng.sample(CLASSNAMES, k=len(CLASSNAMES))
+        return f"What is this a picture of, {', '.join(classnames[:-1])} or {classnames[-1]}? Respond with your answer in bold."
+
+    @property
+    def assistant(self) -> str:
+        return f"**{self.classname}**"
+
+    def parse_assistant(self, assistant: str) -> str:
+        pattern = re.compile(r"\*\*(.*)\*\*")
+        match = pattern.match(assistant)
+        if match:
+            # Return the closest classname in bold.
+            pred = difflib.get_close_matches(match.group(1), CLASSNAMES, cutoff=0.0)[0]
+        else:
+            # Get the closest classname.
+            pred = difflib.get_close_matches(assistant, CLASSNAMES, cutoff=0.0)[0]
+
+        return pred
+
+    def to_example(self, rng: random.Random) -> llms.Example:
+        return llms.Example(
+            image=self.image,
+            user=self.make_user(rng),
+            assistant=self.assistant,
+        )
+
+
+@jaxtyped(typechecker=beartype.beartype)
+class DatasetVlm(torch.utils.data.Dataset):
+    """
+    A dataset that returns SampleVlms.
+    """
+
+    def __init__(self, root: str, df):
+        self.root = root
+
+        self.image_ids = df.get_column("id").to_list()
+        self.text_labels = df.get_column("task").to_list()
+
+    def __getitem__(self, i: int) -> SampleVlm:
+        image_id = self.image_ids[i]
+        classname = RAW_TO_CLASSNAME[self.text_labels[i]]
+
+        image = Image.open(os.path.join(self.root, f"{image_id}.jpg"))
+
+        return SampleVlm(image_id, image, classname)
+
+    def __len__(self) -> int:
+        return len(self.image_ids)
+
+
+@jaxtyped(typechecker=beartype.beartype)
+@dataclasses.dataclass(frozen=True)
+class TaskVlm:
+    """
+    Task is a group of indices for a VLM with a train/test split.
+    """
+
+    name: str
+    train: Integer[np.ndarray, " n_train"]
+    test: Integer[np.ndarray, " n_test"]
+
+    def __repr__(self) -> str:
+        return f"Task(name={self.name}, n_train={len(self.train)}, n_test={len(self.test)})"
+
+
+@beartype.beartype
+def get_all_tasks_vlm(
+    args: Args,
+) -> collections.abc.Iterator[tuple[TaskVlm, DatasetVlm]]:
+    """
+    Gets train and test features for all the different tasks being evaluated.
+
+    Args:
+        args: configuration for the ages task.
+        backbone: the particular vision backbone being evaluated.
+
+    Returns:
+        An iterator of (taskname, train features, test features) tuples, one for each task (described in this module's docstring).
+    """
+    labels_csv_name = "newt2021_labels.csv"
+    labels_csv_path = os.path.join(args.data, labels_csv_name)
+    images_dir_name = "newt2021_images"
+    images_dir_path = os.path.join(args.data, images_dir_name)
+
+    if not os.path.isfile(labels_csv_path):
+        msg = f"Path '{labels_csv_path}' doesn't exist. Did you download the Newt dataset? See the docstring at the top of this file for instructions. If you did download it, pass the path with '--ages-args.data'; see --help for more."
+        raise RuntimeError(msg)
+
+    df = pl.read_csv(labels_csv_path).with_row_index()
+    # Only get tasks about age.
+    df = df.filter(pl.col("task").str.contains("ml_age"))
+    # Add integer label for species (0-indexed).
+
+    dataset = DatasetVlm(images_dir_path, df)
+
+    tasks = (("adult", "adult"), ("not_adult", "not_adult"), ("adult", "not_adult"))
+    for train, test in tasks:
+        train_i = (
+            df.select((pl.col("split") == "train") & (pl.col("text_label") == train))
+            .to_numpy()
+            .squeeze()
+            .nonzero()[0]
+        )
+        test_i = (
+            df.select((pl.col("split") == "test") & (pl.col("text_label") == test))
+            .to_numpy()
+            .squeeze()
+            .nonzero()[0]
+        )
+
+        yield TaskVlm(f"{train}/{test}", train_i, test_i), dataset
