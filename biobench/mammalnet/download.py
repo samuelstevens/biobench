@@ -100,7 +100,7 @@ def main(args: Args):
             n_videos += len(video_files)
 
     with tarfile.open(videos_tar_path, "r") as tar:
-        for member in tqdm.tqdm(tar, desc="Extracting videos", total=n_videos):
+        for member in tqdm.tqdm(tar, desc="Extracting videos", total=n_videos + 1):
             if member.name in all_video_files or member.name == "trimmed_video":
                 tar.extract(member, path=args.dir)
     print(f"Extracted videos: {videos_dir_path}.")
