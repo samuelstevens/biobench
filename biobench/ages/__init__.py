@@ -169,7 +169,6 @@ def benchmark_vlm(
                 # Try to fit them into a prompt.
                 n_examples = 0
                 fewshot_examples = []
-                # If args.max_examples is negative, add as many examples as possible. If it's 0 or positive, use that many examples, capped by llm.fits. AI!
                 while (
                     llms.fits(
                         model_args,
@@ -177,7 +176,7 @@ def benchmark_vlm(
                         test_example.image,
                         test_example.make_user(rng),
                     )
-                    and n_examples < args.max_examples
+                    and (args.max_examples < 0 or n_examples < args.max_examples)
                 ):
                     # Add another example.
                     n_examples += 1
