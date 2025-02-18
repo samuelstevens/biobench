@@ -137,6 +137,7 @@ def benchmark_vlm(
                         test_example.make_user(rng),
                     )
                     pred = test_example.parse_assistant(assistant)
+                    breakpoint()
                     return interfaces.Prediction(
                         test_example.image_id,
                         float(pred == test_example.classname),
@@ -155,7 +156,7 @@ def benchmark_vlm(
                     submissions = submissions[:10]
                 tasks = [asyncio.create_task(run_one(*args)) for args in submissions]
                 preds = []
-                for task in helpers.progress(tasks):
+                for task in helpers.progress(tasks, every=1):
                     pred: interfaces.Prediction = await task
                     preds.append(pred)
                 return preds
@@ -169,15 +170,12 @@ def benchmark_vlm(
                 # Try to fit them into a prompt.
                 n_examples = 0
                 fewshot_examples = []
-                while (
-                    llms.fits(
-                        model_args,
-                        fewshot_examples,
-                        test_example.image,
-                        test_example.make_user(rng),
-                    )
-                    and (args.max_examples < 0 or n_examples < args.max_examples)
-                ):
+                while llms.fits(
+                    model_args,
+                    fewshot_examples,
+                    test_example.image,
+                    test_example.make_user(rng),
+                ) and (args.max_examples < 0 or n_examples < args.max_examples):
                     # Add another example.
                     n_examples += 1
                     fewshot_examples = [

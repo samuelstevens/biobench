@@ -60,3 +60,8 @@ Solution: Framework for understanding when and how to transition between approac
 Goal: Align ML approaches with ecological data collection realities
 Problem: Standard few-shot learning research assumes fixed, small sample sizes, while ecological projects often have gradually expanding datasets
 Solution: Analysis of how different approaches scale with increasing data, matching real-world ecological data collection patterns
+
+# 02/12/2025
+
+Gemini Flash 1.5 8B spent ~13c on Ages with no examples.
+Now I'm trying with 1 training example.

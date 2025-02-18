@@ -1,6 +1,7 @@
 CREATE TABLE IF NOT EXISTS reports (
     -- 
     model_config TEXT NOT NULL,
+    max_examples INT NOT NULL,
     task_name TEXT NOT NULL,
     posix INTEGER NOT NULL,
     -- Results

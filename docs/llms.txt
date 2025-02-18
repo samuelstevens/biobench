@@ -35,22 +35,6 @@ from biobench import helpers
 
 @jaxtyped(typechecker=beartype.beartype)
 @dataclasses.dataclass(frozen=True)
-class TaskArgs:
-    """Common args for all tasks."""
-
-    seed: int = 42
-    """random seed."""
-    datadir: str = ""
-    """dataset directory; where you downloaded this task's data to."""
-    # Computed at runtime.
-    device: str = "cuda"
-    """(computed at runtime) which kind of accelerator to use."""
-    debug: bool = False
-    """(computed at runtime) whether to run in debug mode."""
-
-
-@jaxtyped(typechecker=beartype.beartype)
-@dataclasses.dataclass(frozen=True)
 class EncodedImgBatch:
     """The output of a `VisionBackbone`'s `VisionBackbone.img_encode()` method."""
 
@@ -687,11 +671,11 @@ class Example:
             {
                 "role": "user",
                 "content": [
-                    {"type": "text", "text": self.user},
                     {
                         "type": "image_url",
                         "image_url": {"url": image_to_base64(self.image)},
                     },
+                    {"type": "text", "text": self.user},
                 ],
             },
             {"role": "assistant", "content": self.assistant},
@@ -712,11 +696,11 @@ def fits(
     messages.append({
         "role": "user",
         "content": [
-            {"type": "text", "text": user},
             {
                 "type": "image_url",
                 "image_url": {"url": image_to_base64(image)},
             },
+            {"type": "text", "text": user},
         ],
     })
     n_tokens = litellm.token_counter(model=args.ckpt, messages=messages)
@@ -802,11 +786,11 @@ async def send(
     messages.append({
         "role": "user",
         "content": [
-            {"type": "text", "text": user},
             {
                 "type": "image_url",
                 "image_url": {"url": image_to_base64(image)},
             },
+            {"type": "text", "text": user},
         ],
     })
     # Make LLM call with retries
@@ -861,6 +845,8 @@ async def send(
 
         # Extract response and update history
         response = response.choices[0].message.content
+        if response is None:
+            return ""
         return response
 
 
@@ -972,24 +958,6 @@ def write_hparam_sweep_plot(
     filepath = os.path.join("logs", f"{task}_{fs_safe(model)}_hparam.png")
     fig.savefig(filepath)
     return filepath
-
-
-approximate_log_samples = [
-    1,
-    3,
-    10,
-    30,
-    100,
-    300,
-    1_000,
-    3000,
-    10_000,
-    30_000,
-    100_000,
-    300_000,
-    1_000_000,
-    3_000_000,
-]
 
 ```
 
@@ -1145,13 +1113,21 @@ n_classes = 10_000
 
 @beartype.beartype
 @dataclasses.dataclass(frozen=True)
-class Args(interfaces.TaskArgs):
+class Args:
     batch_size: int = 256
     """batch size for deep model."""
     n_workers: int = 4
     """number of dataloader worker processes."""
     log_every: int = 10
     """how often (number of batches) to log progress."""
+
+    # Computed at runtime.
+    max_examples: int = -1
+    """(computed at runtime) Number of maximum training samples. Negative number means use all of them."""
+    device: str = "cuda"
+    """(computed at runtime) Which kind of accelerator to use."""
+    debug: bool = False
+    """(computed at runtime) Whether to run in debug mode."""
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -1406,13 +1382,20 @@ logger = logging.getLogger("plantnet")
 
 @beartype.beartype
 @dataclasses.dataclass(frozen=True)
-class Args(interfaces.TaskArgs):
+class Args:
     batch_size: int = 256
     """batch size for deep model."""
     n_workers: int = 4
     """number of dataloader worker processes."""
     log_every: int = 10
     """how often (number of batches) to log progress."""
+    # Computed at runtime.
+    max_examples: int = -1
+    """(computed at runtime) Number of maximum training samples. Negative number means use all of them."""
+    device: str = "cuda"
+    """(computed at runtime) Which kind of accelerator to use."""
+    debug: bool = False
+    """(computed at runtime) Whether to run in debug mode."""
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -1657,7 +1640,7 @@ logger = logging.getLogger("iwildcam")
 
 @beartype.beartype
 @dataclasses.dataclass(frozen=True)
-class Args(interfaces.TaskArgs):
+class Args:
     """Arguments for the iWildCam task."""
 
     batch_size: int = 2048
@@ -1666,6 +1649,13 @@ class Args(interfaces.TaskArgs):
     """number of dataloader worker processes."""
     log_every: int = 10
     """how often (number of batches) to log progress."""
+    # Computed at runtime.
+    max_examples: int = -1
+    """(computed at runtime) Number of maximum training samples. Negative number means use all of them."""
+    device: str = "cuda"
+    """(computed at runtime) Which kind of accelerator to use."""
+    debug: bool = False
+    """(computed at runtime) Whether to run in debug mode."""
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -1981,7 +1971,7 @@ logger = logging.getLogger("plankton")
 
 @beartype.beartype
 @dataclasses.dataclass(frozen=True)
-class Args(interfaces.TaskArgs):
+class Args:
     """Plankton task arguments."""
 
     batch_size: int = 256
@@ -1990,6 +1980,13 @@ class Args(interfaces.TaskArgs):
     """number of dataloader worker processes."""
     log_every: int = 10
     """how often (number of batches) to log progress."""
+    # Computed at runtime.
+    max_examples: int = -1
+    """(computed at runtime) Number of maximum training samples. Negative number means use all of them."""
+    device: str = "cuda"
+    """(computed at runtime) Which kind of accelerator to use."""
+    debug: bool = False
+    """(computed at runtime) Whether to run in debug mode."""
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -2181,10 +2178,14 @@ To download the original data, follow the instructions in `biobench.newt.downloa
 ```
 """
 
+import asyncio
 import collections.abc
 import dataclasses
+import difflib
 import logging
 import os
+import random
+import re
 
 import beartype
 import numpy as np
@@ -2195,30 +2196,44 @@ import sklearn.pipeline
 import sklearn.preprocessing
 import sklearn.svm
 import torch
-from jaxtyping import Float, Int, Shaped, jaxtyped
+from jaxtyping import Float, Int, Integer, Shaped, jaxtyped
 from PIL import Image
 from torch import Tensor
 
-from biobench import helpers, interfaces, registry
+from .. import helpers, interfaces, llms, registry
 
 logger = logging.getLogger("ages")
 
 
 @beartype.beartype
 @dataclasses.dataclass(frozen=True)
-class Args(interfaces.TaskArgs):
+class Args:
     """Ages task arguments."""
 
-    batch_size: int = 256
-    """batch size for deep model."""
+    data: str = ""
+    """dataset directory; where you downloaded this task's data to."""
+    batch_size_cv: int = 256
+    """batch size for computer vision model."""
     n_workers: int = 4
     """number of dataloader worker processes."""
     log_every: int = 10
     """how often (number of batches) to log progress."""
+    seed: int = 42
+    """random seed."""
+    max_examples: int = -1
+    """Number of maximum training samples. Negative number means use all of them."""
+    parallel: int = 5
+    """Concurrent requests per second."""
+
+    # Computed at runtime.
+    device: str = "cuda"
+    """(computed at runtime) which kind of accelerator to use."""
+    debug: bool = False
+    """(computed at runtime) whether to run in debug mode."""
 
 
 @beartype.beartype
-def benchmark(
+def benchmark_cvml(
     args: Args, model_args: interfaces.ModelArgsCvml
 ) -> tuple[interfaces.ModelArgsCvml, interfaces.TaskReport]:
     """
@@ -2235,7 +2250,7 @@ def benchmark(
     backbone = registry.load_vision_backbone(*model_args)
 
     # 2. Get features.
-    tasks = get_all_tasks(args, backbone)
+    tasks = get_all_tasks_cvml(args, backbone)
 
     # 3. For each task outlined above, evaluate representation quality.
     splits = {}
@@ -2254,8 +2269,94 @@ def benchmark(
     return model_args, interfaces.TaskReport("Ages", examples, splits=splits)
 
 
+@beartype.beartype
+def benchmark_vlm(
+    args: Args, model_args: interfaces.ModelArgsVlm
+) -> tuple[interfaces.ModelArgsVlm, interfaces.TaskReport]:
+    rng = random.Random(args.seed)
+
+    splits = {}
+    with asyncio.Runner() as loop:
+        for task, dataset in get_all_tasks_vlm(args):
+            limiter = llms.RateLimiter(args.parallel)
+            semaphore = asyncio.Semaphore(args.parallel)
+
+            @beartype.beartype
+            async def run_one(
+                fewshot_examples: list[llms.Example], test_example: SampleVlm
+            ) -> interfaces.Prediction:
+                async with semaphore:
+                    await limiter.acquire()
+                    assistant = await llms.send(
+                        model_args,
+                        fewshot_examples,
+                        test_example.image,
+                        test_example.make_user(rng),
+                    )
+                    pred = test_example.parse_assistant(assistant)
+                    breakpoint()
+                    return interfaces.Prediction(
+                        test_example.image_id,
+                        float(pred == test_example.classname),
+                        info={
+                            "task": task.name,
+                            "gold": test_example.classname,
+                            "pred": pred,
+                        },
+                    )
+
+            @beartype.beartype
+            async def run_all(
+                submissions: list[tuple[list[llms.Example], SampleVlm]],
+            ) -> list[interfaces.Prediction]:
+                if args.debug:
+                    submissions = submissions[:10]
+                tasks = [asyncio.create_task(run_one(*args)) for args in submissions]
+                preds = []
+                for task in helpers.progress(tasks, every=1):
+                    pred: interfaces.Prediction = await task
+                    preds.append(pred)
+                return preds
+
+            llm_args = []
+            i_train = rng.choices(task.train, k=args.max_examples)
+
+            for i in task.test:
+                test_example = dataset[i]
+
+                # Try to fit them into a prompt.
+                n_examples = 0
+                fewshot_examples = []
+                while llms.fits(
+                    model_args,
+                    fewshot_examples,
+                    test_example.image,
+                    test_example.make_user(rng),
+                ) and (args.max_examples < 0 or n_examples < args.max_examples):
+                    # Add another example.
+                    n_examples += 1
+                    fewshot_examples = [
+                        dataset[j].to_example(rng) for j in i_train[:n_examples]
+                    ]
+
+                llm_args.append((fewshot_examples, test_example))
+
+            preds = loop.run(run_all(llm_args))
+            test_acc = np.mean([pred.score for pred in preds]).item()
+            splits[task.name] = test_acc
+
+    return model_args, interfaces.TaskReport(
+        "Ages", args.max_examples, preds, splits=splits
+    )
+
+
+#########
+# CV/ML #
+#########
+
+
 @jaxtyped(typechecker=beartype.beartype)
-class Dataset(torch.utils.data.Dataset):
+class DatasetCvml(torch.utils.data.Dataset):
     """
     A dataset that returns `(example id, image tensor, integer label)` tuples.
     """
@@ -2292,7 +2393,7 @@ class Features:
 
 @jaxtyped(typechecker=beartype.beartype)
 @torch.no_grad()
-def get_all_tasks(
+def get_all_tasks_cvml(
     args: Args, backbone: interfaces.VisionBackbone
 ) -> collections.abc.Iterator[tuple[str, Features, Features]]:
     """
@@ -2306,12 +2407,12 @@ def get_all_tasks(
         An iterator of (taskname, train features, test features) tuples, one for each task (described in this module's docstring).
     """
     labels_csv_name = "newt2021_labels.csv"
-    labels_csv_path = os.path.join(args.datadir, labels_csv_name)
+    labels_csv_path = os.path.join(args.data, labels_csv_name)
     images_dir_name = "newt2021_images"
-    images_dir_path = os.path.join(args.datadir, images_dir_name)
+    images_dir_path = os.path.join(args.data, images_dir_name)
 
     if not os.path.isfile(labels_csv_path):
-        msg = f"Path '{labels_csv_path}' doesn't exist. Did you download the Newt dataset? See the docstring at the top of this file for instructions. If you did download it, pass the path with '--ages-args.datadir'; see --help for more."
+        msg = f"Path '{labels_csv_path}' doesn't exist. Did you download the Newt dataset? See the docstring at the top of this file for instructions. If you did download it, pass the path with '--ages-args.data'; see --help for more."
         raise RuntimeError(msg)
 
     df = pl.read_csv(labels_csv_path).with_row_index()
@@ -2323,7 +2424,7 @@ def get_all_tasks(
     img_transform = backbone.make_img_transform()
     backbone = torch.compile(backbone.to(args.device))
 
-    dataset = Dataset(images_dir_path, df, img_transform)
+    dataset = DatasetCvml(images_dir_path, df, img_transform)
     dataloader = torch.utils.data.DataLoader(
         dataset,
         batch_size=args.batch_size,
@@ -2392,6 +2493,150 @@ def init_clf():
         n_jobs=16,
         random_state=42,
     )
+
+
+#######
+# VLM #
+#######
+
+RAW_TO_CLASSNAME = {
+    "ml_age_coopers_hawk": "Cooper's hawk",
+    "ml_age_black_bellied_plover": "black-bellied plover",
+    "ml_age_semipalmated_plover": "semipalmated plover",
+    "ml_age_whimbrel": "whimbrel",
+    "ml_age_rough_legged_hawk": "rough-legged hawk",
+    "ml_age_swainsons_hawk": "Swainson's hawk",
+    "ml_age_bald_eagle": "bald eagle",
+    "ml_age_sanderling": "sanderling",
+    "ml_age_dunlin": "dunlin",
+    "ml_age_western_sandpiper": "western sandpiper",
+    "ml_age_least_sandpiper": "least sandpiper",
+    "ml_age_sharp_shinned_hawk": "sharp-shinned hawk",
+}
+
+CLASSNAMES = list(RAW_TO_CLASSNAME.values())
+
+
+@beartype.beartype
+@dataclasses.dataclass(frozen=True)
+class SampleVlm:
+    image_id: str
+    image: Image.Image
+    classname: str
+
+    def make_user(self, rng: random.Random) -> str:
+        classnames = rng.sample(CLASSNAMES, k=len(CLASSNAMES))
+        return f"What is this a picture of, {', '.join(classnames[:-1])} or {classnames[-1]}? Respond with your answer in bold."
+
+    @property
+    def assistant(self) -> str:
+        return f"**{self.classname}**"
+
+    def parse_assistant(self, assistant: str) -> str:
+        pattern = re.compile(r"\*\*(.*)\*\*")
+        match = pattern.match(assistant)
+        if match:
+            # Return the closest classname in bold.
+            pred = difflib.get_close_matches(match.group(1), CLASSNAMES, cutoff=0.0)[0]
+        else:
+            # Get the closest classname.
+            pred = difflib.get_close_matches(assistant, CLASSNAMES, cutoff=0.0)[0]
+
+        return pred
+
+    def to_example(self, rng: random.Random) -> llms.Example:
+        return llms.Example(
+            image=self.image,
+            user=self.make_user(rng),
+            assistant=self.assistant,
+        )
+
+
+@jaxtyped(typechecker=beartype.beartype)
+class DatasetVlm(torch.utils.data.Dataset):
+    """
+    A dataset that returns SampleVlms.
+    """
+
+    def __init__(self, root: str, df):
+        self.root = root
+
+        self.image_ids = df.get_column("id").to_list()
+        self.text_labels = df.get_column("task").to_list()
+
+    def __getitem__(self, i: int) -> SampleVlm:
+        image_id = self.image_ids[i]
+        classname = RAW_TO_CLASSNAME[self.text_labels[i]]
+
+        image = Image.open(os.path.join(self.root, f"{image_id}.jpg"))
+
+        return SampleVlm(image_id, image, classname)
+
+    def __len__(self) -> int:
+        return len(self.image_ids)
+
+
+@jaxtyped(typechecker=beartype.beartype)
+@dataclasses.dataclass(frozen=True)
+class TaskVlm:
+    """
+    Task is a group of indices for a VLM with a train/test split.
+    """
+
+    name: str
+    train: Integer[np.ndarray, " n_train"]
+    test: Integer[np.ndarray, " n_test"]
+
+    def __repr__(self) -> str:
+        return f"Task(name={self.name}, n_train={len(self.train)}, n_test={len(self.test)})"
+
+
+@beartype.beartype
+def get_all_tasks_vlm(
+    args: Args,
+) -> collections.abc.Iterator[tuple[TaskVlm, DatasetVlm]]:
+    """
+    Gets train and test features for all the different tasks being evaluated.
+
+    Args:
+        args: configuration for the ages task.
+        backbone: the particular vision backbone being evaluated.
+
+    Returns:
+        An iterator of (taskname, train features, test features) tuples, one for each task (described in this module's docstring).
+    """
+    labels_csv_name = "newt2021_labels.csv"
+    labels_csv_path = os.path.join(args.data, labels_csv_name)
+    images_dir_name = "newt2021_images"
+    images_dir_path = os.path.join(args.data, images_dir_name)
+
+    if not os.path.isfile(labels_csv_path):
+        msg = f"Path '{labels_csv_path}' doesn't exist. Did you download the Newt dataset? See the docstring at the top of this file for instructions. If you did download it, pass the path with '--ages-args.data'; see --help for more."
+        raise RuntimeError(msg)
+
+    df = pl.read_csv(labels_csv_path).with_row_index()
+    # Only get tasks about age.
+    df = df.filter(pl.col("task").str.contains("ml_age"))
+    # Add integer label for species (0-indexed).
+
+    dataset = DatasetVlm(images_dir_path, df)
+
+    tasks = (("adult", "adult"), ("not_adult", "not_adult"), ("adult", "not_adult"))
+    for train, test in tasks:
+        train_i = (
+            df.select((pl.col("split") == "train") & (pl.col("text_label") == train))
+            .to_numpy()
+            .squeeze()
+            .nonzero()[0]
+        )
+        test_i = (
+            df.select((pl.col("split") == "test") & (pl.col("text_label") == test))
+            .to_numpy()
+            .squeeze()
+            .nonzero()[0]
+        )
+
+        yield TaskVlm(f"{train}/{test}", train_i, test_i), dataset
 
 ```
 
@@ -2521,7 +2766,7 @@ logger = logging.getLogger("leopard")
 
 @beartype.beartype
 @dataclasses.dataclass(frozen=True)
-class Args(interfaces.TaskArgs):
+class Args:
     """Configuration for Leopard re-ID task."""
 
     batch_size: int = 256
@@ -2532,6 +2777,13 @@ class Args(interfaces.TaskArgs):
     """How often to log while getting features."""
     n_jobs: int = 16
     """How many SVMs to train in parallel."""
+    # Computed at runtime.
+    max_examples: int = -1
+    """(computed at runtime) Number of maximum training samples. Negative number means use all of them."""
+    device: str = "cuda"
+    """(computed at runtime) Which kind of accelerator to use."""
+    debug: bool = False
+    """(computed at runtime) Whether to run in debug mode."""
 
 
 @beartype.beartype
@@ -2799,15 +3051,29 @@ logger = logging.getLogger("beluga")
 
 @beartype.beartype
 @dataclasses.dataclass(frozen=True)
-class Args(interfaces.TaskArgs):
+class Args:
     """Configuration for BelugaID task."""
 
-    batch_size: int = 256
-    """Batch size for the vision backbone."""
+    data: str = ""
+    """dataset directory; where you downloaded this task's data to."""
+    batch_size_cv: int = 256
+    """batch size for computer vision model."""
     n_workers: int = 8
     """Number of dataloader workers."""
     log_every: int = 10
     """How often to log while getting features."""
+    seed: int = 42
+    """random seed."""
+    parallel: int = 5
+    """Concurrent requests per second."""
+
+    # Computed at runtime.
+    max_examples: int = -1
+    """(computed at runtime) Number of maximum training samples. Negative number means use all of them."""
+    device: str = "cuda"
+    """(computed at runtime) Which kind of accelerator to use."""
+    debug: bool = False
+    """(computed at runtime) Whether to run in debug mode."""
 
 
 @beartype.beartype
@@ -3005,13 +3271,8 @@ class Args:
 
     seed: int = 42
     """random seed."""
-    datadir: str = ""
+    data: str = ""
     """dataset directory; where you downloaded this task's data to."""
-    # Computed at runtime.
-    device: str = "cuda"
-    """(computed at runtime) which kind of accelerator to use."""
-    debug: bool = False
-    """(computed at runtime) whether to run in debug mode."""
 
     batch_size: int = 256
     """batch size for deep model."""
@@ -3021,6 +3282,13 @@ class Args:
     """how often (number of batches) to log progress."""
     n_repeats: int = 100
     """number of times to do 1-shot training."""
+    # Computed at runtime.
+    max_examples: int = -1
+    """(computed at runtime) Number of maximum training samples. Negative number means use all of them."""
+    device: str = "cuda"
+    """(computed at runtime) Which kind of accelerator to use."""
+    debug: bool = False
+    """(computed at runtime) Whether to run in debug mode."""
 
 
 @beartype.beartype
@@ -3217,682 +3485,6 @@ def choose_k_per_class(labels: Int[Tensor, " n"], *, k: int) -> Int[Tensor, " n_
 
 ```
 
-# biobench/newt/classnames.py
-
-```python
-classnames = {
-    # FGVCX
-    "fgvcx_plant_pathology_healthy_vs_sick": {
-        "healthy": "healthy plant",
-        "sick": "sick plant",
-    },
-    "fgvcx_icassava_healthy_vs_sick": {
-        "healthy": "healthy cassava leaf",
-        "sick": "sick cassave leaf",
-    },
-    # ML Photo
-    # (sam) we should change the openai templates for this task
-    "ml_photo_rating_12_vs_45_v1": {
-        "rating_4_or_5": "obvious bird",
-        "rating_1_or_2": "obscured bird",
-    },
-    "ml_photo_rating_12_vs_45_v2": {
-        "rating_4_or_5": "obvious bird",
-        "rating_1_or_2": "obscured bird",
-    },
-    "ml_photo_rating_12_vs_45_v3": {
-        "rating_4_or_5": "obvious bird",
-        "rating_1_or_2": "obscured bird",
-    },
-    "ml_photo_rating_12_vs_45_v4": {
-        "rating_4_or_5": "obvious bird",
-        "rating_1_or_2": "obscured bird",
-    },
-    "ml_photo_rating_12_vs_45_v5": {
-        "rating_4_or_5": "obvious bird",
-        "rating_1_or_2": "obscured bird",
-    },
-    # ML Bio
-    "ml_bio_has_red_eyes": {
-        "has_red_eyes": "bird with red eyes",
-        "not_red_eyes": "bird",
-    },
-    "ml_bio_high_contrast": {
-        "high_contrast": "bird with high contrast in its colors",
-        "not_high_contrast": "bird with low contrast in its colors",
-    },
-    "ml_bio_raptor_utility_pole": {
-        "neg": "raptor in the wild",
-        "raptor_on_pole": "raptor on a utility pole",
-    },
-    "ml_bio_is_at_flower": {
-        "is_at_flower": "bird near a flower",
-        "not_at_flower": "bird in the wild",
-    },
-    # ML Tag
-    "ml_tag_back_of_camera": {
-        "back_of_camera": "photo of a bird",
-        "not_back_of_camera": "bird in the wild",
-    },
-    "ml_tag_copulation": {
-        "not_copulation": "bird(s) in the wild",
-        "copulation": "birds mating",
-    },
-    "ml_tag_feeding_young": {
-        "not_feeding_young": "bird in the wild",
-        "feeding_young": "bird feeding its young",
-    },
-    "ml_tag_egg": {
-        "egg": "egg",
-        "no_egg": "bird",
-    },
-    "ml_tag_watermark": {
-        "no_watermark": "bird",
-        "watermark": "bird with a watermark",
-    },
-    "ml_tag_field_notes_sketch": {
-        "field_notes_sketch": "field drawing of a bird",
-        "not_field_notes_sketch": "bird",
-    },
-    "ml_tag_nest": {
-        "no_nest": "bird in the wild",
-        "nest": "bird in its nest",
-    },
-    "ml_tag_molting_waterfowl": {
-        "has_red_eyes": "molting waterfowl",
-        "not_red_eyes": "regular waterfowl",
-    },
-    "ml_tag_molting_raptors": {
-        "molting": "molting raptor",
-        "not_molting": "regular raptor",
-    },
-    "ml_tag_vocalizing": {
-        "not_vocalizing": "bird with its mouth closed",
-        "vocalizing": "vocalizing bird",
-    },
-    "ml_tag_dead": {
-        "not_dead": "living bird",
-        "dead": "dead bird",
-    },
-    "ml_tag_in_hand": {
-        "in_hand": "bird in a human hand",
-        "not_in_hand": "bird in the wild",
-    },
-    "ml_tag_multiple_species": {
-        "single_species": "one single species",
-        "multiple_species": "multiple different species",
-    },
-    "ml_tag_carrying_food": {
-        "not_carrying_food": "bird",
-        "carrying_food": "bird carrying food",
-    },
-    # (sam) I used typical here instead of regular
-    "ml_tag_foraging_waterfowl": {
-        "not_waterfowl_foraging": "typical waterfowl",
-        "waterfowl_foraging": "foraging waterfowl",
-    },
-    # I want the non_bird to not include the word bird in it.
-    "ml_tag_non_bird": {
-        "non_bird": "some thing",
-        "not_non_bird": "bird",
-    },
-    # ML Age
-    "ml_age_coopers_hawk": {
-        "adult": "adult Cooper's hawk",
-        "not_adult": "juvenile Cooper's hawk",
-    },
-    "ml_age_black_bellied_plover": {
-        "not_adult": "juveile black-bellied plover",
-        "adult": "adult black-bellied plover",
-    },
-    "ml_age_semipalmated_plover": {
-        "adult": "adult semipalmated plover",
-        "not_adult": "juvenile semipalmated plover",
-    },
-    "ml_age_whimbrel": {
-        "not_adult": "juvenile whimbrel",
-        "adult": "adult whimbrel",
-    },
-    "ml_age_rough_legged_hawk": {
-        "adult": "adult rough-legged hawk",
-        "not_adult": "juvenile rough-legged hawk",
-    },
-    "ml_age_swainsons_hawk": {
-        "not_adult": "juvenile Swainson's hawk",
-        "adult": "adult Swainson's hawk",
-    },
-    "ml_age_bald_eagle": {
-        "not_adult": "juvenile bald eagle",
-        "adult": "adult bald eagle",
-    },
-    "ml_age_sanderling": {
-        "adult": "adult sanderling",
-        "not_adult": "juvenile sanderling",
-    },
-    "ml_age_dunlin": {
-        "adult": "adult dunlin",
-        "not_adult": "juvenile dunlin",
-    },
-    "ml_age_western_sandpiper": {
-        "not_adult": "juvenile western sandpiper",
-        "adult": "adult wester sandpiper",
-    },
-    "ml_age_least_sandpiper": {
-        "not_adult": "juvenile least sandpiper",
-        "adult": "adult least sandpiper",
-    },
-    "ml_age_sharp_shinned_hawk": {
-        "adult": "adult sharp-shinned hawk",
-        "not_adult": "juvenile sharp-shinned hawk",
-    },
-    # NABirds
-    "nabirds_species_classification_amekes_merlin": {
-        "Merlin": "merlin",
-        "American Kestrel": "American kestrel",
-    },
-    "nabirds_species_classification_botgra_grtgra": {
-        "Boat-tailed Grackle": "boat-tailed grackle",
-        "Great-tailed Grackle": "great-tailed grackle",
-    },
-    "nabirds_species_classification_easmea_wesmea": {
-        "Eastern Meadowlark": "eastern meadowlark",
-        "Western Meadowlark": "western meadowlark",
-    },
-    "nabirds_species_classification_orcwar_tenwar": {
-        "Tennessee Warbler": "Tennessee warbler",
-        "Orange-crowned Warbler": "orange-crowned warbler",
-    },
-    "nabirds_species_classification_houwre_winwre3": {
-        "House Wren": "house wren",
-        "Winter Wren": "winter wren",
-    },
-    "nabirds_species_classification_buhvir_casvir": {
-        "Blue-headed Vireo": "blue-headed vireo",
-        "Cassin's Vireo": "Cassin's vireo",
-    },
-    "nabirds_species_classification_cavswa_cliswa": {
-        "Cave Swallow": "cave swallow",
-        "Cliff Swallow": "cliff swallow",
-    },
-    "nabirds_species_classification_blkvul_turvul": {
-        "Turkey Vulture": "turkey vulture",
-        "Black Vulture": "black vulture",
-    },
-    "nabirds_species_classification_bkchum_rthhum": {
-        "Black-chinned Hummingbird": "black-chinned hummingbird",
-        "Ruby-throated Hummingbird": "ruby-throated hummingbird",
-    },
-    "nabirds_species_classification_gloibi_whfibi": {
-        "Glossy Ibis": "glossy ibis",
-        "White-faced Ibis": "white-faced ibis",
-    },
-    "nabirds_species_classification_brwhaw_reshaw": {
-        "Red-shouldered Hawk": "red-shouldered hawk",
-        "Broad-winged Hawk": "broad-winged hawk",
-    },
-    "nabirds_species_classification_bargol_comgol": {
-        "Barrow's Goldeneye": "Barrow's goldeneye",
-        "Common Goldeneye": "common goldeneye",
-    },
-    "nabirds_species_classification_amecro_comrav": {
-        "American Crow": "American crow",
-        "Common Raven": "common raven",
-    },
-    "nabirds_species_classification_coohaw_shshaw": {
-        "Sharp-shinned Hawk": "sharp-shinned hawk",
-        "Cooper's Hawk": "Cooper's hawk",
-    },
-    "nabirds_species_classification_savspa_sonspa": {
-        "Song Sparrow": "song sparrow",
-        "Savannah Sparrow": "savannah sparrow",
-    },
-    "nabirds_species_classification_linspa_sonspa": {
-        "Lincoln's Sparrow": "Lincoln's sparrow",
-        "Song Sparrow": "song sparrow",
-    },
-    "nabirds_species_classification_gresca_lessca": {
-        "Greater Scaup": "greater scaup",
-        "Lesser Scaup": "lesser scaup",
-    },
-    "nabirds_species_classification_eawpew_wewpew": {
-        "Eastern Wood-Pewee": "eastern wood-pewee",
-        "Western Wood-Pewee": "western wood-pewee",
-    },
-    "nabirds_species_classification_herthr_swathr": {
-        "Hermit Thrush": "hermit thrush",
-        "Swainson's Thrush": "Swainson's thrush",
-    },
-    "nabirds_species_classification_greyel_lesyel": {
-        "Lesser Yellowlegs": "lesser yellowlegs",
-        "Greater Yellowlegs": "greater yellowlegs",
-    },
-    "nabirds_species_classification_linspa_savspa": {
-        "Lincoln's Sparrow": "Lincoln's sparrow",
-        "Savannah Sparrow": "savannah sparrow",
-    },
-    "nabirds_species_classification_houfin_purfin": {
-        "Purple Finch": "purple finch",
-        "House Finch": "house finch",
-    },
-    "nabirds_species_classification_cacgoo1_cangoo": {
-        "Canada Goose": "Canada goose",
-        "Cackling Goose": "cackling goose",
-    },
-    "nabirds_species_classification_semsan_wessan": {
-        "Semipalmated Sandpiper": "semipalmated sandpiper",
-        "Western Sandpiper": "western sandpiper",
-    },
-    "nabirds_species_classification_canvas_redhea": {
-        "Redhead": "redhead",
-        "Canvasback": "canvasback",
-    },
-    "nabirds_species_classification_hergul_ribgul": {
-        "Ring-billed Gull": "ring-billed gull",
-        "Herring Gull": "herring gull",
-    },
-    "nabirds_species_classification_truswa_tunswa": {
-        "Tundra Swan": "tundra swan",
-        "Trumpeter Swan": "trumpeter swan",
-    },
-    "nabirds_species_classification_bkcchi_carchi": {
-        "Carolina Chickadee": "Carolina chickadee",
-        "Black-capped Chickadee": "black-capped chickadee",
-    },
-    "nabirds_species_classification_solsan_sposan": {
-        "Spotted Sandpiper": "spotted sandpiper",
-        "Solitary Sandpiper": "solitary sandpiper",
-    },
-    "nabirds_species_classification_rosgoo_snogoo": {
-        "Snow Goose": "snow goose",
-        "Ross's Goose": "Ross's goose",
-    },
-    "nabirds_species_classification_dowwoo_haiwoo": {
-        "Hairy Woodpecker": "hairy woodpecker",
-        "Downy Woodpecker": "downy woodpecker",
-    },
-    "nabirds_species_classification_buhvir_plsvir": {
-        "Plumbeous Vireo": "plumbeous vireo",
-        "Blue-headed Vireo": "blue-headed vireo",
-    },
-    "nabirds_species_classification_casvir_plsvir": {
-        "Plumbeous Vireo": "plumbeous vireo",
-        "Cassin's Vireo": "Cassin's vireo",
-    },
-    "nabirds_species_classification_comrav_fiscro": {
-        "Fish Crow": "fish crow",
-        "Common Raven": "common raven",
-    },
-    "nabirds_species_classification_rensap_yebsap": {
-        "Yellow-bellied Sapsucker": "yellow-bellied sapsucker",
-        "Red-naped Sapsucker": "red-naped sapsucker",
-    },
-    "nabirds_species_classification_sursco_whwsco2": {
-        "Surf Scoter": "surf scoter",
-        "White-winged Scoter": "white-winged scoter",
-    },
-    "nabirds_species_classification_commer_rebmer": {
-        "Common Merganser": "common merganser",
-        "Red-breasted Merganser": "red-breasted merganser",
-    },
-    "nabirds_species_classification_barswa_cliswa": {
-        "Barn Swallow": "barn swallow",
-        "Cliff Swallow": "cliff swallow",
-    },
-    "nabirds_species_classification_amecro_fiscro": {
-        "American Crow": "American crow",
-        "Fish Crow": "fish crow",
-    },
-    "nabirds_species_classification_louwat_norwat": {
-        "Northern Waterthrush": "northern waterthrush",
-        "Louisiana Waterthrush": "Louisiana waterthrush",
-    },
-    # iNat non-species
-    "inat_non_species_dead_jackal": {
-        "dead_coyote": "dead coyote",
-        "dead_golden_jackal": "dead golden jackal",
-    },
-    "inat_non_species_white_american_robin": {
-        "regular_robin": "regular robin",
-        "white_robin": "white robin",
-    },
-    "inat_non_species_tagged_swan": {
-        "not_tagged_swan": "regular swan",
-        "tagged_swan": "tagged swan",
-    },
-    "inat_non_species_intersex_mallards": {
-        "not_intersex": "regular mallard",
-        "intersex": "intersex mallard",
-    },
-    "inat_non_species_birds_near_signs": {
-        "bird_not_on_sign": "bird in the wild",
-        "bird_on_sign": "bird on a man-made sign",
-    },
-    "inat_non_species_diseased_zebra_finch": {
-        "regular_zebra_finch": "regular zebra finch",
-        "diseased_zebra_finch": "diseased zebra finch",
-    },
-    "inat_non_species_mating_chauliognathus_pensylvanicus": {
-        "mating": "mating Chauliognathus pensylvanicus",
-        "not_mating": "non-mating Chauliognathus pensylvanicus",
-    },
-    "inat_non_species_mating_common_green_darner": {
-        "mating": "mating common green darner",
-        "not_mating": "non-mating common green darner",
-    },
-    "inat_non_species_black_eastern_gray_squirrel": {
-        "black_squirrel": "black squirrel",
-        "regular_squirrel": "regular squirrel",
-    },
-    "inat_non_species_dead_striped_skunk": {
-        "dead_striped_skunk": "dead striped skunk",
-        "dead_hog_nosed_skunk": "dead hog-nosed skunk",
-    },
-    "inat_non_species_dead_common_garter_snake": {
-        "common_garter_snake": "dead common garter snake",
-        "gopher_snake": "dead gopher snake",
-    },
-    "inat_non_species_diseased_leaves": {
-        "mulberry_leaf_leaf": "diseased mulberry leaf",
-        "red_dock_leaf": "red dock leaf",
-    },
-    "inat_non_species_mating_bagrada_hilaris": {
-        "not_mating": "non-mating Bagrada hilaris",
-        "mating": "mating Bagrada hilaris",
-    },
-    "inat_non_species_mating_hippodamia_convergens": {
-        "not_mating": "non-mating Hippodamia convergens",
-        "mating": "mating Hippodamia convergens",
-    },
-    "inat_non_species_mating_harmonia_axyridis": {
-        "not_mating": "non-mating Harmonia axyridis",
-        "mating": "mating Harmonia axyridis",
-    },
-    "inat_non_species_white_white_tailed_deer": {
-        "regular_deer": "regular deer",
-        "white_deer": "white-tailed deer",
-    },
-    "inat_non_species_mating_oncopeltus_fasciatus": {
-        "mating": "mating Oncopeltus fasciatus",
-        "not_mating": "non-mating Oncopeltus fasciatus",
-    },
-    "inat_non_species_mating_aligator_lizard": {
-        "mating": "mating alligator lizard",
-        "not_mating": "non-mating alligator lizard",
-    },
-    "inat_non_species_mating_toxomerus_marginatus": {
-        "mating": "mating Toxomerus marginatus",
-        "not_mating": "non-mating Toxomerus marginatus",
-    },
-    "inat_non_species_mating_danaus_plexippus": {
-        "mating": "mating Danaus plexippus",
-        "not_mating": "non-mating Danaus plexippus",
-    },
-    "inat_non_species_feather_california_scrub_jay_v_quail": {
-        "quail_feather": "quail feather",
-        "scrub_jay_feather": "scrub jay feather",
-    },
-    "inat_non_species_mating_argia_vivida": {
-        "mating": "mating Argia vivida",
-        "not_mating": "non-mating Argia vivida",
-    },
-    "inat_non_species_mammal_species": {
-        "bobcat_feces": "bobcat feces",
-        "black_bear_feces": "black bear feces",
-    },
-    "inat_non_species_deformed_beak": {
-        "deformed_beak": "bird with a deformed beak",
-        "regular_beak": "bird with a regular beak",
-    },
-    "inat_non_species_mating_terrapene_carolina": {
-        "mating": "mating Terrapene carolina",
-        "not_mating": "non-mating Terrapene carolina",
-    },
-    # iNat Observed
-    "inat_observed_Yellow-backed_Spiny_Lizard_vs_Desert_Spiny_Lizard": {
-        "Desert Spiny Lizard": "desert spiny lizard",
-        "Yellow-backed Spiny Lizard": "yellow-backed spiny lizard",
-    },
-    "inat_observed_Orange_Jelly_Spot_vs_witch's_butter": {
-        "witch's butter": "witch's butter",
-        "Orange Jelly Spot": "orange jelly spot",
-    },
-    "inat_observed_Eastern_Meadowlark_vs_Western_Meadowlark": {
-        "Eastern Meadowlark": "eastern meadowlark",
-        "Western Meadowlark": "western meadowlark",
-    },
-    "inat_observed_Groove-billed_Ani_vs_Smooth-billed_Ani": {
-        "Smooth-billed Ani": "smooth-billed ani",
-        "Groove-billed Ani": "groove-billed ani",
-    },
-    "inat_observed_Pacific_Banana_Slug_vs_Button's_Banana_Slug": {
-        "Button's Banana Slug": "Button's banana slug",
-        "Pacific Banana Slug": "Pacific banana slug",
-    },
-    "inat_observed_Red_Belted_Conk_vs_Northern_Red_Belt": {
-        "Northern Red Belt": "northern red belt",
-        "Red Belted Conk": "red belted conk",
-    },
-    "inat_observed_Brown-lipped_Snail_vs_White-lipped_Snail": {
-        "Brown-lipped Snail": "brown-lipped snail",
-        "White-lipped Snail": "white-lipped snail",
-    },
-    "inat_observed_Cross_Orbweaver_vs_Hentz's_Orbweaver": {
-        "Hentz's Orbweaver": "Hentz's orbweaver",
-        "Cross Orbweaver": "cross orbweaver",
-    },
-    "inat_observed_Common_Grass_Yellow_vs_Three-spotted_Grass_Yellow": {
-        "Three-spotted Grass Yellow": "three-spotted grass yellow",
-        "Common Grass Yellow": "common grass yellow",
-    },
-    "inat_observed_southern_cattail_vs_lesser_reedmace": {
-        "lesser reedmace": "lesser reedmace",
-        "southern cattail": "southern cattail",
-    },
-    "inat_observed_Blue_Mussel_vs_California_Mussel": {
-        "Blue Mussel": "blue mussel",
-        "California Mussel": "California mussel",
-    },
-    "inat_observed_Northern_Two-lined_Salamander_vs_Southern_Two-lined_Salamander": {
-        "Southern Two-lined Salamander": "southern two-lined salamander",
-        "Northern Two-lined Salamander": "northern two-lined salamander",
-    },
-    "inat_observed_Belize_Crocodile_vs_American_Crocodile": {
-        "American Crocodile": "American crocodile",
-        "Belize Crocodile": "Belize crocodile",
-    },
-    "inat_observed_Jelly_Ear_vs_Ear_fungus": {
-        "Jelly Ear": "jelly ear",
-        "Ear fungus": "ear fungus",
-    },
-    "inat_observed_Desert_Blonde_Tarantula_vs_Desert_Tarantula": {
-        "Desert Blonde Tarantula": "desert blonde tarantula",
-        "Desert Tarantula": "desert tarantula",
-    },
-    "inat_observed_Northern_Cinnabar_Polypore_vs_Cinnabar_Bracket": {
-        "Cinnabar Bracket": "cinnabar bracket",
-        "Northern Cinnabar Polypore": "northern cinnabar polypore",
-    },
-    "inat_observed_Western_Mosquitofish_vs_Eastern_Mosquitofish": {
-        "Western Mosquitofish": "western mosquitofish",
-        "Eastern Mosquitofish": "eastern mosquitofish",
-    },
-    "inat_observed_Western_Grey_Kangaroo_vs_Eastern_Grey_Kangaroo": {
-        "Western Grey Kangaroo": "western grey kangaroo",
-        "Eastern Grey Kangaroo": "eastern grey kangaroo",
-    },
-    "inat_observed_Eastern_Cane_Toad_vs_Giant_Marine_Toad": {
-        "Giant Marine Toad": "giant marine toad",
-        "Eastern Cane Toad": "eastern cane Toad",
-    },
-    "inat_observed_Eastern_Oyster_vs_Pacific_Oyster": {
-        "Pacific Oyster": "Pacific oyster",
-        "Eastern Oyster": "Eastern oyster",
-    },
-    "inat_observed_Snakeskin_Chiton_vs_California_Spiny_Chiton": {
-        "California Spiny Chiton": "California spiny chiton",
-        "Snakeskin Chiton": "snakeskin chiton",
-    },
-    "inat_observed_Flea_Jumper_vs_Asiatic_Wall_Jumping_Spider": {
-        "Asiatic Wall Jumping Spider": "Asiatic wall jumping spider",
-        "Flea Jumper": "flea jumper",
-    },
-    "inat_observed_California_Sea_Lion_vs_Steller_Sea_Lion": {
-        "Steller Sea Lion": "Steller sea lion",
-        "California Sea Lion": "California sea lion",
-    },
-    "inat_observed_Southern_Cinnabar_Polypore_vs_Cinnabar_Bracket": {
-        "Southern Cinnabar Polypore": "southern cinnabar polypore",
-        "Cinnabar Bracket": "cinnabar bracket",
-    },
-    "inat_observed_Southern_Black_Widow_vs_Western_Black_Widow": {
-        "Southern Black Widow": "Southern black widow",
-        "Western Black Widow": "Western black widow",
-    },
-    "inat_observed_Eastern_Ribbonsnake_vs_Western_Ribbon_Snake": {
-        "Eastern Ribbonsnake": "eastern ribbonsnake",
-        "Western Ribbon Snake": "western ribbonsnake",
-    },
-    "inat_observed_Brown_House_Spider_vs_False_Black_Widow": {
-        "False Black Widow": "false black widow",
-        "Brown House Spider": "brown house spider",
-    },
-    "inat_observed_Allegheny_Mountain_Dusky_Salamander_vs_Dusky_Salamander": {
-        "Dusky Salamander": "dusky salamander",
-        "Allegheny Mountain Dusky Salamander": "Allegheny Mountain dusky salamander",
-    },
-    "inat_observed_Rough_Green_Snake_vs_Smooth_Greensnake": {
-        "Rough Green Snake": "rough green snake",
-        "Smooth Greensnake": "smooth greensnake",
-    },
-    "inat_observed_Common_Shiny_Woodlouse_vs_Rathke’s_Woodlouse": {
-        "Rathke’s Woodlouse": "Rathke’s woodlouse",
-        "Common Shiny Woodlouse": "common shiny woodlouse",
-    },
-    # iNat Unobserved
-    "inat_unobserved_armillaria_luteobubalina_v_armillaria_novae-zelandiae": {
-        "Armillaria novae-zelandiae": "Armillaria novae-zelandiae",
-        "Armillaria luteobubalina": "Armillaria luteobubalina",
-    },
-    "inat_unobserved_phaeophyscia_orbicularis_v_phaeophyscia_rubropulchra": {
-        "Phaeophyscia orbicularis": "Phaeophyscia orbicularis",
-        "Phaeophyscia rubropulchra": "Phaeophyscia rubropulchra",
-    },
-    "inat_unobserved_corvus_orru_v_corvus_sinaloae": {
-        "Corvus sinaloae": "Corvus sinaloae",
-        "Corvus orru": "Corvus orru",
-    },
-    "inat_unobserved_lampsilis_cardium_v_lampsilis_siliquoidea": {
-        "Lampsilis siliquoidea": "Lampsilis siliquoidea",
-        "Lampsilis cardium": "Lampsilis cardium",
-    },
-    "inat_unobserved_diaea_dorsata_v_diaea_ambara": {
-        "Diaea ambara": "Diaea ambara",
-        "Diaea dorsata": "Diaea dorsata",
-    },
-    "inat_unobserved_polystichum_aculeatum_v_polystichum_setiferum": {
-        "Polystichum setiferum": "Polystichum setiferum",
-        "Polystichum aculeatum": "Polystichum aculeatum",
-    },
-    "inat_unobserved_pinus_clausa_v_pinus_mugo": {
-        "Pinus mugo": "Pinus mugo",
-        "Pinus clausa": "Pinus clausa",
-    },
-    "inat_unobserved_judolia_cordifera_v_judolia_cerambyciformis": {
-        "Judolia cerambyciformis": "Judolia cerambyciformis",
-        "Judolia cordifera": "Judolia cordifera",
-    },
-    "inat_unobserved_podarcis_virescens_v_podarcis_guadarramae": {
-        "Podarcis virescens": "Podarcis virescens",
-        "Podarcis guadarramae": "Podarcis guadarramae",
-    },
-    "inat_unobserved_thysanotus_tuberosus_v_thysanotus_patersonii": {
-        "Thysanotus patersonii": "Thysanotus patersonii",
-        "Thysanotus tuberosus": "Thysanotus tuberosus",
-    },
-    "inat_unobserved_amanita_flavorubens_v_amanita_xanthocephala": {
-        "Amanita flavorubens": "Amanita flavorubens",
-        "Amanita xanthocephala": "Amanita xanthocephala",
-    },
-    "inat_unobserved_otiorhynchus_ovatus_v_otiorhynchus_singularis": {
-        "Otiorhynchus ovatus": "Otiorhynchus ovatus",
-        "Otiorhynchus singularis": "Otiorhynchus singularis",
-    },
-    "inat_unobserved_tillandsia_balbisiana_v_tillandsia_bartramii": {
-        "Tillandsia bartramii": "Tillandsia bartramii",
-        "Tillandsia balbisiana": "Tillandsia balbisiana",
-    },
-    "inat_unobserved_oudemansiella_mucida_v_oudemansiella_furfuracea": {
-        "Oudemansiella furfuracea": "Oudemansiella furfuracea",
-        "Oudemansiella mucida": "Oudemansiella mucida",
-    },
-    "inat_unobserved_apodemus_sylvaticus_v_apodemus_agrarius": {
-        "Apodemus agrarius": "Apodemus agrarius",
-        "Apodemus sylvaticus": "Apodemus sylvaticus",
-    },
-    "inat_unobserved_lanius_bucephalus_v_lanius_meridionalis": {
-        "Lanius meridionalis": "Lanius meridionalis",
-        "Lanius bucephalus": "Lanius bucephalus",
-    },
-    "inat_unobserved_chloris_verticillata_v_chloris_cucullata": {
-        "Chloris cucullata": "Chloris cucullata",
-        "Chloris verticillata": "Chloris verticillata",
-    },
-    "inat_unobserved_turdus_torquatus_v_turdus_atrogularis": {
-        "Turdus torquatus": "Turdus torquatus",
-        "Turdus atrogularis": "Turdus atrogularis",
-    },
-    "inat_unobserved_panus_conchatus_v_panus_neostrigosus": {
-        "Panus conchatus": "Panus conchatus",
-        "Panus neostrigosus": "Panus neostrigosus",
-    },
-    "inat_unobserved_leucorrhinia_dubia_v_leucorrhinia_rubicunda": {
-        "Leucorrhinia dubia": "Leucorrhinia dubia",
-        "Leucorrhinia rubicunda": "Leucorrhinia rubicunda",
-    },
-    "inat_unobserved_cortinarius_austrovenetus_v_cortinarius_archeri": {
-        "Cortinarius austrovenetus": "Cortinarius austrovenetus",
-        "Cortinarius archeri": "Cortinarius archeri",
-    },
-    "inat_unobserved_emberiza_pusilla_v_emberiza_leucocephalos": {
-        "Emberiza pusilla": "Emberiza pusilla",
-        "Emberiza leucocephalos": "Emberiza leucocephalos",
-    },
-    "inat_unobserved_podarcis_liolepis_v_podarcis_bocagei": {
-        "Podarcis bocagei": "Podarcis bocagei",
-        "Podarcis liolepis": "Podarcis liolepis",
-    },
-    "inat_unobserved_serinus_canaria_v_serinus_canicollis": {
-        "Serinus canaria": "Serinus canaria",
-        "Serinus canicollis": "Serinus canicollis",
-    },
-    "inat_unobserved_cladonia_squamosa_v_cladonia_portentosa": {
-        "Cladonia squamosa": "Cladonia squamosa",
-        "Cladonia portentosa": "Cladonia portentosa",
-    },
-    "inat_unobserved_lactarius_torminosus_v_lactarius_turpis": {
-        "Lactarius torminosus": "Lactarius torminosus",
-        "Lactarius turpis": "Lactarius turpis",
-    },
-    "inat_unobserved_scopula_umbilicata_v_scopula_ornata": {
-        "Scopula umbilicata": "Scopula umbilicata",
-        "Scopula ornata": "Scopula ornata",
-    },
-    "inat_unobserved_aceria_negundi_v_aceria_cephalonea": {
-        "Aceria negundi": "Aceria negundi",
-        "Aceria cephalonea": "Aceria cephalonea",
-    },
-    "inat_unobserved_hippolais_icterina_v_hippolais_polyglotta": {
-        "Hippolais polyglotta": "Hippolais polyglotta",
-        "Hippolais icterina": "Hippolais icterina",
-    },
-    "inat_unobserved_cuphea_aequipetala_v_cuphea_hyssopifolia": {
-        "Cuphea aequipetala": "Cuphea aequipetala",
-        "Cuphea hyssopifolia": "Cuphea hyssopifolia",
-    },
-}
-
-```
-
 # biobench/newt/download.py
 
 ```python
@@ -4067,16 +3659,16 @@ class Args:
     """how often (number of batches) to log progress."""
     seed: int = 42
     """random seed."""
-    max_examples: int = -1
-    """Number of maximum training samples. Negative number means use all of them."""
     parallel: int = 5
     """Concurrent requests per second."""
 
     # Computed at runtime.
+    max_examples: int = -1
+    """(computed at runtime) Number of maximum training samples. Negative number means use all of them."""
     device: str = "cuda"
-    """(computed at runtime) which kind of accelerator to use."""
+    """(computed at runtime) Which kind of accelerator to use."""
     debug: bool = False
-    """(computed at runtime) whether to run in debug mode."""
+    """(computed at runtime) Whether to run in debug mode."""
 
 
 @beartype.beartype
@@ -4386,6 +3978,7 @@ class SampleVlm:
     image_id: str
     image: Image.Image
     label: int
+
     # TODO: these classnames are not being translated correctly.
     classnames: tuple[str, str]
 
@@ -5204,13 +4797,22 @@ logger = logging.getLogger("imagenet")
 
 @beartype.beartype
 @dataclasses.dataclass(frozen=True)
-class Args(interfaces.TaskArgs):
-    batch_size: int = 512
-    """batch size for deep model."""
+class Args:
+    data: str = ""
+    """dataset directory; where you downloaded this task's data to."""
+    batch_size_cv: int = 256
+    """batch size for computer vision model."""
     n_workers: int = 8
     """number of dataloader worker processes."""
     log_every: int = 10
     """how often (number of batches) to log progress."""
+    # Computed at runtime.
+    max_examples: int = -1
+    """(computed at runtime) Number of maximum training samples. Negative number means use all of them."""
+    device: str = "cuda"
+    """(computed at runtime) Which kind of accelerator to use."""
+    debug: bool = False
+    """(computed at runtime) Whether to run in debug mode."""
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -5482,11 +5084,13 @@ logger = logging.getLogger("fishnet")
 
 @beartype.beartype
 @dataclasses.dataclass(frozen=True)
-class Args(interfaces.TaskArgs):
+class Args:
     """FishNet task arguments."""
 
-    batch_size: int = 256
-    """Batch size for deep model and MLP classifier."""
+    data: str = ""
+    """dataset directory; where you downloaded this task's data to."""
+    batch_size_cv: int = 256
+    """batch size for computer vision model."""
     n_workers: int = 4
     """number of dataloader worker processes."""
     log_every: int = 10
@@ -5497,6 +5101,18 @@ class Args(interfaces.TaskArgs):
     """The learning rate for training the MLP classifier."""
     threshold: float = 0.5
     """The threshold to predicted "presence" rather than "absence"."""
+    seed: int = 42
+    """random seed."""
+    parallel: int = 5
+    """Concurrent requests per second."""
+
+    # Computed at runtime.
+    max_examples: int = -1
+    """(computed at runtime) Number of maximum training samples. Negative number means use all of them."""
+    device: str = "cuda"
+    """(computed at runtime) Which kind of accelerator to use."""
+    debug: bool = False
+    """(computed at runtime) Whether to run in debug mode."""
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -5776,13 +5392,20 @@ logger = logging.getLogger("rare-species")
 
 @beartype.beartype
 @dataclasses.dataclass(frozen=True)
-class Args(interfaces.TaskArgs):
+class Args:
     batch_size: int = 256
     """batch size for deep model."""
     n_workers: int = 4
     """number of dataloader worker processes."""
     log_every: int = 10
     """how often (number of batches) to log progress."""
+    # Computed at runtime.
+    max_examples: int = -1
+    """(computed at runtime) Number of maximum training samples. Negative number means use all of them."""
+    device: str = "cuda"
+    """(computed at runtime) Which kind of accelerator to use."""
+    debug: bool = False
+    """(computed at runtime) Whether to run in debug mode."""
 
 
 @beartype.beartype
@@ -6028,15 +5651,29 @@ logger = logging.getLogger("kabr")
 
 @beartype.beartype
 @dataclasses.dataclass(frozen=True)
-class Args(interfaces.TaskArgs):
+class Args:
     """Arguments for the KABR task."""
 
-    batch_size: int = 16
-    """Batch size for deep model. Note that this is multiplied by 16 (number of frames)"""
+    data: str = ""
+    """dataset directory; where you downloaded this task's data to."""
+    batch_size_cv: int = 256
+    """batch size for computer vision model."""
     n_workers: int = 4
     """Number of dataloader worker processes."""
     frame_agg: typing.Literal["mean", "max"] = "mean"
     """How to aggregate features across time dimension."""
+    seed: int = 42
+    """random seed."""
+    parallel: int = 5
+    """Concurrent requests per second."""
+
+    # Computed at runtime.
+    max_examples: int = -1
+    """(computed at runtime) Number of maximum training samples. Negative number means use all of them."""
+    device: str = "cuda"
+    """(computed at runtime) Which kind of accelerator to use."""
+    debug: bool = False
+    """(computed at runtime) Whether to run in debug mode."""
 
 
 @beartype.beartype
@@ -6283,8 +5920,6 @@ For example, see `biobench.newt.download` for an example.
 .. include:: ./design.md
 """
 
-import collections
-import csv
 import dataclasses
 import json
 import logging
@@ -6295,7 +5930,6 @@ import time
 import typing
 
 import beartype
-import numpy as np
 import submitit
 import tyro
 
@@ -6359,6 +5993,8 @@ class Args:
     """which kind of accelerator to use."""
     debug: bool = False
     """whether to run in debug mode."""
+    max_examples: int = -1
+    """Number of maximum training samples. Negative number means use all of them."""
     ssl: bool = True
     """Use SSL when connecting to remote servers to download checkpoints; use --no-ssl if your machine has certificate issues. See `biobench.third_party_models.get_ssl()` for a discussion of how this works."""
 
@@ -6476,6 +6112,11 @@ class Args:
         """
         return sqlite3.connect(os.path.join(self.report_to, "reports.sqlite"))
 
+    def update(self, other):
+        return dataclasses.replace(
+            other, device=self.device, debug=self.debug, max_examples=self.max_examples
+        )
+
 
 @beartype.beartype
 def save(
@@ -6499,6 +6140,7 @@ def save(
     lower, upper = report.get_confidence_interval()
     values = (
         json.dumps(dataclasses.asdict(model_args)),
+        args.max_examples,
         report.name,
         int(time.time()),
         report.get_mean_score(),
@@ -6507,7 +6149,7 @@ def save(
         json.dumps(dataclasses.asdict(args)),
         json.dumps(report.to_dict()),
     )
-    conn.execute("INSERT INTO reports VALUES(?, ?, ?, ?, ?, ?, ?, ?)", values)
+    conn.execute("INSERT INTO reports VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)", values)
     conn.commit()
 
     logger.info(
@@ -6515,43 +6157,6 @@ def save(
     )
     for name, score in report.splits.items():
         logger.info("%s on %s (%s): %.3f", model_args.ckpt, report.name, name, score)
-
-
-@beartype.beartype
-def export_to_csv(args: Args) -> set[str]:
-    """
-    Exports (and writes) to a wide table format for viewing (long table formats are better for additional manipulation/graphing, but wide is easy for viewing).
-    """
-    conn = args.get_sqlite_connection()
-    stmt = """
-    SELECT model_config, task_name, mean_score, MAX(posix) AS posix 
-    FROM reports 
-    GROUP BY model_config, task_name 
-    ORDER BY model_config ASC;
-    """
-    data = conn.execute(stmt, ()).fetchall()
-
-    tasks = set()
-    rows = collections.defaultdict(lambda: collections.defaultdict(float))
-    for model_config, task_name, mean_score, _ in data:
-        ckpt = json.loads(model_config)["ckpt"]
-        rows[ckpt][task_name] = mean_score
-        tasks.add(task_name)
-
-    for model, scores in rows.items():
-        scores["mean"] = np.mean([scores[task] for task in tasks]).item()
-
-    path = os.path.join(args.report_to, "results.csv")
-    with open(path, "w") as fd:
-        writer = csv.writer(fd)
-        writer.writerow(["model", "mean"] + sorted(tasks))
-        for model in sorted(rows, key=lambda model: rows[model]["mean"], reverse=True):
-            scores = rows[model]
-            writer.writerow(
-                [model, scores["mean"]] + [scores[task] for task in sorted(tasks)]
-            )
-    logger.info("Wrote results to '%s'.", path)
-    return tasks
 
 
 @beartype.beartype
@@ -6580,167 +6185,102 @@ def main(args: Args):
         if not args.ssl:
             os.environ["BIOBENCH_DISABLE_SSL"] = "1"
 
+    ages_args = args.update(args.ages_args)
+    beluga_args = args.update(args.beluga_args)
+    birds525_args = args.update(args.birds525_args)
+    fishnet_args = args.update(args.fishnet_args)
+    imagenet_args = args.update(args.imagenet_args)
+    inat21_args = args.update(args.inat21_args)
+    iwildcam_args = args.update(args.iwildcam_args)
+    kabr_args = args.update(args.kabr_args)
+    leopard_args = args.update(args.leopard_args)
+    newt_args = args.update(args.newt_args)
+    plankton_args = args.update(args.plankton_args)
+    plantnet_args = args.update(args.plantnet_args)
+    rarespecies_args = args.update(args.rarespecies_args)
+
     # 2. Run benchmarks.
     jobs = []
     for model_args in args.models_cvml:
         if args.ages_run_cvml:
-            ages_args = dataclasses.replace(
-                args.ages_args, device=args.device, debug=args.debug
-            )
             job = executor.submit(ages.benchmark_cvml, ages_args, model_args)
             jobs.append(job)
         if args.beluga_run_cvml:
-            beluga_args = dataclasses.replace(
-                args.beluga_args, device=args.device, debug=args.debug
-            )
             job = executor.submit(beluga.benchmark_cvml, beluga_args, model_args)
             jobs.append(job)
         if args.birds525_run_cvml:
-            birds525_args = dataclasses.replace(
-                args.birds525_args, device=args.device, debug=args.debug
-            )
             job = executor.submit(birds525.benchmark_cvml, birds525_args, model_args)
             jobs.append(job)
         if args.fishnet_run_cvml:
-            fishnet_args = dataclasses.replace(
-                args.fishnet_args, device=args.device, debug=args.debug
-            )
             job = executor.submit(fishnet.benchmark_cvml, fishnet_args, model_args)
             jobs.append(job)
         if args.imagenet_run_cvml:
-            imagenet_args = dataclasses.replace(
-                args.imagenet_args, device=args.device, debug=args.debug
-            )
             job = executor.submit(imagenet.benchmark_cvml, imagenet_args, model_args)
             jobs.append(job)
         if args.inat21_run_cvml:
-            inat21_args = dataclasses.replace(
-                args.inat21_args, device=args.device, debug=args.debug
-            )
             job = executor.submit(inat21.benchmark_cvml, inat21_args, model_args)
             jobs.append(job)
         if args.iwildcam_run_cvml:
-            iwildcam_args = dataclasses.replace(
-                args.iwildcam_args, device=args.device, debug=args.debug
-            )
             job = executor.submit(iwildcam.benchmark_cvml, iwildcam_args, model_args)
             jobs.append(job)
         if args.kabr_run_cvml:
-            kabr_args = dataclasses.replace(
-                args.kabr_args, device=args.device, debug=args.debug
-            )
-            jobs.append(executor.submit(kabr.benchmark_cvml, kabr_args, model_args))
+            job = executor.submit(kabr.benchmark_cvml, kabr_args, model_args)
+            jobs.append()
         if args.leopard_run_cvml:
-            leopard_args = dataclasses.replace(
-                args.leopard_args, device=args.device, debug=args.debug
-            )
             job = executor.submit(leopard.benchmark_cvml, leopard_args, model_args)
             jobs.append(job)
-        # Newt
         if args.newt_run_cvml:
-            newt_args = dataclasses.replace(
-                args.newt_args, device=args.device, debug=args.debug
-            )
             jobs.append(executor.submit(newt.benchmark_cvml, newt_args, model_args))
-
         if args.plankton_run_cvml:
-            plankton_args = dataclasses.replace(
-                args.plankton_args, device=args.device, debug=args.debug
-            )
             job = executor.submit(plankton.benchmark, plankton_args, model_args)
             jobs.append(job)
         if args.plantnet_run_cvml:
-            plantnet_args = dataclasses.replace(
-                args.plantnet_args, device=args.device, debug=args.debug
-            )
             job = executor.submit(plantnet.benchmark, plantnet_args, model_args)
             jobs.append(job)
         if args.rarespecies_run_cvml:
-            rarespecies_args = dataclasses.replace(
-                args.rarespecies_args, device=args.device, debug=args.debug
-            )
             job = executor.submit(rarespecies.benchmark, rarespecies_args, model_args)
             jobs.append(job)
 
     for model_args in args.models_vlm:
         if args.ages_run_vlm:
-            ages_args = dataclasses.replace(
-                args.ages_args, device=args.device, debug=args.debug
-            )
             job = executor.submit(ages.benchmark_vlm, ages_args, model_args)
             jobs.append(job)
         if args.beluga_run_vlm:
-            beluga_args = dataclasses.replace(
-                args.beluga_args, device=args.device, debug=args.debug
-            )
             job = executor.submit(beluga.benchmark_vlm, beluga_args, model_args)
             jobs.append(job)
         if args.birds525_run_vlm:
-            birds525_args = dataclasses.replace(
-                args.birds525_args, device=args.device, debug=args.debug
-            )
             job = executor.submit(birds525.benchmark_vlm, birds525_args, model_args)
             jobs.append(job)
         if args.fishnet_run_vlm:
-            fishnet_args = dataclasses.replace(
-                args.fishnet_args, device=args.device, debug=args.debug
-            )
             job = executor.submit(fishnet.benchmark_vlm, fishnet_args, model_args)
             jobs.append(job)
         if args.imagenet_run_vlm:
-            imagenet_args = dataclasses.replace(
-                args.imagenet_args, device=args.device, debug=args.debug
-            )
             job = executor.submit(imagenet.benchmark_vlm, imagenet_args, model_args)
             jobs.append(job)
         if args.inat21_run_vlm:
-            inat21_args = dataclasses.replace(
-                args.inat21_args, device=args.device, debug=args.debug
-            )
             job = executor.submit(inat21.benchmark_vlm, inat21_args, model_args)
             jobs.append(job)
         if args.iwildcam_run_vlm:
-            iwildcam_args = dataclasses.replace(
-                args.iwildcam_args, device=args.device, debug=args.debug
-            )
             job = executor.submit(iwildcam.benchmark_vlm, iwildcam_args, model_args)
             jobs.append(job)
         if args.kabr_run_vlm:
-            kabr_args = dataclasses.replace(
-                args.kabr_args, device=args.device, debug=args.debug
-            )
             jobs.append(executor.submit(kabr.benchmark_vlm, kabr_args, model_args))
         if args.leopard_run_vlm:
-            leopard_args = dataclasses.replace(
-                args.leopard_args, device=args.device, debug=args.debug
-            )
             job = executor.submit(leopard.benchmark_vlm, leopard_args, model_args)
             jobs.append(job)
-        # Newt
         if args.newt_run_vlm:
-            newt_args = dataclasses.replace(
-                args.newt_args, device=args.device, debug=args.debug
-            )
-            jobs.append(executor.submit(newt.benchmark_vlm, newt_args, model_args))
-
+            job = executor.submit(newt.benchmark_vlm, newt_args, model_args)
+            jobs.append()
         if args.plankton_run_vlm:
-            plankton_args = dataclasses.replace(
-                args.plankton_args, device=args.device, debug=args.debug
-            )
             job = executor.submit(plankton.benchmark, plankton_args, model_args)
             jobs.append(job)
         if args.plantnet_run_vlm:
-            plantnet_args = dataclasses.replace(
-                args.plantnet_args, device=args.device, debug=args.debug
-            )
             job = executor.submit(plantnet.benchmark, plantnet_args, model_args)
             jobs.append(job)
         if args.rarespecies_run_vlm:
-            rarespecies_args = dataclasses.replace(
-                args.rarespecies_args, device=args.device, debug=args.debug
-            )
             job = executor.submit(rarespecies.benchmark, rarespecies_args, model_args)
             jobs.append(job)
+
     logger.info("Submitted %d jobs.", len(jobs))
 
     # 3. Display results.
@@ -6755,66 +6295,7 @@ def main(args: Args):
         save(args, model_args, report)
         logger.info("Finished %d/%d jobs.", i + 1, len(jobs))
 
-    # 4. Save results to CSV file for committing to git.
-    tasks = export_to_csv(args)
-
-    # 5. Make graphs.
-    if args.graph:
-        # For each combination of model/task, get the most recent version from the database. Then make a graph and save it to disk.
-        conn = args.get_sqlite_connection()
-        for task in sorted(tasks):
-            fig = plot_task(conn, task)
-            if fig is None:
-                continue
-            os.makedirs(args.graph_to, exist_ok=True)
-            path = os.path.join(args.graph_to, f"{task}.png")
-            fig.savefig(path)
-            logger.info("Saved fig for %s to %s.", task, path)
-
     logger.info("Finished.")
-
-
-@beartype.beartype
-def plot_task(conn: sqlite3.Connection, task: str):
-    """
-    Plots the most recent result for each model on given task, including confidence intervals.
-    Returns the figure so the caller can save or display it.
-
-    Args:
-        conn: connection to database.
-        task: which task to run.
-
-    Returns:
-        matplotlib.pyplot.Figure
-    """
-    import matplotlib.pyplot as plt
-
-    orig_row_factory = conn.row_factory
-
-    conn.row_factory = sqlite3.Row
-    fig, ax = plt.subplots()
-    stmt = "SELECT model_config, task_name, mean_score, confidence_lower, confidence_upper, MAX(posix) FROM reports WHERE task_name = (?) GROUP BY model_config, task_name ORDER BY model_config ASC;"
-    data = conn.execute(stmt, (task,)).fetchall()
-
-    conn.row_factory = orig_row_factory
-
-    if not data:
-        return
-
-    xs = [json.loads(row["model_config"])["ckpt"] for row in data]
-    ys = [row["mean_score"] for row in data]
-
-    yerr = np.array([ys, ys])
-    yerr[0] = np.maximum(yerr[0] - [row["confidence_lower"] for row in data], 0)
-    yerr[1] = np.maximum([row["confidence_upper"] for row in data] - yerr[1], 0)
-
-    ax.errorbar(xs, ys, yerr, fmt="o", linewidth=2, capsize=6)
-    ax.set_title(f"Mean {task} Performance")
-    ax.tick_params(axis="x", labelrotation=20)
-
-    fig.tight_layout()
-
-    return fig
 
 
 if __name__ == "__main__":

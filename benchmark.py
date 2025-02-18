@@ -12,8 +12,6 @@ For example, see `biobench.newt.download` for an example.
 .. include:: ./design.md
 """
 
-import collections
-import csv
 import dataclasses
 import json
 import logging
@@ -24,7 +22,6 @@ import time
 import typing
 
 import beartype
-import numpy as np
 import submitit
 import tyro
 
@@ -88,6 +85,8 @@ class Args:
     """which kind of accelerator to use."""
     debug: bool = False
     """whether to run in debug mode."""
+    max_examples: int = -1
+    """Number of maximum training samples. Negative number means use all of them."""
     ssl: bool = True
     """Use SSL when connecting to remote servers to download checkpoints; use --no-ssl if your machine has certificate issues. See `biobench.third_party_models.get_ssl()` for a discussion of how this works."""
 
@@ -205,6 +204,11 @@ class Args:
         """
         return sqlite3.connect(os.path.join(self.report_to, "reports.sqlite"))
 
+    def update(self, other):
+        return dataclasses.replace(
+            other, device=self.device, debug=self.debug, max_examples=self.max_examples
+        )
+
 
 @beartype.beartype
 def save(
@@ -228,6 +232,7 @@ def save(
     lower, upper = report.get_confidence_interval()
     values = (
         json.dumps(dataclasses.asdict(model_args)),
+        args.max_examples,
         report.name,
         int(time.time()),
         report.get_mean_score(),
@@ -236,7 +241,7 @@ def save(
         json.dumps(dataclasses.asdict(args)),
         json.dumps(report.to_dict()),
     )
-    conn.execute("INSERT INTO reports VALUES(?, ?, ?, ?, ?, ?, ?, ?)", values)
+    conn.execute("INSERT INTO reports VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)", values)
     conn.commit()
 
     logger.info(
@@ -244,43 +249,6 @@ def save(
     )
     for name, score in report.splits.items():
         logger.info("%s on %s (%s): %.3f", model_args.ckpt, report.name, name, score)
-
-
-@beartype.beartype
-def export_to_csv(args: Args) -> set[str]:
-    """
-    Exports (and writes) to a wide table format for viewing (long table formats are better for additional manipulation/graphing, but wide is easy for viewing).
-    """
-    conn = args.get_sqlite_connection()
-    stmt = """
-    SELECT model_config, task_name, mean_score, MAX(posix) AS posix 
-    FROM reports 
-    GROUP BY model_config, task_name 
-    ORDER BY model_config ASC;
-    """
-    data = conn.execute(stmt, ()).fetchall()
-
-    tasks = set()
-    rows = collections.defaultdict(lambda: collections.defaultdict(float))
-    for model_config, task_name, mean_score, _ in data:
-        ckpt = json.loads(model_config)["ckpt"]
-        rows[ckpt][task_name] = mean_score
-        tasks.add(task_name)
-
-    for model, scores in rows.items():
-        scores["mean"] = np.mean([scores[task] for task in tasks]).item()
-
-    path = os.path.join(args.report_to, "results.csv")
-    with open(path, "w") as fd:
-        writer = csv.writer(fd)
-        writer.writerow(["model", "mean"] + sorted(tasks))
-        for model in sorted(rows, key=lambda model: rows[model]["mean"], reverse=True):
-            scores = rows[model]
-            writer.writerow(
-                [model, scores["mean"]] + [scores[task] for task in sorted(tasks)]
-            )
-    logger.info("Wrote results to '%s'.", path)
-    return tasks
 
 
 @beartype.beartype
@@ -309,167 +277,102 @@ def main(args: Args):
         if not args.ssl:
             os.environ["BIOBENCH_DISABLE_SSL"] = "1"
 
+    ages_args = args.update(args.ages_args)
+    beluga_args = args.update(args.beluga_args)
+    birds525_args = args.update(args.birds525_args)
+    fishnet_args = args.update(args.fishnet_args)
+    imagenet_args = args.update(args.imagenet_args)
+    inat21_args = args.update(args.inat21_args)
+    iwildcam_args = args.update(args.iwildcam_args)
+    kabr_args = args.update(args.kabr_args)
+    leopard_args = args.update(args.leopard_args)
+    newt_args = args.update(args.newt_args)
+    plankton_args = args.update(args.plankton_args)
+    plantnet_args = args.update(args.plantnet_args)
+    rarespecies_args = args.update(args.rarespecies_args)
+
     # 2. Run benchmarks.
     jobs = []
     for model_args in args.models_cvml:
         if args.ages_run_cvml:
-            ages_args = dataclasses.replace(
-                args.ages_args, device=args.device, debug=args.debug
-            )
             job = executor.submit(ages.benchmark_cvml, ages_args, model_args)
             jobs.append(job)
         if args.beluga_run_cvml:
-            beluga_args = dataclasses.replace(
-                args.beluga_args, device=args.device, debug=args.debug
-            )
             job = executor.submit(beluga.benchmark_cvml, beluga_args, model_args)
             jobs.append(job)
         if args.birds525_run_cvml:
-            birds525_args = dataclasses.replace(
-                args.birds525_args, device=args.device, debug=args.debug
-            )
             job = executor.submit(birds525.benchmark_cvml, birds525_args, model_args)
             jobs.append(job)
         if args.fishnet_run_cvml:
-            fishnet_args = dataclasses.replace(
-                args.fishnet_args, device=args.device, debug=args.debug
-            )
             job = executor.submit(fishnet.benchmark_cvml, fishnet_args, model_args)
             jobs.append(job)
         if args.imagenet_run_cvml:
-            imagenet_args = dataclasses.replace(
-                args.imagenet_args, device=args.device, debug=args.debug
-            )
             job = executor.submit(imagenet.benchmark_cvml, imagenet_args, model_args)
             jobs.append(job)
         if args.inat21_run_cvml:
-            inat21_args = dataclasses.replace(
-                args.inat21_args, device=args.device, debug=args.debug
-            )
             job = executor.submit(inat21.benchmark_cvml, inat21_args, model_args)
             jobs.append(job)
         if args.iwildcam_run_cvml:
-            iwildcam_args = dataclasses.replace(
-                args.iwildcam_args, device=args.device, debug=args.debug
-            )
             job = executor.submit(iwildcam.benchmark_cvml, iwildcam_args, model_args)
             jobs.append(job)
         if args.kabr_run_cvml:
-            kabr_args = dataclasses.replace(
-                args.kabr_args, device=args.device, debug=args.debug
-            )
-            jobs.append(executor.submit(kabr.benchmark_cvml, kabr_args, model_args))
+            job = executor.submit(kabr.benchmark_cvml, kabr_args, model_args)
+            jobs.append()
         if args.leopard_run_cvml:
-            leopard_args = dataclasses.replace(
-                args.leopard_args, device=args.device, debug=args.debug
-            )
             job = executor.submit(leopard.benchmark_cvml, leopard_args, model_args)
             jobs.append(job)
-        # Newt
         if args.newt_run_cvml:
-            newt_args = dataclasses.replace(
-                args.newt_args, device=args.device, debug=args.debug
-            )
             jobs.append(executor.submit(newt.benchmark_cvml, newt_args, model_args))
-
         if args.plankton_run_cvml:
-            plankton_args = dataclasses.replace(
-                args.plankton_args, device=args.device, debug=args.debug
-            )
             job = executor.submit(plankton.benchmark, plankton_args, model_args)
             jobs.append(job)
         if args.plantnet_run_cvml:
-            plantnet_args = dataclasses.replace(
-                args.plantnet_args, device=args.device, debug=args.debug
-            )
             job = executor.submit(plantnet.benchmark, plantnet_args, model_args)
             jobs.append(job)
         if args.rarespecies_run_cvml:
-            rarespecies_args = dataclasses.replace(
-                args.rarespecies_args, device=args.device, debug=args.debug
-            )
             job = executor.submit(rarespecies.benchmark, rarespecies_args, model_args)
             jobs.append(job)
 
     for model_args in args.models_vlm:
         if args.ages_run_vlm:
-            ages_args = dataclasses.replace(
-                args.ages_args, device=args.device, debug=args.debug
-            )
             job = executor.submit(ages.benchmark_vlm, ages_args, model_args)
             jobs.append(job)
         if args.beluga_run_vlm:
-            beluga_args = dataclasses.replace(
-                args.beluga_args, device=args.device, debug=args.debug
-            )
             job = executor.submit(beluga.benchmark_vlm, beluga_args, model_args)
             jobs.append(job)
         if args.birds525_run_vlm:
-            birds525_args = dataclasses.replace(
-                args.birds525_args, device=args.device, debug=args.debug
-            )
             job = executor.submit(birds525.benchmark_vlm, birds525_args, model_args)
             jobs.append(job)
         if args.fishnet_run_vlm:
-            fishnet_args = dataclasses.replace(
-                args.fishnet_args, device=args.device, debug=args.debug
-            )
             job = executor.submit(fishnet.benchmark_vlm, fishnet_args, model_args)
             jobs.append(job)
         if args.imagenet_run_vlm:
-            imagenet_args = dataclasses.replace(
-                args.imagenet_args, device=args.device, debug=args.debug
-            )
             job = executor.submit(imagenet.benchmark_vlm, imagenet_args, model_args)
             jobs.append(job)
         if args.inat21_run_vlm:
-            inat21_args = dataclasses.replace(
-                args.inat21_args, device=args.device, debug=args.debug
-            )
             job = executor.submit(inat21.benchmark_vlm, inat21_args, model_args)
             jobs.append(job)
         if args.iwildcam_run_vlm:
-            iwildcam_args = dataclasses.replace(
-                args.iwildcam_args, device=args.device, debug=args.debug
-            )
             job = executor.submit(iwildcam.benchmark_vlm, iwildcam_args, model_args)
             jobs.append(job)
         if args.kabr_run_vlm:
-            kabr_args = dataclasses.replace(
-                args.kabr_args, device=args.device, debug=args.debug
-            )
             jobs.append(executor.submit(kabr.benchmark_vlm, kabr_args, model_args))
         if args.leopard_run_vlm:
-            leopard_args = dataclasses.replace(
-                args.leopard_args, device=args.device, debug=args.debug
-            )
             job = executor.submit(leopard.benchmark_vlm, leopard_args, model_args)
             jobs.append(job)
-        # Newt
         if args.newt_run_vlm:
-            newt_args = dataclasses.replace(
-                args.newt_args, device=args.device, debug=args.debug
-            )
-            jobs.append(executor.submit(newt.benchmark_vlm, newt_args, model_args))
-
+            job = executor.submit(newt.benchmark_vlm, newt_args, model_args)
+            jobs.append()
         if args.plankton_run_vlm:
-            plankton_args = dataclasses.replace(
-                args.plankton_args, device=args.device, debug=args.debug
-            )
             job = executor.submit(plankton.benchmark, plankton_args, model_args)
             jobs.append(job)
         if args.plantnet_run_vlm:
-            plantnet_args = dataclasses.replace(
-                args.plantnet_args, device=args.device, debug=args.debug
-            )
             job = executor.submit(plantnet.benchmark, plantnet_args, model_args)
             jobs.append(job)
         if args.rarespecies_run_vlm:
-            rarespecies_args = dataclasses.replace(
-                args.rarespecies_args, device=args.device, debug=args.debug
-            )
             job = executor.submit(rarespecies.benchmark, rarespecies_args, model_args)
             jobs.append(job)
+
     logger.info("Submitted %d jobs.", len(jobs))
 
     # 3. Display results.
@@ -484,66 +387,7 @@ def main(args: Args):
         save(args, model_args, report)
         logger.info("Finished %d/%d jobs.", i + 1, len(jobs))
 
-    # 4. Save results to CSV file for committing to git.
-    tasks = export_to_csv(args)
-
-    # 5. Make graphs.
-    if args.graph:
-        # For each combination of model/task, get the most recent version from the database. Then make a graph and save it to disk.
-        conn = args.get_sqlite_connection()
-        for task in sorted(tasks):
-            fig = plot_task(conn, task)
-            if fig is None:
-                continue
-            os.makedirs(args.graph_to, exist_ok=True)
-            path = os.path.join(args.graph_to, f"{task}.png")
-            fig.savefig(path)
-            logger.info("Saved fig for %s to %s.", task, path)
-
     logger.info("Finished.")
-
-
-@beartype.beartype
-def plot_task(conn: sqlite3.Connection, task: str):
-    """
-    Plots the most recent result for each model on given task, including confidence intervals.
-    Returns the figure so the caller can save or display it.
-
-    Args:
-        conn: connection to database.
-        task: which task to run.
-
-    Returns:
-        matplotlib.pyplot.Figure
-    """
-    import matplotlib.pyplot as plt
-
-    orig_row_factory = conn.row_factory
-
-    conn.row_factory = sqlite3.Row
-    fig, ax = plt.subplots()
-    stmt = "SELECT model_config, task_name, mean_score, confidence_lower, confidence_upper, MAX(posix) FROM reports WHERE task_name = (?) GROUP BY model_config, task_name ORDER BY model_config ASC;"
-    data = conn.execute(stmt, (task,)).fetchall()
-
-    conn.row_factory = orig_row_factory
-
-    if not data:
-        return
-
-    xs = [json.loads(row["model_config"])["ckpt"] for row in data]
-    ys = [row["mean_score"] for row in data]
-
-    yerr = np.array([ys, ys])
-    yerr[0] = np.maximum(yerr[0] - [row["confidence_lower"] for row in data], 0)
-    yerr[1] = np.maximum([row["confidence_upper"] for row in data] - yerr[1], 0)
-
-    ax.errorbar(xs, ys, yerr, fmt="o", linewidth=2, capsize=6)
-    ax.set_title(f"Mean {task} Performance")
-    ax.tick_params(axis="x", labelrotation=20)
-
-    fig.tight_layout()
-
-    return fig
 
 
 if __name__ == "__main__":

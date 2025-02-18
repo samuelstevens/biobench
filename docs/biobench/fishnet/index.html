@@ -97,7 +97,7 @@ We train an two-layer MLP on the visual features extracted by different model ba
 <dl>
 <dt id="biobench.fishnet.Args"><code class="flex name class">
 <span>class <span class="ident">Args</span></span>
-<span>(</span><span>seed: int = 42, datadir: str = '', device: str = 'cuda', debug: bool = False, batch_size: int = 256, n_workers: int = 4, log_every: int = 10, n_epochs: int = 100, learning_rate: float = 0.0005, threshold: float = 0.5)</span>
+<span>(</span><span>data: str = '', batch_size_cv: int = 256, n_workers: int = 4, log_every: int = 10, n_epochs: int = 100, learning_rate: float = 0.0005, threshold: float = 0.5, seed: int = 42, parallel: int = 5, max_examples: int = -1, device: str = 'cuda', debug: bool = False)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>FishNet task arguments.</p></div>
@@ -107,11 +107,13 @@ We train an two-layer MLP on the visual features extracted by different model ba
 </summary>
 <pre><code class="python">@beartype.beartype
 @dataclasses.dataclass(frozen=True)
-class Args(interfaces.TaskArgs):
+class Args:
     &#34;&#34;&#34;FishNet task arguments.&#34;&#34;&#34;
 
-    batch_size: int = 256
-    &#34;&#34;&#34;Batch size for deep model and MLP classifier.&#34;&#34;&#34;
+    data: str = &#34;&#34;
+    &#34;&#34;&#34;dataset directory; where you downloaded this task&#39;s data to.&#34;&#34;&#34;
+    batch_size_cv: int = 256
+    &#34;&#34;&#34;batch size for computer vision model.&#34;&#34;&#34;
     n_workers: int = 4
     &#34;&#34;&#34;number of dataloader worker processes.&#34;&#34;&#34;
     log_every: int = 10
@@ -121,17 +123,37 @@ class Args(interfaces.TaskArgs):
     learning_rate: float = 5e-4
     &#34;&#34;&#34;The learning rate for training the MLP classifier.&#34;&#34;&#34;
     threshold: float = 0.5
-    &#34;&#34;&#34;The threshold to predicted &#34;presence&#34; rather than &#34;absence&#34;.&#34;&#34;&#34;</code></pre>
+    &#34;&#34;&#34;The threshold to predicted &#34;presence&#34; rather than &#34;absence&#34;.&#34;&#34;&#34;
+    seed: int = 42
+    &#34;&#34;&#34;random seed.&#34;&#34;&#34;
+    parallel: int = 5
+    &#34;&#34;&#34;Concurrent requests per second.&#34;&#34;&#34;
+
+    # Computed at runtime.
+    max_examples: int = -1
+    &#34;&#34;&#34;(computed at runtime) Number of maximum training samples. Negative number means use all of them.&#34;&#34;&#34;
+    device: str = &#34;cuda&#34;
+    &#34;&#34;&#34;(computed at runtime) Which kind of accelerator to use.&#34;&#34;&#34;
+    debug: bool = False
+    &#34;&#34;&#34;(computed at runtime) Whether to run in debug mode.&#34;&#34;&#34;</code></pre>
 </details>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li><a title="biobench.interfaces.TaskArgs" href="../interfaces.html#biobench.interfaces.TaskArgs">TaskArgs</a></li>
-</ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="biobench.fishnet.Args.batch_size"><code class="name">var <span class="ident">batch_size</span> : int</code></dt>
+<dt id="biobench.fishnet.Args.batch_size_cv"><code class="name">var <span class="ident">batch_size_cv</span> : int</code></dt>
 <dd>
-<div class="desc"><p>Batch size for deep model and MLP classifier.</p></div>
+<div class="desc"><p>batch size for computer vision model.</p></div>
+</dd>
+<dt id="biobench.fishnet.Args.data"><code class="name">var <span class="ident">data</span> : str</code></dt>
+<dd>
+<div class="desc"><p>dataset directory; where you downloaded this task's data to.</p></div>
+</dd>
+<dt id="biobench.fishnet.Args.debug"><code class="name">var <span class="ident">debug</span> : bool</code></dt>
+<dd>
+<div class="desc"><p>(computed at runtime) Whether to run in debug mode.</p></div>
+</dd>
+<dt id="biobench.fishnet.Args.device"><code class="name">var <span class="ident">device</span> : str</code></dt>
+<dd>
+<div class="desc"><p>(computed at runtime) Which kind of accelerator to use.</p></div>
 </dd>
 <dt id="biobench.fishnet.Args.learning_rate"><code class="name">var <span class="ident">learning_rate</span> : float</code></dt>
 <dd>
@@ -141,6 +163,10 @@ class Args(interfaces.TaskArgs):
 <dd>
 <div class="desc"><p>how often (number of epochs) to log progress.</p></div>
 </dd>
+<dt id="biobench.fishnet.Args.max_examples"><code class="name">var <span class="ident">max_examples</span> : int</code></dt>
+<dd>
+<div class="desc"><p>(computed at runtime) Number of maximum training samples. Negative number means use all of them.</p></div>
+</dd>
 <dt id="biobench.fishnet.Args.n_epochs"><code class="name">var <span class="ident">n_epochs</span> : int</code></dt>
 <dd>
 <div class="desc"><p>How many epochs to train the MLP classifier.</p></div>
@@ -149,22 +175,19 @@ class Args(interfaces.TaskArgs):
 <dd>
 <div class="desc"><p>number of dataloader worker processes.</p></div>
 </dd>
+<dt id="biobench.fishnet.Args.parallel"><code class="name">var <span class="ident">parallel</span> : int</code></dt>
+<dd>
+<div class="desc"><p>Concurrent requests per second.</p></div>
+</dd>
+<dt id="biobench.fishnet.Args.seed"><code class="name">var <span class="ident">seed</span> : int</code></dt>
+<dd>
+<div class="desc"><p>random seed.</p></div>
+</dd>
 <dt id="biobench.fishnet.Args.threshold"><code class="name">var <span class="ident">threshold</span> : float</code></dt>
 <dd>
 <div class="desc"><p>The threshold to predicted "presence" rather than "absence".</p></div>
 </dd>
 </dl>
-<h3>Inherited members</h3>
-<ul class="hlist">
-<li><code><b><a title="biobench.interfaces.TaskArgs" href="../interfaces.html#biobench.interfaces.TaskArgs">TaskArgs</a></b></code>:
-<ul class="hlist">
-<li><code><a title="biobench.interfaces.TaskArgs.datadir" href="../interfaces.html#biobench.interfaces.TaskArgs.datadir">datadir</a></code></li>
-<li><code><a title="biobench.interfaces.TaskArgs.debug" href="../interfaces.html#biobench.interfaces.TaskArgs.debug">debug</a></code></li>
-<li><code><a title="biobench.interfaces.TaskArgs.device" href="../interfaces.html#biobench.interfaces.TaskArgs.device">device</a></code></li>
-<li><code><a title="biobench.interfaces.TaskArgs.seed" href="../interfaces.html#biobench.interfaces.TaskArgs.seed">seed</a></code></li>
-</ul>
-</li>
-</ul>
 </dd>
 <dt id="biobench.fishnet.Features"><code class="flex name class">
 <span>class <span class="ident">Features</span></span>
@@ -364,11 +387,17 @@ class ImageDataset(torch.utils.data.Dataset):
 <li>
 <h4><code><a title="biobench.fishnet.Args" href="#biobench.fishnet.Args">Args</a></code></h4>
 <ul class="two-column">
-<li><code><a title="biobench.fishnet.Args.batch_size" href="#biobench.fishnet.Args.batch_size">batch_size</a></code></li>
+<li><code><a title="biobench.fishnet.Args.batch_size_cv" href="#biobench.fishnet.Args.batch_size_cv">batch_size_cv</a></code></li>
+<li><code><a title="biobench.fishnet.Args.data" href="#biobench.fishnet.Args.data">data</a></code></li>
+<li><code><a title="biobench.fishnet.Args.debug" href="#biobench.fishnet.Args.debug">debug</a></code></li>
+<li><code><a title="biobench.fishnet.Args.device" href="#biobench.fishnet.Args.device">device</a></code></li>
 <li><code><a title="biobench.fishnet.Args.learning_rate" href="#biobench.fishnet.Args.learning_rate">learning_rate</a></code></li>
 <li><code><a title="biobench.fishnet.Args.log_every" href="#biobench.fishnet.Args.log_every">log_every</a></code></li>
+<li><code><a title="biobench.fishnet.Args.max_examples" href="#biobench.fishnet.Args.max_examples">max_examples</a></code></li>
 <li><code><a title="biobench.fishnet.Args.n_epochs" href="#biobench.fishnet.Args.n_epochs">n_epochs</a></code></li>
 <li><code><a title="biobench.fishnet.Args.n_workers" href="#biobench.fishnet.Args.n_workers">n_workers</a></code></li>
+<li><code><a title="biobench.fishnet.Args.parallel" href="#biobench.fishnet.Args.parallel">parallel</a></code></li>
+<li><code><a title="biobench.fishnet.Args.seed" href="#biobench.fishnet.Args.seed">seed</a></code></li>
 <li><code><a title="biobench.fishnet.Args.threshold" href="#biobench.fishnet.Args.threshold">threshold</a></code></li>
 </ul>
 </li>

@@ -60,54 +60,64 @@ hljs.highlightAll();
 <dl>
 <dt id="biobench.imagenet.Args"><code class="flex name class">
 <span>class <span class="ident">Args</span></span>
-<span>(</span><span>seed: int = 42, datadir: str = '', device: str = 'cuda', debug: bool = False, batch_size: int = 512, n_workers: int = 8, log_every: int = 10)</span>
+<span>(</span><span>data: str = '', batch_size_cv: int = 256, n_workers: int = 8, log_every: int = 10, max_examples: int = -1, device: str = 'cuda', debug: bool = False)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Args(seed: int = 42, datadir: str = '', device: str = 'cuda', debug: bool = False, batch_size: int = 512, n_workers: int = 8, log_every: int = 10)</p></div>
+<div class="desc"><p>Args(data: str = '', batch_size_cv: int = 256, n_workers: int = 8, log_every: int = 10, max_examples: int = -1, device: str = 'cuda', debug: bool = False)</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">@beartype.beartype
 @dataclasses.dataclass(frozen=True)
-class Args(interfaces.TaskArgs):
-    batch_size: int = 512
-    &#34;&#34;&#34;batch size for deep model.&#34;&#34;&#34;
+class Args:
+    data: str = &#34;&#34;
+    &#34;&#34;&#34;dataset directory; where you downloaded this task&#39;s data to.&#34;&#34;&#34;
+    batch_size_cv: int = 256
+    &#34;&#34;&#34;batch size for computer vision model.&#34;&#34;&#34;
     n_workers: int = 8
     &#34;&#34;&#34;number of dataloader worker processes.&#34;&#34;&#34;
     log_every: int = 10
-    &#34;&#34;&#34;how often (number of batches) to log progress.&#34;&#34;&#34;</code></pre>
+    &#34;&#34;&#34;how often (number of batches) to log progress.&#34;&#34;&#34;
+    # Computed at runtime.
+    max_examples: int = -1
+    &#34;&#34;&#34;(computed at runtime) Number of maximum training samples. Negative number means use all of them.&#34;&#34;&#34;
+    device: str = &#34;cuda&#34;
+    &#34;&#34;&#34;(computed at runtime) Which kind of accelerator to use.&#34;&#34;&#34;
+    debug: bool = False
+    &#34;&#34;&#34;(computed at runtime) Whether to run in debug mode.&#34;&#34;&#34;</code></pre>
 </details>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li><a title="biobench.interfaces.TaskArgs" href="../interfaces.html#biobench.interfaces.TaskArgs">TaskArgs</a></li>
-</ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="biobench.imagenet.Args.batch_size"><code class="name">var <span class="ident">batch_size</span> : int</code></dt>
+<dt id="biobench.imagenet.Args.batch_size_cv"><code class="name">var <span class="ident">batch_size_cv</span> : int</code></dt>
 <dd>
-<div class="desc"><p>batch size for deep model.</p></div>
+<div class="desc"><p>batch size for computer vision model.</p></div>
+</dd>
+<dt id="biobench.imagenet.Args.data"><code class="name">var <span class="ident">data</span> : str</code></dt>
+<dd>
+<div class="desc"><p>dataset directory; where you downloaded this task's data to.</p></div>
+</dd>
+<dt id="biobench.imagenet.Args.debug"><code class="name">var <span class="ident">debug</span> : bool</code></dt>
+<dd>
+<div class="desc"><p>(computed at runtime) Whether to run in debug mode.</p></div>
+</dd>
+<dt id="biobench.imagenet.Args.device"><code class="name">var <span class="ident">device</span> : str</code></dt>
+<dd>
+<div class="desc"><p>(computed at runtime) Which kind of accelerator to use.</p></div>
 </dd>
 <dt id="biobench.imagenet.Args.log_every"><code class="name">var <span class="ident">log_every</span> : int</code></dt>
 <dd>
 <div class="desc"><p>how often (number of batches) to log progress.</p></div>
+</dd>
+<dt id="biobench.imagenet.Args.max_examples"><code class="name">var <span class="ident">max_examples</span> : int</code></dt>
+<dd>
+<div class="desc"><p>(computed at runtime) Number of maximum training samples. Negative number means use all of them.</p></div>
 </dd>
 <dt id="biobench.imagenet.Args.n_workers"><code class="name">var <span class="ident">n_workers</span> : int</code></dt>
 <dd>
 <div class="desc"><p>number of dataloader worker processes.</p></div>
 </dd>
 </dl>
-<h3>Inherited members</h3>
-<ul class="hlist">
-<li><code><b><a title="biobench.interfaces.TaskArgs" href="../interfaces.html#biobench.interfaces.TaskArgs">TaskArgs</a></b></code>:
-<ul class="hlist">
-<li><code><a title="biobench.interfaces.TaskArgs.datadir" href="../interfaces.html#biobench.interfaces.TaskArgs.datadir">datadir</a></code></li>
-<li><code><a title="biobench.interfaces.TaskArgs.debug" href="../interfaces.html#biobench.interfaces.TaskArgs.debug">debug</a></code></li>
-<li><code><a title="biobench.interfaces.TaskArgs.device" href="../interfaces.html#biobench.interfaces.TaskArgs.device">device</a></code></li>
-<li><code><a title="biobench.interfaces.TaskArgs.seed" href="../interfaces.html#biobench.interfaces.TaskArgs.seed">seed</a></code></li>
-</ul>
-</li>
-</ul>
 </dd>
 <dt id="biobench.imagenet.Features"><code class="flex name class">
 <span>class <span class="ident">Features</span></span>
@@ -187,9 +197,13 @@ class Features:
 <ul>
 <li>
 <h4><code><a title="biobench.imagenet.Args" href="#biobench.imagenet.Args">Args</a></code></h4>
-<ul class="">
-<li><code><a title="biobench.imagenet.Args.batch_size" href="#biobench.imagenet.Args.batch_size">batch_size</a></code></li>
+<ul class="two-column">
+<li><code><a title="biobench.imagenet.Args.batch_size_cv" href="#biobench.imagenet.Args.batch_size_cv">batch_size_cv</a></code></li>
+<li><code><a title="biobench.imagenet.Args.data" href="#biobench.imagenet.Args.data">data</a></code></li>
+<li><code><a title="biobench.imagenet.Args.debug" href="#biobench.imagenet.Args.debug">debug</a></code></li>
+<li><code><a title="biobench.imagenet.Args.device" href="#biobench.imagenet.Args.device">device</a></code></li>
 <li><code><a title="biobench.imagenet.Args.log_every" href="#biobench.imagenet.Args.log_every">log_every</a></code></li>
+<li><code><a title="biobench.imagenet.Args.max_examples" href="#biobench.imagenet.Args.max_examples">max_examples</a></code></li>
 <li><code><a title="biobench.imagenet.Args.n_workers" href="#biobench.imagenet.Args.n_workers">n_workers</a></code></li>
 </ul>
 </li>
