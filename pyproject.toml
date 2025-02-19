@@ -28,6 +28,7 @@ dependencies = [
     "pycocotools>=2.0.8",
     "gdown>=5.2.0",
     "litellm>=1.60.8",
+    "pybase64>=1.4.0",
 ]
 
 [tool.ruff.lint]
@@ -35,3 +36,8 @@ ignore = ["F722", "E402"]
 
 [tool.isort]
 profile = "black"
+
+[dependency-groups]
+dev = [
+    "pyinstrument>=5.0.1",
+]

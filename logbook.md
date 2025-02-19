@@ -65,3 +65,90 @@ Solution: Analysis of how different approaches scale with increasing data, match
 
 Gemini Flash 1.5 8B spent ~13c on Ages with no examples.
 Now I'm trying with 1 training example.
+
+# 02/18/2025
+
+When I provide examples in the user/assistant/user/assistant format (mutiple messages), then the model responds with a classification for each example in the history.
+
+Here is the JSON:
+
+```json
+[
+  {
+    "role": "user",
+    "content": [
+      {
+        "type": "image_url",
+        "image_url": {
+          "url": "<BASE64>"
+        }
+      },
+      {
+        "type": "text",
+        "text": "What is this a picture of, western sandpiper, whimbrel, Cooper's hawk, black-bellied plover, sharp-shinned hawk, dunlin, sanderling, Swainson's hawk, semipalmated plover, rough-legged hawk, least sandpiper or bald eagle? Respond with your answer in bold."
+      }
+    ]
+  },
+  {
+    "role": "assistant",
+    "content": "**semipalmated plover**"
+  },
+  {
+    "role": "user",
+    "content": [
+      {
+        "type": "image_url",
+        "image_url": {
+          "url": "<BASE64>"
+        }
+      },
+      {
+        "type": "text",
+        "text": "What is this a picture of, least sandpiper, sanderling, whimbrel, dunlin, semipalmated plover, Swainson's hawk, rough-legged hawk, bald eagle, western sandpiper, Cooper's hawk, black-bellied plover or sharp-shinned hawk? Respond with your answer in bold."
+      }
+    ]
+  },
+  {
+    "role": "assistant",
+    "content": "**Cooper's hawk**"
+  },
+  {
+    "role": "user",
+    "content": [
+      {
+        "type": "image_url",
+        "image_url": {
+          "url": "<BASE64>"
+        }
+      },
+      {
+        "type": "text",
+        "text": "What is this a picture of, whimbrel, black-bellied plover, least sandpiper, bald eagle, Swainson's hawk, sharp-shinned hawk, dunlin, sanderling, Cooper's hawk, semipalmated plover, rough-legged hawk or western sandpiper? Respond with your answer in bold."
+      }
+    ]
+  },
+  {
+    "role": "assistant",
+    "content": "**bald eagle**"
+  },
+  {
+    "role": "user",
+    "content": [
+      {
+        "type": "image_url",
+        "image_url": {
+          "url": "<BASE64>"
+        }
+      },
+      {
+        "type": "text",
+        "text": "What is this a picture of, Swainson's hawk, bald eagle, western sandpiper, whimbrel, black-bellied plover, least sandpiper, semipalmated plover, rough-legged hawk, sanderling, dunlin, sharp-shinned hawk or Cooper's hawk? Respond with your answer in bold."
+      }
+    ]
+  }
+]
+```
+
+And the model responds with
+
+`"From top to bottom, left to right:\n\n1. **Whimbrel**\n2. **Cooper's hawk**\n3. **Bald eagle**\n4. **Sharp-shinned hawk**"`

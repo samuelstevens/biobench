@@ -169,7 +169,7 @@ class TaskReport:
         )
 
         scores = []
-        for choice in helpers.progress(choices, desc=f"CI for {self.name}"):
+        for choice in helpers.progress(choices, desc=f"CI for {self.name}", every=100):
             scores.append(self.calc_mean_score([self.predictions[i] for i in choice]))
 
         percentiles = (100 - confidence) / 2, (100 - confidence) / 2 + confidence
@@ -639,16 +639,13 @@ __all__ = [
 
 ```python
 import asyncio
-import base64
 import collections
 import dataclasses
-import io
 import logging
 import time
 
 import beartype
 import litellm
-from PIL import Image
 
 from . import interfaces
 
@@ -662,7 +659,7 @@ logging.getLogger("LiteLLM").setLevel(logging.WARNING)
 @beartype.beartype
 @dataclasses.dataclass(frozen=True)
 class Example:
-    image: Image.Image
+    image_b64: str
     user: str
     assistant: str
 
@@ -671,10 +668,7 @@ class Example:
             {
                 "role": "user",
                 "content": [
-                    {
-                        "type": "image_url",
-                        "image_url": {"url": image_to_base64(self.image)},
-                    },
+                    {"type": "image_url", "image_url": {"url": self.image_b64}},
                     {"type": "text", "text": self.user},
                 ],
             },
@@ -686,7 +680,7 @@ class Example:
 def fits(
     args: interfaces.ModelArgsVlm,
     examples: list[Example],
-    image: Image.Image,
+    image_b64: str,
     user: str,
 ) -> bool:
     max_tokens = get_max_tokens(args)
@@ -698,7 +692,7 @@ def fits(
         "content": [
             {
                 "type": "image_url",
-                "image_url": {"url": image_to_base64(image)},
+                "image_url": {"url": image_b64},
             },
             {"type": "text", "text": user},
         ],
@@ -752,10 +746,11 @@ class RateLimiter:
 async def send(
     args: interfaces.ModelArgsVlm,
     examples: list[Example],
-    image: Image.Image,
+    image_b64: str,
     user: str,
     *,
     max_retries: int = 5,
+    system: str = "",
 ) -> str:
     """
     Send a message to the LLM and get the response.
@@ -779,6 +774,10 @@ async def send(
 
     # Format messages for chat completion
     messages = []
+
+    if system:
+        messages.append({"role": "system", "content": system})
+
     for example in examples:
         messages.extend(example.to_history())
 
@@ -786,10 +785,7 @@ async def send(
     messages.append({
         "role": "user",
         "content": [
-            {
-                "type": "image_url",
-                "image_url": {"url": image_to_base64(image)},
-            },
+            {"type": "image_url", "image_url": {"url": image_b64}},
             {"type": "text", "text": user},
         ],
     })
@@ -849,15 +845,6 @@ async def send(
             return ""
         return response
 
-
-@beartype.beartype
-def image_to_base64(image: Image.Image) -> str:
-    buf = io.BytesIO()
-    image.save(buf, format="webp")
-    b64 = base64.b64encode(buf.getvalue())
-    s64 = b64.decode("utf8")
-    return "data:image/webp;base64," + s64
-
 ```
 
 # biobench/helpers.py
@@ -868,11 +855,14 @@ Useful helpers for more than two tasks that don't fit anywhere else.
 """
 
 import collections.abc
+import io
 import logging
 import os.path
 import time
 
 import beartype
+import pybase64
+from PIL import Image
 
 
 @beartype.beartype
@@ -958,6 +948,16 @@ def write_hparam_sweep_plot(
     filepath = os.path.join("logs", f"{task}_{fs_safe(model)}_hparam.png")
     fig.savefig(filepath)
     return filepath
+
+
+@beartype.beartype
+def load_image_b64(path: str) -> str:
+    image = Image.open(path)
+    buf = io.BytesIO()
+    image.save(buf, format="webp")
+    b64 = pybase64.b64encode(buf.getvalue())
+    s64 = b64.decode("utf8")
+    return "data:image/webp;base64," + s64
 
 ```
 
@@ -2276,25 +2276,54 @@ def benchmark_vlm(
     rng = random.Random(args.seed)
 
     splits = {}
+
+    if args.max_examples > 0:
+        system = "You will be shown several example bird classifications followed by a test image to classify. For each image, respond only with the classification of the current image. Do not reclassify previous images."
+    else:
+        system = ""
+
     with asyncio.Runner() as loop:
         for task, dataset in get_all_tasks_vlm(args):
             limiter = llms.RateLimiter(args.parallel)
             semaphore = asyncio.Semaphore(args.parallel)
 
+            # We load all the training samples into memory right away because they will be re-used over and over again.
+            # Test samples are loaded one by one on demand.
+            i_train = rng.choices(task.train, k=args.max_examples)
+            train_examples = [
+                dataset[i].to_example(rng)
+                for i in helpers.progress(i_train, desc="load train samples")
+            ]
+
             @beartype.beartype
-            async def run_one(
-                fewshot_examples: list[llms.Example], test_example: SampleVlm
-            ) -> interfaces.Prediction:
+            async def run_one(i: int) -> interfaces.Prediction:
                 async with semaphore:
+                    test_example = dataset[i]
+                    # Try to fit them into a prompt.
+                    n_examples = 0
+                    fewshot_examples = []
+                    while llms.fits(
+                        model_args,
+                        fewshot_examples,
+                        test_example.image_b64,
+                        test_example.make_user(rng),
+                    ) and (args.max_examples < 0 or n_examples < args.max_examples):
+                        # Add another example.
+                        n_examples += 1
+                        fewshot_examples = train_examples[:n_examples]
+
+                    # Only shuffle once.
+                    rng.shuffle(fewshot_examples)
+
                     await limiter.acquire()
                     assistant = await llms.send(
                         model_args,
                         fewshot_examples,
-                        test_example.image,
+                        test_example.image_b64,
                         test_example.make_user(rng),
+                        system=system,
                     )
                     pred = test_example.parse_assistant(assistant)
-                    breakpoint()
                     return interfaces.Prediction(
                         test_example.image_id,
                         float(pred == test_example.classname),
@@ -2302,46 +2331,24 @@ def benchmark_vlm(
                             "task": task.name,
                             "gold": test_example.classname,
                             "pred": pred,
+                            "assistant": assistant,
                         },
                     )
 
             @beartype.beartype
-            async def run_all(
-                submissions: list[tuple[list[llms.Example], SampleVlm]],
-            ) -> list[interfaces.Prediction]:
+            async def run_all() -> list[interfaces.Prediction]:
+                test_i = task.test
                 if args.debug:
-                    submissions = submissions[:10]
-                tasks = [asyncio.create_task(run_one(*args)) for args in submissions]
+                    test_i = test_i[:10]
+                jobs = [asyncio.create_task(run_one(i.item())) for i in test_i]
+
                 preds = []
-                for task in helpers.progress(tasks, every=1):
-                    pred: interfaces.Prediction = await task
+                for job in helpers.progress(jobs, every=1):
+                    pred: interfaces.Prediction = await job
                     preds.append(pred)
                 return preds
 
-            llm_args = []
-            i_train = rng.choices(task.train, k=args.max_examples)
-
-            for i in task.test:
-                test_example = dataset[i]
-
-                # Try to fit them into a prompt.
-                n_examples = 0
-                fewshot_examples = []
-                while llms.fits(
-                    model_args,
-                    fewshot_examples,
-                    test_example.image,
-                    test_example.make_user(rng),
-                ) and (args.max_examples < 0 or n_examples < args.max_examples):
-                    # Add another example.
-                    n_examples += 1
-                    fewshot_examples = [
-                        dataset[j].to_example(rng) for j in i_train[:n_examples]
-                    ]
-
-                llm_args.append((fewshot_examples, test_example))
-
-            preds = loop.run(run_all(llm_args))
+            preds = loop.run(run_all())
             test_acc = np.mean([pred.score for pred in preds]).item()
             splits[task.name] = test_acc
 
@@ -2521,12 +2528,12 @@ CLASSNAMES = list(RAW_TO_CLASSNAME.values())
 @dataclasses.dataclass(frozen=True)
 class SampleVlm:
     image_id: str
-    image: Image.Image
+    image_b64: str
     classname: str
 
     def make_user(self, rng: random.Random) -> str:
         classnames = rng.sample(CLASSNAMES, k=len(CLASSNAMES))
-        return f"What is this a picture of, {', '.join(classnames[:-1])} or {classnames[-1]}? Respond with your answer in bold."
+        return f"What is this a picture of: {', '.join(classnames[:-1])} or {classnames[-1]}? Respond with your answer in bold."
 
     @property
     def assistant(self) -> str:
@@ -2546,7 +2553,7 @@ class SampleVlm:
 
     def to_example(self, rng: random.Random) -> llms.Example:
         return llms.Example(
-            image=self.image,
+            image_b64=self.image_b64,
             user=self.make_user(rng),
             assistant=self.assistant,
         )
@@ -2568,9 +2575,9 @@ class DatasetVlm(torch.utils.data.Dataset):
         image_id = self.image_ids[i]
         classname = RAW_TO_CLASSNAME[self.text_labels[i]]
 
-        image = Image.open(os.path.join(self.root, f"{image_id}.jpg"))
+        image_b64 = helpers.load_image_b64(os.path.join(self.root, f"{image_id}.jpg"))
 
-        return SampleVlm(image_id, image, classname)
+        return SampleVlm(image_id, image_b64, classname)
 
     def __len__(self) -> int:
         return len(self.image_ids)

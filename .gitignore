@@ -6,3 +6,4 @@ graphs/
 logs/
 .aider*
 datasets/
+.env

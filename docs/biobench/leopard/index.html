@@ -3,13 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
-<meta name="generator" content="pdoc3 0.11.1">
+<meta name="generator" content="pdoc3 0.11.5">
 <title>biobench.leopard API documentation</title>
 <meta name="description" content="Individual re-identification of African leopards (*Panthera pardus*) using [this LILA BC dataset](https://lila.science/datasets/leopard-id-2022/) …">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
-<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin-bottom:1em}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
 <style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
 <style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
 <script type="text/x-mathjax-config">MathJax.Hub.Config({ tex2jax: { inlineMath: [ ['$','$'], ["\\(","\\)"] ], processEscapes: true } });</script>
@@ -18,6 +18,17 @@
 <script>window.addEventListener('DOMContentLoaded', () => {
 hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
 hljs.highlightAll();
+/* Collapse source docstrings */
+setTimeout(() => {
+[...document.querySelectorAll('.hljs.language-python > .hljs-string')]
+.filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
+.forEach(el => {
+let d = document.createElement('details');
+d.classList.add('hljs-string');
+d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
+el.replaceWith(d);
+});
+}, 100);
 })</script>
 </head>
 <body>
@@ -57,15 +68,128 @@ I let it run for 10 minutes and it was stable in predicting 60+ minutes, so I se
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
 <dt id="biobench.leopard.benchmark"><code class="name flex">
-<span>def <span class="ident">benchmark</span></span>(<span>args: <a title="biobench.leopard.Args" href="#biobench.leopard.Args">Args</a>, model_args: <a title="biobench.interfaces.ModelArgsCvml" href="../interfaces.html#biobench.interfaces.ModelArgsCvml">ModelArgsCvml</a>) ‑> tuple[<a title="biobench.interfaces.ModelArgsCvml" href="../interfaces.html#biobench.interfaces.ModelArgsCvml">ModelArgsCvml</a>, <a title="biobench.interfaces.TaskReport" href="../interfaces.html#biobench.interfaces.TaskReport">TaskReport</a>]</span>
+<span>def <span class="ident">benchmark</span></span>(<span>args: <a title="biobench.leopard.Args" href="#biobench.leopard.Args">Args</a>,<br>model_args: <a title="biobench.interfaces.ModelArgsCvml" href="../interfaces.html#biobench.interfaces.ModelArgsCvml">ModelArgsCvml</a>) ‑> tuple[<a title="biobench.interfaces.ModelArgsCvml" href="../interfaces.html#biobench.interfaces.ModelArgsCvml">ModelArgsCvml</a>, <a title="biobench.interfaces.TaskReport" href="../interfaces.html#biobench.interfaces.TaskReport">TaskReport</a>]</span>
 </code></dt>
 <dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@beartype.beartype
+def benchmark(
+    args: Args, model_args: interfaces.ModelArgsCvml
+) -&gt; tuple[interfaces.ModelArgsCvml, interfaces.TaskReport]:
+    &#34;&#34;&#34;
+    Run the leopard re-ID benchmark. See this module&#39;s documentation for more details.
+    &#34;&#34;&#34;
+    backbone = registry.load_vision_backbone(*model_args)
+
+    # Embed all images.
+    features = get_features(args, backbone)
+    # Convert string names into integer labels.
+    encoder = sklearn.preprocessing.OrdinalEncoder(dtype=int)
+    y = encoder.fit_transform(features.labels.reshape(-1, 1)).reshape(-1)
+
+    @beartype.beartype
+    def predict(i: int, image_id) -&gt; interfaces.Prediction:
+        clf = sklearn.svm.LinearSVC(
+            class_weight=&#34;balanced&#34;, verbose=False, max_iter=10000, tol=1e-6, C=0.1
+        )
+        svm_y = np.zeros(features.n)
+        svm_y[i] = 1
+        clf.fit(features.x, svm_y)
+        sims = clf.decision_function(features.x)
+        # The top result is always i, but we want the second-best result.
+        pred_i = np.argsort(sims)[1]
+        # TODO: we could also take the top k results and choose the most common.
+        # Something like:
+        #   pred_i = scipy.stats.mode(np.argsort(sims)[1:args.k+1]).mode
+
+        example = interfaces.Prediction(str(image_id), float(y[pred_i] == y[i]), {})
+        return example
+
+    examples = joblib.Parallel(n_jobs=args.n_jobs)(
+        joblib.delayed(predict)(i, image_id)
+        for i, image_id in enumerate(
+            helpers.progress(features.ids, every=args.log_every)
+        )
+    )
+
+    return model_args, interfaces.TaskReport(&#34;LeopardID&#34;, examples)</code></pre>
+</details>
 <div class="desc"><p>Run the leopard re-ID benchmark. See this module's documentation for more details.</p></div>
 </dd>
 <dt id="biobench.leopard.get_features"><code class="name flex">
-<span>def <span class="ident">get_features</span></span>(<span>args: <a title="biobench.leopard.Args" href="#biobench.leopard.Args">Args</a>, backbone: <a title="biobench.interfaces.VisionBackbone" href="../interfaces.html#biobench.interfaces.VisionBackbone">VisionBackbone</a>) ‑> <a title="biobench.leopard.Features" href="#biobench.leopard.Features">Features</a></span>
+<span>def <span class="ident">get_features</span></span>(<span>args: <a title="biobench.leopard.Args" href="#biobench.leopard.Args">Args</a>,<br>backbone: <a title="biobench.interfaces.VisionBackbone" href="../interfaces.html#biobench.interfaces.VisionBackbone">VisionBackbone</a>) ‑> <a title="biobench.leopard.Features" href="#biobench.leopard.Features">Features</a></span>
 </code></dt>
 <dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@beartype.beartype
+@torch.no_grad
+def get_features(args: Args, backbone: interfaces.VisionBackbone) -&gt; Features:
+    &#34;&#34;&#34;
+    Get a block of features from a vision backbone.
+
+    Args:
+        args: LeopardID arguments.
+        backbone: visual backbone.
+    &#34;&#34;&#34;
+    backbone_transform = backbone.make_img_transform()
+    backbone = torch.compile(backbone.to(args.device))
+
+    @jaxtyped(typechecker=beartype.beartype)
+    def sample_transform(
+        img, metadata: list[dict]
+    ) -&gt; tuple[Float[Tensor, &#34;3 w h&#34;], tuple[str, str]]:
+        # tgt is always a list for some reason.
+        metadata = metadata[0]
+        x, y, w, h = metadata[&#34;bbox&#34;]
+        img = img.crop((x, y, x + w, y + h))
+        return backbone_transform(img), (metadata[&#34;name&#34;], str(metadata[&#34;image_id&#34;]))
+
+    if not os.path.isdir(args.datadir):
+        msg = f&#34;Path &#39;{args.datadir}&#39; doesn&#39;t exist. Did you download the leopard dataset? See the docstring at the top of this file for instructions. If you did download it, pass the path with &#39;--leopard-args.datadir&#39;; see --help for more.&#34;
+        raise ValueError(msg)
+
+    dataset = torchvision.datasets.CocoDetection(
+        os.path.join(args.datadir, &#34;leopard.coco&#34;, &#34;images&#34;, &#34;train2022&#34;),
+        os.path.join(
+            args.datadir, &#34;leopard.coco&#34;, &#34;annotations&#34;, &#34;instances_train2022.json&#34;
+        ),
+        transforms=sample_transform,
+    )
+
+    dataloader = torch.utils.data.DataLoader(
+        dataset=dataset,
+        batch_size=args.batch_size,
+        num_workers=args.n_workers,
+        drop_last=False,
+    )
+
+    all_features, all_labels, all_ids = [], [], []
+
+    total = len(dataloader) if not args.debug else 2
+    it = iter(dataloader)
+    for b in helpers.progress(range(total), every=args.log_every, desc=&#34;embed&#34;):
+        images, (labels, ids) = next(it)
+        images = images.to(args.device)
+
+        with torch.amp.autocast(&#34;cuda&#34;):
+            features = backbone.img_encode(images).img_features
+
+        all_features.append(features.cpu())
+        all_labels.extend(labels)
+        all_ids.extend(ids)
+
+    all_features = torch.cat(all_features, dim=0).cpu()
+    all_labels = np.array(all_labels)
+    all_ids = np.array(all_ids)
+
+    return Features(all_features, all_labels, all_ids)</code></pre>
+</details>
 <div class="desc"><p>Get a block of features from a vision backbone.</p>
 <h2 id="args">Args</h2>
 <dl>
@@ -82,10 +206,9 @@ I let it run for 10 minutes and it was stable in predicting 60+ minutes, so I se
 <dl>
 <dt id="biobench.leopard.Args"><code class="flex name class">
 <span>class <span class="ident">Args</span></span>
-<span>(</span><span>batch_size: int = 256, n_workers: int = 8, log_every: int = 10, n_jobs: int = 16, max_examples: int = -1, device: str = 'cuda', debug: bool = False)</span>
+<span>(</span><span>batch_size: int = 256,<br>n_workers: int = 8,<br>log_every: int = 10,<br>n_jobs: int = 16,<br>max_examples: int = -1,<br>device: str = 'cuda',<br>debug: bool = False)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Configuration for Leopard re-ID task.</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -111,6 +234,7 @@ class Args:
     debug: bool = False
     &#34;&#34;&#34;(computed at runtime) Whether to run in debug mode.&#34;&#34;&#34;</code></pre>
 </details>
+<div class="desc"><p>Configuration for Leopard re-ID task.</p></div>
 <h3>Class variables</h3>
 <dl>
 <dt id="biobench.leopard.Args.batch_size"><code class="name">var <span class="ident">batch_size</span> : int</code></dt>
@@ -145,11 +269,9 @@ class Args:
 </dd>
 <dt id="biobench.leopard.Features"><code class="flex name class">
 <span>class <span class="ident">Features</span></span>
-<span>(</span><span>x: jaxtyping.Float[Tensor, 'n dim'], labels: jaxtyping.Shaped[ndarray, 'n'], ids: jaxtyping.Shaped[ndarray, 'n'])</span>
+<span>(</span><span>x: jaxtyping.Float[Tensor, 'n dim'],<br>labels: jaxtyping.Shaped[ndarray, 'n'],<br>ids: jaxtyping.Shaped[ndarray, 'n'])</span>
 </code></dt>
 <dd>
-<div class="desc"><p>A block of features.</p>
-<p>Note: In Jax, this could be a tuple of arrays, all with a leading dimension of <code>n</code>. Instead, in PyTorch, it's easier to make it its own class. Oh well.</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -174,6 +296,8 @@ class Features:
     def n(self) -&gt; int:
         return len(self.ids)</code></pre>
 </details>
+<div class="desc"><p>A block of features.</p>
+<p>Note: In Jax, this could be a tuple of arrays, all with a leading dimension of <code>n</code>. Instead, in PyTorch, it's easier to make it its own class. Oh well.</p></div>
 <h3>Class variables</h3>
 <dl>
 <dt id="biobench.leopard.Features.ids"><code class="name">var <span class="ident">ids</span> : jaxtyping.Shaped[ndarray, 'n']</code></dt>
@@ -193,7 +317,6 @@ class Features:
 <dl>
 <dt id="biobench.leopard.Features.n"><code class="name">prop <span class="ident">n</span> : int</code></dt>
 <dd>
-<div class="desc"></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -202,6 +325,7 @@ class Features:
 def n(self) -&gt; int:
     return len(self.ids)</code></pre>
 </details>
+<div class="desc"></div>
 </dd>
 </dl>
 </dd>
@@ -258,7 +382,7 @@ def n(self) -&gt; int:
 </nav>
 </main>
 <footer id="footer">
-<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.1</a>.</p>
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.5</a>.</p>
 </footer>
 </body>
 </html>

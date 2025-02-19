@@ -3,11 +3,14 @@ Useful helpers for more than two tasks that don't fit anywhere else.
 """
 
 import collections.abc
+import io
 import logging
 import os.path
 import time
 
 import beartype
+import pybase64
+from PIL import Image
 
 
 @beartype.beartype
@@ -93,3 +96,13 @@ def write_hparam_sweep_plot(
     filepath = os.path.join("logs", f"{task}_{fs_safe(model)}_hparam.png")
     fig.savefig(filepath)
     return filepath
+
+
+@beartype.beartype
+def load_image_b64(path: str) -> str:
+    image = Image.open(path)
+    buf = io.BytesIO()
+    image.save(buf, format="webp")
+    b64 = pybase64.b64encode(buf.getvalue())
+    s64 = b64.decode("utf8")
+    return "data:image/webp;base64," + s64

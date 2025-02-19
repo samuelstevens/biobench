@@ -1,14 +1,11 @@
 import asyncio
-import base64
 import collections
 import dataclasses
-import io
 import logging
 import time
 
 import beartype
 import litellm
-from PIL import Image
 
 from . import interfaces
 
@@ -22,7 +19,7 @@ logging.getLogger("LiteLLM").setLevel(logging.WARNING)
 @beartype.beartype
 @dataclasses.dataclass(frozen=True)
 class Example:
-    image: Image.Image
+    image_b64: str
     user: str
     assistant: str
 
@@ -31,11 +28,8 @@ class Example:
             {
                 "role": "user",
                 "content": [
+                    {"type": "image_url", "image_url": {"url": self.image_b64}},
                     {"type": "text", "text": self.user},
-                    {
-                        "type": "image_url",
-                        "image_url": {"url": image_to_base64(self.image)},
-                    },
                 ],
             },
             {"role": "assistant", "content": self.assistant},
@@ -46,7 +40,7 @@ class Example:
 def fits(
     args: interfaces.ModelArgsVlm,
     examples: list[Example],
-    image: Image.Image,
+    image_b64: str,
     user: str,
 ) -> bool:
     max_tokens = get_max_tokens(args)
@@ -56,11 +50,11 @@ def fits(
     messages.append({
         "role": "user",
         "content": [
-            {"type": "text", "text": user},
             {
                 "type": "image_url",
-                "image_url": {"url": image_to_base64(image)},
+                "image_url": {"url": image_b64},
             },
+            {"type": "text", "text": user},
         ],
     })
     n_tokens = litellm.token_counter(model=args.ckpt, messages=messages)
@@ -112,10 +106,11 @@ class RateLimiter:
 async def send(
     args: interfaces.ModelArgsVlm,
     examples: list[Example],
-    image: Image.Image,
+    image_b64: str,
     user: str,
     *,
     max_retries: int = 5,
+    system: str = "",
 ) -> str:
     """
     Send a message to the LLM and get the response.
@@ -139,6 +134,10 @@ async def send(
 
     # Format messages for chat completion
     messages = []
+
+    if system:
+        messages.append({"role": "system", "content": system})
+
     for example in examples:
         messages.extend(example.to_history())
 
@@ -146,11 +145,8 @@ async def send(
     messages.append({
         "role": "user",
         "content": [
+            {"type": "image_url", "image_url": {"url": image_b64}},
             {"type": "text", "text": user},
-            {
-                "type": "image_url",
-                "image_url": {"url": image_to_base64(image)},
-            },
         ],
     })
     # Make LLM call with retries
@@ -205,13 +201,6 @@ async def send(
 
         # Extract response and update history
         response = response.choices[0].message.content
+        if response is None:
+            return ""
         return response
-
-
-@beartype.beartype
-def image_to_base64(image: Image.Image) -> str:
-    buf = io.BytesIO()
-    image.save(buf, format="webp")
-    b64 = base64.b64encode(buf.getvalue())
-    s64 = b64.decode("utf8")
-    return "data:image/webp;base64," + s64
