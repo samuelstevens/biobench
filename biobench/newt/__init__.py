@@ -61,16 +61,16 @@ class Args:
     """how often (number of batches) to log progress."""
     seed: int = 42
     """random seed."""
-    max_examples: int = -1
-    """Number of maximum training samples. Negative number means use all of them."""
     parallel: int = 5
     """Concurrent requests per second."""
 
     # Computed at runtime.
+    max_examples: int = -1
+    """(computed at runtime) Number of maximum training samples. Negative number means use all of them."""
     device: str = "cuda"
-    """(computed at runtime) which kind of accelerator to use."""
+    """(computed at runtime) Which kind of accelerator to use."""
     debug: bool = False
-    """(computed at runtime) whether to run in debug mode."""
+    """(computed at runtime) Whether to run in debug mode."""
 
 
 @beartype.beartype
@@ -380,6 +380,7 @@ class SampleVlm:
     image_id: str
     image: Image.Image
     label: int
+
     # TODO: these classnames are not being translated correctly.
     classnames: tuple[str, str]
 

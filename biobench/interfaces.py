@@ -32,22 +32,6 @@ from biobench import helpers
 
 @jaxtyped(typechecker=beartype.beartype)
 @dataclasses.dataclass(frozen=True)
-class TaskArgs:
-    """Common args for all tasks."""
-
-    seed: int = 42
-    """random seed."""
-    datadir: str = ""
-    """dataset directory; where you downloaded this task's data to."""
-    # Computed at runtime.
-    device: str = "cuda"
-    """(computed at runtime) which kind of accelerator to use."""
-    debug: bool = False
-    """(computed at runtime) whether to run in debug mode."""
-
-
-@jaxtyped(typechecker=beartype.beartype)
-@dataclasses.dataclass(frozen=True)
 class EncodedImgBatch:
     """The output of a `VisionBackbone`'s `VisionBackbone.img_encode()` method."""
 
@@ -182,7 +166,7 @@ class TaskReport:
         )
 
         scores = []
-        for choice in helpers.progress(choices, desc=f"CI for {self.name}"):
+        for choice in helpers.progress(choices, desc=f"CI for {self.name}", every=100):
             scores.append(self.calc_mean_score([self.predictions[i] for i in choice]))
 
         percentiles = (100 - confidence) / 2, (100 - confidence) / 2 + confidence

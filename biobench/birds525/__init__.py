@@ -35,13 +35,8 @@ class Args:
 
     seed: int = 42
     """random seed."""
-    datadir: str = ""
+    data: str = ""
     """dataset directory; where you downloaded this task's data to."""
-    # Computed at runtime.
-    device: str = "cuda"
-    """(computed at runtime) which kind of accelerator to use."""
-    debug: bool = False
-    """(computed at runtime) whether to run in debug mode."""
 
     batch_size: int = 256
     """batch size for deep model."""
@@ -51,6 +46,13 @@ class Args:
     """how often (number of batches) to log progress."""
     n_repeats: int = 100
     """number of times to do 1-shot training."""
+    # Computed at runtime.
+    max_examples: int = -1
+    """(computed at runtime) Number of maximum training samples. Negative number means use all of them."""
+    device: str = "cuda"
+    """(computed at runtime) Which kind of accelerator to use."""
+    debug: bool = False
+    """(computed at runtime) Whether to run in debug mode."""
 
 
 @beartype.beartype

@@ -49,15 +49,29 @@ logger = logging.getLogger("beluga")
 
 @beartype.beartype
 @dataclasses.dataclass(frozen=True)
-class Args(interfaces.TaskArgs):
+class Args:
     """Configuration for BelugaID task."""
 
-    batch_size: int = 256
-    """Batch size for the vision backbone."""
+    data: str = ""
+    """dataset directory; where you downloaded this task's data to."""
+    batch_size_cv: int = 256
+    """batch size for computer vision model."""
     n_workers: int = 8
     """Number of dataloader workers."""
     log_every: int = 10
     """How often to log while getting features."""
+    seed: int = 42
+    """random seed."""
+    parallel: int = 5
+    """Concurrent requests per second."""
+
+    # Computed at runtime.
+    max_examples: int = -1
+    """(computed at runtime) Number of maximum training samples. Negative number means use all of them."""
+    device: str = "cuda"
+    """(computed at runtime) Which kind of accelerator to use."""
+    debug: bool = False
+    """(computed at runtime) Whether to run in debug mode."""
 
 
 @beartype.beartype

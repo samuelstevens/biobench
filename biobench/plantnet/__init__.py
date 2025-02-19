@@ -42,13 +42,20 @@ logger = logging.getLogger("plantnet")
 
 @beartype.beartype
 @dataclasses.dataclass(frozen=True)
-class Args(interfaces.TaskArgs):
+class Args:
     batch_size: int = 256
     """batch size for deep model."""
     n_workers: int = 4
     """number of dataloader worker processes."""
     log_every: int = 10
     """how often (number of batches) to log progress."""
+    # Computed at runtime.
+    max_examples: int = -1
+    """(computed at runtime) Number of maximum training samples. Negative number means use all of them."""
+    device: str = "cuda"
+    """(computed at runtime) Which kind of accelerator to use."""
+    debug: bool = False
+    """(computed at runtime) Whether to run in debug mode."""
 
 
 @jaxtyped(typechecker=beartype.beartype)

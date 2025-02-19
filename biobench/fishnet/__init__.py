@@ -43,11 +43,13 @@ logger = logging.getLogger("fishnet")
 
 @beartype.beartype
 @dataclasses.dataclass(frozen=True)
-class Args(interfaces.TaskArgs):
+class Args:
     """FishNet task arguments."""
 
-    batch_size: int = 256
-    """Batch size for deep model and MLP classifier."""
+    data: str = ""
+    """dataset directory; where you downloaded this task's data to."""
+    batch_size_cv: int = 256
+    """batch size for computer vision model."""
     n_workers: int = 4
     """number of dataloader worker processes."""
     log_every: int = 10
@@ -58,6 +60,18 @@ class Args(interfaces.TaskArgs):
     """The learning rate for training the MLP classifier."""
     threshold: float = 0.5
     """The threshold to predicted "presence" rather than "absence"."""
+    seed: int = 42
+    """random seed."""
+    parallel: int = 5
+    """Concurrent requests per second."""
+
+    # Computed at runtime.
+    max_examples: int = -1
+    """(computed at runtime) Number of maximum training samples. Negative number means use all of them."""
+    device: str = "cuda"
+    """(computed at runtime) Which kind of accelerator to use."""
+    debug: bool = False
+    """(computed at runtime) Whether to run in debug mode."""
 
 
 @jaxtyped(typechecker=beartype.beartype)

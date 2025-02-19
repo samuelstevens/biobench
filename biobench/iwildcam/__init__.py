@@ -25,7 +25,7 @@ logger = logging.getLogger("iwildcam")
 
 @beartype.beartype
 @dataclasses.dataclass(frozen=True)
-class Args(interfaces.TaskArgs):
+class Args:
     """Arguments for the iWildCam task."""
 
     batch_size: int = 2048
@@ -34,6 +34,13 @@ class Args(interfaces.TaskArgs):
     """number of dataloader worker processes."""
     log_every: int = 10
     """how often (number of batches) to log progress."""
+    # Computed at runtime.
+    max_examples: int = -1
+    """(computed at runtime) Number of maximum training samples. Negative number means use all of them."""
+    device: str = "cuda"
+    """(computed at runtime) Which kind of accelerator to use."""
+    debug: bool = False
+    """(computed at runtime) Whether to run in debug mode."""
 
 
 @jaxtyped(typechecker=beartype.beartype)

@@ -22,13 +22,22 @@ logger = logging.getLogger("imagenet")
 
 @beartype.beartype
 @dataclasses.dataclass(frozen=True)
-class Args(interfaces.TaskArgs):
-    batch_size: int = 512
-    """batch size for deep model."""
+class Args:
+    data: str = ""
+    """dataset directory; where you downloaded this task's data to."""
+    batch_size_cv: int = 256
+    """batch size for computer vision model."""
     n_workers: int = 8
     """number of dataloader worker processes."""
     log_every: int = 10
     """how often (number of batches) to log progress."""
+    # Computed at runtime.
+    max_examples: int = -1
+    """(computed at runtime) Number of maximum training samples. Negative number means use all of them."""
+    device: str = "cuda"
+    """(computed at runtime) Which kind of accelerator to use."""
+    debug: bool = False
+    """(computed at runtime) Whether to run in debug mode."""
 
 
 @jaxtyped(typechecker=beartype.beartype)

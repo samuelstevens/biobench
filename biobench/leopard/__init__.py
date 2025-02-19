@@ -38,7 +38,7 @@ logger = logging.getLogger("leopard")
 
 @beartype.beartype
 @dataclasses.dataclass(frozen=True)
-class Args(interfaces.TaskArgs):
+class Args:
     """Configuration for Leopard re-ID task."""
 
     batch_size: int = 256
@@ -49,6 +49,13 @@ class Args(interfaces.TaskArgs):
     """How often to log while getting features."""
     n_jobs: int = 16
     """How many SVMs to train in parallel."""
+    # Computed at runtime.
+    max_examples: int = -1
+    """(computed at runtime) Number of maximum training samples. Negative number means use all of them."""
+    device: str = "cuda"
+    """(computed at runtime) Which kind of accelerator to use."""
+    debug: bool = False
+    """(computed at runtime) Whether to run in debug mode."""
 
 
 @beartype.beartype

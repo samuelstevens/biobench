@@ -36,15 +36,29 @@ logger = logging.getLogger("kabr")
 
 @beartype.beartype
 @dataclasses.dataclass(frozen=True)
-class Args(interfaces.TaskArgs):
+class Args:
     """Arguments for the KABR task."""
 
-    batch_size: int = 16
-    """Batch size for deep model. Note that this is multiplied by 16 (number of frames)"""
+    data: str = ""
+    """dataset directory; where you downloaded this task's data to."""
+    batch_size_cv: int = 256
+    """batch size for computer vision model."""
     n_workers: int = 4
     """Number of dataloader worker processes."""
     frame_agg: typing.Literal["mean", "max"] = "mean"
     """How to aggregate features across time dimension."""
+    seed: int = 42
+    """random seed."""
+    parallel: int = 5
+    """Concurrent requests per second."""
+
+    # Computed at runtime.
+    max_examples: int = -1
+    """(computed at runtime) Number of maximum training samples. Negative number means use all of them."""
+    device: str = "cuda"
+    """(computed at runtime) Which kind of accelerator to use."""
+    debug: bool = False
+    """(computed at runtime) Whether to run in debug mode."""
 
 
 @beartype.beartype
