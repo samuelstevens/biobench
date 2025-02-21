@@ -27,7 +27,7 @@ import torch
 from jaxtyping import Float, jaxtyped
 from torch import Tensor
 
-from biobench import helpers
+from . import helpers
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -200,6 +200,6 @@ class ModelArgsCvml:
 
 @beartype.beartype
 @dataclasses.dataclass(frozen=True)
-class ModelArgsVlm:
+class ModelArgsMllm:
     ckpt: str
     temp: float = 1.0

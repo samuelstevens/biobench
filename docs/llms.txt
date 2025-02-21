@@ -30,7 +30,7 @@ import torch
 from jaxtyping import Float, jaxtyped
 from torch import Tensor
 
-from biobench import helpers
+from . import helpers
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -203,7 +203,7 @@ class ModelArgsCvml:
 
 @beartype.beartype
 @dataclasses.dataclass(frozen=True)
-class ModelArgsVlm:
+class ModelArgsMllm:
     ckpt: str
     temp: float = 1.0
 
@@ -635,7 +635,7 @@ __all__ = [
 
 ```
 
-# biobench/llms.py
+# biobench/mllms.py
 
 ```python
 import asyncio
@@ -649,7 +649,7 @@ import litellm
 
 from . import interfaces
 
-logger = logging.getLogger("vlms")
+logger = logging.getLogger("mllms")
 
 # Disable logging for packages that yap a lot.
 logging.getLogger("httpx").setLevel(logging.WARNING)
@@ -678,7 +678,7 @@ class Example:
 
 @beartype.beartype
 def fits(
-    args: interfaces.ModelArgsVlm,
+    args: interfaces.ModelArgsMllm,
     examples: list[Example],
     image_b64: str,
     user: str,
@@ -702,7 +702,7 @@ def fits(
 
 
 @beartype.beartype
-def get_max_tokens(args: interfaces.ModelArgsVlm) -> int:
+def get_max_tokens(args: interfaces.ModelArgsMllm) -> int:
     try:
         return litellm.get_max_tokens(args.ckpt)
     except Exception:
@@ -744,7 +744,7 @@ class RateLimiter:
 
 @beartype.beartype
 async def send(
-    args: interfaces.ModelArgsVlm,
+    args: interfaces.ModelArgsMllm,
     examples: list[Example],
     image_b64: str,
     user: str,
@@ -756,7 +756,7 @@ async def send(
     Send a message to the LLM and get the response.
 
     Args:
-        args: Args for the VLM.
+        args: Args for the MLLM.
         examples: Few-shot examples.
         image: The input image.
         user: The user request.
@@ -2200,7 +2200,7 @@ from jaxtyping import Float, Int, Integer, Shaped, jaxtyped
 from PIL import Image
 from torch import Tensor
 
-from .. import helpers, interfaces, llms, registry
+from .. import helpers, interfaces, mllms, registry
 
 logger = logging.getLogger("ages")
 
@@ -2270,9 +2270,9 @@ def benchmark_cvml(
 
 
 @beartype.beartype
-def benchmark_vlm(
-    args: Args, model_args: interfaces.ModelArgsVlm
-) -> tuple[interfaces.ModelArgsVlm, interfaces.TaskReport]:
+def benchmark_mllm(
+    args: Args, model_args: interfaces.ModelArgsMllm
+) -> tuple[interfaces.ModelArgsMllm, interfaces.TaskReport]:
     rng = random.Random(args.seed)
 
     splits = {}
@@ -2283,8 +2283,8 @@ def benchmark_vlm(
         system = ""
 
     with asyncio.Runner() as loop:
-        for task, dataset in get_all_tasks_vlm(args):
-            limiter = llms.RateLimiter(args.parallel)
+        for task, dataset in get_all_tasks_mllm(args):
+            limiter = mllms.RateLimiter(args.parallel)
             semaphore = asyncio.Semaphore(args.parallel)
 
             # We load all the training samples into memory right away because they will be re-used over and over again.
@@ -2298,11 +2298,12 @@ def benchmark_vlm(
             @beartype.beartype
             async def run_one(i: int) -> interfaces.Prediction:
                 async with semaphore:
+                    # This is slow. If I could make this async/await, it would be faster.
                     test_example = dataset[i]
                     # Try to fit them into a prompt.
                     n_examples = 0
                     fewshot_examples = []
-                    while llms.fits(
+                    while mllms.fits(
                         model_args,
                         fewshot_examples,
                         test_example.image_b64,
@@ -2316,7 +2317,7 @@ def benchmark_vlm(
                     rng.shuffle(fewshot_examples)
 
                     await limiter.acquire()
-                    assistant = await llms.send(
+                    assistant = await mllms.send(
                         model_args,
                         fewshot_examples,
                         test_example.image_b64,
@@ -2343,7 +2344,7 @@ def benchmark_vlm(
                 jobs = [asyncio.create_task(run_one(i.item())) for i in test_i]
 
                 preds = []
-                for job in helpers.progress(jobs, every=1):
+                for job in helpers.progress(jobs):
                     pred: interfaces.Prediction = await job
                     preds.append(pred)
                 return preds
@@ -2502,9 +2503,9 @@ def init_clf():
     )
 
 
-#######
-# VLM #
-#######
+########
+# MLLM #
+########
 
 RAW_TO_CLASSNAME = {
     "ml_age_coopers_hawk": "Cooper's hawk",
@@ -2526,7 +2527,7 @@ CLASSNAMES = list(RAW_TO_CLASSNAME.values())
 
 @beartype.beartype
 @dataclasses.dataclass(frozen=True)
-class SampleVlm:
+class SampleMllm:
     image_id: str
     image_b64: str
     classname: str
@@ -2551,8 +2552,8 @@ class SampleVlm:
 
         return pred
 
-    def to_example(self, rng: random.Random) -> llms.Example:
-        return llms.Example(
+    def to_example(self, rng: random.Random) -> mllms.Example:
+        return mllms.Example(
             image_b64=self.image_b64,
             user=self.make_user(rng),
             assistant=self.assistant,
@@ -2560,9 +2561,9 @@ class SampleVlm:
 
 
 @jaxtyped(typechecker=beartype.beartype)
-class DatasetVlm(torch.utils.data.Dataset):
+class DatasetMllm(torch.utils.data.Dataset):
     """
-    A dataset that returns SampleVlms.
+    A dataset that returns SampleMllms.
     """
 
     def __init__(self, root: str, df):
@@ -2571,13 +2572,13 @@ class DatasetVlm(torch.utils.data.Dataset):
         self.image_ids = df.get_column("id").to_list()
         self.text_labels = df.get_column("task").to_list()
 
-    def __getitem__(self, i: int) -> SampleVlm:
+    def __getitem__(self, i: int) -> SampleMllm:
         image_id = self.image_ids[i]
         classname = RAW_TO_CLASSNAME[self.text_labels[i]]
 
         image_b64 = helpers.load_image_b64(os.path.join(self.root, f"{image_id}.jpg"))
 
-        return SampleVlm(image_id, image_b64, classname)
+        return SampleMllm(image_id, image_b64, classname)
 
     def __len__(self) -> int:
         return len(self.image_ids)
@@ -2585,9 +2586,9 @@ class DatasetVlm(torch.utils.data.Dataset):
 
 @jaxtyped(typechecker=beartype.beartype)
 @dataclasses.dataclass(frozen=True)
-class TaskVlm:
+class TaskMllm:
     """
-    Task is a group of indices for a VLM with a train/test split.
+    Task is a group of indices for a MLLM with a train/test split.
     """
 
     name: str
@@ -2599,9 +2600,9 @@ class TaskVlm:
 
 
 @beartype.beartype
-def get_all_tasks_vlm(
+def get_all_tasks_mllm(
     args: Args,
-) -> collections.abc.Iterator[tuple[TaskVlm, DatasetVlm]]:
+) -> collections.abc.Iterator[tuple[TaskMllm, DatasetMllm]]:
     """
     Gets train and test features for all the different tasks being evaluated.
 
@@ -2626,7 +2627,7 @@ def get_all_tasks_vlm(
     df = df.filter(pl.col("task").str.contains("ml_age"))
     # Add integer label for species (0-indexed).
 
-    dataset = DatasetVlm(images_dir_path, df)
+    dataset = DatasetMllm(images_dir_path, df)
 
     tasks = (("adult", "adult"), ("not_adult", "not_adult"), ("adult", "not_adult"))
     for train, test in tasks:
@@ -2643,7 +2644,7 @@ def get_all_tasks_vlm(
             .nonzero()[0]
         )
 
-        yield TaskVlm(f"{train}/{test}", train_i, test_i), dataset
+        yield TaskMllm(f"{train}/{test}", train_i, test_i), dataset
 
 ```
 
@@ -3646,7 +3647,7 @@ from jaxtyping import Bool, Float, Int, Integer, Shaped, jaxtyped
 from PIL import Image
 from torch import Tensor
 
-from .. import helpers, interfaces, llms, registry
+from .. import helpers, interfaces, mllms, registry
 
 logger = logging.getLogger("newt")
 
@@ -3737,24 +3738,24 @@ def benchmark_cvml(
 
 
 @beartype.beartype
-def benchmark_vlm(
-    args: Args, model_args: interfaces.ModelArgsVlm
-) -> tuple[interfaces.ModelArgsVlm, interfaces.TaskReport]:
+def benchmark_mllm(
+    args: Args, model_args: interfaces.ModelArgsMllm
+) -> tuple[interfaces.ModelArgsMllm, interfaces.TaskReport]:
     rng = random.Random(args.seed)
 
     results = []
     with asyncio.Runner() as loop:
-        for task, dataset in get_all_tasks_vlm(args):
-            limiter = llms.RateLimiter(args.parallel)
+        for task, dataset in get_all_tasks_mllm(args):
+            limiter = mllms.RateLimiter(args.parallel)
             semaphore = asyncio.Semaphore(args.parallel)
 
             @beartype.beartype
             async def run_one(
-                fewshot_examples: list[llms.Example], test_example: SampleVlm
+                fewshot_examples: list[mllms.Example], test_example: SampleMllm
             ) -> interfaces.Prediction:
                 async with semaphore:
                     await limiter.acquire()
-                    assistant = await llms.send(
+                    assistant = await mllms.send(
                         model_args,
                         fewshot_examples,
                         test_example.image,
@@ -3769,7 +3770,7 @@ def benchmark_vlm(
 
             @beartype.beartype
             async def run_all(
-                submissions: list[tuple[list[llms.Example], SampleVlm]],
+                submissions: list[tuple[list[mllms.Example], SampleMllm]],
             ) -> list[interfaces.Prediction]:
                 tasks = [asyncio.create_task(run_one(*args)) for args in submissions]
                 preds = []
@@ -3788,7 +3789,7 @@ def benchmark_vlm(
                 n_examples = 0
                 fewshot_examples = []
                 while (
-                    llms.fits(
+                    mllms.fits(
                         model_args,
                         fewshot_examples,
                         test_example.image,
@@ -3974,14 +3975,14 @@ def init_svc():
     )
 
 
-#######
-# VLM #
-#######
+########
+# MLLM #
+########
 
 
 @beartype.beartype
 @dataclasses.dataclass(frozen=True)
-class SampleVlm:
+class SampleMllm:
     image_id: str
     image: Image.Image
     label: int
@@ -4021,8 +4022,8 @@ class SampleVlm:
         logger.warning("Something is wrong in parse_assistant.")
         return 0
 
-    def to_example(self, rng: random.Random) -> llms.Example:
-        return llms.Example(
+    def to_example(self, rng: random.Random) -> mllms.Example:
+        return mllms.Example(
             image=self.image,
             user=self.make_user(rng),
             assistant=self.assistant,
@@ -4030,9 +4031,9 @@ class SampleVlm:
 
 
 @jaxtyped(typechecker=beartype.beartype)
-class DatasetVlm(torch.utils.data.Dataset):
+class DatasetMllm(torch.utils.data.Dataset):
     """
-    A dataset that returns SampleVlms.
+    A dataset that returns SampleMllms.
     """
 
     def __init__(self, root: str, df):
@@ -4042,7 +4043,7 @@ class DatasetVlm(torch.utils.data.Dataset):
         self.labels = df.get_column("label").to_list()
         self.tasks = df.get_column("task").to_list()
 
-    def __getitem__(self, i: int) -> SampleVlm:
+    def __getitem__(self, i: int) -> SampleMllm:
         image_id = self.image_ids[i]
         label = self.labels[i]
         task = self.tasks[i]
@@ -4050,7 +4051,7 @@ class DatasetVlm(torch.utils.data.Dataset):
         classnames = tuple(text_label_to_classname[task].keys())
         image = Image.open(os.path.join(self.root, f"{image_id}.jpg"))
 
-        return SampleVlm(
+        return SampleMllm(
             image_id,
             image,
             label,
@@ -4063,9 +4064,9 @@ class DatasetVlm(torch.utils.data.Dataset):
 
 @jaxtyped(typechecker=beartype.beartype)
 @dataclasses.dataclass(frozen=True)
-class TaskVlm:
+class TaskMllm:
     """
-    Task is a group of indices for a VLM with a train/test split.
+    Task is a group of indices for a MLLM with a train/test split.
     """
 
     name: str
@@ -4078,9 +4079,9 @@ class TaskVlm:
 
 
 @jaxtyped(typechecker=beartype.beartype)
-def get_all_tasks_vlm(
+def get_all_tasks_mllm(
     args: Args,
-) -> collections.abc.Iterator[tuple[TaskVlm, DatasetVlm]]:
+) -> collections.abc.Iterator[tuple[TaskMllm, DatasetMllm]]:
     """ """
     labels_csv_name = "newt2021_labels.csv"
     labels_csv_path = os.path.join(args.data, labels_csv_name)
@@ -4092,7 +4093,7 @@ def get_all_tasks_vlm(
         raise RuntimeError(msg)
 
     df = pl.read_csv(labels_csv_path).with_row_index()
-    dataset = DatasetVlm(images_dir_path, df)
+    dataset = DatasetMllm(images_dir_path, df)
 
     for task in df.get_column("task").unique():
         task_df = df.filter(pl.col("task") == task)
@@ -4101,7 +4102,7 @@ def get_all_tasks_vlm(
         is_train = task_df.select(pl.col("split") == "train").get_column("split")
         cluster = task_df.item(row=0, column="task_cluster")
 
-        yield TaskVlm(task, cluster, task_idx[is_train], task_idx[~is_train]), dataset
+        yield TaskMllm(task, cluster, task_idx[is_train], task_idx[~is_train]), dataset
 
 
 text_label_to_classname = {
@@ -5987,15 +5988,15 @@ class Args:
         ]
     )
     """CV models; a pair of model org (interface) and checkpoint."""
-    models_vlm: typing.Annotated[
-        list[interfaces.ModelArgsVlm], tyro.conf.arg(name="vlms")
+    models_mllm: typing.Annotated[
+        list[interfaces.ModelArgsMllm], tyro.conf.arg(name="mllms")
     ] = dataclasses.field(
         default_factory=lambda: [
-            # interfaces.ModelArgsVlm("openrouter/google/gemini-2.0-flash-001"),
-            interfaces.ModelArgsVlm("openrouter/google/gemini-flash-1.5-8b"),
+            # interfaces.ModelArgsMllm("openrouter/google/gemini-2.0-flash-001"),
+            interfaces.ModelArgsMllm("openrouter/google/gemini-flash-1.5-8b"),
         ]
     )
-    """VLM checkpoints."""
+    """MLLM checkpoints."""
     device: typing.Literal["cpu", "cuda"] = "cuda"
     """which kind of accelerator to use."""
     debug: bool = False
@@ -6008,92 +6009,92 @@ class Args:
     # Individual benchmarks.
     ages_run_cvml: bool = False
     """Whether to run the bird age benchmark with CV+ML."""
-    ages_run_vlm: bool = False
-    """Whether to run the bird age benchmark with VLM."""
+    ages_run_mllm: bool = False
+    """Whether to run the bird age benchmark with MLLM."""
     ages_args: ages.Args = dataclasses.field(default_factory=ages.Args)
     """Arguments for the bird age benchmark."""
 
     beluga_run_cvml: bool = False
     """Whether to run the Beluga whale re-ID benchmark with CV+ML."""
-    beluga_run_vlm: bool = False
-    """Whether to run the Beluga whale re-ID benchmark with VLM."""
+    beluga_run_mllm: bool = False
+    """Whether to run the Beluga whale re-ID benchmark with MLLM."""
     beluga_args: beluga.Args = dataclasses.field(default_factory=beluga.Args)
     """Arguments for the Beluga whale re-ID benchmark."""
 
     birds525_run_cvml: bool = False
     """Whether to run the Birds 525 benchmark with CV+ML."""
-    birds525_run_vlm: bool = False
-    """Whether to run the Birds 525 benchmark with VLM."""
+    birds525_run_mllm: bool = False
+    """Whether to run the Birds 525 benchmark with MLLM."""
     birds525_args: birds525.Args = dataclasses.field(default_factory=birds525.Args)
     """Arguments for the Birds 525 benchmark."""
 
     fishnet_run_cvml: bool = False
     """Whether to run the FishNet benchmark with CV+ML."""
-    fishnet_run_vlm: bool = False
-    """Whether to run the FishNet benchmark with VLM."""
+    fishnet_run_mllm: bool = False
+    """Whether to run the FishNet benchmark with MLLM."""
     fishnet_args: fishnet.Args = dataclasses.field(default_factory=fishnet.Args)
     """Arguments for the FishNet benchmark."""
 
     imagenet_run_cvml: bool = False
     """Whether to run the ImageNet-1K benchmark with CV+ML."""
-    imagenet_run_vlm: bool = False
-    """Whether to run the ImageNet-1K benchmark with VLM."""
+    imagenet_run_mllm: bool = False
+    """Whether to run the ImageNet-1K benchmark with MLLM."""
     imagenet_args: imagenet.Args = dataclasses.field(default_factory=imagenet.Args)
     """Arguments for the ImageNet-1K benchmark."""
 
     inat21_run_cvml: bool = False
     """Whether to run the iNat21 benchmark with CV+ML."""
-    inat21_run_vlm: bool = False
-    """Whether to run the iNat21 benchmark with VLM."""
+    inat21_run_mllm: bool = False
+    """Whether to run the iNat21 benchmark with MLLM."""
     inat21_args: inat21.Args = dataclasses.field(default_factory=inat21.Args)
     """Arguments for the iNat21 benchmark."""
 
     iwildcam_run_cvml: bool = False
     """Whether to run the iWildCam benchmark with CV+ML."""
-    iwildcam_run_vlm: bool = False
-    """Whether to run the iWildCam benchmark with VLM."""
+    iwildcam_run_mllm: bool = False
+    """Whether to run the iWildCam benchmark with MLLM."""
     iwildcam_args: iwildcam.Args = dataclasses.field(default_factory=iwildcam.Args)
     """Arguments for the iWildCam benchmark."""
 
     kabr_run_cvml: bool = False
     """Whether to run the KABR benchmark with CV+ML."""
-    kabr_run_vlm: bool = False
-    """Whether to run the KABR benchmark with VLM."""
+    kabr_run_mllm: bool = False
+    """Whether to run the KABR benchmark with MLLM."""
     kabr_args: kabr.Args = dataclasses.field(default_factory=kabr.Args)
     """Arguments for the KABR benchmark."""
 
     leopard_run_cvml: bool = False
     """Whether to run the leopard re-ID benchmark with CV+ML."""
-    leopard_run_vlm: bool = False
-    """Whether to run the leopard re-ID benchmark with VLM."""
+    leopard_run_mllm: bool = False
+    """Whether to run the leopard re-ID benchmark with MLLM."""
     leopard_args: leopard.Args = dataclasses.field(default_factory=leopard.Args)
     """Arguments for the leopard re-ID benchmark."""
 
     newt_run_cvml: bool = False
     """Whether to run the NeWT benchmark with CV+ML."""
-    newt_run_vlm: bool = False
-    """Whether to run the NeWT benchmark with VLM."""
+    newt_run_mllm: bool = False
+    """Whether to run the NeWT benchmark with MLLM."""
     newt_args: newt.Args = dataclasses.field(default_factory=newt.Args)
     """Arguments for the NeWT benchmark."""
 
     plankton_run_cvml: bool = False
     """Whether to run the Plankton benchmark with CV+ML."""
-    plankton_run_vlm: bool = False
-    """Whether to run the Plankton benchmark with VLM."""
+    plankton_run_mllm: bool = False
+    """Whether to run the Plankton benchmark with MLLM."""
     plankton_args: plankton.Args = dataclasses.field(default_factory=plankton.Args)
     """Arguments for the Plankton benchmark."""
 
     plantnet_run_cvml: bool = False
     """Whether to run the Pl@ntNet benchmark with CV+ML."""
-    plantnet_run_vlm: bool = False
-    """Whether to run the Pl@ntNet benchmark with VLM."""
+    plantnet_run_mllm: bool = False
+    """Whether to run the Pl@ntNet benchmark with MLLM."""
     plantnet_args: plantnet.Args = dataclasses.field(default_factory=plantnet.Args)
     """Arguments for the Pl@ntNet benchmark."""
 
     rarespecies_run_cvml: bool = False
     """Whether to run the Rare Species benchmark with CV+ML."""
-    rarespecies_run_vlm: bool = False
-    """Whether to run the Rare Species benchmark with VLM."""
+    rarespecies_run_mllm: bool = False
+    """Whether to run the Rare Species benchmark with MLLM."""
     rarespecies_args: rarespecies.Args = dataclasses.field(
         default_factory=rarespecies.Args
     )
@@ -6128,7 +6129,7 @@ class Args:
 @beartype.beartype
 def save(
     args: Args,
-    model_args: interfaces.ModelArgsCvml | interfaces.ModelArgsVlm,
+    model_args: interfaces.ModelArgsCvml | interfaces.ModelArgsMllm,
     report: interfaces.TaskReport,
 ) -> None:
     """
@@ -6248,43 +6249,43 @@ def main(args: Args):
             job = executor.submit(rarespecies.benchmark, rarespecies_args, model_args)
             jobs.append(job)
 
-    for model_args in args.models_vlm:
-        if args.ages_run_vlm:
-            job = executor.submit(ages.benchmark_vlm, ages_args, model_args)
+    for model_args in args.models_mllm:
+        if args.ages_run_mllm:
+            job = executor.submit(ages.benchmark_mllm, ages_args, model_args)
             jobs.append(job)
-        if args.beluga_run_vlm:
-            job = executor.submit(beluga.benchmark_vlm, beluga_args, model_args)
+        if args.beluga_run_mllm:
+            job = executor.submit(beluga.benchmark_mllm, beluga_args, model_args)
             jobs.append(job)
-        if args.birds525_run_vlm:
-            job = executor.submit(birds525.benchmark_vlm, birds525_args, model_args)
+        if args.birds525_run_mllm:
+            job = executor.submit(birds525.benchmark_mllm, birds525_args, model_args)
             jobs.append(job)
-        if args.fishnet_run_vlm:
-            job = executor.submit(fishnet.benchmark_vlm, fishnet_args, model_args)
+        if args.fishnet_run_mllm:
+            job = executor.submit(fishnet.benchmark_mllm, fishnet_args, model_args)
             jobs.append(job)
-        if args.imagenet_run_vlm:
-            job = executor.submit(imagenet.benchmark_vlm, imagenet_args, model_args)
+        if args.imagenet_run_mllm:
+            job = executor.submit(imagenet.benchmark_mllm, imagenet_args, model_args)
             jobs.append(job)
-        if args.inat21_run_vlm:
-            job = executor.submit(inat21.benchmark_vlm, inat21_args, model_args)
+        if args.inat21_run_mllm:
+            job = executor.submit(inat21.benchmark_mllm, inat21_args, model_args)
             jobs.append(job)
-        if args.iwildcam_run_vlm:
-            job = executor.submit(iwildcam.benchmark_vlm, iwildcam_args, model_args)
+        if args.iwildcam_run_mllm:
+            job = executor.submit(iwildcam.benchmark_mllm, iwildcam_args, model_args)
             jobs.append(job)
-        if args.kabr_run_vlm:
-            jobs.append(executor.submit(kabr.benchmark_vlm, kabr_args, model_args))
-        if args.leopard_run_vlm:
-            job = executor.submit(leopard.benchmark_vlm, leopard_args, model_args)
+        if args.kabr_run_mllm:
+            jobs.append(executor.submit(kabr.benchmark_mllm, kabr_args, model_args))
+        if args.leopard_run_mllm:
+            job = executor.submit(leopard.benchmark_mllm, leopard_args, model_args)
             jobs.append(job)
-        if args.newt_run_vlm:
-            job = executor.submit(newt.benchmark_vlm, newt_args, model_args)
+        if args.newt_run_mllm:
+            job = executor.submit(newt.benchmark_mllm, newt_args, model_args)
             jobs.append()
-        if args.plankton_run_vlm:
+        if args.plankton_run_mllm:
             job = executor.submit(plankton.benchmark, plankton_args, model_args)
             jobs.append(job)
-        if args.plantnet_run_vlm:
+        if args.plantnet_run_mllm:
             job = executor.submit(plantnet.benchmark, plantnet_args, model_args)
             jobs.append(job)
-        if args.rarespecies_run_vlm:
+        if args.rarespecies_run_mllm:
             job = executor.submit(rarespecies.benchmark, rarespecies_args, model_args)
             jobs.append(job)
 

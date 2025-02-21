@@ -43,7 +43,7 @@ from jaxtyping import Float, Int, Integer, Shaped, jaxtyped
 from PIL import Image
 from torch import Tensor
 
-from .. import helpers, interfaces, llms, registry
+from .. import helpers, interfaces, mllms, registry
 
 logger = logging.getLogger("ages")
 
@@ -113,9 +113,9 @@ def benchmark_cvml(
 
 
 @beartype.beartype
-def benchmark_vlm(
-    args: Args, model_args: interfaces.ModelArgsVlm
-) -> tuple[interfaces.ModelArgsVlm, interfaces.TaskReport]:
+def benchmark_mllm(
+    args: Args, model_args: interfaces.ModelArgsMllm
+) -> tuple[interfaces.ModelArgsMllm, interfaces.TaskReport]:
     rng = random.Random(args.seed)
 
     splits = {}
@@ -126,8 +126,8 @@ def benchmark_vlm(
         system = ""
 
     with asyncio.Runner() as loop:
-        for task, dataset in get_all_tasks_vlm(args):
-            limiter = llms.RateLimiter(args.parallel)
+        for task, dataset in get_all_tasks_mllm(args):
+            limiter = mllms.RateLimiter(args.parallel)
             semaphore = asyncio.Semaphore(args.parallel)
 
             # We load all the training samples into memory right away because they will be re-used over and over again.
@@ -146,7 +146,7 @@ def benchmark_vlm(
                     # Try to fit them into a prompt.
                     n_examples = 0
                     fewshot_examples = []
-                    while llms.fits(
+                    while mllms.fits(
                         model_args,
                         fewshot_examples,
                         test_example.image_b64,
@@ -160,7 +160,7 @@ def benchmark_vlm(
                     rng.shuffle(fewshot_examples)
 
                     await limiter.acquire()
-                    assistant = await llms.send(
+                    assistant = await mllms.send(
                         model_args,
                         fewshot_examples,
                         test_example.image_b64,
@@ -187,7 +187,7 @@ def benchmark_vlm(
                 jobs = [asyncio.create_task(run_one(i.item())) for i in test_i]
 
                 preds = []
-                for job in helpers.progress(jobs, every=1):
+                for job in helpers.progress(jobs):
                     pred: interfaces.Prediction = await job
                     preds.append(pred)
                 return preds
@@ -346,9 +346,9 @@ def init_clf():
     )
 
 
-#######
-# VLM #
-#######
+########
+# MLLM #
+########
 
 RAW_TO_CLASSNAME = {
     "ml_age_coopers_hawk": "Cooper's hawk",
@@ -370,7 +370,7 @@ CLASSNAMES = list(RAW_TO_CLASSNAME.values())
 
 @beartype.beartype
 @dataclasses.dataclass(frozen=True)
-class SampleVlm:
+class SampleMllm:
     image_id: str
     image_b64: str
     classname: str
@@ -395,8 +395,8 @@ class SampleVlm:
 
         return pred
 
-    def to_example(self, rng: random.Random) -> llms.Example:
-        return llms.Example(
+    def to_example(self, rng: random.Random) -> mllms.Example:
+        return mllms.Example(
             image_b64=self.image_b64,
             user=self.make_user(rng),
             assistant=self.assistant,
@@ -404,9 +404,9 @@ class SampleVlm:
 
 
 @jaxtyped(typechecker=beartype.beartype)
-class DatasetVlm(torch.utils.data.Dataset):
+class DatasetMllm(torch.utils.data.Dataset):
     """
-    A dataset that returns SampleVlms.
+    A dataset that returns SampleMllms.
     """
 
     def __init__(self, root: str, df):
@@ -415,13 +415,13 @@ class DatasetVlm(torch.utils.data.Dataset):
         self.image_ids = df.get_column("id").to_list()
         self.text_labels = df.get_column("task").to_list()
 
-    def __getitem__(self, i: int) -> SampleVlm:
+    def __getitem__(self, i: int) -> SampleMllm:
         image_id = self.image_ids[i]
         classname = RAW_TO_CLASSNAME[self.text_labels[i]]
 
         image_b64 = helpers.load_image_b64(os.path.join(self.root, f"{image_id}.jpg"))
 
-        return SampleVlm(image_id, image_b64, classname)
+        return SampleMllm(image_id, image_b64, classname)
 
     def __len__(self) -> int:
         return len(self.image_ids)
@@ -429,9 +429,9 @@ class DatasetVlm(torch.utils.data.Dataset):
 
 @jaxtyped(typechecker=beartype.beartype)
 @dataclasses.dataclass(frozen=True)
-class TaskVlm:
+class TaskMllm:
     """
-    Task is a group of indices for a VLM with a train/test split.
+    Task is a group of indices for a MLLM with a train/test split.
     """
 
     name: str
@@ -443,9 +443,9 @@ class TaskVlm:
 
 
 @beartype.beartype
-def get_all_tasks_vlm(
+def get_all_tasks_mllm(
     args: Args,
-) -> collections.abc.Iterator[tuple[TaskVlm, DatasetVlm]]:
+) -> collections.abc.Iterator[tuple[TaskMllm, DatasetMllm]]:
     """
     Gets train and test features for all the different tasks being evaluated.
 
@@ -470,7 +470,7 @@ def get_all_tasks_vlm(
     df = df.filter(pl.col("task").str.contains("ml_age"))
     # Add integer label for species (0-indexed).
 
-    dataset = DatasetVlm(images_dir_path, df)
+    dataset = DatasetMllm(images_dir_path, df)
 
     tasks = (("adult", "adult"), ("not_adult", "not_adult"), ("adult", "not_adult"))
     for train, test in tasks:
@@ -487,4 +487,4 @@ def get_all_tasks_vlm(
             .nonzero()[0]
         )
 
-        yield TaskVlm(f"{train}/{test}", train_i, test_i), dataset
+        yield TaskMllm(f"{train}/{test}", train_i, test_i), dataset

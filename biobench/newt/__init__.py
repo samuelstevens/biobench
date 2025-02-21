@@ -41,7 +41,7 @@ from jaxtyping import Bool, Float, Int, Integer, Shaped, jaxtyped
 from PIL import Image
 from torch import Tensor
 
-from .. import helpers, interfaces, llms, registry
+from .. import helpers, interfaces, mllms, registry
 
 logger = logging.getLogger("newt")
 
@@ -132,24 +132,24 @@ def benchmark_cvml(
 
 
 @beartype.beartype
-def benchmark_vlm(
-    args: Args, model_args: interfaces.ModelArgsVlm
-) -> tuple[interfaces.ModelArgsVlm, interfaces.TaskReport]:
+def benchmark_mllm(
+    args: Args, model_args: interfaces.ModelArgsMllm
+) -> tuple[interfaces.ModelArgsMllm, interfaces.TaskReport]:
     rng = random.Random(args.seed)
 
     results = []
     with asyncio.Runner() as loop:
-        for task, dataset in get_all_tasks_vlm(args):
-            limiter = llms.RateLimiter(args.parallel)
+        for task, dataset in get_all_tasks_mllm(args):
+            limiter = mllms.RateLimiter(args.parallel)
             semaphore = asyncio.Semaphore(args.parallel)
 
             @beartype.beartype
             async def run_one(
-                fewshot_examples: list[llms.Example], test_example: SampleVlm
+                fewshot_examples: list[mllms.Example], test_example: SampleMllm
             ) -> interfaces.Prediction:
                 async with semaphore:
                     await limiter.acquire()
-                    assistant = await llms.send(
+                    assistant = await mllms.send(
                         model_args,
                         fewshot_examples,
                         test_example.image,
@@ -164,7 +164,7 @@ def benchmark_vlm(
 
             @beartype.beartype
             async def run_all(
-                submissions: list[tuple[list[llms.Example], SampleVlm]],
+                submissions: list[tuple[list[mllms.Example], SampleMllm]],
             ) -> list[interfaces.Prediction]:
                 tasks = [asyncio.create_task(run_one(*args)) for args in submissions]
                 preds = []
@@ -183,7 +183,7 @@ def benchmark_vlm(
                 n_examples = 0
                 fewshot_examples = []
                 while (
-                    llms.fits(
+                    mllms.fits(
                         model_args,
                         fewshot_examples,
                         test_example.image,
@@ -369,14 +369,14 @@ def init_svc():
     )
 
 
-#######
-# VLM #
-#######
+########
+# MLLM #
+########
 
 
 @beartype.beartype
 @dataclasses.dataclass(frozen=True)
-class SampleVlm:
+class SampleMllm:
     image_id: str
     image: Image.Image
     label: int
@@ -416,8 +416,8 @@ class SampleVlm:
         logger.warning("Something is wrong in parse_assistant.")
         return 0
 
-    def to_example(self, rng: random.Random) -> llms.Example:
-        return llms.Example(
+    def to_example(self, rng: random.Random) -> mllms.Example:
+        return mllms.Example(
             image=self.image,
             user=self.make_user(rng),
             assistant=self.assistant,
@@ -425,9 +425,9 @@ class SampleVlm:
 
 
 @jaxtyped(typechecker=beartype.beartype)
-class DatasetVlm(torch.utils.data.Dataset):
+class DatasetMllm(torch.utils.data.Dataset):
     """
-    A dataset that returns SampleVlms.
+    A dataset that returns SampleMllms.
     """
 
     def __init__(self, root: str, df):
@@ -437,7 +437,7 @@ class DatasetVlm(torch.utils.data.Dataset):
         self.labels = df.get_column("label").to_list()
         self.tasks = df.get_column("task").to_list()
 
-    def __getitem__(self, i: int) -> SampleVlm:
+    def __getitem__(self, i: int) -> SampleMllm:
         image_id = self.image_ids[i]
         label = self.labels[i]
         task = self.tasks[i]
@@ -445,7 +445,7 @@ class DatasetVlm(torch.utils.data.Dataset):
         classnames = tuple(text_label_to_classname[task].keys())
         image = Image.open(os.path.join(self.root, f"{image_id}.jpg"))
 
-        return SampleVlm(
+        return SampleMllm(
             image_id,
             image,
             label,
@@ -458,9 +458,9 @@ class DatasetVlm(torch.utils.data.Dataset):
 
 @jaxtyped(typechecker=beartype.beartype)
 @dataclasses.dataclass(frozen=True)
-class TaskVlm:
+class TaskMllm:
     """
-    Task is a group of indices for a VLM with a train/test split.
+    Task is a group of indices for a MLLM with a train/test split.
     """
 
     name: str
@@ -473,9 +473,9 @@ class TaskVlm:
 
 
 @jaxtyped(typechecker=beartype.beartype)
-def get_all_tasks_vlm(
+def get_all_tasks_mllm(
     args: Args,
-) -> collections.abc.Iterator[tuple[TaskVlm, DatasetVlm]]:
+) -> collections.abc.Iterator[tuple[TaskMllm, DatasetMllm]]:
     """ """
     labels_csv_name = "newt2021_labels.csv"
     labels_csv_path = os.path.join(args.data, labels_csv_name)
@@ -487,7 +487,7 @@ def get_all_tasks_vlm(
         raise RuntimeError(msg)
 
     df = pl.read_csv(labels_csv_path).with_row_index()
-    dataset = DatasetVlm(images_dir_path, df)
+    dataset = DatasetMllm(images_dir_path, df)
 
     for task in df.get_column("task").unique():
         task_df = df.filter(pl.col("task") == task)
@@ -496,7 +496,7 @@ def get_all_tasks_vlm(
         is_train = task_df.select(pl.col("split") == "train").get_column("split")
         cluster = task_df.item(row=0, column="task_cluster")
 
-        yield TaskVlm(task, cluster, task_idx[is_train], task_idx[~is_train]), dataset
+        yield TaskMllm(task, cluster, task_idx[is_train], task_idx[~is_train]), dataset
 
 
 text_label_to_classname = {

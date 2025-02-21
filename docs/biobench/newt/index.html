@@ -135,8 +135,8 @@ First, get features for all images.
 Second, select the subsets of features that correspond to different tasks and train an SVM.
 Third, evaluate the SVM and report results.</p></div>
 </dd>
-<dt id="biobench.newt.benchmark_vlm"><code class="name flex">
-<span>def <span class="ident">benchmark_vlm</span></span>(<span>args: <a title="biobench.newt.Args" href="#biobench.newt.Args">Args</a>,<br>model_args: <a title="biobench.interfaces.ModelArgsVlm" href="../interfaces.html#biobench.interfaces.ModelArgsVlm">ModelArgsVlm</a>) ‑> tuple[<a title="biobench.interfaces.ModelArgsVlm" href="../interfaces.html#biobench.interfaces.ModelArgsVlm">ModelArgsVlm</a>, <a title="biobench.interfaces.TaskReport" href="../interfaces.html#biobench.interfaces.TaskReport">TaskReport</a>]</span>
+<dt id="biobench.newt.benchmark_mllm"><code class="name flex">
+<span>def <span class="ident">benchmark_mllm</span></span>(<span>args: <a title="biobench.newt.Args" href="#biobench.newt.Args">Args</a>,<br>model_args: <a title="biobench.interfaces.ModelArgsMllm" href="../interfaces.html#biobench.interfaces.ModelArgsMllm">ModelArgsMllm</a>) ‑> tuple[<a title="biobench.interfaces.ModelArgsMllm" href="../interfaces.html#biobench.interfaces.ModelArgsMllm">ModelArgsMllm</a>, <a title="biobench.interfaces.TaskReport" href="../interfaces.html#biobench.interfaces.TaskReport">TaskReport</a>]</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -144,24 +144,24 @@ Third, evaluate the SVM and report results.</p></div>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">@beartype.beartype
-def benchmark_vlm(
-    args: Args, model_args: interfaces.ModelArgsVlm
-) -&gt; tuple[interfaces.ModelArgsVlm, interfaces.TaskReport]:
+def benchmark_mllm(
+    args: Args, model_args: interfaces.ModelArgsMllm
+) -&gt; tuple[interfaces.ModelArgsMllm, interfaces.TaskReport]:
     rng = random.Random(args.seed)
 
     results = []
     with asyncio.Runner() as loop:
-        for task, dataset in get_all_tasks_vlm(args):
-            limiter = llms.RateLimiter(args.parallel)
+        for task, dataset in get_all_tasks_mllm(args):
+            limiter = mllms.RateLimiter(args.parallel)
             semaphore = asyncio.Semaphore(args.parallel)
 
             @beartype.beartype
             async def run_one(
-                fewshot_examples: list[llms.Example], test_example: SampleVlm
+                fewshot_examples: list[mllms.Example], test_example: SampleMllm
             ) -&gt; interfaces.Prediction:
                 async with semaphore:
                     await limiter.acquire()
-                    assistant = await llms.send(
+                    assistant = await mllms.send(
                         model_args,
                         fewshot_examples,
                         test_example.image,
@@ -176,7 +176,7 @@ def benchmark_vlm(
 
             @beartype.beartype
             async def run_all(
-                submissions: list[tuple[list[llms.Example], SampleVlm]],
+                submissions: list[tuple[list[mllms.Example], SampleMllm]],
             ) -&gt; list[interfaces.Prediction]:
                 tasks = [asyncio.create_task(run_one(*args)) for args in submissions]
                 preds = []
@@ -195,7 +195,7 @@ def benchmark_vlm(
                 n_examples = 0
                 fewshot_examples = []
                 while (
-                    llms.fits(
+                    mllms.fits(
                         model_args,
                         fewshot_examples,
                         test_example.image,
@@ -300,8 +300,8 @@ def get_all_tasks_cvml(
 </details>
 <div class="desc"></div>
 </dd>
-<dt id="biobench.newt.get_all_tasks_vlm"><code class="name flex">
-<span>def <span class="ident">get_all_tasks_vlm</span></span>(<span>args: <a title="biobench.newt.Args" href="#biobench.newt.Args">Args</a>) ‑> Iterator[tuple[<a title="biobench.newt.TaskVlm" href="#biobench.newt.TaskVlm">TaskVlm</a>, <a title="biobench.newt.DatasetVlm" href="#biobench.newt.DatasetVlm">DatasetVlm</a>]]</span>
+<dt id="biobench.newt.get_all_tasks_mllm"><code class="name flex">
+<span>def <span class="ident">get_all_tasks_mllm</span></span>(<span>args: <a title="biobench.newt.Args" href="#biobench.newt.Args">Args</a>) ‑> Iterator[tuple[<a title="biobench.newt.TaskMllm" href="#biobench.newt.TaskMllm">TaskMllm</a>, <a title="biobench.newt.DatasetMllm" href="#biobench.newt.DatasetMllm">DatasetMllm</a>]]</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -309,9 +309,9 @@ def get_all_tasks_cvml(
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
-def get_all_tasks_vlm(
+def get_all_tasks_mllm(
     args: Args,
-) -&gt; collections.abc.Iterator[tuple[TaskVlm, DatasetVlm]]:
+) -&gt; collections.abc.Iterator[tuple[TaskMllm, DatasetMllm]]:
     &#34;&#34;&#34; &#34;&#34;&#34;
     labels_csv_name = &#34;newt2021_labels.csv&#34;
     labels_csv_path = os.path.join(args.data, labels_csv_name)
@@ -323,7 +323,7 @@ def get_all_tasks_vlm(
         raise RuntimeError(msg)
 
     df = pl.read_csv(labels_csv_path).with_row_index()
-    dataset = DatasetVlm(images_dir_path, df)
+    dataset = DatasetMllm(images_dir_path, df)
 
     for task in df.get_column(&#34;task&#34;).unique():
         task_df = df.filter(pl.col(&#34;task&#34;) == task)
@@ -332,7 +332,7 @@ def get_all_tasks_vlm(
         is_train = task_df.select(pl.col(&#34;split&#34;) == &#34;train&#34;).get_column(&#34;split&#34;)
         cluster = task_df.item(row=0, column=&#34;task_cluster&#34;)
 
-        yield TaskVlm(task, cluster, task_idx[is_train], task_idx[~is_train]), dataset</code></pre>
+        yield TaskMllm(task, cluster, task_idx[is_train], task_idx[~is_train]), dataset</code></pre>
 </details>
 <div class="desc"></div>
 </dd>
@@ -499,8 +499,8 @@ class DatasetCvml(torch.utils.data.Dataset):
 <li>typing.Generic</li>
 </ul>
 </dd>
-<dt id="biobench.newt.DatasetVlm"><code class="flex name class">
-<span>class <span class="ident">DatasetVlm</span></span>
+<dt id="biobench.newt.DatasetMllm"><code class="flex name class">
+<span>class <span class="ident">DatasetMllm</span></span>
 <span>(</span><span>root: str, df)</span>
 </code></dt>
 <dd>
@@ -509,9 +509,9 @@ class DatasetCvml(torch.utils.data.Dataset):
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
-class DatasetVlm(torch.utils.data.Dataset):
+class DatasetMllm(torch.utils.data.Dataset):
     &#34;&#34;&#34;
-    A dataset that returns SampleVlms.
+    A dataset that returns SampleMllms.
     &#34;&#34;&#34;
 
     def __init__(self, root: str, df):
@@ -521,7 +521,7 @@ class DatasetVlm(torch.utils.data.Dataset):
         self.labels = df.get_column(&#34;label&#34;).to_list()
         self.tasks = df.get_column(&#34;task&#34;).to_list()
 
-    def __getitem__(self, i: int) -&gt; SampleVlm:
+    def __getitem__(self, i: int) -&gt; SampleMllm:
         image_id = self.image_ids[i]
         label = self.labels[i]
         task = self.tasks[i]
@@ -529,7 +529,7 @@ class DatasetVlm(torch.utils.data.Dataset):
         classnames = tuple(text_label_to_classname[task].keys())
         image = Image.open(os.path.join(self.root, f&#34;{image_id}.jpg&#34;))
 
-        return SampleVlm(
+        return SampleMllm(
             image_id,
             image,
             label,
@@ -539,15 +539,15 @@ class DatasetVlm(torch.utils.data.Dataset):
     def __len__(self) -&gt; int:
         return len(self.image_ids)</code></pre>
 </details>
-<div class="desc"><p>A dataset that returns SampleVlms.</p></div>
+<div class="desc"><p>A dataset that returns SampleMllms.</p></div>
 <h3>Ancestors</h3>
 <ul class="hlist">
 <li>torch.utils.data.dataset.Dataset</li>
 <li>typing.Generic</li>
 </ul>
 </dd>
-<dt id="biobench.newt.SampleVlm"><code class="flex name class">
-<span>class <span class="ident">SampleVlm</span></span>
+<dt id="biobench.newt.SampleMllm"><code class="flex name class">
+<span>class <span class="ident">SampleMllm</span></span>
 <span>(</span><span>image_id: str, image: PIL.Image.Image, label: int, classnames: tuple[str, str])</span>
 </code></dt>
 <dd>
@@ -557,7 +557,7 @@ class DatasetVlm(torch.utils.data.Dataset):
 </summary>
 <pre><code class="python">@beartype.beartype
 @dataclasses.dataclass(frozen=True)
-class SampleVlm:
+class SampleMllm:
     image_id: str
     image: Image.Image
     label: int
@@ -597,36 +597,36 @@ class SampleVlm:
         logger.warning(&#34;Something is wrong in parse_assistant.&#34;)
         return 0
 
-    def to_example(self, rng: random.Random) -&gt; llms.Example:
-        return llms.Example(
+    def to_example(self, rng: random.Random) -&gt; mllms.Example:
+        return mllms.Example(
             image=self.image,
             user=self.make_user(rng),
             assistant=self.assistant,
         )</code></pre>
 </details>
-<div class="desc"><p>SampleVlm(image_id: str, image: PIL.Image.Image, label: int, classnames: tuple[str, str])</p></div>
+<div class="desc"><p>SampleMllm(image_id: str, image: PIL.Image.Image, label: int, classnames: tuple[str, str])</p></div>
 <h3>Class variables</h3>
 <dl>
-<dt id="biobench.newt.SampleVlm.classnames"><code class="name">var <span class="ident">classnames</span> : tuple[str, str]</code></dt>
+<dt id="biobench.newt.SampleMllm.classnames"><code class="name">var <span class="ident">classnames</span> : tuple[str, str]</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="biobench.newt.SampleVlm.image"><code class="name">var <span class="ident">image</span> : PIL.Image.Image</code></dt>
+<dt id="biobench.newt.SampleMllm.image"><code class="name">var <span class="ident">image</span> : PIL.Image.Image</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="biobench.newt.SampleVlm.image_id"><code class="name">var <span class="ident">image_id</span> : str</code></dt>
+<dt id="biobench.newt.SampleMllm.image_id"><code class="name">var <span class="ident">image_id</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="biobench.newt.SampleVlm.label"><code class="name">var <span class="ident">label</span> : int</code></dt>
+<dt id="biobench.newt.SampleMllm.label"><code class="name">var <span class="ident">label</span> : int</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
 </dl>
 <h3>Instance variables</h3>
 <dl>
-<dt id="biobench.newt.SampleVlm.assistant"><code class="name">prop <span class="ident">assistant</span> : str</code></dt>
+<dt id="biobench.newt.SampleMllm.assistant"><code class="name">prop <span class="ident">assistant</span> : str</code></dt>
 <dd>
 <details class="source">
 <summary>
@@ -638,7 +638,7 @@ def assistant(self) -&gt; str:
 </details>
 <div class="desc"></div>
 </dd>
-<dt id="biobench.newt.SampleVlm.classname"><code class="name">prop <span class="ident">classname</span> : str</code></dt>
+<dt id="biobench.newt.SampleMllm.classname"><code class="name">prop <span class="ident">classname</span> : str</code></dt>
 <dd>
 <details class="source">
 <summary>
@@ -653,7 +653,7 @@ def classname(self) -&gt; str:
 </dl>
 <h3>Methods</h3>
 <dl>
-<dt id="biobench.newt.SampleVlm.make_user"><code class="name flex">
+<dt id="biobench.newt.SampleMllm.make_user"><code class="name flex">
 <span>def <span class="ident">make_user</span></span>(<span>self, rng: random.Random) ‑> str</span>
 </code></dt>
 <dd>
@@ -669,7 +669,7 @@ def classname(self) -&gt; str:
 </details>
 <div class="desc"></div>
 </dd>
-<dt id="biobench.newt.SampleVlm.parse_assistant"><code class="name flex">
+<dt id="biobench.newt.SampleMllm.parse_assistant"><code class="name flex">
 <span>def <span class="ident">parse_assistant</span></span>(<span>self, assistant: str) ‑> int</span>
 </code></dt>
 <dd>
@@ -697,16 +697,16 @@ def classname(self) -&gt; str:
 </details>
 <div class="desc"></div>
 </dd>
-<dt id="biobench.newt.SampleVlm.to_example"><code class="name flex">
-<span>def <span class="ident">to_example</span></span>(<span>self, rng: random.Random) ‑> <a title="biobench.llms.Example" href="../llms.html#biobench.llms.Example">Example</a></span>
+<dt id="biobench.newt.SampleMllm.to_example"><code class="name flex">
+<span>def <span class="ident">to_example</span></span>(<span>self, rng: random.Random) ‑> <a title="biobench.mllms.Example" href="../mllms.html#biobench.mllms.Example">Example</a></span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def to_example(self, rng: random.Random) -&gt; llms.Example:
-    return llms.Example(
+<pre><code class="python">def to_example(self, rng: random.Random) -&gt; mllms.Example:
+    return mllms.Example(
         image=self.image,
         user=self.make_user(rng),
         assistant=self.assistant,
@@ -821,8 +821,8 @@ def splits(
 </dd>
 </dl>
 </dd>
-<dt id="biobench.newt.TaskVlm"><code class="flex name class">
-<span>class <span class="ident">TaskVlm</span></span>
+<dt id="biobench.newt.TaskMllm"><code class="flex name class">
+<span>class <span class="ident">TaskMllm</span></span>
 <span>(</span><span>name: str,<br>cluster: str,<br>train: jaxtyping.Integer[ndarray, 'n_train'],<br>test: jaxtyping.Integer[ndarray, 'n_test'])</span>
 </code></dt>
 <dd>
@@ -832,9 +832,9 @@ def splits(
 </summary>
 <pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
 @dataclasses.dataclass(frozen=True)
-class TaskVlm:
+class TaskMllm:
     &#34;&#34;&#34;
-    Task is a group of indices for a VLM with a train/test split.
+    Task is a group of indices for a MLLM with a train/test split.
     &#34;&#34;&#34;
 
     name: str
@@ -845,22 +845,22 @@ class TaskVlm:
     def __repr__(self) -&gt; str:
         return f&#34;Task(name={self.name}, cluster={self.cluster}, n_train={len(self.train)}, n_test={len(self.test)})&#34;</code></pre>
 </details>
-<div class="desc"><p>Task is a group of indices for a VLM with a train/test split.</p></div>
+<div class="desc"><p>Task is a group of indices for a MLLM with a train/test split.</p></div>
 <h3>Class variables</h3>
 <dl>
-<dt id="biobench.newt.TaskVlm.cluster"><code class="name">var <span class="ident">cluster</span> : str</code></dt>
+<dt id="biobench.newt.TaskMllm.cluster"><code class="name">var <span class="ident">cluster</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="biobench.newt.TaskVlm.name"><code class="name">var <span class="ident">name</span> : str</code></dt>
+<dt id="biobench.newt.TaskMllm.name"><code class="name">var <span class="ident">name</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="biobench.newt.TaskVlm.test"><code class="name">var <span class="ident">test</span> : jaxtyping.Integer[ndarray, 'n_test']</code></dt>
+<dt id="biobench.newt.TaskMllm.test"><code class="name">var <span class="ident">test</span> : jaxtyping.Integer[ndarray, 'n_test']</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="biobench.newt.TaskVlm.train"><code class="name">var <span class="ident">train</span> : jaxtyping.Integer[ndarray, 'n_train']</code></dt>
+<dt id="biobench.newt.TaskMllm.train"><code class="name">var <span class="ident">train</span> : jaxtyping.Integer[ndarray, 'n_train']</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -889,9 +889,9 @@ class TaskVlm:
 <li><h3><a href="#header-functions">Functions</a></h3>
 <ul class="two-column">
 <li><code><a title="biobench.newt.benchmark_cvml" href="#biobench.newt.benchmark_cvml">benchmark_cvml</a></code></li>
-<li><code><a title="biobench.newt.benchmark_vlm" href="#biobench.newt.benchmark_vlm">benchmark_vlm</a></code></li>
+<li><code><a title="biobench.newt.benchmark_mllm" href="#biobench.newt.benchmark_mllm">benchmark_mllm</a></code></li>
 <li><code><a title="biobench.newt.get_all_tasks_cvml" href="#biobench.newt.get_all_tasks_cvml">get_all_tasks_cvml</a></code></li>
-<li><code><a title="biobench.newt.get_all_tasks_vlm" href="#biobench.newt.get_all_tasks_vlm">get_all_tasks_vlm</a></code></li>
+<li><code><a title="biobench.newt.get_all_tasks_mllm" href="#biobench.newt.get_all_tasks_mllm">get_all_tasks_mllm</a></code></li>
 <li><code><a title="biobench.newt.init_svc" href="#biobench.newt.init_svc">init_svc</a></code></li>
 <li><code><a title="biobench.newt.l2_normalize" href="#biobench.newt.l2_normalize">l2_normalize</a></code></li>
 </ul>
@@ -916,20 +916,20 @@ class TaskVlm:
 <h4><code><a title="biobench.newt.DatasetCvml" href="#biobench.newt.DatasetCvml">DatasetCvml</a></code></h4>
 </li>
 <li>
-<h4><code><a title="biobench.newt.DatasetVlm" href="#biobench.newt.DatasetVlm">DatasetVlm</a></code></h4>
+<h4><code><a title="biobench.newt.DatasetMllm" href="#biobench.newt.DatasetMllm">DatasetMllm</a></code></h4>
 </li>
 <li>
-<h4><code><a title="biobench.newt.SampleVlm" href="#biobench.newt.SampleVlm">SampleVlm</a></code></h4>
+<h4><code><a title="biobench.newt.SampleMllm" href="#biobench.newt.SampleMllm">SampleMllm</a></code></h4>
 <ul class="two-column">
-<li><code><a title="biobench.newt.SampleVlm.assistant" href="#biobench.newt.SampleVlm.assistant">assistant</a></code></li>
-<li><code><a title="biobench.newt.SampleVlm.classname" href="#biobench.newt.SampleVlm.classname">classname</a></code></li>
-<li><code><a title="biobench.newt.SampleVlm.classnames" href="#biobench.newt.SampleVlm.classnames">classnames</a></code></li>
-<li><code><a title="biobench.newt.SampleVlm.image" href="#biobench.newt.SampleVlm.image">image</a></code></li>
-<li><code><a title="biobench.newt.SampleVlm.image_id" href="#biobench.newt.SampleVlm.image_id">image_id</a></code></li>
-<li><code><a title="biobench.newt.SampleVlm.label" href="#biobench.newt.SampleVlm.label">label</a></code></li>
-<li><code><a title="biobench.newt.SampleVlm.make_user" href="#biobench.newt.SampleVlm.make_user">make_user</a></code></li>
-<li><code><a title="biobench.newt.SampleVlm.parse_assistant" href="#biobench.newt.SampleVlm.parse_assistant">parse_assistant</a></code></li>
-<li><code><a title="biobench.newt.SampleVlm.to_example" href="#biobench.newt.SampleVlm.to_example">to_example</a></code></li>
+<li><code><a title="biobench.newt.SampleMllm.assistant" href="#biobench.newt.SampleMllm.assistant">assistant</a></code></li>
+<li><code><a title="biobench.newt.SampleMllm.classname" href="#biobench.newt.SampleMllm.classname">classname</a></code></li>
+<li><code><a title="biobench.newt.SampleMllm.classnames" href="#biobench.newt.SampleMllm.classnames">classnames</a></code></li>
+<li><code><a title="biobench.newt.SampleMllm.image" href="#biobench.newt.SampleMllm.image">image</a></code></li>
+<li><code><a title="biobench.newt.SampleMllm.image_id" href="#biobench.newt.SampleMllm.image_id">image_id</a></code></li>
+<li><code><a title="biobench.newt.SampleMllm.label" href="#biobench.newt.SampleMllm.label">label</a></code></li>
+<li><code><a title="biobench.newt.SampleMllm.make_user" href="#biobench.newt.SampleMllm.make_user">make_user</a></code></li>
+<li><code><a title="biobench.newt.SampleMllm.parse_assistant" href="#biobench.newt.SampleMllm.parse_assistant">parse_assistant</a></code></li>
+<li><code><a title="biobench.newt.SampleMllm.to_example" href="#biobench.newt.SampleMllm.to_example">to_example</a></code></li>
 </ul>
 </li>
 <li>
@@ -945,12 +945,12 @@ class TaskVlm:
 </ul>
 </li>
 <li>
-<h4><code><a title="biobench.newt.TaskVlm" href="#biobench.newt.TaskVlm">TaskVlm</a></code></h4>
+<h4><code><a title="biobench.newt.TaskMllm" href="#biobench.newt.TaskMllm">TaskMllm</a></code></h4>
 <ul class="">
-<li><code><a title="biobench.newt.TaskVlm.cluster" href="#biobench.newt.TaskVlm.cluster">cluster</a></code></li>
-<li><code><a title="biobench.newt.TaskVlm.name" href="#biobench.newt.TaskVlm.name">name</a></code></li>
-<li><code><a title="biobench.newt.TaskVlm.test" href="#biobench.newt.TaskVlm.test">test</a></code></li>
-<li><code><a title="biobench.newt.TaskVlm.train" href="#biobench.newt.TaskVlm.train">train</a></code></li>
+<li><code><a title="biobench.newt.TaskMllm.cluster" href="#biobench.newt.TaskMllm.cluster">cluster</a></code></li>
+<li><code><a title="biobench.newt.TaskMllm.name" href="#biobench.newt.TaskMllm.name">name</a></code></li>
+<li><code><a title="biobench.newt.TaskMllm.test" href="#biobench.newt.TaskMllm.test">test</a></code></li>
+<li><code><a title="biobench.newt.TaskMllm.train" href="#biobench.newt.TaskMllm.train">train</a></code></li>
 </ul>
 </li>
 </ul>

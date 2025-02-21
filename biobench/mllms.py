@@ -9,7 +9,7 @@ import litellm
 
 from . import interfaces
 
-logger = logging.getLogger("vlms")
+logger = logging.getLogger("mllms")
 
 # Disable logging for packages that yap a lot.
 logging.getLogger("httpx").setLevel(logging.WARNING)
@@ -38,7 +38,7 @@ class Example:
 
 @beartype.beartype
 def fits(
-    args: interfaces.ModelArgsVlm,
+    args: interfaces.ModelArgsMllm,
     examples: list[Example],
     image_b64: str,
     user: str,
@@ -62,7 +62,7 @@ def fits(
 
 
 @beartype.beartype
-def get_max_tokens(args: interfaces.ModelArgsVlm) -> int:
+def get_max_tokens(args: interfaces.ModelArgsMllm) -> int:
     try:
         return litellm.get_max_tokens(args.ckpt)
     except Exception:
@@ -104,7 +104,7 @@ class RateLimiter:
 
 @beartype.beartype
 async def send(
-    args: interfaces.ModelArgsVlm,
+    args: interfaces.ModelArgsMllm,
     examples: list[Example],
     image_b64: str,
     user: str,
@@ -116,7 +116,7 @@ async def send(
     Send a message to the LLM and get the response.
 
     Args:
-        args: Args for the VLM.
+        args: Args for the MLLM.
         examples: Few-shot examples.
         image: The input image.
         user: The user request.
