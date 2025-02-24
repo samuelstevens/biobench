@@ -269,7 +269,7 @@ def get_features(
     backbone = torch.compile(backbone.to(args.device))
 
     file = "train.csv" if is_train else "test.csv"
-    dataset = ImageDataset(args.datadir, file, transform=img_transform)
+    dataset = ImageDatasetCvml(args.datadir, file, transform=img_transform)
     dataloader = torch.utils.data.DataLoader(
         dataset, batch_size=args.batch_size, num_workers=args.n_workers
     )
@@ -412,8 +412,7 @@ def benchmark_mllm(
                     test_example.user,
                 )
                 preds = test_example.parse_assistant(assistant)
-                # Discard the trophic level (real value) because we currently only compare the 9 binary values.
-                preds = preds[1:]
+                # Discard the trophic level (real value) because we currently only compare the 9 binary values. Then convert the first value (feeding path) to a boolean. AI!
 
                 return interfaces.Prediction(
                     test_example.image_id,
@@ -575,15 +574,15 @@ What functional traits does this fish have? For each of these ten traits, respon
     @property
     def true(self) -> list[bool]:
         """Get the ground truth binary values for all traits except trophic level.
-        
+
         Returns:
-            List of boolean values for [feeding_path=='pelagic', tropical, temperate, 
+            List of boolean values for [feeding_path=='pelagic', tropical, temperate,
             subtropical, boreal, polar, freshwater, saltwater, brackish]
         """
         return [
             self.feeding_path == "pelagic",
             self.tropical,
-            self.temperate, 
+            self.temperate,
             self.subtropical,
             self.boreal,
             self.polar,
