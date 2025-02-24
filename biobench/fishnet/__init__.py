@@ -412,7 +412,8 @@ def benchmark_mllm(
                     test_example.user,
                 )
                 preds = test_example.parse_assistant(assistant)
-                # Discard the trophic level (real value) because we currently only compare the 9 binary values. Then convert the first value (feeding path) to a boolean. AI!
+                # Convert feeding path to bool and combine with other binary values
+                binary_preds = [preds[1] == "pelagic"] + list(preds[2:])
 
                 return interfaces.Prediction(
                     test_example.image_id,
