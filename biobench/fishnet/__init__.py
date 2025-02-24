@@ -474,19 +474,60 @@ What functional traits does this fish have? For each of these ten traits, respon
 * **saltwater**: {"yes" if self.saltwater else "no"}
 * **brackish water**: {"yes" if self.brackish else "no"}""".strip()
 
-    def parse_assistant(self, assistant: str):
-        breakpoint()
-        # Parse the response into a tuple of responses. Use the same fixed format as self.assistant. Note that the yes/no responses need to be bools, defaulting to False, trophic level is a float, and feeding path is one of two fixed strings. AI!
-        pattern = re.compile(r"\*\*(.*)\*\*")
-        match = pattern.match(assistant)
-        if match:
-            # Return the closest classname in bold.
-            pred = difflib.get_close_matches(match.group(1), CLASSNAMES, cutoff=0.0)[0]
-        else:
-            # Get the closest classname.
-            pred = difflib.get_close_matches(assistant, CLASSNAMES, cutoff=0.0)[0]
-
-        return pred
+    def parse_assistant(self, assistant: str) -> tuple[float, str, bool, bool, bool, bool, bool, bool, bool, bool]:
+        """Parse the MLLM response into structured data.
+        
+        Returns:
+            Tuple of (trophic_level, feeding_path, tropical, temperate, subtropical, boreal, 
+            polar, freshwater, saltwater, brackish)
+        """
+        # Default values
+        trophic_level = 0.0
+        feeding_path = "benthic"  # Default to benthic if not found
+        tropical = temperate = subtropical = boreal = polar = False
+        freshwater = saltwater = brackish = False
+        
+        # Parse each line
+        for line in assistant.split("\n"):
+            line = line.strip()
+            if not line.startswith("*"):
+                continue
+                
+            # Extract the trait name and value
+            parts = line.split(":")
+            if len(parts) != 2:
+                continue
+                
+            trait = parts[0].strip("* ").lower()
+            value = parts[1].strip().lower()
+            
+            if trait == "trophic level":
+                try:
+                    trophic_level = float(value)
+                except ValueError:
+                    pass
+            elif trait == "feeding path":
+                if value in ("benthic", "pelagic"):
+                    feeding_path = value
+            elif trait == "tropical":
+                tropical = value == "yes"
+            elif trait == "temperate": 
+                temperate = value == "yes"
+            elif trait == "subtropical":
+                subtropical = value == "yes"
+            elif trait == "boreal":
+                boreal = value == "yes"
+            elif trait == "polar":
+                polar = value == "yes"
+            elif trait == "freshwater":
+                freshwater = value == "yes"
+            elif trait == "saltwater":
+                saltwater = value == "yes"
+            elif trait == "brackish water":
+                brackish = value == "yes"
+                
+        return (trophic_level, feeding_path, tropical, temperate, subtropical, 
+                boreal, polar, freshwater, saltwater, brackish)
 
     def to_example(self) -> mllms.Example:
         return mllms.Example(
