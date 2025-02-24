@@ -415,8 +415,6 @@ def benchmark_mllm(
                 # Discard the trophic level (real value) because we currently only compare the 9 binary values.
                 preds = preds[1:]
 
-                # Add a property .true to SampleMllm that returns an array of 0/1 integers so that we can calculate f1_macro easily. AI!
-
                 return interfaces.Prediction(
                     test_example.image_id,
                     float((preds == test_example.true).all()),
@@ -573,6 +571,26 @@ What functional traits does this fish have? For each of these ten traits, respon
             saltwater,
             brackish,
         )
+
+    @property
+    def true(self) -> list[bool]:
+        """Get the ground truth binary values for all traits except trophic level.
+        
+        Returns:
+            List of boolean values for [feeding_path=='pelagic', tropical, temperate, 
+            subtropical, boreal, polar, freshwater, saltwater, brackish]
+        """
+        return [
+            self.feeding_path == "pelagic",
+            self.tropical,
+            self.temperate, 
+            self.subtropical,
+            self.boreal,
+            self.polar,
+            self.freshwater,
+            self.saltwater,
+            self.brackish,
+        ]
 
     def to_example(self) -> mllms.Example:
         return mllms.Example(
