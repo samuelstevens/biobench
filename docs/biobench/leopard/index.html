@@ -75,8 +75,7 @@ I let it run for 10 minutes and it was stable in predicting 60+ minutes, so I se
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">@beartype.beartype
-def benchmark(
+<pre><code class="python">def benchmark(
     args: Args, model_args: interfaces.ModelArgsCvml
 ) -&gt; tuple[interfaces.ModelArgsCvml, interfaces.TaskReport]:
     &#34;&#34;&#34;
@@ -127,9 +126,7 @@ def benchmark(
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">@beartype.beartype
-@torch.no_grad
-def get_features(args: Args, backbone: interfaces.VisionBackbone) -&gt; Features:
+<pre><code class="python">def get_features(args: Args, backbone: interfaces.VisionBackbone) -&gt; Features:
     &#34;&#34;&#34;
     Get a block of features from a vision backbone.
 

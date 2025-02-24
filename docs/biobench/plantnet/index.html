@@ -76,8 +76,7 @@ year={2021},
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">@beartype.beartype
-def benchmark(
+<pre><code class="python">def benchmark(
     args: Args, model_args: interfaces.ModelArgsCvml
 ) -&gt; tuple[interfaces.ModelArgsCvml, interfaces.TaskReport]:
     &#34;&#34;&#34;
@@ -165,9 +164,7 @@ def benchmark(
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
-@torch.no_grad()
-def get_features(
+<pre><code class="python">def get_features(
     args: Args, backbone: interfaces.VisionBackbone, *, split: str
 ) -&gt; Features:
     images_dir_path = os.path.join(args.datadir, &#34;images&#34;, split)
@@ -220,8 +217,7 @@ def get_features(
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">@beartype.beartype
-def init_clf(args: Args):
+<pre><code class="python">def init_clf(args: Args):
     alpha = np.pow(2.0, np.arange(-15, 11))
     if args.debug:
         alpha = np.pow(2.0, np.arange(-2, 2))

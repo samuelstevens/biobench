@@ -60,8 +60,7 @@ el.replaceWith(d);
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">@beartype.beartype
-def download_tar(url: str, tar_path: str, chunk_size: int):
+<pre><code class="python">def download_tar(url: str, tar_path: str, chunk_size: int):
     r = requests.get(url, stream=True)
     r.raise_for_status()
 
@@ -103,8 +102,7 @@ def download_tar(url: str, tar_path: str, chunk_size: int):
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">@beartype.beartype
-def main(args: Args):
+<pre><code class="python">def main(args: Args):
     &#34;&#34;&#34;Download NeWT.&#34;&#34;&#34;
     os.makedirs(args.dir, exist_ok=True)
     chunk_size = int(args.chunk_size_kb * 1024)

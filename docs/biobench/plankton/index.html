@@ -102,8 +102,7 @@ This task is particularly challenging because the image distribution is very dif
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">@beartype.beartype
-def benchmark(
+<pre><code class="python">def benchmark(
     args: Args, model_args: interfaces.ModelArgsCvml
 ) -&gt; tuple[interfaces.ModelArgsCvml, interfaces.TaskReport]:
     &#34;&#34;&#34;
@@ -163,9 +162,7 @@ def benchmark(
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
-@torch.no_grad()
-def get_features(
+<pre><code class="python">def get_features(
     args: Args, backbone: interfaces.VisionBackbone, *, split: str
 ) -&gt; Features:
     images_dir_path = os.path.join(args.datadir, split)
@@ -218,8 +215,7 @@ def get_features(
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">@beartype.beartype
-def init_clf(args: Args):
+<pre><code class="python">def init_clf(args: Args):
     &#34;&#34;&#34;
     Make a grid search cross-validation version of a RidgeClassifier.
     &#34;&#34;&#34;

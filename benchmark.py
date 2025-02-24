@@ -294,18 +294,18 @@ def main(args: Args):
             os.environ["BIOBENCH_DISABLE_SSL"] = "1"
 
     ages_args = args.update(args.ages_args)
-    # beluga_args = args.update(args.beluga_args)
-    # birds525_args = args.update(args.birds525_args)
+    beluga_args = args.update(args.beluga_args)
+    birds525_args = args.update(args.birds525_args)
     fishnet_args = args.update(args.fishnet_args)
-    # imagenet_args = args.update(args.imagenet_args)
-    # inat21_args = args.update(args.inat21_args)
-    # iwildcam_args = args.update(args.iwildcam_args)
-    # kabr_args = args.update(args.kabr_args)
-    # leopard_args = args.update(args.leopard_args)
-    # newt_args = args.update(args.newt_args)
-    # plankton_args = args.update(args.plankton_args)
-    # plantnet_args = args.update(args.plantnet_args)
-    # rarespecies_args = args.update(args.rarespecies_args)
+    imagenet_args = args.update(args.imagenet_args)
+    inat21_args = args.update(args.inat21_args)
+    iwildcam_args = args.update(args.iwildcam_args)
+    kabr_args = args.update(args.kabr_args)
+    leopard_args = args.update(args.leopard_args)
+    newt_args = args.update(args.newt_args)
+    plankton_args = args.update(args.plankton_args)
+    plantnet_args = args.update(args.plantnet_args)
+    rarespecies_args = args.update(args.rarespecies_args)
 
     # 2. Run benchmarks.
     jobs = []

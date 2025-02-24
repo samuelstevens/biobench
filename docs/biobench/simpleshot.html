@@ -63,8 +63,7 @@ el.replaceWith(d);
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">@beartype.beartype
-def batched_idx(
+<pre><code class="python">def batched_idx(
     total_size: int, batch_size: int
 ) -&gt; collections.abc.Iterator[tuple[int, int]]:
     &#34;&#34;&#34;
@@ -100,8 +99,7 @@ def batched_idx(
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
-def l2_normalize(
+<pre><code class="python">def l2_normalize(
     features: Float[Tensor, &#34;n_examples dim&#34;],
 ) -&gt; Float[Tensor, &#34;n_examples dim&#34;]:
     &#34;&#34;&#34;L2-normalize a batch of features.
@@ -132,8 +130,7 @@ def l2_normalize(
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
-def simpleshot(
+<pre><code class="python">def simpleshot(
     x_train: Float[Tensor, &#34;n_train dim&#34;],
     y_train: Int[Tensor, &#34; n_train&#34;],
     x_test: Float[Tensor, &#34;n_test dim&#34;],

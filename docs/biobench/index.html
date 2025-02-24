@@ -305,7 +305,7 @@ As long …</p></div>
 <div class="desc"><p>List all vision backbone model orgs.</p></div>
 </dd>
 <dt id="biobench.load_vision_backbone"><code class="name flex">
-<span>def <span class="ident">load_vision_backbone</span></span>(<span>model_org: str, ckpt: str) ‑> <a title="biobench.interfaces.VisionBackbone" href="interfaces.html#biobench.interfaces.VisionBackbone">VisionBackbone</a></span>
+<span>def <span class="ident">load_vision_backbone</span></span>(<span>model_args: <a title="biobench.interfaces.ModelArgsCvml" href="interfaces.html#biobench.interfaces.ModelArgsCvml">ModelArgsCvml</a>) ‑> <a title="biobench.interfaces.VisionBackbone" href="interfaces.html#biobench.interfaces.VisionBackbone">VisionBackbone</a></span>
 </code></dt>
 <dd>
 <details class="source">
@@ -313,15 +313,17 @@ As long …</p></div>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">@beartype.beartype
-def load_vision_backbone(model_org: str, ckpt: str) -&gt; interfaces.VisionBackbone:
+def load_vision_backbone(
+    model_args: interfaces.ModelArgsCvml,
+) -&gt; interfaces.VisionBackbone:
     &#34;&#34;&#34;
     Load a pretrained vision backbone.
     &#34;&#34;&#34;
-    if model_org not in _global_backbone_registry:
-        raise ValueError(f&#34;Org &#39;{model_org}&#39; not found.&#34;)
+    if model_args.org not in _global_backbone_registry:
+        raise ValueError(f&#34;Org &#39;{model_args.org}&#39; not found.&#34;)
 
-    cls = _global_backbone_registry[model_org]
-    return cls(ckpt)</code></pre>
+    cls = _global_backbone_registry[model_args.org]
+    return cls(model_args.ckpt)</code></pre>
 </details>
 <div class="desc"><p>Load a pretrained vision backbone.</p></div>
 </dd>

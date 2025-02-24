@@ -89,12 +89,10 @@ class Prediction:
     """Any additional information included. This might be the original class, the true label, etc."""
 
 
-@beartype.beartype
 def default_calc_mean_score(predictions: list[Prediction]) -> float:
     return np.mean([prediction.score for prediction in predictions]).item()
 
 
-@beartype.beartype
 def get_gpu_name() -> str:
     if torch.cuda.is_available():
         return torch.cuda.get_device_properties(0).name
@@ -112,7 +110,7 @@ class TaskReport:
     # Actual details of the report
     name: str
     """The benchmark name."""
-    max_examples: int
+    n_train: int
     """The maximum number of training examples used."""
     predictions: list[Prediction]
     """A list of (example_id, score, info) objects"""
@@ -194,18 +192,18 @@ class TaskReport:
         }
 
 
-@beartype.beartype
 @dataclasses.dataclass(frozen=True)
 class ModelArgsCvml:
     org: str
     ckpt: str
 
 
-@beartype.beartype
 @dataclasses.dataclass(frozen=True)
 class ModelArgsMllm:
     ckpt: str
-    temp: float = 1.0
+    temp: float = 0.0
+    prompts: typing.Literal["single-turn", "multi-turn"] = "single-turn"
+    quantizations: list[str] = dataclasses.field(default_factory=list)
 
 ```
 
@@ -343,15 +341,17 @@ _global_backbone_registry: dict[str, type[interfaces.VisionBackbone]] = {}
 
 
 @beartype.beartype
-def load_vision_backbone(model_org: str, ckpt: str) -> interfaces.VisionBackbone:
+def load_vision_backbone(
+    model_args: interfaces.ModelArgsCvml,
+) -> interfaces.VisionBackbone:
     """
     Load a pretrained vision backbone.
     """
-    if model_org not in _global_backbone_registry:
-        raise ValueError(f"Org '{model_org}' not found.")
+    if model_args.org not in _global_backbone_registry:
+        raise ValueError(f"Org '{model_args.org}' not found.")
 
-    cls = _global_backbone_registry[model_org]
-    return cls(ckpt)
+    cls = _global_backbone_registry[model_args.org]
+    return cls(model_args.ckpt)
 
 
 def register_vision_backbone(model_org: str, cls: type[interfaces.VisionBackbone]):
@@ -603,13 +603,16 @@ This raises the question: why do we have multiple tasks that fill the same role?
 import typing
 
 import tyro
+from beartype.claw import beartype_this_package
 
-from . import interfaces, kabr, newt, third_party_models
+from . import interfaces, third_party_models
 from .registry import (
     list_vision_backbones,
     load_vision_backbone,
     register_vision_backbone,
 )
+
+beartype_this_package()
 
 register_vision_backbone("timm-vit", third_party_models.TimmVit)
 register_vision_backbone("open-clip", third_party_models.OpenClip)
@@ -628,8 +631,6 @@ __all__ = [
     "load_vision_backbone",
     "register_vision_backbone",
     "list_vision_backbones",
-    "newt",
-    "kabr",
     "ModelOrg",
 ]
 
@@ -643,6 +644,7 @@ import collections
 import dataclasses
 import logging
 import time
+import typing
 
 import beartype
 import litellm
@@ -663,18 +665,6 @@ class Example:
     user: str
     assistant: str
 
-    def to_history(self) -> list[object]:
-        return [
-            {
-                "role": "user",
-                "content": [
-                    {"type": "image_url", "image_url": {"url": self.image_b64}},
-                    {"type": "text", "text": self.user},
-                ],
-            },
-            {"role": "assistant", "content": self.assistant},
-        ]
-
 
 @beartype.beartype
 def fits(
@@ -684,19 +674,7 @@ def fits(
     user: str,
 ) -> bool:
     max_tokens = get_max_tokens(args)
-    messages = []
-    for example in examples:
-        messages.extend(example.to_history())
-    messages.append({
-        "role": "user",
-        "content": [
-            {
-                "type": "image_url",
-                "image_url": {"url": image_b64},
-            },
-            {"type": "text", "text": user},
-        ],
-    })
+    messages = make_prompt(args, examples, image_b64, user)
     n_tokens = litellm.token_counter(model=args.ckpt, messages=messages)
     return n_tokens <= max_tokens
 
@@ -710,10 +688,14 @@ def get_max_tokens(args: interfaces.ModelArgsMllm) -> int:
 
     if args.ckpt.endswith("google/gemini-2.0-flash-001"):
         return 1_000_000
-    if args.ckpt.endswith("google/gemini-flash-1.5-8b"):
+    elif args.ckpt.endswith("google/gemini-flash-1.5-8b"):
         return 1_000_000
+    elif args.ckpt.endswith("qwen/qwen-2-vl-7b-instruct"):
+        return 4_096
+    elif args.ckpt.endswith("meta-llama/llama-3.2-3b-instruct"):
+        return 131_000
     else:
-        err_msg = f"Model {args.ckpt} isn't mapped yet by biobench or litellm."
+        err_msg = f"Model '{args.ckpt}' isn't mapped yet by biobench or litellm."
         raise ValueError(err_msg)
 
 
@@ -735,7 +717,8 @@ class RateLimiter:
         if len(self.timestamps) >= self.max_rate:
             wait_time = self.timestamps[0] + self.window_s - now
             if wait_time > 0:
-                logger.info("Sleeping for %.2f seconds.", wait_time)
+                if wait_time > 1.0:
+                    logger.info("Sleeping for %.2f seconds.", wait_time)
                 await asyncio.sleep(wait_time)
 
         # Add current timestamp
@@ -769,26 +752,8 @@ async def send(
         RuntimeError: If LLM call fails
     """
 
-    # Get optional settings with defaults.
-    temperature = 0.7 if args.temp is None else args.temp
+    messages = make_prompt(args, examples, image_b64, user)
 
-    # Format messages for chat completion
-    messages = []
-
-    if system:
-        messages.append({"role": "system", "content": system})
-
-    for example in examples:
-        messages.extend(example.to_history())
-
-    # Add current message
-    messages.append({
-        "role": "user",
-        "content": [
-            {"type": "image_url", "image_url": {"url": image_b64}},
-            {"type": "text", "text": user},
-        ],
-    })
     # Make LLM call with retries
     last_err = None
 
@@ -810,7 +775,8 @@ async def send(
             response = await litellm.acompletion(
                 model=args.ckpt,
                 messages=messages,
-                temperature=temperature,
+                temperature=args.temp,
+                provider={"quantizations": args.quantizations},
             )
         except RuntimeError as err:
             last_err = err
@@ -844,6 +810,78 @@ async def send(
         if response is None:
             return ""
         return response
+
+
+#############
+# PROMPTING #
+#############
+
+
+def make_prompt(
+    args: interfaces.ModelArgsMllm,
+    examples: list[Example],
+    image_b64: str,
+    user: str,
+    *,
+    system: str = "",
+) -> list[object]:
+    if args.prompts == "single-turn":
+        return _make_single_turn_prompt(examples, image_b64, user, system=system)
+    elif args.prompt == "multi-turn":
+        return _make_multi_turn_prompt(examples, image_b64, user, system=system)
+    else:
+        typing.assert_never(args.prompts)
+
+
+def _make_single_turn_prompt(
+    examples: list[Example], image_b64: str, user: str, *, system: str = ""
+) -> list[object]:
+    messages = []
+
+    if system:
+        messages.append({"role": "system", "content": system})
+
+    content = []
+    for example in examples:
+        content.append({"type": "image_url", "image_url": {"url": example.image_b64}})
+        content.append({"type": "text", "text": f"{example.user}\n{example.assistant}"})
+
+    content.append({"type": "image_url", "image_url": {"url": image_b64}})
+    content.append({"type": "text", "text": user})
+
+    messages.append({"role": "user", "content": content})
+
+    return messages
+
+
+def _make_multi_turn_prompt(
+    examples: list[Example], image_b64: str, user: str, *, system: str = ""
+) -> list[str]:
+    # Format messages for chat completion
+    messages = []
+
+    if system:
+        messages.append({"role": "system", "content": system})
+
+    for example in examples:
+        messages.append({
+            "role": "user",
+            "content": [
+                {"type": "image_url", "image_url": {"url": example.image_b64}},
+                {"type": "text", "text": example.user},
+            ],
+        })
+        messages.append({"role": "assistant", "content": example.assistant})
+
+    # Add current message
+    messages.append({
+        "role": "user",
+        "content": [
+            {"type": "image_url", "image_url": {"url": image_b64}},
+            {"type": "text", "text": user},
+        ],
+    })
+    return messages
 
 ```
 
@@ -951,10 +989,10 @@ def write_hparam_sweep_plot(
 
 
 @beartype.beartype
-def load_image_b64(path: str) -> str:
-    image = Image.open(path)
+def load_img_b64(path: str) -> str:
+    img = Image.open(path)
     buf = io.BytesIO()
-    image.save(buf, format="webp")
+    img.save(buf, format="webp")
     b64 = pybase64.b64encode(buf.getvalue())
     s64 = b64.decode("utf8")
     return "data:image/webp;base64," + s64
@@ -1643,7 +1681,9 @@ logger = logging.getLogger("iwildcam")
 class Args:
     """Arguments for the iWildCam task."""
 
-    batch_size: int = 2048
+    data: str = ""
+    """dataset directory; where you downloaded this task's data to."""
+    batch_size_cv: int = 2048
     """batch size for deep model."""
     n_workers: int = 4
     """number of dataloader worker processes."""
@@ -1678,21 +1718,20 @@ class MeanScoreCalculator:
 
 
 @beartype.beartype
-def benchmark(
+def benchmark_cvml(
     args: Args, model_args: interfaces.ModelArgsCvml
 ) -> tuple[interfaces.ModelArgsCvml, interfaces.TaskReport]:
-    backbone = registry.load_vision_backbone(*model_args)
+    backbone = registry.load_vision_backbone(model_args)
 
     # 1. Load dataloaders.
     transform = backbone.make_img_transform()
-    if not os.path.exists(args.datadir) or not os.path.isdir(args.datadir):
-        msg = f"Path '{args.datadir}' doesn't exist. Did you download the iWildCam dataset? See the docstring at the top of this file for instructions. If you did download it, pass the path as --datadir PATH"
+    if not os.path.exists(args.data) or not os.path.isdir(args.data):
+        msg = f"Path '{args.data}' doesn't exist. Did you download the iWildCam dataset? See the docstring at the top of this file for instructions. If you did download it, pass the path as --iwildcam-args.data PATH"
         raise RuntimeError(msg)
-    dataset = wilds.get_dataset(
-        dataset="iwildcam", download=False, root_dir=args.datadir
-    )
+    dataset = wilds.get_dataset(dataset="iwildcam", download=False, root_dir=args.data)
 
     test_data = dataset.get_subset("test", transform=transform)
+    breakpoint()
     test_dataloader = wilds.common.data_loaders.get_eval_loader(
         "standard",
         test_data,
@@ -2205,7 +2244,6 @@ from .. import helpers, interfaces, mllms, registry
 logger = logging.getLogger("ages")
 
 
-@beartype.beartype
 @dataclasses.dataclass(frozen=True)
 class Args:
     """Ages task arguments."""
@@ -2220,19 +2258,20 @@ class Args:
     """how often (number of batches) to log progress."""
     seed: int = 42
     """random seed."""
-    max_examples: int = -1
-    """Number of maximum training samples. Negative number means use all of them."""
-    parallel: int = 5
-    """Concurrent requests per second."""
 
     # Computed at runtime.
     device: str = "cuda"
     """(computed at runtime) which kind of accelerator to use."""
     debug: bool = False
     """(computed at runtime) whether to run in debug mode."""
+    n_train: int = -1
+    """Number of maximum training samples. Negative number means use all of them."""
+    n_test: int = -1
+    """Number of test samples. Negative number means use all of them."""
+    parallel: int = 1
+    """Number of parallel requests per second to MLLM service providers."""
 
 
-@beartype.beartype
 def benchmark_cvml(
     args: Args, model_args: interfaces.ModelArgsCvml
 ) -> tuple[interfaces.ModelArgsCvml, interfaces.TaskReport]:
@@ -2269,7 +2308,6 @@ def benchmark_cvml(
     return model_args, interfaces.TaskReport("Ages", examples, splits=splits)
 
 
-@beartype.beartype
 def benchmark_mllm(
     args: Args, model_args: interfaces.ModelArgsMllm
 ) -> tuple[interfaces.ModelArgsMllm, interfaces.TaskReport]:
@@ -2277,7 +2315,7 @@ def benchmark_mllm(
 
     splits = {}
 
-    if args.max_examples > 0:
+    if args.n_train > 0:
         system = "You will be shown several example bird classifications followed by a test image to classify. For each image, respond only with the classification of the current image. Do not reclassify previous images."
     else:
         system = ""
@@ -2289,9 +2327,9 @@ def benchmark_mllm(
 
             # We load all the training samples into memory right away because they will be re-used over and over again.
             # Test samples are loaded one by one on demand.
-            i_train = rng.choices(task.train, k=args.max_examples)
+            i_train = rng.choices(task.train, k=args.n_train)
             train_examples = [
-                dataset[i].to_example(rng)
+                dataset[i.item()].to_example(rng)
                 for i in helpers.progress(i_train, desc="load train samples")
             ]
 
@@ -2308,7 +2346,7 @@ def benchmark_mllm(
                         fewshot_examples,
                         test_example.image_b64,
                         test_example.make_user(rng),
-                    ) and (args.max_examples < 0 or n_examples < args.max_examples):
+                    ) and (args.n_train < 0 or n_examples < args.n_train):
                         # Add another example.
                         n_examples += 1
                         fewshot_examples = train_examples[:n_examples]
@@ -2341,6 +2379,14 @@ def benchmark_mllm(
                 test_i = task.test
                 if args.debug:
                     test_i = test_i[:10]
+                    logger.info("Using the first 10 samples out of %d.", len(test_i))
+                elif args.n_test >= 0:
+                    logger.info(
+                        "Using %d random samples out of %d.", args.n_test, len(test_i)
+                    )
+                    rng.shuffle(test_i)
+                    test_i = test_i[: args.n_test]
+
                 jobs = [asyncio.create_task(run_one(i.item())) for i in test_i]
 
                 preds = []
@@ -2353,9 +2399,7 @@ def benchmark_mllm(
             test_acc = np.mean([pred.score for pred in preds]).item()
             splits[task.name] = test_acc
 
-    return model_args, interfaces.TaskReport(
-        "Ages", args.max_examples, preds, splits=splits
-    )
+    return model_args, interfaces.TaskReport("Ages", args.n_train, preds, splits=splits)
 
 
 #########
@@ -2507,6 +2551,7 @@ def init_clf():
 # MLLM #
 ########
 
+
 RAW_TO_CLASSNAME = {
     "ml_age_coopers_hawk": "Cooper's hawk",
     "ml_age_black_bellied_plover": "black-bellied plover",
@@ -2525,7 +2570,6 @@ RAW_TO_CLASSNAME = {
 CLASSNAMES = list(RAW_TO_CLASSNAME.values())
 
 
-@beartype.beartype
 @dataclasses.dataclass(frozen=True)
 class SampleMllm:
     image_id: str
@@ -2599,7 +2643,6 @@ class TaskMllm:
         return f"Task(name={self.name}, n_train={len(self.train)}, n_test={len(self.test)})"
 
 
-@beartype.beartype
 def get_all_tasks_mllm(
     args: Args,
 ) -> collections.abc.Iterator[tuple[TaskMllm, DatasetMllm]]:
@@ -3215,7 +3258,7 @@ import tyro
 @beartype.beartype
 @dataclasses.dataclass(frozen=True)
 class Args:
-    write_to: str = "."
+    dir: str = "."
     """where to save the data."""
 
 
@@ -3223,13 +3266,11 @@ class Args:
 def main(args: Args):
     print("Run:")
     print()
-    print(
-        f"  kaggle datasets download gpiosenka/100-bird-species --path {args.write_to}"
-    )
+    print(f"  kaggle datasets download gpiosenka/100-bird-species --path {args.dir}")
     print()
     print("Then run:")
     print()
-    print(f"  cd '{args.write_to}' && unzip 100-bird-species.zip")
+    print(f"  cd '{args.dir}' && unzip 100-bird-species.zip")
     print()
     print()
 
@@ -5072,9 +5113,12 @@ If you use this evaluation, be sure to cite the original work:
 This task was contributed by [Jianyang Gu](https://vimar-gu.github.io/).
 """
 
+import asyncio
 import dataclasses
 import logging
 import os.path
+import random
+import typing
 
 import beartype
 import numpy as np
@@ -5085,7 +5129,7 @@ from jaxtyping import Float, Int, Shaped, jaxtyped
 from PIL import Image
 from torch import Tensor
 
-from biobench import helpers, interfaces, registry
+from .. import helpers, interfaces, mllms, registry
 
 logger = logging.getLogger("fishnet")
 
@@ -5108,19 +5152,21 @@ class Args:
     learning_rate: float = 5e-4
     """The learning rate for training the MLP classifier."""
     threshold: float = 0.5
-    """The threshold to predicted "presence" rather than "absence"."""
+    """The threshold to predict "presence" rather than "absence"."""
     seed: int = 42
     """random seed."""
-    parallel: int = 5
-    """Concurrent requests per second."""
 
     # Computed at runtime.
-    max_examples: int = -1
-    """(computed at runtime) Number of maximum training samples. Negative number means use all of them."""
     device: str = "cuda"
-    """(computed at runtime) Which kind of accelerator to use."""
+    """(computed at runtime) which kind of accelerator to use."""
     debug: bool = False
-    """(computed at runtime) Whether to run in debug mode."""
+    """(computed at runtime) whether to run in debug mode."""
+    n_train: int = -1
+    """Number of maximum training samples. Negative number means use all of them."""
+    n_test: int = -1
+    """Number of test samples. Negative number means use all of them."""
+    parallel: int = 1
+    """Number of parallel requests per second to MLLM service providers."""
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -5172,18 +5218,46 @@ def init_classifier(input_dim: int) -> torch.nn.Module:
 
 
 @beartype.beartype
-def calc_macro_f1(examples: list[interfaces.Prediction]) -> float:
-    """TODO: docs."""
-    y_pred = np.array([example.info["y_pred"] for example in examples])
-    y_true = np.array([example.info["y_true"] for example in examples])
-    score = sklearn.metrics.f1_score(
+def calc_macro_f1(preds: list[interfaces.Prediction]) -> float:
+    """
+    Calculate the macro-averaged F1 score across all fish trait predictions.
+
+    For each fish image, we predict 9 binary traits:
+
+    1. Feeding Path (benthic/pelagic)
+    2. Tropical habitat (yes/no)
+    3. Temperate habitat (yes/no)
+    4. Subtropical habitat (yes/no)
+    5. Boreal habitat (yes/no)
+    6. Polar habitat (yes/no)
+    7. Freshwater habitat (yes/no)
+    8. Saltwater habitat (yes/no)
+    9. Brackish water habitat (yes/no)
+
+    The macro-averaging:
+
+    1. Calculates an F1 score for each trait independently
+    2. Takes the unweighted mean of these 9 F1 scores
+
+    This ensures each trait contributes equally to the final score, regardless of class imbalance in the dataset (e.g., if there are many more tropical fish than brackish water fish).
+
+    Args:
+        preds: List of predictions, each containing:
+            - info["y_pred"]: List of 9 binary predictions
+            - info["y_true"]: List of 9 binary ground truth values
+
+    Returns:
+        The macro-averaged F1 score across all 9 traits
+    """
+    y_pred = np.array([pred.info["y_pred"] for pred in preds])
+    y_true = np.array([pred.info["y_true"] for pred in preds])
+    return sklearn.metrics.f1_score(
         y_true, y_pred, average="macro", labels=np.unique(y_true)
     )
-    return score.item()
 
 
 @beartype.beartype
-def benchmark(
+def benchmark_cvml(
     args: Args, model_args: interfaces.ModelArgsCvml
 ) -> tuple[interfaces.ModelArgsCvml, interfaces.TaskReport]:
     """
@@ -5284,7 +5358,7 @@ def get_features(
     backbone = torch.compile(backbone.to(args.device))
 
     file = "train.csv" if is_train else "test.csv"
-    dataset = ImageDataset(args.datadir, file, transform=img_transform)
+    dataset = ImageDatasetCvml(args.datadir, file, transform=img_transform)
     dataloader = torch.utils.data.DataLoader(
         dataset, batch_size=args.batch_size, num_workers=args.n_workers
     )
@@ -5313,9 +5387,9 @@ def get_features(
 
 
 @jaxtyped(typechecker=beartype.beartype)
-class ImageDataset(torch.utils.data.Dataset):
+class ImageDatasetCvml(torch.utils.data.Dataset):
     """
-    A dataset that loads the required attribute labels.
+    A dataset for CV+ML that loads the required attribute labels.
     """
 
     def __init__(self, root_dir: str, csv_file: str, transform):
@@ -5371,6 +5445,301 @@ class ImageDataset(torch.utils.data.Dataset):
             image = self.transform(image)
 
         return image, label, image_path
+
+    def __len__(self) -> int:
+        return len(self.df)
+
+
+def benchmark_mllm(
+    args: Args, model_args: interfaces.ModelArgsMllm
+) -> tuple[interfaces.ModelArgsMllm, interfaces.TaskReport]:
+    if not os.path.isdir(args.data):
+        msg = f"Path '{args.data}' doesn't exist. Did you download the FishNet dataset? See the docstring at the top of this file for instructions. If you did download it, pass the path with '--fishnet-args.data'; see --help for more."
+        raise ValueError(msg)
+
+    train_dataset = DatasetMllm(args.data, "train.csv")
+    test_dataset = DatasetMllm(args.data, "test.csv")
+    rng = random.Random(args.seed)
+
+    with asyncio.Runner() as loop:
+        limiter = mllms.RateLimiter(args.parallel)
+        semaphore = asyncio.Semaphore(args.parallel)
+
+        # We load all the training samples into memory right away because they will be re-used over and over again.
+        # Test samples are loaded one by one on demand.
+        i_train = rng.sample(range(len(train_dataset)), k=args.n_train)
+        train_examples = [
+            train_dataset[i].to_example()
+            for i in helpers.progress(i_train, desc="load train samples")
+        ]
+
+        @beartype.beartype
+        async def run_one(i: int) -> interfaces.Prediction:
+            async with semaphore:
+                test_example = test_dataset[i]
+                # Try to fit them into a prompt.
+                n_examples = 0
+                fewshot_examples = []
+                while mllms.fits(
+                    model_args,
+                    fewshot_examples,
+                    test_example.image_b64,
+                    test_example.user,
+                ) and (args.n_train < 0 or n_examples < args.n_train):
+                    # Add another example.
+                    n_examples += 1
+                    fewshot_examples = train_examples[:n_examples]
+
+                # Only shuffle once.
+                rng.shuffle(fewshot_examples)
+
+                await limiter.acquire()
+                assistant = await mllms.send(
+                    model_args,
+                    fewshot_examples,
+                    test_example.image_b64,
+                    test_example.user,
+                )
+                preds = test_example.parse_assistant(assistant)
+                # Convert feeding path to bool and combine with other binary values
+                preds = [preds[1] == "pelagic"] + list(preds[2:])
+
+                return interfaces.Prediction(
+                    test_example.image_id,
+                    float(preds == test_example.true),
+                    info={
+                        "y_true": test_example.true,
+                        "y_pred": preds,
+                        "assistant": assistant,
+                    },
+                )
+
+        @beartype.beartype
+        async def run_all() -> list[interfaces.Prediction]:
+            if args.debug:
+                logger.info("Using the first 10 samples out of %d.", len(test_dataset))
+                test_i = list(range(10))
+            elif args.n_test >= 0:
+                logger.info(
+                    "Using %d random samples out of %d.", args.n_test, len(test_dataset)
+                )
+                test_i = rng.sample(range(len(test_dataset)), k=args.n_test)
+
+            jobs = [asyncio.create_task(run_one(i)) for i in test_i]
+
+            preds = []
+            for job in helpers.progress(jobs):
+                pred: interfaces.Prediction = await job
+                preds.append(pred)
+            return preds
+
+        preds = loop.run(run_all())
+
+    return model_args, interfaces.TaskReport(
+        "FishNet", args.n_train, preds, calc_mean_score=calc_macro_f1
+    )
+
+
+@dataclasses.dataclass(frozen=True)
+class SampleMllm:
+    image_id: str
+    image_b64: str
+    trophic_level: float
+    """The position in the food chain or food web."""
+    feeding_path: typing.Literal["benthic", "pelagic"]
+    """Which trophic pathway the species feeds from."""
+    tropical: bool
+    """Whether the fish can live in tropical areas."""
+    temperate: bool
+    """Whether the fish can live in temperate areas."""
+    subtropical: bool
+    """Whether the fish can live in subtropical areas."""
+    boreal: bool
+    """Whether the fish can live in boral areas."""
+    polar: bool
+    """Whether the fish can live in polar areas."""
+    freshwater: bool
+    """Whether the fish can live in freshwater."""
+    saltwater: bool
+    """Whether the fish can live in saltwater."""
+    brackish: bool
+    """Whether the fish can live in brackish water."""
+
+    @property
+    def user(self) -> str:
+        return """
+What functional traits does this fish have? For each of these ten traits, respond using the specified format:
+* **trophic level**: What is the real-valued position of this fish in the food chain or food web?
+* **feeding path**: What trophic pathway does this fish feed from? Choose between benthic or pelagic.
+* **tropical**: Can this fish live in tropical areas? Respond with yes or no.
+* **temperate**: Can this fish live in temperate areas? Respond with yes or no.
+* **subtropical**: Can this fish live in subtropical areas? Respond with yes or no.
+* **boreal**: Can this fish live in boreal areas? Respond with yes or no.
+* **polar**: Can this fish live in polar areas? Respond with yes or no.
+* **freshwater**: Can this fish live in freshwater? Respond with yes or no.
+* **saltwater**: Can this fish live in saltwater? Respond with yes or no.
+* **brackish water**: Can this fish live in brackish water? Respond with yes or no.
+""".strip()
+
+    @property
+    def assistant(self) -> str:
+        return f"""
+* **trophic level**: {self.trophic_level:.2f}
+* **feeding path**: {self.feeding_path}
+* **tropical**: {"yes" if self.tropical else "no"}
+* **subtropical**: {"yes" if self.subtropical else "no"}
+* **subtropical**: {"yes" if self.subtropical else "no"}
+* **boreal**: {"yes" if self.boreal else "no"}
+* **polar**: {"yes" if self.polar else "no"}
+* **freshwater**: {"yes" if self.freshwater else "no"}
+* **saltwater**: {"yes" if self.saltwater else "no"}
+* **brackish water**: {"yes" if self.brackish else "no"}""".strip()
+
+    def parse_assistant(
+        self, assistant: str
+    ) -> tuple[float, str, bool, bool, bool, bool, bool, bool, bool, bool]:
+        """Parse the MLLM response into structured data.
+
+        Returns:
+            Tuple of (trophic_level, feeding_path, tropical, temperate, subtropical, boreal, polar, freshwater, saltwater, brackish)
+        """
+        # Default values
+        trophic_level = 0.0
+        feeding_path = "benthic"  # Default to benthic if not found
+        tropical = temperate = subtropical = boreal = polar = False
+        freshwater = saltwater = brackish = False
+
+        # Parse each line
+        for line in assistant.split("\n"):
+            line = line.strip()
+            if not line.startswith("*"):
+                continue
+
+            # Extract the trait name and value
+            parts = line.split(":")
+            if len(parts) != 2:
+                continue
+
+            trait = parts[0].strip("* ").lower()
+            value = parts[1].strip().lower()
+
+            if trait == "trophic level":
+                try:
+                    trophic_level = float(value)
+                except ValueError:
+                    pass
+            elif trait == "feeding path":
+                if value in ("benthic", "pelagic"):
+                    feeding_path = value
+            elif trait == "tropical":
+                tropical = value == "yes"
+            elif trait == "temperate":
+                temperate = value == "yes"
+            elif trait == "subtropical":
+                subtropical = value == "yes"
+            elif trait == "boreal":
+                boreal = value == "yes"
+            elif trait == "polar":
+                polar = value == "yes"
+            elif trait == "freshwater":
+                freshwater = value == "yes"
+            elif trait == "saltwater":
+                saltwater = value == "yes"
+            elif trait == "brackish water":
+                brackish = value == "yes"
+
+        return (
+            trophic_level,
+            feeding_path,
+            tropical,
+            temperate,
+            subtropical,
+            boreal,
+            polar,
+            freshwater,
+            saltwater,
+            brackish,
+        )
+
+    @property
+    def true(self) -> list[bool]:
+        """Get the ground truth binary values for all traits except trophic level.
+
+        Returns:
+            List of boolean values for [feeding_path=='pelagic', tropical, temperate,
+            subtropical, boreal, polar, freshwater, saltwater, brackish]
+        """
+        return [
+            self.feeding_path == "pelagic",
+            self.tropical,
+            self.temperate,
+            self.subtropical,
+            self.boreal,
+            self.polar,
+            self.freshwater,
+            self.saltwater,
+            self.brackish,
+        ]
+
+    def to_example(self) -> mllms.Example:
+        return mllms.Example(
+            image_b64=self.image_b64,
+            user=self.user,
+            assistant=self.assistant,
+        )
+
+
+@jaxtyped(typechecker=beartype.beartype)
+class DatasetMllm(torch.utils.data.Dataset):
+    """
+    A dataset for MLLMs that loads the required attribute labels.
+    """
+
+    def __init__(self, root_dir: str, csv_file: str):
+        self.root_dir = root_dir
+        self.csv_file = os.path.join(self.root_dir, csv_file)
+        self.df = pl.read_csv(self.csv_file).with_row_index()
+        self.all_columns = [
+            "FeedingPath",
+            "Tropical",
+            "Temperate",
+            "Subtropical",
+            "Boreal",
+            "Polar",
+            "freshwater",
+            "saltwater",
+            "brackish",
+        ]
+        for col in self.all_columns:
+            self.df = self.df.filter(self.df[col].is_not_null())
+
+        # Corresponding column indices
+        self.img_col = 4
+        self.folder_col = 13
+        logger.info("csv file: %s has %d items.", csv_file, len(self.df))
+
+    def __getitem__(self, index: int) -> SampleMllm:
+        row_data = self.df.row(index)
+        img_name = row_data[self.img_col]
+        img_name = img_name.split("/")[-1]
+        folder = row_data[self.folder_col]
+        img_path = os.path.join(self.root_dir, "Image_Library", folder, img_name)
+        img_b64 = helpers.load_img_b64(img_path)
+
+        return SampleMllm(
+            img_path,
+            img_b64,
+            row_data[14],
+            row_data[15],
+            bool(row_data[16]),
+            bool(row_data[17]),
+            bool(row_data[18]),
+            bool(row_data[19]),
+            bool(row_data[20]),
+            bool(row_data[21]),
+            bool(row_data[22]),
+            bool(row_data[23]),
+        )
 
     def __len__(self) -> int:
         return len(self.df)
@@ -5992,7 +6361,13 @@ class Args:
         list[interfaces.ModelArgsMllm], tyro.conf.arg(name="mllms")
     ] = dataclasses.field(
         default_factory=lambda: [
-            # interfaces.ModelArgsMllm("openrouter/google/gemini-2.0-flash-001"),
+            interfaces.ModelArgsMllm(
+                "openrouter/meta-llama/llama-3.2-3b-instruct",
+                quantizations=["fp32", "bf16"],
+            ),
+            interfaces.ModelArgsMllm(
+                "openrouter/qwen/qwen-2-vl-7b-instruct", quantizations=["fp32", "bf16"]
+            ),
             interfaces.ModelArgsMllm("openrouter/google/gemini-flash-1.5-8b"),
         ]
     )
@@ -6001,8 +6376,13 @@ class Args:
     """which kind of accelerator to use."""
     debug: bool = False
     """whether to run in debug mode."""
-    max_examples: int = -1
+    n_train: int = -1
     """Number of maximum training samples. Negative number means use all of them."""
+    n_test: int = -1
+    """Number of test samples. Negative number means use all of them."""
+    parallel: int = 1
+    """Number of parallel requests per second to MLLM service providers."""
+
     ssl: bool = True
     """Use SSL when connecting to remote servers to download checkpoints; use --no-ssl if your machine has certificate issues. See `biobench.third_party_models.get_ssl()` for a discussion of how this works."""
 
@@ -6122,7 +6502,12 @@ class Args:
 
     def update(self, other):
         return dataclasses.replace(
-            other, device=self.device, debug=self.debug, max_examples=self.max_examples
+            other,
+            device=self.device,
+            debug=self.debug,
+            n_train=self.n_train,
+            n_test=self.n_test,
+            parallel=self.parallel,
         )
 
 
@@ -6148,7 +6533,7 @@ def save(
     lower, upper = report.get_confidence_interval()
     values = (
         json.dumps(dataclasses.asdict(model_args)),
-        args.max_examples,
+        args.n_train,
         report.name,
         int(time.time()),
         report.get_mean_score(),

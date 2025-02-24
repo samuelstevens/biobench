@@ -65,8 +65,7 @@ We get video representations by embedding each frame of the video and taking the
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
-def aggregate_frames(
+<pre><code class="python">def aggregate_frames(
     args: Args, features: Float[Tensor, &#34;n_frames n_examples dim&#34;]
 ) -&gt; Float[Tensor, &#34;n_examples dim&#34;]:
     if args.frame_agg == &#34;mean&#34;:
@@ -86,8 +85,7 @@ def aggregate_frames(
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
-def aggregate_labels(
+<pre><code class="python">def aggregate_labels(
     args: Args, labels: Int[Tensor, &#34;n_frames n_examples&#34;]
 ) -&gt; Int[Tensor, &#34; n_examples&#34;]:
     &#34;&#34;&#34;Aggregate per-frame labels to a per-video label. Uses the most common label (mode).&#34;&#34;&#34;
@@ -103,8 +101,7 @@ def aggregate_labels(
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">@beartype.beartype
-def benchmark_cvml(
+<pre><code class="python">def benchmark_cvml(
     args: Args, model_args: interfaces.ModelArgsCvml
 ) -&gt; tuple[interfaces.ModelArgsCvml, interfaces.TaskReport]:
     &#34;&#34;&#34;Runs KABR benchmark.&#34;&#34;&#34;
@@ -163,9 +160,7 @@ def benchmark_cvml(
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">@torch.no_grad()
-@jaxtyped(typechecker=beartype.beartype)
-def get_features(
+<pre><code class="python">def get_features(
     args: Args, backbone: interfaces.VisionBackbone, dataloader
 ) -&gt; tuple[
     Float[Tensor, &#34;n_frames n_examples dim&#34;], Int[Tensor, &#34;n_frames n_examples&#34;]

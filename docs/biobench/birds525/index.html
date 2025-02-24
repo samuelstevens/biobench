@@ -68,8 +68,7 @@ This gives a pretty tight confidence interval because <code><a title="biobench.i
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">@beartype.beartype
-def benchmark_cvml(
+<pre><code class="python">def benchmark_cvml(
     args: Args, model_args: interfaces.ModelArgsCvml
 ) -&gt; tuple[interfaces.ModelArgsCvml, interfaces.TaskReport]:
     &#34;&#34;&#34;
@@ -126,8 +125,7 @@ def benchmark_cvml(
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
-def choose_k_per_class(labels: Int[Tensor, &#34; n&#34;], *, k: int) -&gt; Int[Tensor, &#34; n_train&#34;]:
+<pre><code class="python">def choose_k_per_class(labels: Int[Tensor, &#34; n&#34;], *, k: int) -&gt; Int[Tensor, &#34; n_train&#34;]:
     &#34;&#34;&#34;
     Returns indices for a label set that include at most `k` examples per class.
 
@@ -177,9 +175,7 @@ def choose_k_per_class(labels: Int[Tensor, &#34; n&#34;], *, k: int) -&gt; Int[T
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">@beartype.beartype
-@torch.no_grad
-def get_features(
+<pre><code class="python">def get_features(
     args: Args, backbone: interfaces.VisionBackbone, *, is_train: bool
 ) -&gt; Features:
     &#34;&#34;&#34;

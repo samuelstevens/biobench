@@ -54,30 +54,28 @@ el.replaceWith(d);
 <section>
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
-<dt id="biobench.iwildcam.benchmark"><code class="name flex">
-<span>def <span class="ident">benchmark</span></span>(<span>args: <a title="biobench.iwildcam.Args" href="#biobench.iwildcam.Args">Args</a>,<br>model_args: <a title="biobench.interfaces.ModelArgsCvml" href="../interfaces.html#biobench.interfaces.ModelArgsCvml">ModelArgsCvml</a>) ‑> tuple[<a title="biobench.interfaces.ModelArgsCvml" href="../interfaces.html#biobench.interfaces.ModelArgsCvml">ModelArgsCvml</a>, <a title="biobench.interfaces.TaskReport" href="../interfaces.html#biobench.interfaces.TaskReport">TaskReport</a>]</span>
+<dt id="biobench.iwildcam.benchmark_cvml"><code class="name flex">
+<span>def <span class="ident">benchmark_cvml</span></span>(<span>args: <a title="biobench.iwildcam.Args" href="#biobench.iwildcam.Args">Args</a>,<br>model_args: <a title="biobench.interfaces.ModelArgsCvml" href="../interfaces.html#biobench.interfaces.ModelArgsCvml">ModelArgsCvml</a>) ‑> tuple[<a title="biobench.interfaces.ModelArgsCvml" href="../interfaces.html#biobench.interfaces.ModelArgsCvml">ModelArgsCvml</a>, <a title="biobench.interfaces.TaskReport" href="../interfaces.html#biobench.interfaces.TaskReport">TaskReport</a>]</span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">@beartype.beartype
-def benchmark(
+<pre><code class="python">def benchmark_cvml(
     args: Args, model_args: interfaces.ModelArgsCvml
 ) -&gt; tuple[interfaces.ModelArgsCvml, interfaces.TaskReport]:
-    backbone = registry.load_vision_backbone(*model_args)
+    backbone = registry.load_vision_backbone(model_args)
 
     # 1. Load dataloaders.
     transform = backbone.make_img_transform()
-    if not os.path.exists(args.datadir) or not os.path.isdir(args.datadir):
-        msg = f&#34;Path &#39;{args.datadir}&#39; doesn&#39;t exist. Did you download the iWildCam dataset? See the docstring at the top of this file for instructions. If you did download it, pass the path as --datadir PATH&#34;
+    if not os.path.exists(args.data) or not os.path.isdir(args.data):
+        msg = f&#34;Path &#39;{args.data}&#39; doesn&#39;t exist. Did you download the iWildCam dataset? See the docstring at the top of this file for instructions. If you did download it, pass the path as --iwildcam-args.data PATH&#34;
         raise RuntimeError(msg)
-    dataset = wilds.get_dataset(
-        dataset=&#34;iwildcam&#34;, download=False, root_dir=args.datadir
-    )
+    dataset = wilds.get_dataset(dataset=&#34;iwildcam&#34;, download=False, root_dir=args.data)
 
     test_data = dataset.get_subset(&#34;test&#34;, transform=transform)
+    breakpoint()
     test_dataloader = wilds.common.data_loaders.get_eval_loader(
         &#34;standard&#34;,
         test_data,
@@ -135,9 +133,7 @@ def benchmark(
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
-@torch.no_grad()
-def get_features(
+<pre><code class="python">def get_features(
     args: Args, backbone: interfaces.VisionBackbone, dataloader
 ) -&gt; Features:
     backbone = torch.compile(backbone.to(args.device))
@@ -202,7 +198,7 @@ def get_features(
 <dl>
 <dt id="biobench.iwildcam.Args"><code class="flex name class">
 <span>class <span class="ident">Args</span></span>
-<span>(</span><span>batch_size: int = 2048,<br>n_workers: int = 4,<br>log_every: int = 10,<br>max_examples: int = -1,<br>device: str = 'cuda',<br>debug: bool = False)</span>
+<span>(</span><span>data: str = '',<br>batch_size_cv: int = 2048,<br>n_workers: int = 4,<br>log_every: int = 10,<br>max_examples: int = -1,<br>device: str = 'cuda',<br>debug: bool = False)</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -214,7 +210,9 @@ def get_features(
 class Args:
     &#34;&#34;&#34;Arguments for the iWildCam task.&#34;&#34;&#34;
 
-    batch_size: int = 2048
+    data: str = &#34;&#34;
+    &#34;&#34;&#34;dataset directory; where you downloaded this task&#39;s data to.&#34;&#34;&#34;
+    batch_size_cv: int = 2048
     &#34;&#34;&#34;batch size for deep model.&#34;&#34;&#34;
     n_workers: int = 4
     &#34;&#34;&#34;number of dataloader worker processes.&#34;&#34;&#34;
@@ -231,9 +229,13 @@ class Args:
 <div class="desc"><p>Arguments for the iWildCam task.</p></div>
 <h3>Class variables</h3>
 <dl>
-<dt id="biobench.iwildcam.Args.batch_size"><code class="name">var <span class="ident">batch_size</span> : int</code></dt>
+<dt id="biobench.iwildcam.Args.batch_size_cv"><code class="name">var <span class="ident">batch_size_cv</span> : int</code></dt>
 <dd>
 <div class="desc"><p>batch size for deep model.</p></div>
+</dd>
+<dt id="biobench.iwildcam.Args.data"><code class="name">var <span class="ident">data</span> : str</code></dt>
+<dd>
+<div class="desc"><p>dataset directory; where you downloaded this task's data to.</p></div>
 </dd>
 <dt id="biobench.iwildcam.Args.debug"><code class="name">var <span class="ident">debug</span> : bool</code></dt>
 <dd>
@@ -330,7 +332,7 @@ class MeanScoreCalculator:
 </li>
 <li><h3><a href="#header-functions">Functions</a></h3>
 <ul class="">
-<li><code><a title="biobench.iwildcam.benchmark" href="#biobench.iwildcam.benchmark">benchmark</a></code></li>
+<li><code><a title="biobench.iwildcam.benchmark_cvml" href="#biobench.iwildcam.benchmark_cvml">benchmark_cvml</a></code></li>
 <li><code><a title="biobench.iwildcam.get_features" href="#biobench.iwildcam.get_features">get_features</a></code></li>
 <li><code><a title="biobench.iwildcam.init_clf" href="#biobench.iwildcam.init_clf">init_clf</a></code></li>
 </ul>
@@ -340,7 +342,8 @@ class MeanScoreCalculator:
 <li>
 <h4><code><a title="biobench.iwildcam.Args" href="#biobench.iwildcam.Args">Args</a></code></h4>
 <ul class="two-column">
-<li><code><a title="biobench.iwildcam.Args.batch_size" href="#biobench.iwildcam.Args.batch_size">batch_size</a></code></li>
+<li><code><a title="biobench.iwildcam.Args.batch_size_cv" href="#biobench.iwildcam.Args.batch_size_cv">batch_size_cv</a></code></li>
+<li><code><a title="biobench.iwildcam.Args.data" href="#biobench.iwildcam.Args.data">data</a></code></li>
 <li><code><a title="biobench.iwildcam.Args.debug" href="#biobench.iwildcam.Args.debug">debug</a></code></li>
 <li><code><a title="biobench.iwildcam.Args.device" href="#biobench.iwildcam.Args.device">device</a></code></li>
 <li><code><a title="biobench.iwildcam.Args.log_every" href="#biobench.iwildcam.Args.log_every">log_every</a></code></li>

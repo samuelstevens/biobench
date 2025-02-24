@@ -54,27 +54,14 @@ el.replaceWith(d);
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">@beartype.beartype
-def fits(
+<pre><code class="python">def fits(
     args: interfaces.ModelArgsMllm,
     examples: list[Example],
     image_b64: str,
     user: str,
 ) -&gt; bool:
     max_tokens = get_max_tokens(args)
-    messages = []
-    for example in examples:
-        messages.extend(example.to_history())
-    messages.append({
-        &#34;role&#34;: &#34;user&#34;,
-        &#34;content&#34;: [
-            {
-                &#34;type&#34;: &#34;image_url&#34;,
-                &#34;image_url&#34;: {&#34;url&#34;: image_b64},
-            },
-            {&#34;type&#34;: &#34;text&#34;, &#34;text&#34;: user},
-        ],
-    })
+    messages = make_prompt(args, examples, image_b64, user)
     n_tokens = litellm.token_counter(model=args.ckpt, messages=messages)
     return n_tokens &lt;= max_tokens</code></pre>
 </details>
@@ -88,8 +75,7 @@ def fits(
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">@beartype.beartype
-def get_max_tokens(args: interfaces.ModelArgsMllm) -&gt; int:
+<pre><code class="python">def get_max_tokens(args: interfaces.ModelArgsMllm) -&gt; int:
     try:
         return litellm.get_max_tokens(args.ckpt)
     except Exception:
@@ -97,11 +83,40 @@ def get_max_tokens(args: interfaces.ModelArgsMllm) -&gt; int:
 
     if args.ckpt.endswith(&#34;google/gemini-2.0-flash-001&#34;):
         return 1_000_000
-    if args.ckpt.endswith(&#34;google/gemini-flash-1.5-8b&#34;):
+    elif args.ckpt.endswith(&#34;google/gemini-flash-1.5-8b&#34;):
         return 1_000_000
+    elif args.ckpt.endswith(&#34;qwen/qwen-2-vl-7b-instruct&#34;):
+        return 4_096
+    elif args.ckpt.endswith(&#34;meta-llama/llama-3.2-3b-instruct&#34;):
+        return 131_000
     else:
-        err_msg = f&#34;Model {args.ckpt} isn&#39;t mapped yet by biobench or litellm.&#34;
+        err_msg = f&#34;Model &#39;{args.ckpt}&#39; isn&#39;t mapped yet by biobench or litellm.&#34;
         raise ValueError(err_msg)</code></pre>
+</details>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.mllms.make_prompt"><code class="name flex">
+<span>def <span class="ident">make_prompt</span></span>(<span>args: <a title="biobench.interfaces.ModelArgsMllm" href="interfaces.html#biobench.interfaces.ModelArgsMllm">ModelArgsMllm</a>,<br>examples: list[<a title="biobench.mllms.Example" href="#biobench.mllms.Example">Example</a>],<br>image_b64: str,<br>user: str,<br>*,<br>system: str = '') ‑> list[object]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def make_prompt(
+    args: interfaces.ModelArgsMllm,
+    examples: list[Example],
+    image_b64: str,
+    user: str,
+    *,
+    system: str = &#34;&#34;,
+) -&gt; list[object]:
+    if args.prompts == &#34;single-turn&#34;:
+        return _make_single_turn_prompt(examples, image_b64, user, system=system)
+    elif args.prompt == &#34;multi-turn&#34;:
+        return _make_multi_turn_prompt(examples, image_b64, user, system=system)
+    else:
+        typing.assert_never(args.prompts)</code></pre>
 </details>
 <div class="desc"></div>
 </dd>
@@ -113,8 +128,7 @@ def get_max_tokens(args: interfaces.ModelArgsMllm) -&gt; int:
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">@beartype.beartype
-async def send(
+<pre><code class="python">async def send(
     args: interfaces.ModelArgsMllm,
     examples: list[Example],
     image_b64: str,
@@ -140,26 +154,8 @@ async def send(
         RuntimeError: If LLM call fails
     &#34;&#34;&#34;
 
-    # Get optional settings with defaults.
-    temperature = 0.7 if args.temp is None else args.temp
+    messages = make_prompt(args, examples, image_b64, user)
 
-    # Format messages for chat completion
-    messages = []
-
-    if system:
-        messages.append({&#34;role&#34;: &#34;system&#34;, &#34;content&#34;: system})
-
-    for example in examples:
-        messages.extend(example.to_history())
-
-    # Add current message
-    messages.append({
-        &#34;role&#34;: &#34;user&#34;,
-        &#34;content&#34;: [
-            {&#34;type&#34;: &#34;image_url&#34;, &#34;image_url&#34;: {&#34;url&#34;: image_b64}},
-            {&#34;type&#34;: &#34;text&#34;, &#34;text&#34;: user},
-        ],
-    })
     # Make LLM call with retries
     last_err = None
 
@@ -181,7 +177,8 @@ async def send(
             response = await litellm.acompletion(
                 model=args.ckpt,
                 messages=messages,
-                temperature=temperature,
+                temperature=args.temp,
+                provider={&#34;quantizations&#34;: args.quantizations},
             )
         except RuntimeError as err:
             last_err = err
@@ -257,19 +254,7 @@ async def send(
 class Example:
     image_b64: str
     user: str
-    assistant: str
-
-    def to_history(self) -&gt; list[object]:
-        return [
-            {
-                &#34;role&#34;: &#34;user&#34;,
-                &#34;content&#34;: [
-                    {&#34;type&#34;: &#34;image_url&#34;, &#34;image_url&#34;: {&#34;url&#34;: self.image_b64}},
-                    {&#34;type&#34;: &#34;text&#34;, &#34;text&#34;: self.user},
-                ],
-            },
-            {&#34;role&#34;: &#34;assistant&#34;, &#34;content&#34;: self.assistant},
-        ]</code></pre>
+    assistant: str</code></pre>
 </details>
 <div class="desc"><p>Example(image_b64: str, user: str, assistant: str)</p></div>
 <h3>Class variables</h3>
@@ -284,31 +269,6 @@ class Example:
 </dd>
 <dt id="biobench.mllms.Example.user"><code class="name">var <span class="ident">user</span> : str</code></dt>
 <dd>
-<div class="desc"></div>
-</dd>
-</dl>
-<h3>Methods</h3>
-<dl>
-<dt id="biobench.mllms.Example.to_history"><code class="name flex">
-<span>def <span class="ident">to_history</span></span>(<span>self) ‑> list[object]</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def to_history(self) -&gt; list[object]:
-    return [
-        {
-            &#34;role&#34;: &#34;user&#34;,
-            &#34;content&#34;: [
-                {&#34;type&#34;: &#34;image_url&#34;, &#34;image_url&#34;: {&#34;url&#34;: self.image_b64}},
-                {&#34;type&#34;: &#34;text&#34;, &#34;text&#34;: self.user},
-            ],
-        },
-        {&#34;role&#34;: &#34;assistant&#34;, &#34;content&#34;: self.assistant},
-    ]</code></pre>
-</details>
 <div class="desc"></div>
 </dd>
 </dl>
@@ -340,7 +300,8 @@ class RateLimiter:
         if len(self.timestamps) &gt;= self.max_rate:
             wait_time = self.timestamps[0] + self.window_s - now
             if wait_time &gt; 0:
-                logger.info(&#34;Sleeping for %.2f seconds.&#34;, wait_time)
+                if wait_time &gt; 1.0:
+                    logger.info(&#34;Sleeping for %.2f seconds.&#34;, wait_time)
                 await asyncio.sleep(wait_time)
 
         # Add current timestamp
@@ -368,7 +329,8 @@ class RateLimiter:
     if len(self.timestamps) &gt;= self.max_rate:
         wait_time = self.timestamps[0] + self.window_s - now
         if wait_time &gt; 0:
-            logger.info(&#34;Sleeping for %.2f seconds.&#34;, wait_time)
+            if wait_time &gt; 1.0:
+                logger.info(&#34;Sleeping for %.2f seconds.&#34;, wait_time)
             await asyncio.sleep(wait_time)
 
     # Add current timestamp
@@ -395,6 +357,7 @@ class RateLimiter:
 <ul class="">
 <li><code><a title="biobench.mllms.fits" href="#biobench.mllms.fits">fits</a></code></li>
 <li><code><a title="biobench.mllms.get_max_tokens" href="#biobench.mllms.get_max_tokens">get_max_tokens</a></code></li>
+<li><code><a title="biobench.mllms.make_prompt" href="#biobench.mllms.make_prompt">make_prompt</a></code></li>
 <li><code><a title="biobench.mllms.send" href="#biobench.mllms.send">send</a></code></li>
 </ul>
 </li>
@@ -405,7 +368,6 @@ class RateLimiter:
 <ul class="">
 <li><code><a title="biobench.mllms.Example.assistant" href="#biobench.mllms.Example.assistant">assistant</a></code></li>
 <li><code><a title="biobench.mllms.Example.image_b64" href="#biobench.mllms.Example.image_b64">image_b64</a></code></li>
-<li><code><a title="biobench.mllms.Example.to_history" href="#biobench.mllms.Example.to_history">to_history</a></code></li>
 <li><code><a title="biobench.mllms.Example.user" href="#biobench.mllms.Example.user">user</a></code></li>
 </ul>
 </li>

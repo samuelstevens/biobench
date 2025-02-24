@@ -73,8 +73,7 @@ We aggregate scores across all 164 tasks.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">@beartype.beartype
-def benchmark_cvml(
+<pre><code class="python">def benchmark_cvml(
     args: Args, model_args: interfaces.ModelArgsCvml
 ) -&gt; tuple[interfaces.ModelArgsCvml, interfaces.TaskReport]:
     &#34;&#34;&#34;
@@ -143,8 +142,7 @@ Third, evaluate the SVM and report results.</p></div>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">@beartype.beartype
-def benchmark_mllm(
+<pre><code class="python">def benchmark_mllm(
     args: Args, model_args: interfaces.ModelArgsMllm
 ) -&gt; tuple[interfaces.ModelArgsMllm, interfaces.TaskReport]:
     rng = random.Random(args.seed)
@@ -236,9 +234,7 @@ def benchmark_mllm(
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
-@torch.no_grad()
-def get_all_tasks_cvml(
+<pre><code class="python">def get_all_tasks_cvml(
     args: Args, backbone: interfaces.VisionBackbone
 ) -&gt; collections.abc.Iterator[TaskCvml]:
     &#34;&#34;&#34; &#34;&#34;&#34;
@@ -308,8 +304,7 @@ def get_all_tasks_cvml(
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
-def get_all_tasks_mllm(
+<pre><code class="python">def get_all_tasks_mllm(
     args: Args,
 ) -&gt; collections.abc.Iterator[tuple[TaskMllm, DatasetMllm]]:
     &#34;&#34;&#34; &#34;&#34;&#34;
@@ -371,8 +366,7 @@ def get_all_tasks_mllm(
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
-def l2_normalize(
+<pre><code class="python">def l2_normalize(
     features: Float[np.ndarray, &#34;batch dim&#34;],
 ) -&gt; Float[np.ndarray, &#34;batch dim&#34;]:
     &#34;&#34;&#34;Normalizes a batch of vectors to have L2 unit norm.&#34;&#34;&#34;

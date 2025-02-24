@@ -62,8 +62,8 @@ def fs_safe(string: str) -&gt; str:
 </details>
 <div class="desc"><p>Makes a string safe for filesystems by removing typical special characters.</p></div>
 </dd>
-<dt id="biobench.helpers.load_image_b64"><code class="name flex">
-<span>def <span class="ident">load_image_b64</span></span>(<span>path: str) ‑> str</span>
+<dt id="biobench.helpers.load_img_b64"><code class="name flex">
+<span>def <span class="ident">load_img_b64</span></span>(<span>path: str) ‑> str</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -71,10 +71,10 @@ def fs_safe(string: str) -&gt; str:
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">@beartype.beartype
-def load_image_b64(path: str) -&gt; str:
-    image = Image.open(path)
+def load_img_b64(path: str) -&gt; str:
+    img = Image.open(path)
     buf = io.BytesIO()
-    image.save(buf, format=&#34;webp&#34;)
+    img.save(buf, format=&#34;webp&#34;)
     b64 = pybase64.b64encode(buf.getvalue())
     s64 = b64.decode(&#34;utf8&#34;)
     return &#34;data:image/webp;base64,&#34; + s64</code></pre>
@@ -209,7 +209,7 @@ class progress:
 <li><h3><a href="#header-functions">Functions</a></h3>
 <ul class="">
 <li><code><a title="biobench.helpers.fs_safe" href="#biobench.helpers.fs_safe">fs_safe</a></code></li>
-<li><code><a title="biobench.helpers.load_image_b64" href="#biobench.helpers.load_image_b64">load_image_b64</a></code></li>
+<li><code><a title="biobench.helpers.load_img_b64" href="#biobench.helpers.load_img_b64">load_img_b64</a></code></li>
 <li><code><a title="biobench.helpers.write_hparam_sweep_plot" href="#biobench.helpers.write_hparam_sweep_plot">write_hparam_sweep_plot</a></code></li>
 </ul>
 </li>

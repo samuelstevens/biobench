@@ -54,8 +54,7 @@ el.replaceWith(d);
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">@beartype.beartype
-def batched_idx(
+<pre><code class="python">def batched_idx(
     total_size: int, batch_size: int
 ) -&gt; collections.abc.Iterator[tuple[int, int]]:
     for start in range(0, total_size, batch_size):
@@ -72,8 +71,7 @@ def batched_idx(
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">@beartype.beartype
-def benchmark(
+<pre><code class="python">def benchmark(
     args: Args, model_args: interfaces.ModelArgsCvml
 ) -&gt; tuple[interfaces.ModelArgsCvml, interfaces.TaskReport]:
     backbone = registry.load_vision_backbone(*model_args)
@@ -104,9 +102,7 @@ def benchmark(
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">@beartype.beartype
-@torch.no_grad
-def get_features(args: Args, backbone: interfaces.VisionBackbone) -&gt; Features:
+<pre><code class="python">def get_features(args: Args, backbone: interfaces.VisionBackbone) -&gt; Features:
     img_transform = backbone.make_img_transform()
     backbone = torch.compile(backbone.to(args.device))
 
@@ -164,8 +160,7 @@ def get_features(args: Args, backbone: interfaces.VisionBackbone) -&gt; Features
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
-def l2_normalize(
+<pre><code class="python">def l2_normalize(
     features: Float[Tensor, &#34;n_examples dim&#34;],
 ) -&gt; Float[Tensor, &#34;n_examples dim&#34;]:
     norms = torch.linalg.norm(features, ord=2, axis=1, keepdims=True)
@@ -181,8 +176,7 @@ def l2_normalize(
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
-def make_split(
+<pre><code class="python">def make_split(
     labels: Int[Tensor, &#34; n_examples&#34;], *, k: int
 ) -&gt; tuple[Int[Tensor, &#34; n_train&#34;], Int[Tensor, &#34; n_test&#34;]]:
     classes = np.unique(labels)
@@ -220,8 +214,7 @@ def make_split(
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
-def simpleshot(
+<pre><code class="python">def simpleshot(
     args: Args,
     x_train: Float[Tensor, &#34;n_train dim&#34;],
     y_train: Int[Tensor, &#34; n_train&#34;],

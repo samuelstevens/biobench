@@ -62,8 +62,7 @@ See <code><a title="biobench.third_party_models" href="third_party_models.html">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">@beartype.beartype
-def default_calc_mean_score(predictions: list[Prediction]) -&gt; float:
+<pre><code class="python">def default_calc_mean_score(predictions: list[Prediction]) -&gt; float:
     return np.mean([prediction.score for prediction in predictions]).item()</code></pre>
 </details>
 <div class="desc"></div>
@@ -92,8 +91,7 @@ def default_calc_mean_score(predictions: list[Prediction]) -&gt; float:
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">@beartype.beartype
-def get_gpu_name() -&gt; str:
+<pre><code class="python">def get_gpu_name() -&gt; str:
     if torch.cuda.is_available():
         return torch.cuda.get_device_properties(0).name
     else:
@@ -147,8 +145,7 @@ class EncodedImgBatch:
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">@beartype.beartype
-@dataclasses.dataclass(frozen=True)
+<pre><code class="python">@dataclasses.dataclass(frozen=True)
 class ModelArgsCvml:
     org: str
     ckpt: str</code></pre>
@@ -168,23 +165,32 @@ class ModelArgsCvml:
 </dd>
 <dt id="biobench.interfaces.ModelArgsMllm"><code class="flex name class">
 <span>class <span class="ident">ModelArgsMllm</span></span>
-<span>(</span><span>ckpt: str, temp: float = 1.0)</span>
+<span>(</span><span>ckpt: str,<br>temp: float = 0.0,<br>prompts: Literal['single-turn', 'multi-turn'] = 'single-turn',<br>quantizations: list[str] = &lt;factory&gt;)</span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">@beartype.beartype
-@dataclasses.dataclass(frozen=True)
+<pre><code class="python">@dataclasses.dataclass(frozen=True)
 class ModelArgsMllm:
     ckpt: str
-    temp: float = 1.0</code></pre>
+    temp: float = 0.0
+    prompts: typing.Literal[&#34;single-turn&#34;, &#34;multi-turn&#34;] = &#34;single-turn&#34;
+    quantizations: list[str] = dataclasses.field(default_factory=list)</code></pre>
 </details>
-<div class="desc"><p>ModelArgsMllm(ckpt: str, temp: float = 1.0)</p></div>
+<div class="desc"><p>ModelArgsMllm(ckpt: str, temp: float = 0.0, prompts: Literal['single-turn', 'multi-turn'] = 'single-turn', quantizations: list[str] = <factory>)</p></div>
 <h3>Class variables</h3>
 <dl>
 <dt id="biobench.interfaces.ModelArgsMllm.ckpt"><code class="name">var <span class="ident">ckpt</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.interfaces.ModelArgsMllm.prompts"><code class="name">var <span class="ident">prompts</span> : Literal['single-turn', 'multi-turn']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.interfaces.ModelArgsMllm.quantizations"><code class="name">var <span class="ident">quantizations</span> : list[str]</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -234,7 +240,7 @@ class Prediction:
 </dd>
 <dt id="biobench.interfaces.TaskReport"><code class="flex name class">
 <span>class <span class="ident">TaskReport</span></span>
-<span>(</span><span>name: str,<br>max_examples: int,<br>predictions: list[<a title="biobench.interfaces.Prediction" href="#biobench.interfaces.Prediction">Prediction</a>],<br>*,<br>calc_mean_score: Callable[[list[<a title="biobench.interfaces.Prediction" href="#biobench.interfaces.Prediction">Prediction</a>]], float] = &lt;function default_calc_mean_score&gt;,<br>splits: dict[str, float] = &lt;factory&gt;,<br>argv: list[str] = &lt;factory&gt;,<br>commit: str = 'b7dfb1bde9122086131e3f0746235bd68d58f2c9',<br>posix_time: float = &lt;factory&gt;,<br>gpu_name: str = &lt;factory&gt;,<br>hostname: str = &lt;factory&gt;)</span>
+<span>(</span><span>name: str,<br>n_train: int,<br>predictions: list[<a title="biobench.interfaces.Prediction" href="#biobench.interfaces.Prediction">Prediction</a>],<br>*,<br>calc_mean_score: Callable[[list[<a title="biobench.interfaces.Prediction" href="#biobench.interfaces.Prediction">Prediction</a>]], float] = &lt;function default_calc_mean_score&gt;,<br>splits: dict[str, float] = &lt;factory&gt;,<br>argv: list[str] = &lt;factory&gt;,<br>commit: str = 'd9e8a235c75ae08681baade2ca399ea4ce1907d7',<br>posix_time: float = &lt;factory&gt;,<br>gpu_name: str = &lt;factory&gt;,<br>hostname: str = &lt;factory&gt;)</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -251,7 +257,7 @@ class TaskReport:
     # Actual details of the report
     name: str
     &#34;&#34;&#34;The benchmark name.&#34;&#34;&#34;
-    max_examples: int
+    n_train: int
     &#34;&#34;&#34;The maximum number of training examples used.&#34;&#34;&#34;
     predictions: list[Prediction]
     &#34;&#34;&#34;A list of (example_id, score, info) objects&#34;&#34;&#34;
@@ -351,7 +357,7 @@ class TaskReport:
 <dd>
 <div class="desc"><p>Machine hostname that ran this experiment.</p></div>
 </dd>
-<dt id="biobench.interfaces.TaskReport.max_examples"><code class="name">var <span class="ident">max_examples</span> : int</code></dt>
+<dt id="biobench.interfaces.TaskReport.n_train"><code class="name">var <span class="ident">n_train</span> : int</code></dt>
 <dd>
 <div class="desc"><p>The maximum number of training examples used.</p></div>
 </dd>
@@ -382,8 +388,7 @@ class TaskReport:
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">@beartype.beartype
-def default_calc_mean_score(predictions: list[Prediction]) -&gt; float:
+<pre><code class="python">def default_calc_mean_score(predictions: list[Prediction]) -&gt; float:
     return np.mean([prediction.score for prediction in predictions]).item()</code></pre>
 </details>
 <div class="desc"></div>
@@ -599,6 +604,8 @@ This should be an evaluation transform, not a training transform, because we are
 <h4><code><a title="biobench.interfaces.ModelArgsMllm" href="#biobench.interfaces.ModelArgsMllm">ModelArgsMllm</a></code></h4>
 <ul class="">
 <li><code><a title="biobench.interfaces.ModelArgsMllm.ckpt" href="#biobench.interfaces.ModelArgsMllm.ckpt">ckpt</a></code></li>
+<li><code><a title="biobench.interfaces.ModelArgsMllm.prompts" href="#biobench.interfaces.ModelArgsMllm.prompts">prompts</a></code></li>
+<li><code><a title="biobench.interfaces.ModelArgsMllm.quantizations" href="#biobench.interfaces.ModelArgsMllm.quantizations">quantizations</a></code></li>
 <li><code><a title="biobench.interfaces.ModelArgsMllm.temp" href="#biobench.interfaces.ModelArgsMllm.temp">temp</a></code></li>
 </ul>
 </li>
@@ -620,7 +627,7 @@ This should be an evaluation transform, not a training transform, because we are
 <li><code><a title="biobench.interfaces.TaskReport.get_mean_score" href="#biobench.interfaces.TaskReport.get_mean_score">get_mean_score</a></code></li>
 <li><code><a title="biobench.interfaces.TaskReport.gpu_name" href="#biobench.interfaces.TaskReport.gpu_name">gpu_name</a></code></li>
 <li><code><a title="biobench.interfaces.TaskReport.hostname" href="#biobench.interfaces.TaskReport.hostname">hostname</a></code></li>
-<li><code><a title="biobench.interfaces.TaskReport.max_examples" href="#biobench.interfaces.TaskReport.max_examples">max_examples</a></code></li>
+<li><code><a title="biobench.interfaces.TaskReport.n_train" href="#biobench.interfaces.TaskReport.n_train">n_train</a></code></li>
 <li><code><a title="biobench.interfaces.TaskReport.name" href="#biobench.interfaces.TaskReport.name">name</a></code></li>
 <li><code><a title="biobench.interfaces.TaskReport.posix_time" href="#biobench.interfaces.TaskReport.posix_time">posix_time</a></code></li>
 <li><code><a title="biobench.interfaces.TaskReport.predictions" href="#biobench.interfaces.TaskReport.predictions">predictions</a></code></li>

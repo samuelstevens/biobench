@@ -54,17 +54,14 @@ el.replaceWith(d);
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">@beartype.beartype
-def main(args: Args):
+<pre><code class="python">def main(args: Args):
     print(&#34;Run:&#34;)
     print()
-    print(
-        f&#34;  kaggle datasets download gpiosenka/100-bird-species --path {args.write_to}&#34;
-    )
+    print(f&#34;  kaggle datasets download gpiosenka/100-bird-species --path {args.dir}&#34;)
     print()
     print(&#34;Then run:&#34;)
     print()
-    print(f&#34;  cd &#39;{args.write_to}&#39; &amp;&amp; unzip 100-bird-species.zip&#34;)
+    print(f&#34;  cd &#39;{args.dir}&#39; &amp;&amp; unzip 100-bird-species.zip&#34;)
     print()
     print()</code></pre>
 </details>
@@ -77,7 +74,7 @@ def main(args: Args):
 <dl>
 <dt id="biobench.birds525.download.Args"><code class="flex name class">
 <span>class <span class="ident">Args</span></span>
-<span>(</span><span>write_to: str = '.')</span>
+<span>(</span><span>dir: str = '.')</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -87,13 +84,13 @@ def main(args: Args):
 <pre><code class="python">@beartype.beartype
 @dataclasses.dataclass(frozen=True)
 class Args:
-    write_to: str = &#34;.&#34;
+    dir: str = &#34;.&#34;
     &#34;&#34;&#34;where to save the data.&#34;&#34;&#34;</code></pre>
 </details>
-<div class="desc"><p>Args(write_to: str = '.')</p></div>
+<div class="desc"><p>Args(dir: str = '.')</p></div>
 <h3>Class variables</h3>
 <dl>
-<dt id="biobench.birds525.download.Args.write_to"><code class="name">var <span class="ident">write_to</span> : str</code></dt>
+<dt id="biobench.birds525.download.Args.dir"><code class="name">var <span class="ident">dir</span> : str</code></dt>
 <dd>
 <div class="desc"><p>where to save the data.</p></div>
 </dd>
@@ -122,7 +119,7 @@ class Args:
 <li>
 <h4><code><a title="biobench.birds525.download.Args" href="#biobench.birds525.download.Args">Args</a></code></h4>
 <ul class="">
-<li><code><a title="biobench.birds525.download.Args.write_to" href="#biobench.birds525.download.Args.write_to">write_to</a></code></li>
+<li><code><a title="biobench.birds525.download.Args.dir" href="#biobench.birds525.download.Args.dir">dir</a></code></li>
 </ul>
 </li>
 </ul>

@@ -69,16 +69,15 @@ We train an two-layer MLP on the visual features extracted by different model ba
 <section>
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
-<dt id="biobench.fishnet.benchmark"><code class="name flex">
-<span>def <span class="ident">benchmark</span></span>(<span>args: <a title="biobench.fishnet.Args" href="#biobench.fishnet.Args">Args</a>,<br>model_args: <a title="biobench.interfaces.ModelArgsCvml" href="../interfaces.html#biobench.interfaces.ModelArgsCvml">ModelArgsCvml</a>) ‑> tuple[<a title="biobench.interfaces.ModelArgsCvml" href="../interfaces.html#biobench.interfaces.ModelArgsCvml">ModelArgsCvml</a>, <a title="biobench.interfaces.TaskReport" href="../interfaces.html#biobench.interfaces.TaskReport">TaskReport</a>]</span>
+<dt id="biobench.fishnet.benchmark_cvml"><code class="name flex">
+<span>def <span class="ident">benchmark_cvml</span></span>(<span>args: <a title="biobench.fishnet.Args" href="#biobench.fishnet.Args">Args</a>,<br>model_args: <a title="biobench.interfaces.ModelArgsCvml" href="../interfaces.html#biobench.interfaces.ModelArgsCvml">ModelArgsCvml</a>) ‑> tuple[<a title="biobench.interfaces.ModelArgsCvml" href="../interfaces.html#biobench.interfaces.ModelArgsCvml">ModelArgsCvml</a>, <a title="biobench.interfaces.TaskReport" href="../interfaces.html#biobench.interfaces.TaskReport">TaskReport</a>]</span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">@beartype.beartype
-def benchmark(
+<pre><code class="python">def benchmark_cvml(
     args: Args, model_args: interfaces.ModelArgsCvml
 ) -&gt; tuple[interfaces.ModelArgsCvml, interfaces.TaskReport]:
     &#34;&#34;&#34;
@@ -134,25 +133,178 @@ def benchmark(
 </details>
 <div class="desc"><p>The FishNet benchmark.</p></div>
 </dd>
-<dt id="biobench.fishnet.calc_macro_f1"><code class="name flex">
-<span>def <span class="ident">calc_macro_f1</span></span>(<span>examples: list[<a title="biobench.interfaces.Prediction" href="../interfaces.html#biobench.interfaces.Prediction">Prediction</a>]) ‑> float</span>
+<dt id="biobench.fishnet.benchmark_mllm"><code class="name flex">
+<span>def <span class="ident">benchmark_mllm</span></span>(<span>args: <a title="biobench.fishnet.Args" href="#biobench.fishnet.Args">Args</a>,<br>model_args: <a title="biobench.interfaces.ModelArgsMllm" href="../interfaces.html#biobench.interfaces.ModelArgsMllm">ModelArgsMllm</a>) ‑> tuple[<a title="biobench.interfaces.ModelArgsMllm" href="../interfaces.html#biobench.interfaces.ModelArgsMllm">ModelArgsMllm</a>, <a title="biobench.interfaces.TaskReport" href="../interfaces.html#biobench.interfaces.TaskReport">TaskReport</a>]</span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">@beartype.beartype
-def calc_macro_f1(examples: list[interfaces.Prediction]) -&gt; float:
-    &#34;&#34;&#34;TODO: docs.&#34;&#34;&#34;
-    y_pred = np.array([example.info[&#34;y_pred&#34;] for example in examples])
-    y_true = np.array([example.info[&#34;y_true&#34;] for example in examples])
-    score = sklearn.metrics.f1_score(
-        y_true, y_pred, average=&#34;macro&#34;, labels=np.unique(y_true)
-    )
-    return score.item()</code></pre>
+<pre><code class="python">def benchmark_mllm(
+    args: Args, model_args: interfaces.ModelArgsMllm
+) -&gt; tuple[interfaces.ModelArgsMllm, interfaces.TaskReport]:
+    if not os.path.isdir(args.data):
+        msg = f&#34;Path &#39;{args.data}&#39; doesn&#39;t exist. Did you download the FishNet dataset? See the docstring at the top of this file for instructions. If you did download it, pass the path with &#39;--fishnet-args.data&#39;; see --help for more.&#34;
+        raise ValueError(msg)
+
+    train_dataset = DatasetMllm(args.data, &#34;train.csv&#34;)
+    test_dataset = DatasetMllm(args.data, &#34;test.csv&#34;)
+    rng = random.Random(args.seed)
+
+    with asyncio.Runner() as loop:
+        limiter = mllms.RateLimiter(args.parallel)
+        semaphore = asyncio.Semaphore(args.parallel)
+
+        # We load all the training samples into memory right away because they will be re-used over and over again.
+        # Test samples are loaded one by one on demand.
+        i_train = rng.sample(range(len(train_dataset)), k=args.n_train)
+        train_examples = [
+            train_dataset[i].to_example()
+            for i in helpers.progress(i_train, desc=&#34;load train samples&#34;)
+        ]
+
+        @beartype.beartype
+        async def run_one(i: int) -&gt; interfaces.Prediction:
+            async with semaphore:
+                test_example = test_dataset[i]
+                # Try to fit them into a prompt.
+                n_examples = 0
+                fewshot_examples = []
+                while mllms.fits(
+                    model_args,
+                    fewshot_examples,
+                    test_example.image_b64,
+                    test_example.user,
+                ) and (args.n_train &lt; 0 or n_examples &lt; args.n_train):
+                    # Add another example.
+                    n_examples += 1
+                    fewshot_examples = train_examples[:n_examples]
+
+                # Only shuffle once.
+                rng.shuffle(fewshot_examples)
+
+                await limiter.acquire()
+                assistant = await mllms.send(
+                    model_args,
+                    fewshot_examples,
+                    test_example.image_b64,
+                    test_example.user,
+                )
+                preds = test_example.parse_assistant(assistant)
+                # Convert feeding path to bool and combine with other binary values
+                preds = [preds[1] == &#34;pelagic&#34;] + list(preds[2:])
+
+                return interfaces.Prediction(
+                    test_example.image_id,
+                    float(preds == test_example.true),
+                    info={
+                        &#34;y_true&#34;: test_example.true,
+                        &#34;y_pred&#34;: preds,
+                        &#34;assistant&#34;: assistant,
+                    },
+                )
+
+        @beartype.beartype
+        async def run_all() -&gt; list[interfaces.Prediction]:
+            if args.debug:
+                logger.info(&#34;Using the first 10 samples out of %d.&#34;, len(test_dataset))
+                test_i = list(range(10))
+            elif args.n_test &gt;= 0:
+                logger.info(
+                    &#34;Using %d random samples out of %d.&#34;, args.n_test, len(test_dataset)
+                )
+                test_i = rng.sample(range(len(test_dataset)), k=args.n_test)
+
+            jobs = [asyncio.create_task(run_one(i)) for i in test_i]
+
+            preds = []
+            for job in helpers.progress(jobs):
+                pred: interfaces.Prediction = await job
+                preds.append(pred)
+            return preds
+
+        preds = loop.run(run_all())
+
+    return model_args, interfaces.TaskReport(
+        &#34;FishNet&#34;, args.n_train, preds, calc_mean_score=calc_macro_f1
+    )</code></pre>
 </details>
-<div class="desc"><p>TODO: docs.</p></div>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.fishnet.calc_macro_f1"><code class="name flex">
+<span>def <span class="ident">calc_macro_f1</span></span>(<span>preds: list[<a title="biobench.interfaces.Prediction" href="../interfaces.html#biobench.interfaces.Prediction">Prediction</a>]) ‑> float</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def calc_macro_f1(preds: list[interfaces.Prediction]) -&gt; float:
+    &#34;&#34;&#34;
+    Calculate the macro-averaged F1 score across all fish trait predictions.
+
+    For each fish image, we predict 9 binary traits:
+
+    1. Feeding Path (benthic/pelagic)
+    2. Tropical habitat (yes/no)
+    3. Temperate habitat (yes/no)
+    4. Subtropical habitat (yes/no)
+    5. Boreal habitat (yes/no)
+    6. Polar habitat (yes/no)
+    7. Freshwater habitat (yes/no)
+    8. Saltwater habitat (yes/no)
+    9. Brackish water habitat (yes/no)
+
+    The macro-averaging:
+
+    1. Calculates an F1 score for each trait independently
+    2. Takes the unweighted mean of these 9 F1 scores
+
+    This ensures each trait contributes equally to the final score, regardless of class imbalance in the dataset (e.g., if there are many more tropical fish than brackish water fish).
+
+    Args:
+        preds: List of predictions, each containing:
+            - info[&#34;y_pred&#34;]: List of 9 binary predictions
+            - info[&#34;y_true&#34;]: List of 9 binary ground truth values
+
+    Returns:
+        The macro-averaged F1 score across all 9 traits
+    &#34;&#34;&#34;
+    y_pred = np.array([pred.info[&#34;y_pred&#34;] for pred in preds])
+    y_true = np.array([pred.info[&#34;y_true&#34;] for pred in preds])
+    return sklearn.metrics.f1_score(
+        y_true, y_pred, average=&#34;macro&#34;, labels=np.unique(y_true)
+    )</code></pre>
+</details>
+<div class="desc"><p>Calculate the macro-averaged F1 score across all fish trait predictions.</p>
+<p>For each fish image, we predict 9 binary traits:</p>
+<ol>
+<li>Feeding Path (benthic/pelagic)</li>
+<li>Tropical habitat (yes/no)</li>
+<li>Temperate habitat (yes/no)</li>
+<li>Subtropical habitat (yes/no)</li>
+<li>Boreal habitat (yes/no)</li>
+<li>Polar habitat (yes/no)</li>
+<li>Freshwater habitat (yes/no)</li>
+<li>Saltwater habitat (yes/no)</li>
+<li>Brackish water habitat (yes/no)</li>
+</ol>
+<p>The macro-averaging:</p>
+<ol>
+<li>Calculates an F1 score for each trait independently</li>
+<li>Takes the unweighted mean of these 9 F1 scores</li>
+</ol>
+<p>This ensures each trait contributes equally to the final score, regardless of class imbalance in the dataset (e.g., if there are many more tropical fish than brackish water fish).</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>preds</code></strong></dt>
+<dd>List of predictions, each containing:
+- info["y_pred"]: List of 9 binary predictions
+- info["y_true"]: List of 9 binary ground truth values</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>The macro-averaged F1 score across all 9 traits</p></div>
 </dd>
 <dt id="biobench.fishnet.evaluate"><code class="name flex">
 <span>def <span class="ident">evaluate</span></span>(<span>args: <a title="biobench.fishnet.Args" href="#biobench.fishnet.Args">Args</a>,<br>classifier: torch.nn.modules.module.Module,<br>dataloader) ‑> list[<a title="biobench.interfaces.Prediction" href="../interfaces.html#biobench.interfaces.Prediction">Prediction</a>]</span>
@@ -162,8 +314,7 @@ def calc_macro_f1(examples: list[interfaces.Prediction]) -&gt; float:
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">@beartype.beartype
-def evaluate(
+<pre><code class="python">def evaluate(
     args: Args, classifier: torch.nn.Module, dataloader
 ) -&gt; list[interfaces.Prediction]:
     &#34;&#34;&#34;
@@ -205,9 +356,7 @@ def evaluate(
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
-@torch.no_grad()
-def get_features(
+<pre><code class="python">def get_features(
     args: Args, backbone: interfaces.VisionBackbone, *, is_train: bool
 ) -&gt; Features:
     &#34;&#34;&#34;Extract visual features.&#34;&#34;&#34;
@@ -219,7 +368,7 @@ def get_features(
     backbone = torch.compile(backbone.to(args.device))
 
     file = &#34;train.csv&#34; if is_train else &#34;test.csv&#34;
-    dataset = ImageDataset(args.datadir, file, transform=img_transform)
+    dataset = ImageDatasetCvml(args.datadir, file, transform=img_transform)
     dataloader = torch.utils.data.DataLoader(
         dataset, batch_size=args.batch_size, num_workers=args.n_workers
     )
@@ -256,8 +405,7 @@ def get_features(
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">@beartype.beartype
-def init_classifier(input_dim: int) -&gt; torch.nn.Module:
+<pre><code class="python">def init_classifier(input_dim: int) -&gt; torch.nn.Module:
     &#34;&#34;&#34;A simple MLP classifier consistent with the design in FishNet.&#34;&#34;&#34;
     return torch.nn.Sequential(
         torch.nn.Linear(input_dim, 512),
@@ -274,7 +422,7 @@ def init_classifier(input_dim: int) -&gt; torch.nn.Module:
 <dl>
 <dt id="biobench.fishnet.Args"><code class="flex name class">
 <span>class <span class="ident">Args</span></span>
-<span>(</span><span>data: str = '',<br>batch_size_cv: int = 256,<br>n_workers: int = 4,<br>log_every: int = 10,<br>n_epochs: int = 100,<br>learning_rate: float = 0.0005,<br>threshold: float = 0.5,<br>seed: int = 42,<br>parallel: int = 5,<br>max_examples: int = -1,<br>device: str = 'cuda',<br>debug: bool = False)</span>
+<span>(</span><span>data: str = '',<br>batch_size_cv: int = 256,<br>n_workers: int = 4,<br>log_every: int = 10,<br>n_epochs: int = 100,<br>learning_rate: float = 0.0005,<br>threshold: float = 0.5,<br>seed: int = 42,<br>device: str = 'cuda',<br>debug: bool = False,<br>n_train: int = -1,<br>n_test: int = -1,<br>parallel: int = 1)</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -299,19 +447,21 @@ class Args:
     learning_rate: float = 5e-4
     &#34;&#34;&#34;The learning rate for training the MLP classifier.&#34;&#34;&#34;
     threshold: float = 0.5
-    &#34;&#34;&#34;The threshold to predicted &#34;presence&#34; rather than &#34;absence&#34;.&#34;&#34;&#34;
+    &#34;&#34;&#34;The threshold to predict &#34;presence&#34; rather than &#34;absence&#34;.&#34;&#34;&#34;
     seed: int = 42
     &#34;&#34;&#34;random seed.&#34;&#34;&#34;
-    parallel: int = 5
-    &#34;&#34;&#34;Concurrent requests per second.&#34;&#34;&#34;
 
     # Computed at runtime.
-    max_examples: int = -1
-    &#34;&#34;&#34;(computed at runtime) Number of maximum training samples. Negative number means use all of them.&#34;&#34;&#34;
     device: str = &#34;cuda&#34;
-    &#34;&#34;&#34;(computed at runtime) Which kind of accelerator to use.&#34;&#34;&#34;
+    &#34;&#34;&#34;(computed at runtime) which kind of accelerator to use.&#34;&#34;&#34;
     debug: bool = False
-    &#34;&#34;&#34;(computed at runtime) Whether to run in debug mode.&#34;&#34;&#34;</code></pre>
+    &#34;&#34;&#34;(computed at runtime) whether to run in debug mode.&#34;&#34;&#34;
+    n_train: int = -1
+    &#34;&#34;&#34;Number of maximum training samples. Negative number means use all of them.&#34;&#34;&#34;
+    n_test: int = -1
+    &#34;&#34;&#34;Number of test samples. Negative number means use all of them.&#34;&#34;&#34;
+    parallel: int = 1
+    &#34;&#34;&#34;Number of parallel requests per second to MLLM service providers.&#34;&#34;&#34;</code></pre>
 </details>
 <div class="desc"><p>FishNet task arguments.</p></div>
 <h3>Class variables</h3>
@@ -326,11 +476,11 @@ class Args:
 </dd>
 <dt id="biobench.fishnet.Args.debug"><code class="name">var <span class="ident">debug</span> : bool</code></dt>
 <dd>
-<div class="desc"><p>(computed at runtime) Whether to run in debug mode.</p></div>
+<div class="desc"><p>(computed at runtime) whether to run in debug mode.</p></div>
 </dd>
 <dt id="biobench.fishnet.Args.device"><code class="name">var <span class="ident">device</span> : str</code></dt>
 <dd>
-<div class="desc"><p>(computed at runtime) Which kind of accelerator to use.</p></div>
+<div class="desc"><p>(computed at runtime) which kind of accelerator to use.</p></div>
 </dd>
 <dt id="biobench.fishnet.Args.learning_rate"><code class="name">var <span class="ident">learning_rate</span> : float</code></dt>
 <dd>
@@ -340,13 +490,17 @@ class Args:
 <dd>
 <div class="desc"><p>how often (number of epochs) to log progress.</p></div>
 </dd>
-<dt id="biobench.fishnet.Args.max_examples"><code class="name">var <span class="ident">max_examples</span> : int</code></dt>
-<dd>
-<div class="desc"><p>(computed at runtime) Number of maximum training samples. Negative number means use all of them.</p></div>
-</dd>
 <dt id="biobench.fishnet.Args.n_epochs"><code class="name">var <span class="ident">n_epochs</span> : int</code></dt>
 <dd>
 <div class="desc"><p>How many epochs to train the MLP classifier.</p></div>
+</dd>
+<dt id="biobench.fishnet.Args.n_test"><code class="name">var <span class="ident">n_test</span> : int</code></dt>
+<dd>
+<div class="desc"><p>Number of test samples. Negative number means use all of them.</p></div>
+</dd>
+<dt id="biobench.fishnet.Args.n_train"><code class="name">var <span class="ident">n_train</span> : int</code></dt>
+<dd>
+<div class="desc"><p>Number of maximum training samples. Negative number means use all of them.</p></div>
 </dd>
 <dt id="biobench.fishnet.Args.n_workers"><code class="name">var <span class="ident">n_workers</span> : int</code></dt>
 <dd>
@@ -354,7 +508,7 @@ class Args:
 </dd>
 <dt id="biobench.fishnet.Args.parallel"><code class="name">var <span class="ident">parallel</span> : int</code></dt>
 <dd>
-<div class="desc"><p>Concurrent requests per second.</p></div>
+<div class="desc"><p>Number of parallel requests per second to MLLM service providers.</p></div>
 </dd>
 <dt id="biobench.fishnet.Args.seed"><code class="name">var <span class="ident">seed</span> : int</code></dt>
 <dd>
@@ -362,9 +516,80 @@ class Args:
 </dd>
 <dt id="biobench.fishnet.Args.threshold"><code class="name">var <span class="ident">threshold</span> : float</code></dt>
 <dd>
-<div class="desc"><p>The threshold to predicted "presence" rather than "absence".</p></div>
+<div class="desc"><p>The threshold to predict "presence" rather than "absence".</p></div>
 </dd>
 </dl>
+</dd>
+<dt id="biobench.fishnet.DatasetMllm"><code class="flex name class">
+<span>class <span class="ident">DatasetMllm</span></span>
+<span>(</span><span>root_dir: str, csv_file: str)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
+class DatasetMllm(torch.utils.data.Dataset):
+    &#34;&#34;&#34;
+    A dataset for MLLMs that loads the required attribute labels.
+    &#34;&#34;&#34;
+
+    def __init__(self, root_dir: str, csv_file: str):
+        self.root_dir = root_dir
+        self.csv_file = os.path.join(self.root_dir, csv_file)
+        self.df = pl.read_csv(self.csv_file).with_row_index()
+        self.all_columns = [
+            &#34;FeedingPath&#34;,
+            &#34;Tropical&#34;,
+            &#34;Temperate&#34;,
+            &#34;Subtropical&#34;,
+            &#34;Boreal&#34;,
+            &#34;Polar&#34;,
+            &#34;freshwater&#34;,
+            &#34;saltwater&#34;,
+            &#34;brackish&#34;,
+        ]
+        for col in self.all_columns:
+            self.df = self.df.filter(self.df[col].is_not_null())
+
+        # Corresponding column indices
+        self.img_col = 4
+        self.folder_col = 13
+        logger.info(&#34;csv file: %s has %d items.&#34;, csv_file, len(self.df))
+
+    def __getitem__(self, index: int) -&gt; SampleMllm:
+        row_data = self.df.row(index)
+        img_name = row_data[self.img_col]
+        img_name = img_name.split(&#34;/&#34;)[-1]
+        folder = row_data[self.folder_col]
+        img_path = os.path.join(self.root_dir, &#34;Image_Library&#34;, folder, img_name)
+        img_b64 = helpers.load_img_b64(img_path)
+
+        return SampleMllm(
+            img_path,
+            img_b64,
+            row_data[14],
+            row_data[15],
+            bool(row_data[16]),
+            bool(row_data[17]),
+            bool(row_data[18]),
+            bool(row_data[19]),
+            bool(row_data[20]),
+            bool(row_data[21]),
+            bool(row_data[22]),
+            bool(row_data[23]),
+        )
+
+    def __len__(self) -&gt; int:
+        return len(self.df)</code></pre>
+</details>
+<div class="desc"><p>A dataset for MLLMs that loads the required attribute labels.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>torch.utils.data.dataset.Dataset</li>
+<li>typing.Generic</li>
+</ul>
 </dd>
 <dt id="biobench.fishnet.Features"><code class="flex name class">
 <span>class <span class="ident">Features</span></span>
@@ -451,8 +676,8 @@ def dim(self) -&gt; int:
 </dd>
 </dl>
 </dd>
-<dt id="biobench.fishnet.ImageDataset"><code class="flex name class">
-<span>class <span class="ident">ImageDataset</span></span>
+<dt id="biobench.fishnet.ImageDatasetCvml"><code class="flex name class">
+<span>class <span class="ident">ImageDatasetCvml</span></span>
 <span>(</span><span>root_dir: str, csv_file: str, transform)</span>
 </code></dt>
 <dd>
@@ -461,9 +686,9 @@ def dim(self) -&gt; int:
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
-class ImageDataset(torch.utils.data.Dataset):
+class ImageDatasetCvml(torch.utils.data.Dataset):
     &#34;&#34;&#34;
-    A dataset that loads the required attribute labels.
+    A dataset for CV+ML that loads the required attribute labels.
     &#34;&#34;&#34;
 
     def __init__(self, root_dir: str, csv_file: str, transform):
@@ -523,12 +748,400 @@ class ImageDataset(torch.utils.data.Dataset):
     def __len__(self) -&gt; int:
         return len(self.df)</code></pre>
 </details>
-<div class="desc"><p>A dataset that loads the required attribute labels.</p></div>
+<div class="desc"><p>A dataset for CV+ML that loads the required attribute labels.</p></div>
 <h3>Ancestors</h3>
 <ul class="hlist">
 <li>torch.utils.data.dataset.Dataset</li>
 <li>typing.Generic</li>
 </ul>
+</dd>
+<dt id="biobench.fishnet.SampleMllm"><code class="flex name class">
+<span>class <span class="ident">SampleMllm</span></span>
+<span>(</span><span>image_id: str,<br>image_b64: str,<br>trophic_level: float,<br>feeding_path: Literal['benthic', 'pelagic'],<br>tropical: bool,<br>temperate: bool,<br>subtropical: bool,<br>boreal: bool,<br>polar: bool,<br>freshwater: bool,<br>saltwater: bool,<br>brackish: bool)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@dataclasses.dataclass(frozen=True)
+class SampleMllm:
+    image_id: str
+    image_b64: str
+    trophic_level: float
+    &#34;&#34;&#34;The position in the food chain or food web.&#34;&#34;&#34;
+    feeding_path: typing.Literal[&#34;benthic&#34;, &#34;pelagic&#34;]
+    &#34;&#34;&#34;Which trophic pathway the species feeds from.&#34;&#34;&#34;
+    tropical: bool
+    &#34;&#34;&#34;Whether the fish can live in tropical areas.&#34;&#34;&#34;
+    temperate: bool
+    &#34;&#34;&#34;Whether the fish can live in temperate areas.&#34;&#34;&#34;
+    subtropical: bool
+    &#34;&#34;&#34;Whether the fish can live in subtropical areas.&#34;&#34;&#34;
+    boreal: bool
+    &#34;&#34;&#34;Whether the fish can live in boral areas.&#34;&#34;&#34;
+    polar: bool
+    &#34;&#34;&#34;Whether the fish can live in polar areas.&#34;&#34;&#34;
+    freshwater: bool
+    &#34;&#34;&#34;Whether the fish can live in freshwater.&#34;&#34;&#34;
+    saltwater: bool
+    &#34;&#34;&#34;Whether the fish can live in saltwater.&#34;&#34;&#34;
+    brackish: bool
+    &#34;&#34;&#34;Whether the fish can live in brackish water.&#34;&#34;&#34;
+
+    @property
+    def user(self) -&gt; str:
+        return &#34;&#34;&#34;
+What functional traits does this fish have? For each of these ten traits, respond using the specified format:
+* **trophic level**: What is the real-valued position of this fish in the food chain or food web?
+* **feeding path**: What trophic pathway does this fish feed from? Choose between benthic or pelagic.
+* **tropical**: Can this fish live in tropical areas? Respond with yes or no.
+* **temperate**: Can this fish live in temperate areas? Respond with yes or no.
+* **subtropical**: Can this fish live in subtropical areas? Respond with yes or no.
+* **boreal**: Can this fish live in boreal areas? Respond with yes or no.
+* **polar**: Can this fish live in polar areas? Respond with yes or no.
+* **freshwater**: Can this fish live in freshwater? Respond with yes or no.
+* **saltwater**: Can this fish live in saltwater? Respond with yes or no.
+* **brackish water**: Can this fish live in brackish water? Respond with yes or no.
+&#34;&#34;&#34;.strip()
+
+    @property
+    def assistant(self) -&gt; str:
+        return f&#34;&#34;&#34;
+* **trophic level**: {self.trophic_level:.2f}
+* **feeding path**: {self.feeding_path}
+* **tropical**: {&#34;yes&#34; if self.tropical else &#34;no&#34;}
+* **subtropical**: {&#34;yes&#34; if self.subtropical else &#34;no&#34;}
+* **subtropical**: {&#34;yes&#34; if self.subtropical else &#34;no&#34;}
+* **boreal**: {&#34;yes&#34; if self.boreal else &#34;no&#34;}
+* **polar**: {&#34;yes&#34; if self.polar else &#34;no&#34;}
+* **freshwater**: {&#34;yes&#34; if self.freshwater else &#34;no&#34;}
+* **saltwater**: {&#34;yes&#34; if self.saltwater else &#34;no&#34;}
+* **brackish water**: {&#34;yes&#34; if self.brackish else &#34;no&#34;}&#34;&#34;&#34;.strip()
+
+    def parse_assistant(
+        self, assistant: str
+    ) -&gt; tuple[float, str, bool, bool, bool, bool, bool, bool, bool, bool]:
+        &#34;&#34;&#34;Parse the MLLM response into structured data.
+
+        Returns:
+            Tuple of (trophic_level, feeding_path, tropical, temperate, subtropical, boreal, polar, freshwater, saltwater, brackish)
+        &#34;&#34;&#34;
+        # Default values
+        trophic_level = 0.0
+        feeding_path = &#34;benthic&#34;  # Default to benthic if not found
+        tropical = temperate = subtropical = boreal = polar = False
+        freshwater = saltwater = brackish = False
+
+        # Parse each line
+        for line in assistant.split(&#34;\n&#34;):
+            line = line.strip()
+            if not line.startswith(&#34;*&#34;):
+                continue
+
+            # Extract the trait name and value
+            parts = line.split(&#34;:&#34;)
+            if len(parts) != 2:
+                continue
+
+            trait = parts[0].strip(&#34;* &#34;).lower()
+            value = parts[1].strip().lower()
+
+            if trait == &#34;trophic level&#34;:
+                try:
+                    trophic_level = float(value)
+                except ValueError:
+                    pass
+            elif trait == &#34;feeding path&#34;:
+                if value in (&#34;benthic&#34;, &#34;pelagic&#34;):
+                    feeding_path = value
+            elif trait == &#34;tropical&#34;:
+                tropical = value == &#34;yes&#34;
+            elif trait == &#34;temperate&#34;:
+                temperate = value == &#34;yes&#34;
+            elif trait == &#34;subtropical&#34;:
+                subtropical = value == &#34;yes&#34;
+            elif trait == &#34;boreal&#34;:
+                boreal = value == &#34;yes&#34;
+            elif trait == &#34;polar&#34;:
+                polar = value == &#34;yes&#34;
+            elif trait == &#34;freshwater&#34;:
+                freshwater = value == &#34;yes&#34;
+            elif trait == &#34;saltwater&#34;:
+                saltwater = value == &#34;yes&#34;
+            elif trait == &#34;brackish water&#34;:
+                brackish = value == &#34;yes&#34;
+
+        return (
+            trophic_level,
+            feeding_path,
+            tropical,
+            temperate,
+            subtropical,
+            boreal,
+            polar,
+            freshwater,
+            saltwater,
+            brackish,
+        )
+
+    @property
+    def true(self) -&gt; list[bool]:
+        &#34;&#34;&#34;Get the ground truth binary values for all traits except trophic level.
+
+        Returns:
+            List of boolean values for [feeding_path==&#39;pelagic&#39;, tropical, temperate,
+            subtropical, boreal, polar, freshwater, saltwater, brackish]
+        &#34;&#34;&#34;
+        return [
+            self.feeding_path == &#34;pelagic&#34;,
+            self.tropical,
+            self.temperate,
+            self.subtropical,
+            self.boreal,
+            self.polar,
+            self.freshwater,
+            self.saltwater,
+            self.brackish,
+        ]
+
+    def to_example(self) -&gt; mllms.Example:
+        return mllms.Example(
+            image_b64=self.image_b64,
+            user=self.user,
+            assistant=self.assistant,
+        )</code></pre>
+</details>
+<div class="desc"><p>SampleMllm(image_id: str, image_b64: str, trophic_level: float, feeding_path: Literal['benthic', 'pelagic'], tropical: bool, temperate: bool, subtropical: bool, boreal: bool, polar: bool, freshwater: bool, saltwater: bool, brackish: bool)</p></div>
+<h3>Class variables</h3>
+<dl>
+<dt id="biobench.fishnet.SampleMllm.boreal"><code class="name">var <span class="ident">boreal</span> : bool</code></dt>
+<dd>
+<div class="desc"><p>Whether the fish can live in boral areas.</p></div>
+</dd>
+<dt id="biobench.fishnet.SampleMllm.brackish"><code class="name">var <span class="ident">brackish</span> : bool</code></dt>
+<dd>
+<div class="desc"><p>Whether the fish can live in brackish water.</p></div>
+</dd>
+<dt id="biobench.fishnet.SampleMllm.feeding_path"><code class="name">var <span class="ident">feeding_path</span> : Literal['benthic', 'pelagic']</code></dt>
+<dd>
+<div class="desc"><p>Which trophic pathway the species feeds from.</p></div>
+</dd>
+<dt id="biobench.fishnet.SampleMllm.freshwater"><code class="name">var <span class="ident">freshwater</span> : bool</code></dt>
+<dd>
+<div class="desc"><p>Whether the fish can live in freshwater.</p></div>
+</dd>
+<dt id="biobench.fishnet.SampleMllm.image_b64"><code class="name">var <span class="ident">image_b64</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.fishnet.SampleMllm.image_id"><code class="name">var <span class="ident">image_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.fishnet.SampleMllm.polar"><code class="name">var <span class="ident">polar</span> : bool</code></dt>
+<dd>
+<div class="desc"><p>Whether the fish can live in polar areas.</p></div>
+</dd>
+<dt id="biobench.fishnet.SampleMllm.saltwater"><code class="name">var <span class="ident">saltwater</span> : bool</code></dt>
+<dd>
+<div class="desc"><p>Whether the fish can live in saltwater.</p></div>
+</dd>
+<dt id="biobench.fishnet.SampleMllm.subtropical"><code class="name">var <span class="ident">subtropical</span> : bool</code></dt>
+<dd>
+<div class="desc"><p>Whether the fish can live in subtropical areas.</p></div>
+</dd>
+<dt id="biobench.fishnet.SampleMllm.temperate"><code class="name">var <span class="ident">temperate</span> : bool</code></dt>
+<dd>
+<div class="desc"><p>Whether the fish can live in temperate areas.</p></div>
+</dd>
+<dt id="biobench.fishnet.SampleMllm.trophic_level"><code class="name">var <span class="ident">trophic_level</span> : float</code></dt>
+<dd>
+<div class="desc"><p>The position in the food chain or food web.</p></div>
+</dd>
+<dt id="biobench.fishnet.SampleMllm.tropical"><code class="name">var <span class="ident">tropical</span> : bool</code></dt>
+<dd>
+<div class="desc"><p>Whether the fish can live in tropical areas.</p></div>
+</dd>
+</dl>
+<h3>Instance variables</h3>
+<dl>
+<dt id="biobench.fishnet.SampleMllm.assistant"><code class="name">prop <span class="ident">assistant</span> : str</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">    @property
+    def assistant(self) -&gt; str:
+        return f&#34;&#34;&#34;
+* **trophic level**: {self.trophic_level:.2f}
+* **feeding path**: {self.feeding_path}
+* **tropical**: {&#34;yes&#34; if self.tropical else &#34;no&#34;}
+* **subtropical**: {&#34;yes&#34; if self.subtropical else &#34;no&#34;}
+* **subtropical**: {&#34;yes&#34; if self.subtropical else &#34;no&#34;}
+* **boreal**: {&#34;yes&#34; if self.boreal else &#34;no&#34;}
+* **polar**: {&#34;yes&#34; if self.polar else &#34;no&#34;}
+* **freshwater**: {&#34;yes&#34; if self.freshwater else &#34;no&#34;}
+* **saltwater**: {&#34;yes&#34; if self.saltwater else &#34;no&#34;}
+* **brackish water**: {&#34;yes&#34; if self.brackish else &#34;no&#34;}&#34;&#34;&#34;.strip()</code></pre>
+</details>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.fishnet.SampleMllm.true"><code class="name">prop <span class="ident">true</span> : list[bool]</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@property
+def true(self) -&gt; list[bool]:
+    &#34;&#34;&#34;Get the ground truth binary values for all traits except trophic level.
+
+    Returns:
+        List of boolean values for [feeding_path==&#39;pelagic&#39;, tropical, temperate,
+        subtropical, boreal, polar, freshwater, saltwater, brackish]
+    &#34;&#34;&#34;
+    return [
+        self.feeding_path == &#34;pelagic&#34;,
+        self.tropical,
+        self.temperate,
+        self.subtropical,
+        self.boreal,
+        self.polar,
+        self.freshwater,
+        self.saltwater,
+        self.brackish,
+    ]</code></pre>
+</details>
+<div class="desc"><p>Get the ground truth binary values for all traits except trophic level.</p>
+<h2 id="returns">Returns</h2>
+<p>List of boolean values for [feeding_path=='pelagic', tropical, temperate,
+subtropical, boreal, polar, freshwater, saltwater, brackish]</p></div>
+</dd>
+<dt id="biobench.fishnet.SampleMllm.user"><code class="name">prop <span class="ident">user</span> : str</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">    @property
+    def user(self) -&gt; str:
+        return &#34;&#34;&#34;
+What functional traits does this fish have? For each of these ten traits, respond using the specified format:
+* **trophic level**: What is the real-valued position of this fish in the food chain or food web?
+* **feeding path**: What trophic pathway does this fish feed from? Choose between benthic or pelagic.
+* **tropical**: Can this fish live in tropical areas? Respond with yes or no.
+* **temperate**: Can this fish live in temperate areas? Respond with yes or no.
+* **subtropical**: Can this fish live in subtropical areas? Respond with yes or no.
+* **boreal**: Can this fish live in boreal areas? Respond with yes or no.
+* **polar**: Can this fish live in polar areas? Respond with yes or no.
+* **freshwater**: Can this fish live in freshwater? Respond with yes or no.
+* **saltwater**: Can this fish live in saltwater? Respond with yes or no.
+* **brackish water**: Can this fish live in brackish water? Respond with yes or no.
+&#34;&#34;&#34;.strip()</code></pre>
+</details>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="biobench.fishnet.SampleMllm.parse_assistant"><code class="name flex">
+<span>def <span class="ident">parse_assistant</span></span>(<span>self, assistant: str) ‑> tuple[float, str, bool, bool, bool, bool, bool, bool, bool, bool]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def parse_assistant(
+    self, assistant: str
+) -&gt; tuple[float, str, bool, bool, bool, bool, bool, bool, bool, bool]:
+    &#34;&#34;&#34;Parse the MLLM response into structured data.
+
+    Returns:
+        Tuple of (trophic_level, feeding_path, tropical, temperate, subtropical, boreal, polar, freshwater, saltwater, brackish)
+    &#34;&#34;&#34;
+    # Default values
+    trophic_level = 0.0
+    feeding_path = &#34;benthic&#34;  # Default to benthic if not found
+    tropical = temperate = subtropical = boreal = polar = False
+    freshwater = saltwater = brackish = False
+
+    # Parse each line
+    for line in assistant.split(&#34;\n&#34;):
+        line = line.strip()
+        if not line.startswith(&#34;*&#34;):
+            continue
+
+        # Extract the trait name and value
+        parts = line.split(&#34;:&#34;)
+        if len(parts) != 2:
+            continue
+
+        trait = parts[0].strip(&#34;* &#34;).lower()
+        value = parts[1].strip().lower()
+
+        if trait == &#34;trophic level&#34;:
+            try:
+                trophic_level = float(value)
+            except ValueError:
+                pass
+        elif trait == &#34;feeding path&#34;:
+            if value in (&#34;benthic&#34;, &#34;pelagic&#34;):
+                feeding_path = value
+        elif trait == &#34;tropical&#34;:
+            tropical = value == &#34;yes&#34;
+        elif trait == &#34;temperate&#34;:
+            temperate = value == &#34;yes&#34;
+        elif trait == &#34;subtropical&#34;:
+            subtropical = value == &#34;yes&#34;
+        elif trait == &#34;boreal&#34;:
+            boreal = value == &#34;yes&#34;
+        elif trait == &#34;polar&#34;:
+            polar = value == &#34;yes&#34;
+        elif trait == &#34;freshwater&#34;:
+            freshwater = value == &#34;yes&#34;
+        elif trait == &#34;saltwater&#34;:
+            saltwater = value == &#34;yes&#34;
+        elif trait == &#34;brackish water&#34;:
+            brackish = value == &#34;yes&#34;
+
+    return (
+        trophic_level,
+        feeding_path,
+        tropical,
+        temperate,
+        subtropical,
+        boreal,
+        polar,
+        freshwater,
+        saltwater,
+        brackish,
+    )</code></pre>
+</details>
+<div class="desc"><p>Parse the MLLM response into structured data.</p>
+<h2 id="returns">Returns</h2>
+<p>Tuple of (trophic_level, feeding_path, tropical, temperate, subtropical, boreal, polar, freshwater, saltwater, brackish)</p></div>
+</dd>
+<dt id="biobench.fishnet.SampleMllm.to_example"><code class="name flex">
+<span>def <span class="ident">to_example</span></span>(<span>self) ‑> <a title="biobench.mllms.Example" href="../mllms.html#biobench.mllms.Example">Example</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def to_example(self) -&gt; mllms.Example:
+    return mllms.Example(
+        image_b64=self.image_b64,
+        user=self.user,
+        assistant=self.assistant,
+    )</code></pre>
+</details>
+<div class="desc"></div>
+</dd>
+</dl>
 </dd>
 </dl>
 </section>
@@ -551,8 +1164,9 @@ class ImageDataset(torch.utils.data.Dataset):
 </ul>
 </li>
 <li><h3><a href="#header-functions">Functions</a></h3>
-<ul class="">
-<li><code><a title="biobench.fishnet.benchmark" href="#biobench.fishnet.benchmark">benchmark</a></code></li>
+<ul class="two-column">
+<li><code><a title="biobench.fishnet.benchmark_cvml" href="#biobench.fishnet.benchmark_cvml">benchmark_cvml</a></code></li>
+<li><code><a title="biobench.fishnet.benchmark_mllm" href="#biobench.fishnet.benchmark_mllm">benchmark_mllm</a></code></li>
 <li><code><a title="biobench.fishnet.calc_macro_f1" href="#biobench.fishnet.calc_macro_f1">calc_macro_f1</a></code></li>
 <li><code><a title="biobench.fishnet.evaluate" href="#biobench.fishnet.evaluate">evaluate</a></code></li>
 <li><code><a title="biobench.fishnet.get_features" href="#biobench.fishnet.get_features">get_features</a></code></li>
@@ -570,13 +1184,17 @@ class ImageDataset(torch.utils.data.Dataset):
 <li><code><a title="biobench.fishnet.Args.device" href="#biobench.fishnet.Args.device">device</a></code></li>
 <li><code><a title="biobench.fishnet.Args.learning_rate" href="#biobench.fishnet.Args.learning_rate">learning_rate</a></code></li>
 <li><code><a title="biobench.fishnet.Args.log_every" href="#biobench.fishnet.Args.log_every">log_every</a></code></li>
-<li><code><a title="biobench.fishnet.Args.max_examples" href="#biobench.fishnet.Args.max_examples">max_examples</a></code></li>
 <li><code><a title="biobench.fishnet.Args.n_epochs" href="#biobench.fishnet.Args.n_epochs">n_epochs</a></code></li>
+<li><code><a title="biobench.fishnet.Args.n_test" href="#biobench.fishnet.Args.n_test">n_test</a></code></li>
+<li><code><a title="biobench.fishnet.Args.n_train" href="#biobench.fishnet.Args.n_train">n_train</a></code></li>
 <li><code><a title="biobench.fishnet.Args.n_workers" href="#biobench.fishnet.Args.n_workers">n_workers</a></code></li>
 <li><code><a title="biobench.fishnet.Args.parallel" href="#biobench.fishnet.Args.parallel">parallel</a></code></li>
 <li><code><a title="biobench.fishnet.Args.seed" href="#biobench.fishnet.Args.seed">seed</a></code></li>
 <li><code><a title="biobench.fishnet.Args.threshold" href="#biobench.fishnet.Args.threshold">threshold</a></code></li>
 </ul>
+</li>
+<li>
+<h4><code><a title="biobench.fishnet.DatasetMllm" href="#biobench.fishnet.DatasetMllm">DatasetMllm</a></code></h4>
 </li>
 <li>
 <h4><code><a title="biobench.fishnet.Features" href="#biobench.fishnet.Features">Features</a></code></h4>
@@ -588,7 +1206,29 @@ class ImageDataset(torch.utils.data.Dataset):
 </ul>
 </li>
 <li>
-<h4><code><a title="biobench.fishnet.ImageDataset" href="#biobench.fishnet.ImageDataset">ImageDataset</a></code></h4>
+<h4><code><a title="biobench.fishnet.ImageDatasetCvml" href="#biobench.fishnet.ImageDatasetCvml">ImageDatasetCvml</a></code></h4>
+</li>
+<li>
+<h4><code><a title="biobench.fishnet.SampleMllm" href="#biobench.fishnet.SampleMllm">SampleMllm</a></code></h4>
+<ul class="two-column">
+<li><code><a title="biobench.fishnet.SampleMllm.assistant" href="#biobench.fishnet.SampleMllm.assistant">assistant</a></code></li>
+<li><code><a title="biobench.fishnet.SampleMllm.boreal" href="#biobench.fishnet.SampleMllm.boreal">boreal</a></code></li>
+<li><code><a title="biobench.fishnet.SampleMllm.brackish" href="#biobench.fishnet.SampleMllm.brackish">brackish</a></code></li>
+<li><code><a title="biobench.fishnet.SampleMllm.feeding_path" href="#biobench.fishnet.SampleMllm.feeding_path">feeding_path</a></code></li>
+<li><code><a title="biobench.fishnet.SampleMllm.freshwater" href="#biobench.fishnet.SampleMllm.freshwater">freshwater</a></code></li>
+<li><code><a title="biobench.fishnet.SampleMllm.image_b64" href="#biobench.fishnet.SampleMllm.image_b64">image_b64</a></code></li>
+<li><code><a title="biobench.fishnet.SampleMllm.image_id" href="#biobench.fishnet.SampleMllm.image_id">image_id</a></code></li>
+<li><code><a title="biobench.fishnet.SampleMllm.parse_assistant" href="#biobench.fishnet.SampleMllm.parse_assistant">parse_assistant</a></code></li>
+<li><code><a title="biobench.fishnet.SampleMllm.polar" href="#biobench.fishnet.SampleMllm.polar">polar</a></code></li>
+<li><code><a title="biobench.fishnet.SampleMllm.saltwater" href="#biobench.fishnet.SampleMllm.saltwater">saltwater</a></code></li>
+<li><code><a title="biobench.fishnet.SampleMllm.subtropical" href="#biobench.fishnet.SampleMllm.subtropical">subtropical</a></code></li>
+<li><code><a title="biobench.fishnet.SampleMllm.temperate" href="#biobench.fishnet.SampleMllm.temperate">temperate</a></code></li>
+<li><code><a title="biobench.fishnet.SampleMllm.to_example" href="#biobench.fishnet.SampleMllm.to_example">to_example</a></code></li>
+<li><code><a title="biobench.fishnet.SampleMllm.trophic_level" href="#biobench.fishnet.SampleMllm.trophic_level">trophic_level</a></code></li>
+<li><code><a title="biobench.fishnet.SampleMllm.tropical" href="#biobench.fishnet.SampleMllm.tropical">tropical</a></code></li>
+<li><code><a title="biobench.fishnet.SampleMllm.true" href="#biobench.fishnet.SampleMllm.true">true</a></code></li>
+<li><code><a title="biobench.fishnet.SampleMllm.user" href="#biobench.fishnet.SampleMllm.user">user</a></code></li>
+</ul>
 </li>
 </ul>
 </li>
