@@ -86,12 +86,10 @@ class Prediction:
     """Any additional information included. This might be the original class, the true label, etc."""
 
 
-@beartype.beartype
 def default_calc_mean_score(predictions: list[Prediction]) -> float:
     return np.mean([prediction.score for prediction in predictions]).item()
 
 
-@beartype.beartype
 def get_gpu_name() -> str:
     if torch.cuda.is_available():
         return torch.cuda.get_device_properties(0).name
@@ -109,7 +107,7 @@ class TaskReport:
     # Actual details of the report
     name: str
     """The benchmark name."""
-    max_examples: int
+    n_train: int
     """The maximum number of training examples used."""
     predictions: list[Prediction]
     """A list of (example_id, score, info) objects"""
@@ -191,15 +189,15 @@ class TaskReport:
         }
 
 
-@beartype.beartype
 @dataclasses.dataclass(frozen=True)
 class ModelArgsCvml:
     org: str
     ckpt: str
 
 
-@beartype.beartype
 @dataclasses.dataclass(frozen=True)
 class ModelArgsMllm:
     ckpt: str
-    temp: float = 1.0
+    temp: float = 0.0
+    prompts: typing.Literal["single-turn", "multi-turn"] = "single-turn"
+    quantizations: list[str] = dataclasses.field(default_factory=list)

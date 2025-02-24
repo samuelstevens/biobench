@@ -76,7 +76,13 @@ class Args:
         list[interfaces.ModelArgsMllm], tyro.conf.arg(name="mllms")
     ] = dataclasses.field(
         default_factory=lambda: [
-            # interfaces.ModelArgsMllm("openrouter/google/gemini-2.0-flash-001"),
+            interfaces.ModelArgsMllm(
+                "openrouter/meta-llama/llama-3.2-3b-instruct",
+                quantizations=["fp32", "bf16"],
+            ),
+            interfaces.ModelArgsMllm(
+                "openrouter/qwen/qwen-2-vl-7b-instruct", quantizations=["fp32", "bf16"]
+            ),
             interfaces.ModelArgsMllm("openrouter/google/gemini-flash-1.5-8b"),
         ]
     )
@@ -85,8 +91,13 @@ class Args:
     """which kind of accelerator to use."""
     debug: bool = False
     """whether to run in debug mode."""
-    max_examples: int = -1
+    n_train: int = -1
     """Number of maximum training samples. Negative number means use all of them."""
+    n_test: int = -1
+    """Number of test samples. Negative number means use all of them."""
+    parallel: int = 1
+    """Number of parallel requests per second to MLLM service providers."""
+
     ssl: bool = True
     """Use SSL when connecting to remote servers to download checkpoints; use --no-ssl if your machine has certificate issues. See `biobench.third_party_models.get_ssl()` for a discussion of how this works."""
 
@@ -206,7 +217,12 @@ class Args:
 
     def update(self, other):
         return dataclasses.replace(
-            other, device=self.device, debug=self.debug, max_examples=self.max_examples
+            other,
+            device=self.device,
+            debug=self.debug,
+            n_train=self.n_train,
+            n_test=self.n_test,
+            parallel=self.parallel,
         )
 
 
@@ -232,7 +248,7 @@ def save(
     lower, upper = report.get_confidence_interval()
     values = (
         json.dumps(dataclasses.asdict(model_args)),
-        args.max_examples,
+        args.n_train,
         report.name,
         int(time.time()),
         report.get_mean_score(),
@@ -278,18 +294,18 @@ def main(args: Args):
             os.environ["BIOBENCH_DISABLE_SSL"] = "1"
 
     ages_args = args.update(args.ages_args)
-    beluga_args = args.update(args.beluga_args)
-    birds525_args = args.update(args.birds525_args)
+    # beluga_args = args.update(args.beluga_args)
+    # birds525_args = args.update(args.birds525_args)
     fishnet_args = args.update(args.fishnet_args)
-    imagenet_args = args.update(args.imagenet_args)
-    inat21_args = args.update(args.inat21_args)
-    iwildcam_args = args.update(args.iwildcam_args)
-    kabr_args = args.update(args.kabr_args)
-    leopard_args = args.update(args.leopard_args)
-    newt_args = args.update(args.newt_args)
-    plankton_args = args.update(args.plankton_args)
-    plantnet_args = args.update(args.plantnet_args)
-    rarespecies_args = args.update(args.rarespecies_args)
+    # imagenet_args = args.update(args.imagenet_args)
+    # inat21_args = args.update(args.inat21_args)
+    # iwildcam_args = args.update(args.iwildcam_args)
+    # kabr_args = args.update(args.kabr_args)
+    # leopard_args = args.update(args.leopard_args)
+    # newt_args = args.update(args.newt_args)
+    # plankton_args = args.update(args.plankton_args)
+    # plantnet_args = args.update(args.plantnet_args)
+    # rarespecies_args = args.update(args.rarespecies_args)
 
     # 2. Run benchmarks.
     jobs = []

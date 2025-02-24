@@ -32,7 +32,8 @@ dependencies = [
 ]
 
 [tool.ruff.lint]
-ignore = ["F722", "E402"]
+select = ["E", "F", "I"]
+ignore = ["F722", "E402", "E501"]
 
 [tool.isort]
 profile = "black"

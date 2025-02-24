@@ -6,9 +6,8 @@ types: lint
     uv run pyright biobench
 
 lint: fmt
-    ruff check biobench benchmark.py
+    ruff check --fix biobench benchmark.py
 
 fmt:
-    isort .
     ruff format --preview .
 

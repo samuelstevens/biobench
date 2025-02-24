@@ -3,6 +3,7 @@ import collections
 import dataclasses
 import logging
 import time
+import typing
 
 import beartype
 import litellm
@@ -23,18 +24,6 @@ class Example:
     user: str
     assistant: str
 
-    def to_history(self) -> list[object]:
-        return [
-            {
-                "role": "user",
-                "content": [
-                    {"type": "image_url", "image_url": {"url": self.image_b64}},
-                    {"type": "text", "text": self.user},
-                ],
-            },
-            {"role": "assistant", "content": self.assistant},
-        ]
-
 
 @beartype.beartype
 def fits(
@@ -44,19 +33,7 @@ def fits(
     user: str,
 ) -> bool:
     max_tokens = get_max_tokens(args)
-    messages = []
-    for example in examples:
-        messages.extend(example.to_history())
-    messages.append({
-        "role": "user",
-        "content": [
-            {
-                "type": "image_url",
-                "image_url": {"url": image_b64},
-            },
-            {"type": "text", "text": user},
-        ],
-    })
+    messages = make_prompt(args, examples, image_b64, user)
     n_tokens = litellm.token_counter(model=args.ckpt, messages=messages)
     return n_tokens <= max_tokens
 
@@ -70,10 +47,14 @@ def get_max_tokens(args: interfaces.ModelArgsMllm) -> int:
 
     if args.ckpt.endswith("google/gemini-2.0-flash-001"):
         return 1_000_000
-    if args.ckpt.endswith("google/gemini-flash-1.5-8b"):
+    elif args.ckpt.endswith("google/gemini-flash-1.5-8b"):
         return 1_000_000
+    elif args.ckpt.endswith("qwen/qwen-2-vl-7b-instruct"):
+        return 4_096
+    elif args.ckpt.endswith("meta-llama/llama-3.2-3b-instruct"):
+        return 131_000
     else:
-        err_msg = f"Model {args.ckpt} isn't mapped yet by biobench or litellm."
+        err_msg = f"Model '{args.ckpt}' isn't mapped yet by biobench or litellm."
         raise ValueError(err_msg)
 
 
@@ -95,7 +76,8 @@ class RateLimiter:
         if len(self.timestamps) >= self.max_rate:
             wait_time = self.timestamps[0] + self.window_s - now
             if wait_time > 0:
-                logger.info("Sleeping for %.2f seconds.", wait_time)
+                if wait_time > 1.0:
+                    logger.info("Sleeping for %.2f seconds.", wait_time)
                 await asyncio.sleep(wait_time)
 
         # Add current timestamp
@@ -129,26 +111,8 @@ async def send(
         RuntimeError: If LLM call fails
     """
 
-    # Get optional settings with defaults.
-    temperature = 0.7 if args.temp is None else args.temp
+    messages = make_prompt(args, examples, image_b64, user)
 
-    # Format messages for chat completion
-    messages = []
-
-    if system:
-        messages.append({"role": "system", "content": system})
-
-    for example in examples:
-        messages.extend(example.to_history())
-
-    # Add current message
-    messages.append({
-        "role": "user",
-        "content": [
-            {"type": "image_url", "image_url": {"url": image_b64}},
-            {"type": "text", "text": user},
-        ],
-    })
     # Make LLM call with retries
     last_err = None
 
@@ -170,7 +134,8 @@ async def send(
             response = await litellm.acompletion(
                 model=args.ckpt,
                 messages=messages,
-                temperature=temperature,
+                temperature=args.temp,
+                provider={"quantizations": args.quantizations},
             )
         except RuntimeError as err:
             last_err = err
@@ -204,3 +169,75 @@ async def send(
         if response is None:
             return ""
         return response
+
+
+#############
+# PROMPTING #
+#############
+
+
+def make_prompt(
+    args: interfaces.ModelArgsMllm,
+    examples: list[Example],
+    image_b64: str,
+    user: str,
+    *,
+    system: str = "",
+) -> list[object]:
+    if args.prompts == "single-turn":
+        return _make_single_turn_prompt(examples, image_b64, user, system=system)
+    elif args.prompt == "multi-turn":
+        return _make_multi_turn_prompt(examples, image_b64, user, system=system)
+    else:
+        typing.assert_never(args.prompts)
+
+
+def _make_single_turn_prompt(
+    examples: list[Example], image_b64: str, user: str, *, system: str = ""
+) -> list[object]:
+    messages = []
+
+    if system:
+        messages.append({"role": "system", "content": system})
+
+    content = []
+    for example in examples:
+        content.append({"type": "image_url", "image_url": {"url": example.image_b64}})
+        content.append({"type": "text", "text": f"{example.user}\n{example.assistant}"})
+
+    content.append({"type": "image_url", "image_url": {"url": image_b64}})
+    content.append({"type": "text", "text": user})
+
+    messages.append({"role": "user", "content": content})
+
+    return messages
+
+
+def _make_multi_turn_prompt(
+    examples: list[Example], image_b64: str, user: str, *, system: str = ""
+) -> list[str]:
+    # Format messages for chat completion
+    messages = []
+
+    if system:
+        messages.append({"role": "system", "content": system})
+
+    for example in examples:
+        messages.append({
+            "role": "user",
+            "content": [
+                {"type": "image_url", "image_url": {"url": example.image_b64}},
+                {"type": "text", "text": example.user},
+            ],
+        })
+        messages.append({"role": "assistant", "content": example.assistant})
+
+    # Add current message
+    messages.append({
+        "role": "user",
+        "content": [
+            {"type": "image_url", "image_url": {"url": image_b64}},
+            {"type": "text", "text": user},
+        ],
+    })
+    return messages

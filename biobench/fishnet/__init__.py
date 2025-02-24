@@ -161,10 +161,9 @@ def calc_macro_f1(preds: list[interfaces.Prediction]) -> float:
     """
     y_pred = np.array([pred.info["y_pred"] for pred in preds])
     y_true = np.array([pred.info["y_true"] for pred in preds])
-    score = sklearn.metrics.f1_score(
+    return sklearn.metrics.f1_score(
         y_true, y_pred, average="macro", labels=np.unique(y_true)
     )
-    return score.item()
 
 
 @beartype.beartype
@@ -413,14 +412,14 @@ def benchmark_mllm(
                 )
                 preds = test_example.parse_assistant(assistant)
                 # Convert feeding path to bool and combine with other binary values
-                binary_preds = [preds[1] == "pelagic"] + list(preds[2:])
+                preds = [preds[1] == "pelagic"] + list(preds[2:])
 
                 return interfaces.Prediction(
                     test_example.image_id,
-                    float((preds == test_example.true).all()),
+                    float(preds == test_example.true),
                     info={
                         "y_true": test_example.true,
-                        "y_pred": preds[1:],
+                        "y_pred": preds,
                         "assistant": assistant,
                     },
                 )

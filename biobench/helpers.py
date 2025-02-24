@@ -99,10 +99,10 @@ def write_hparam_sweep_plot(
 
 
 @beartype.beartype
-def load_image_b64(path: str) -> str:
-    image = Image.open(path)
+def load_img_b64(path: str) -> str:
+    img = Image.open(path)
     buf = io.BytesIO()
-    image.save(buf, format="webp")
+    img.save(buf, format="webp")
     b64 = pybase64.b64encode(buf.getvalue())
     s64 = b64.decode("utf8")
     return "data:image/webp;base64," + s64

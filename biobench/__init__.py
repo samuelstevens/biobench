@@ -81,13 +81,16 @@ This raises the question: why do we have multiple tasks that fill the same role?
 import typing
 
 import tyro
+from beartype.claw import beartype_this_package
 
-from . import interfaces, kabr, newt, third_party_models
+from . import interfaces, third_party_models
 from .registry import (
     list_vision_backbones,
     load_vision_backbone,
     register_vision_backbone,
 )
+
+beartype_this_package()
 
 register_vision_backbone("timm-vit", third_party_models.TimmVit)
 register_vision_backbone("open-clip", third_party_models.OpenClip)
@@ -106,7 +109,5 @@ __all__ = [
     "load_vision_backbone",
     "register_vision_backbone",
     "list_vision_backbones",
-    "newt",
-    "kabr",
     "ModelOrg",
 ]

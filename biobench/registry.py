@@ -18,15 +18,17 @@ _global_backbone_registry: dict[str, type[interfaces.VisionBackbone]] = {}
 
 
 @beartype.beartype
-def load_vision_backbone(model_org: str, ckpt: str) -> interfaces.VisionBackbone:
+def load_vision_backbone(
+    model_args: interfaces.ModelArgsCvml,
+) -> interfaces.VisionBackbone:
     """
     Load a pretrained vision backbone.
     """
-    if model_org not in _global_backbone_registry:
-        raise ValueError(f"Org '{model_org}' not found.")
+    if model_args.org not in _global_backbone_registry:
+        raise ValueError(f"Org '{model_args.org}' not found.")
 
-    cls = _global_backbone_registry[model_org]
-    return cls(ckpt)
+    cls = _global_backbone_registry[model_args.org]
+    return cls(model_args.ckpt)
 
 
 def register_vision_backbone(model_org: str, cls: type[interfaces.VisionBackbone]):

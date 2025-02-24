@@ -48,7 +48,6 @@ from .. import helpers, interfaces, mllms, registry
 logger = logging.getLogger("ages")
 
 
-@beartype.beartype
 @dataclasses.dataclass(frozen=True)
 class Args:
     """Ages task arguments."""
@@ -63,19 +62,20 @@ class Args:
     """how often (number of batches) to log progress."""
     seed: int = 42
     """random seed."""
-    max_examples: int = -1
-    """Number of maximum training samples. Negative number means use all of them."""
-    parallel: int = 5
-    """Concurrent requests per second."""
 
     # Computed at runtime.
     device: str = "cuda"
     """(computed at runtime) which kind of accelerator to use."""
     debug: bool = False
     """(computed at runtime) whether to run in debug mode."""
+    n_train: int = -1
+    """Number of maximum training samples. Negative number means use all of them."""
+    n_test: int = -1
+    """Number of test samples. Negative number means use all of them."""
+    parallel: int = 1
+    """Number of parallel requests per second to MLLM service providers."""
 
 
-@beartype.beartype
 def benchmark_cvml(
     args: Args, model_args: interfaces.ModelArgsCvml
 ) -> tuple[interfaces.ModelArgsCvml, interfaces.TaskReport]:
@@ -112,7 +112,6 @@ def benchmark_cvml(
     return model_args, interfaces.TaskReport("Ages", examples, splits=splits)
 
 
-@beartype.beartype
 def benchmark_mllm(
     args: Args, model_args: interfaces.ModelArgsMllm
 ) -> tuple[interfaces.ModelArgsMllm, interfaces.TaskReport]:
@@ -120,7 +119,7 @@ def benchmark_mllm(
 
     splits = {}
 
-    if args.max_examples > 0:
+    if args.n_train > 0:
         system = "You will be shown several example bird classifications followed by a test image to classify. For each image, respond only with the classification of the current image. Do not reclassify previous images."
     else:
         system = ""
@@ -132,9 +131,9 @@ def benchmark_mllm(
 
             # We load all the training samples into memory right away because they will be re-used over and over again.
             # Test samples are loaded one by one on demand.
-            i_train = rng.choices(task.train, k=args.max_examples)
+            i_train = rng.choices(task.train, k=args.n_train)
             train_examples = [
-                dataset[i].to_example(rng)
+                dataset[i.item()].to_example(rng)
                 for i in helpers.progress(i_train, desc="load train samples")
             ]
 
@@ -151,7 +150,7 @@ def benchmark_mllm(
                         fewshot_examples,
                         test_example.image_b64,
                         test_example.make_user(rng),
-                    ) and (args.max_examples < 0 or n_examples < args.max_examples):
+                    ) and (args.n_train < 0 or n_examples < args.n_train):
                         # Add another example.
                         n_examples += 1
                         fewshot_examples = train_examples[:n_examples]
@@ -184,6 +183,14 @@ def benchmark_mllm(
                 test_i = task.test
                 if args.debug:
                     test_i = test_i[:10]
+                    logger.info("Using the first 10 samples out of %d.", len(test_i))
+                elif args.n_test >= 0:
+                    logger.info(
+                        "Using %d random samples out of %d.", args.n_test, len(test_i)
+                    )
+                    rng.shuffle(test_i)
+                    test_i = test_i[: args.n_test]
+
                 jobs = [asyncio.create_task(run_one(i.item())) for i in test_i]
 
                 preds = []
@@ -196,9 +203,7 @@ def benchmark_mllm(
             test_acc = np.mean([pred.score for pred in preds]).item()
             splits[task.name] = test_acc
 
-    return model_args, interfaces.TaskReport(
-        "Ages", args.max_examples, preds, splits=splits
-    )
+    return model_args, interfaces.TaskReport("Ages", args.n_train, preds, splits=splits)
 
 
 #########
@@ -350,6 +355,7 @@ def init_clf():
 # MLLM #
 ########
 
+
 RAW_TO_CLASSNAME = {
     "ml_age_coopers_hawk": "Cooper's hawk",
     "ml_age_black_bellied_plover": "black-bellied plover",
@@ -368,7 +374,6 @@ RAW_TO_CLASSNAME = {
 CLASSNAMES = list(RAW_TO_CLASSNAME.values())
 
 
-@beartype.beartype
 @dataclasses.dataclass(frozen=True)
 class SampleMllm:
     image_id: str
@@ -442,7 +447,6 @@ class TaskMllm:
         return f"Task(name={self.name}, n_train={len(self.train)}, n_test={len(self.test)})"
 
 
-@beartype.beartype
 def get_all_tasks_mllm(
     args: Args,
 ) -> collections.abc.Iterator[tuple[TaskMllm, DatasetMllm]]:
