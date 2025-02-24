@@ -129,7 +129,35 @@ def init_classifier(input_dim: int) -> torch.nn.Module:
 
 @beartype.beartype
 def calc_macro_f1(preds: list[interfaces.Prediction]) -> float:
-    """TODO: docs."""
+    """Calculate the macro-averaged F1 score across all fish trait predictions.
+    
+    For each fish image, we predict 9 binary traits:
+    1. Feeding Path (benthic/pelagic)
+    2. Tropical habitat (yes/no)
+    3. Temperate habitat (yes/no) 
+    4. Subtropical habitat (yes/no)
+    5. Boreal habitat (yes/no)
+    6. Polar habitat (yes/no)
+    7. Freshwater habitat (yes/no)
+    8. Saltwater habitat (yes/no)
+    9. Brackish water habitat (yes/no)
+
+    The macro-averaging:
+    1. Calculates an F1 score for each trait independently
+    2. Takes the unweighted mean of these 9 F1 scores
+    
+    This ensures each trait contributes equally to the final score,
+    regardless of class imbalance in the dataset (e.g., if there are
+    many more tropical fish than brackish water fish).
+
+    Args:
+        preds: List of predictions, each containing:
+            - info["y_pred"]: List of 9 binary predictions
+            - info["y_true"]: List of 9 binary ground truth values
+
+    Returns:
+        The macro-averaged F1 score across all 9 traits
+    """
     y_pred = np.array([pred.info["y_pred"] for pred in preds])
     y_true = np.array([pred.info["y_true"] for pred in preds])
     score = sklearn.metrics.f1_score(
