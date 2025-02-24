@@ -23,9 +23,12 @@ If you use this evaluation, be sure to cite the original work:
 This task was contributed by [Jianyang Gu](https://vimar-gu.github.io/).
 """
 
+import asyncio
 import dataclasses
 import logging
 import os.path
+import random
+import typing
 
 import beartype
 import numpy as np
@@ -36,7 +39,7 @@ from jaxtyping import Float, Int, Shaped, jaxtyped
 from PIL import Image
 from torch import Tensor
 
-from biobench import helpers, interfaces, registry
+from .. import helpers, interfaces, mllms, registry
 
 logger = logging.getLogger("fishnet")
 
@@ -59,19 +62,21 @@ class Args:
     learning_rate: float = 5e-4
     """The learning rate for training the MLP classifier."""
     threshold: float = 0.5
-    """The threshold to predicted "presence" rather than "absence"."""
+    """The threshold to predict "presence" rather than "absence"."""
     seed: int = 42
     """random seed."""
-    parallel: int = 5
-    """Concurrent requests per second."""
 
     # Computed at runtime.
-    max_examples: int = -1
-    """(computed at runtime) Number of maximum training samples. Negative number means use all of them."""
     device: str = "cuda"
-    """(computed at runtime) Which kind of accelerator to use."""
+    """(computed at runtime) which kind of accelerator to use."""
     debug: bool = False
-    """(computed at runtime) Whether to run in debug mode."""
+    """(computed at runtime) whether to run in debug mode."""
+    n_train: int = -1
+    """Number of maximum training samples. Negative number means use all of them."""
+    n_test: int = -1
+    """Number of test samples. Negative number means use all of them."""
+    parallel: int = 1
+    """Number of parallel requests per second to MLLM service providers."""
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -134,7 +139,7 @@ def calc_macro_f1(examples: list[interfaces.Prediction]) -> float:
 
 
 @beartype.beartype
-def benchmark(
+def benchmark_cvml(
     args: Args, model_args: interfaces.ModelArgsCvml
 ) -> tuple[interfaces.ModelArgsCvml, interfaces.TaskReport]:
     """
@@ -264,9 +269,9 @@ def get_features(
 
 
 @jaxtyped(typechecker=beartype.beartype)
-class ImageDataset(torch.utils.data.Dataset):
+class ImageDatasetCvml(torch.utils.data.Dataset):
     """
-    A dataset that loads the required attribute labels.
+    A dataset for CV+ML that loads the required attribute labels.
     """
 
     def __init__(self, root_dir: str, csv_file: str, transform):
@@ -322,6 +327,226 @@ class ImageDataset(torch.utils.data.Dataset):
             image = self.transform(image)
 
         return image, label, image_path
+
+    def __len__(self) -> int:
+        return len(self.df)
+
+
+def benchmark_mllm(
+    args: Args, model_args: interfaces.ModelArgsMllm
+) -> tuple[interfaces.ModelArgsMllm, interfaces.TaskReport]:
+    if not os.path.isdir(args.data):
+        msg = f"Path '{args.data}' doesn't exist. Did you download the FishNet dataset? See the docstring at the top of this file for instructions. If you did download it, pass the path with '--fishnet-args.data'; see --help for more."
+        raise ValueError(msg)
+
+    train_dataset = DatasetMllm(args.data, "train.csv")
+    test_dataset = DatasetMllm(args.data, "test.csv")
+    rng = random.Random(args.seed)
+
+    with asyncio.Runner() as loop:
+        limiter = mllms.RateLimiter(args.parallel)
+        semaphore = asyncio.Semaphore(args.parallel)
+
+        # We load all the training samples into memory right away because they will be re-used over and over again.
+        # Test samples are loaded one by one on demand.
+        i_train = rng.sample(range(len(train_dataset)), k=args.n_train)
+        train_examples = [
+            train_dataset[i].to_example()
+            for i in helpers.progress(i_train, desc="load train samples")
+        ]
+
+        @beartype.beartype
+        async def run_one(i: int) -> interfaces.Prediction:
+            async with semaphore:
+                test_example = test_dataset[i]
+                # Try to fit them into a prompt.
+                n_examples = 0
+                fewshot_examples = []
+                while mllms.fits(
+                    model_args,
+                    fewshot_examples,
+                    test_example.image_b64,
+                    test_example.user,
+                ) and (args.n_train < 0 or n_examples < args.n_train):
+                    # Add another example.
+                    n_examples += 1
+                    fewshot_examples = train_examples[:n_examples]
+
+                # Only shuffle once.
+                rng.shuffle(fewshot_examples)
+
+                await limiter.acquire()
+                assistant = await mllms.send(
+                    model_args,
+                    fewshot_examples,
+                    test_example.image_b64,
+                    test_example.user,
+                )
+                pred = test_example.parse_assistant(assistant)
+                return interfaces.Prediction(
+                    test_example.image_id,
+                    float(pred == test_example.classname),
+                    info={
+                        "gold": test_example.classname,
+                        "pred": pred,
+                        "assistant": assistant,
+                    },
+                )
+
+        @beartype.beartype
+        async def run_all() -> list[interfaces.Prediction]:
+            if args.debug:
+                logger.info("Using the first 10 samples out of %d.", len(test_dataset))
+                test_i = list(range(10))
+            elif args.n_test >= 0:
+                logger.info(
+                    "Using %d random samples out of %d.", args.n_test, len(test_dataset)
+                )
+                test_i = rng.sample(range(len(test_dataset)), k=args.n_test)
+
+            jobs = [asyncio.create_task(run_one(i)) for i in test_i]
+
+            preds = []
+            for job in helpers.progress(jobs):
+                pred: interfaces.Prediction = await job
+                preds.append(pred)
+            return preds
+
+        preds = loop.run(run_all())
+
+    return model_args, interfaces.TaskReport(
+        "FishNet", args.n_train, preds, calc_mean_score=calc_macro_f1
+    )
+
+
+@dataclasses.dataclass(frozen=True)
+class SampleMllm:
+    image_id: str
+    image_b64: str
+    trophic_level: float
+    """The position in the food chain or food web."""
+    feeding_path: typing.Literal["benthic", "pelagic"]
+    """Which trophic pathway the species feeds from."""
+    tropical: bool
+    """Whether the fish can live in tropical areas."""
+    temperate: bool
+    """Whether the fish can live in temperate areas."""
+    subtropical: bool
+    """Whether the fish can live in subtropical areas."""
+    boreal: bool
+    """Whether the fish can live in boral areas."""
+    polar: bool
+    """Whether the fish can live in polar areas."""
+    freshwater: bool
+    """Whether the fish can live in freshwater."""
+    saltwater: bool
+    """Whether the fish can live in saltwater."""
+    brackish: bool
+    """Whether the fish can live in brackish water."""
+
+    @property
+    def user(self) -> str:
+        return """
+What functional traits does this fish have? For each of these ten traits, respond using the specified format:
+* **trophic level**: What is the real-valued position of this fish in the food chain or food web?
+* **feeding path**: What trophic pathway does this fish feed from? Choose between benthic or pelagic.
+* **tropical**: Can this fish live in tropical areas? Respond with yes or no.
+* **temperate**: Can this fish live in temperate areas? Respond with yes or no.
+* **subtropical**: Can this fish live in subtropical areas? Respond with yes or no.
+* **boreal**: Can this fish live in boreal areas? Respond with yes or no.
+* **polar**: Can this fish live in polar areas? Respond with yes or no.
+* **freshwater**: Can this fish live in freshwater? Respond with yes or no.
+* **saltwater**: Can this fish live in saltwater? Respond with yes or no.
+* **brackish water**: Can this fish live in brackish water? Respond with yes or no.
+""".strip()
+
+    @property
+    def assistant(self) -> str:
+        return f"""
+* **trophic level**: {self.trophic_level:.2f}
+* **feeding path**: {self.feeding_path}
+* **tropical**: {"yes" if self.tropical else "no"}
+* **subtropical**: {"yes" if self.subtropical else "no"}
+* **subtropical**: {"yes" if self.subtropical else "no"}
+* **boreal**: {"yes" if self.boreal else "no"}
+* **polar**: {"yes" if self.polar else "no"}
+* **freshwater**: {"yes" if self.freshwater else "no"}
+* **saltwater**: {"yes" if self.saltwater else "no"}
+* **brackish water**: {"yes" if self.brackish else "no"}""".strip()
+
+    def parse_assistant(self, assistant: str):
+        breakpoint()
+        # Parse the response into a tuple of responses. Use the same fixed format as self.assistant. Note that the yes/no responses need to be bools, defaulting to False, trophic level is a float, and feeding path is one of two fixed strings. AI!
+        pattern = re.compile(r"\*\*(.*)\*\*")
+        match = pattern.match(assistant)
+        if match:
+            # Return the closest classname in bold.
+            pred = difflib.get_close_matches(match.group(1), CLASSNAMES, cutoff=0.0)[0]
+        else:
+            # Get the closest classname.
+            pred = difflib.get_close_matches(assistant, CLASSNAMES, cutoff=0.0)[0]
+
+        return pred
+
+    def to_example(self) -> mllms.Example:
+        return mllms.Example(
+            image_b64=self.image_b64,
+            user=self.user,
+            assistant=self.assistant,
+        )
+
+
+@jaxtyped(typechecker=beartype.beartype)
+class DatasetMllm(torch.utils.data.Dataset):
+    """
+    A dataset for MLLMs that loads the required attribute labels.
+    """
+
+    def __init__(self, root_dir: str, csv_file: str):
+        self.root_dir = root_dir
+        self.csv_file = os.path.join(self.root_dir, csv_file)
+        self.df = pl.read_csv(self.csv_file).with_row_index()
+        self.all_columns = [
+            "FeedingPath",
+            "Tropical",
+            "Temperate",
+            "Subtropical",
+            "Boreal",
+            "Polar",
+            "freshwater",
+            "saltwater",
+            "brackish",
+        ]
+        for col in self.all_columns:
+            self.df = self.df.filter(self.df[col].is_not_null())
+
+        # Corresponding column indices
+        self.img_col = 4
+        self.folder_col = 13
+        logger.info("csv file: %s has %d items.", csv_file, len(self.df))
+
+    def __getitem__(self, index: int) -> SampleMllm:
+        row_data = self.df.row(index)
+        img_name = row_data[self.img_col]
+        img_name = img_name.split("/")[-1]
+        folder = row_data[self.folder_col]
+        img_path = os.path.join(self.root_dir, "Image_Library", folder, img_name)
+        img_b64 = helpers.load_img_b64(img_path)
+
+        return SampleMllm(
+            img_path,
+            img_b64,
+            row_data[14],
+            row_data[15],
+            bool(row_data[16]),
+            bool(row_data[17]),
+            bool(row_data[18]),
+            bool(row_data[19]),
+            bool(row_data[20]),
+            bool(row_data[21]),
+            bool(row_data[22]),
+            bool(row_data[23]),
+        )
 
     def __len__(self) -> int:
         return len(self.df)
