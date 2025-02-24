@@ -128,10 +128,10 @@ def init_classifier(input_dim: int) -> torch.nn.Module:
 
 
 @beartype.beartype
-def calc_macro_f1(examples: list[interfaces.Prediction]) -> float:
+def calc_macro_f1(preds: list[interfaces.Prediction]) -> float:
     """TODO: docs."""
-    y_pred = np.array([example.info["y_pred"] for example in examples])
-    y_true = np.array([example.info["y_true"] for example in examples])
+    y_pred = np.array([pred.info["y_pred"] for pred in preds])
+    y_true = np.array([pred.info["y_true"] for pred in preds])
     score = sklearn.metrics.f1_score(
         y_true, y_pred, average="macro", labels=np.unique(y_true)
     )
@@ -382,7 +382,8 @@ def benchmark_mllm(
                     test_example.image_b64,
                     test_example.user,
                 )
-                pred = test_example.parse_assistant(assistant)
+                preds = test_example.parse_assistant(assistant)
+                breakpoint()
                 return interfaces.Prediction(
                     test_example.image_id,
                     float(pred == test_example.classname),
@@ -474,33 +475,34 @@ What functional traits does this fish have? For each of these ten traits, respon
 * **saltwater**: {"yes" if self.saltwater else "no"}
 * **brackish water**: {"yes" if self.brackish else "no"}""".strip()
 
-    def parse_assistant(self, assistant: str) -> tuple[float, str, bool, bool, bool, bool, bool, bool, bool, bool]:
+    def parse_assistant(
+        self, assistant: str
+    ) -> tuple[float, str, bool, bool, bool, bool, bool, bool, bool, bool]:
         """Parse the MLLM response into structured data.
-        
+
         Returns:
-            Tuple of (trophic_level, feeding_path, tropical, temperate, subtropical, boreal, 
-            polar, freshwater, saltwater, brackish)
+            Tuple of (trophic_level, feeding_path, tropical, temperate, subtropical, boreal, polar, freshwater, saltwater, brackish)
         """
         # Default values
         trophic_level = 0.0
         feeding_path = "benthic"  # Default to benthic if not found
         tropical = temperate = subtropical = boreal = polar = False
         freshwater = saltwater = brackish = False
-        
+
         # Parse each line
         for line in assistant.split("\n"):
             line = line.strip()
             if not line.startswith("*"):
                 continue
-                
+
             # Extract the trait name and value
             parts = line.split(":")
             if len(parts) != 2:
                 continue
-                
+
             trait = parts[0].strip("* ").lower()
             value = parts[1].strip().lower()
-            
+
             if trait == "trophic level":
                 try:
                     trophic_level = float(value)
@@ -511,7 +513,7 @@ What functional traits does this fish have? For each of these ten traits, respon
                     feeding_path = value
             elif trait == "tropical":
                 tropical = value == "yes"
-            elif trait == "temperate": 
+            elif trait == "temperate":
                 temperate = value == "yes"
             elif trait == "subtropical":
                 subtropical = value == "yes"
@@ -525,9 +527,19 @@ What functional traits does this fish have? For each of these ten traits, respon
                 saltwater = value == "yes"
             elif trait == "brackish water":
                 brackish = value == "yes"
-                
-        return (trophic_level, feeding_path, tropical, temperate, subtropical, 
-                boreal, polar, freshwater, saltwater, brackish)
+
+        return (
+            trophic_level,
+            feeding_path,
+            tropical,
+            temperate,
+            subtropical,
+            boreal,
+            polar,
+            freshwater,
+            saltwater,
+            brackish,
+        )
 
     def to_example(self) -> mllms.Example:
         return mllms.Example(
