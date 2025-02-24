@@ -129,12 +129,14 @@ def init_classifier(input_dim: int) -> torch.nn.Module:
 
 @beartype.beartype
 def calc_macro_f1(preds: list[interfaces.Prediction]) -> float:
-    """Calculate the macro-averaged F1 score across all fish trait predictions.
-    
+    """
+    Calculate the macro-averaged F1 score across all fish trait predictions.
+
     For each fish image, we predict 9 binary traits:
+
     1. Feeding Path (benthic/pelagic)
     2. Tropical habitat (yes/no)
-    3. Temperate habitat (yes/no) 
+    3. Temperate habitat (yes/no)
     4. Subtropical habitat (yes/no)
     5. Boreal habitat (yes/no)
     6. Polar habitat (yes/no)
@@ -143,12 +145,11 @@ def calc_macro_f1(preds: list[interfaces.Prediction]) -> float:
     9. Brackish water habitat (yes/no)
 
     The macro-averaging:
+
     1. Calculates an F1 score for each trait independently
     2. Takes the unweighted mean of these 9 F1 scores
-    
-    This ensures each trait contributes equally to the final score,
-    regardless of class imbalance in the dataset (e.g., if there are
-    many more tropical fish than brackish water fish).
+
+    This ensures each trait contributes equally to the final score, regardless of class imbalance in the dataset (e.g., if there are many more tropical fish than brackish water fish).
 
     Args:
         preds: List of predictions, each containing:
@@ -411,13 +412,17 @@ def benchmark_mllm(
                     test_example.user,
                 )
                 preds = test_example.parse_assistant(assistant)
-                breakpoint()
+                # Discard the trophic level (real value) because we currently only compare the 9 binary values.
+                preds = preds[1:]
+
+                # Add a property .true to SampleMllm that returns an array of 0/1 integers so that we can calculate f1_macro easily. AI!
+
                 return interfaces.Prediction(
                     test_example.image_id,
-                    float(pred == test_example.classname),
+                    float((preds == test_example.true).all()),
                     info={
-                        "gold": test_example.classname,
-                        "pred": pred,
+                        "y_true": test_example.true,
+                        "y_pred": preds[1:],
                         "assistant": assistant,
                     },
                 )
