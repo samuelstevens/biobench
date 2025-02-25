@@ -157,20 +157,13 @@ class Report:
         Convert the report to a JSON-compatible dictionary.
         Uses dataclasses.asdict() with custom handling for special types.
         """
-        def handle_value(obj):
-            # Handle special cases
-            if obj is None:
-                return None
-            if callable(obj):
-                return obj.__name__
-            if hasattr(obj, "to_dict"):
-                return obj.to_dict()
-            return obj
 
-        return dataclasses.asdict(self, dict_factory=lambda x: {
-            k: handle_value(v) if not isinstance(v, list) else [handle_value(i) for i in v]
-            for k, v in x
-        })
+        dct = dataclasses.asdict(self)
+
+        dct["exp_cfg"] = self.exp_cfg.to_dict()
+        # Handle the rest of the weird values like above AI!
+
+        return dct
 
     def get_mean_score(self) -> float:
         """
