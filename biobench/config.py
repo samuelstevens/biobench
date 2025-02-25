@@ -49,7 +49,18 @@ class ExperimentConfig:
 
     # Task-specific args
     ages_data: str = ""
-    # Add a *_data field for each task. AI!
+    beluga_data: str = ""
+    birds525_data: str = ""
+    fishnet_data: str = ""
+    imagenet_data: str = ""
+    inat21_data: str = ""
+    iwildcam_data: str = ""
+    kabr_data: str = ""
+    leopard_data: str = ""
+    newt_data: str = ""
+    plankton_data: str = ""
+    plantnet_data: str = ""
+    rarespecies_data: str = ""
 
     def to_dict(self) -> dict[str, object]:
         return dataclasses.asdict(self)
