@@ -235,7 +235,7 @@ def main(args: Args):
 
     logger.info(&#34;Submitted %d jobs.&#34;, len(jobs))
 
-    # 3. Display results.
+    # 3. Write results to sqlite.
     os.makedirs(args.report_to, exist_ok=True)
     for i, future in enumerate(submitit.helpers.as_completed(jobs)):
         err = future.exception()
@@ -247,10 +247,84 @@ def main(args: Args):
         save(args, model_args, report)
         logger.info(&#34;Finished %d/%d jobs.&#34;, i + 1, len(jobs))
 
+    # 4. Make the table in both CSV and LaTeX.
+    make_tables(args)
+
     logger.info(&#34;Finished.&#34;)</code></pre>
 </details>
 <div class="desc"><p>Launch all jobs, using either a local GPU or a Slurm cluster.
 Then report results and save to disk.</p></div>
+</dd>
+<dt id="benchmark.make_tables"><code class="name flex">
+<span>def <span class="ident">make_tables</span></span>(<span>args: <a title="benchmark.Args" href="#benchmark.Args">Args</a>)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@beartype.beartype
+def make_tables(args: Args):
+    &#34;&#34;&#34;TODO: document.&#34;&#34;&#34;
+
+    # CSV
+    columns = [
+        &#34;task&#34;,
+        &#34;model&#34;,
+        &#34;n_train&#34;,
+        &#34;n_test&#34;,
+        &#34;sampling&#34;,
+        &#34;prompting&#34;,  # MLLM only
+        &#34;classifier&#34;,  # CV+ML only
+        &#34;hparams_json&#34;,  # Both CV+ML/MLLM
+        &#34;confidence_lower&#34;,
+        &#34;mean_score&#34;,
+        &#34;confidence_upper&#34;,
+        &#34;n_successful_parses&#34;,  # MLLM only
+        &#34;usd_per_answer&#34;,  # MLLM only
+    ]
+
+    conn = args.get_sqlite_connection()
+    stmt = &#34;&#34;&#34;
+    SELECT task, model_config, confidence_lower, mean_score, confidence_upper, args, MAX(posix) AS posix 
+    FROM reports 
+    GROUP BY model_config, task, args
+    ORDER BY task, model_config, args ASC;
+    &#34;&#34;&#34;
+    data = conn.execute(stmt, ()).fetchall()
+
+    with open(os.path.join(args.report_to, &#34;table.csv&#34;), &#34;w&#34;) as fd:
+        writer = csv.DictWriter(fd, columns)
+        writer.writeheader()
+        for task, model_args_json, ci_lower, mean, ci_upper, task_args_json, _ in data:
+            model_args = json.loads(model_args_json)
+            task_args = json.loads(task_args_json)
+
+            if model_args[&#34;type&#34;] == &#34;mllm&#34;:
+                hparams = {&#34;temp&#34;: model_args[&#34;temp&#34;]}
+            elif model_args[&#34;type&#34;] == &#34;cvml&#34;:
+                hparams = {}
+            else:
+                raise ValueError(model_args)
+
+            # breakpoint()
+            writer.writerow({
+                &#34;task&#34;: task,
+                &#34;model&#34;: model_args[&#34;ckpt&#34;],
+                &#34;n_train&#34;: task_args[&#34;n_train&#34;],
+                &#34;n_test&#34;: task_args[&#34;n_test&#34;],
+                &#34;sampling&#34;: &#34;uniform&#34;,
+                &#34;prompting&#34;: model_args.get(&#34;prompts&#34;, &#34;&#34;),
+                &#34;classifier&#34;: model_args.get(&#34;classifier&#34;, &#34;&#34;),
+                &#34;hparams_json&#34;: json.dumps(hparams),
+                &#34;confidence_lower&#34;: ci_lower,
+                &#34;mean_score&#34;: mean,
+                &#34;confidence_upper&#34;: ci_upper,
+            })
+
+    # LaTeX</code></pre>
+</details>
+<div class="desc"><p>TODO: document.</p></div>
 </dd>
 <dt id="benchmark.save"><code class="name flex">
 <span>def <span class="ident">save</span></span>(<span>args: <a title="benchmark.Args" href="#benchmark.Args">Args</a>,<br>model_args: <a title="biobench.interfaces.ModelArgsCvml" href="biobench/interfaces.html#biobench.interfaces.ModelArgsCvml">ModelArgsCvml</a> | <a title="biobench.interfaces.ModelArgsMllm" href="biobench/interfaces.html#biobench.interfaces.ModelArgsMllm">ModelArgsMllm</a>,<br>report: <a title="biobench.interfaces.TaskReport" href="biobench/interfaces.html#biobench.interfaces.TaskReport">TaskReport</a>) ‑> None</span>
@@ -281,17 +355,16 @@ def save(
 
     lower, upper = report.get_confidence_interval()
     values = (
-        json.dumps(dataclasses.asdict(model_args)),
-        args.n_train,
+        json.dumps(model_args.to_dict()),
         report.name,
         int(time.time()),
         report.get_mean_score(),
         lower,
         upper,
-        json.dumps(dataclasses.asdict(args)),
+        json.dumps(args.to_dict()),
         json.dumps(report.to_dict()),
     )
-    conn.execute(&#34;INSERT INTO reports VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)&#34;, values)
+    conn.execute(&#34;INSERT INTO reports VALUES(?, ?, ?, ?, ?, ?, ?, ?)&#34;, values)
     conn.commit()
 
     logger.info(
@@ -318,7 +391,7 @@ def save(
 <dl>
 <dt id="benchmark.Args"><code class="flex name class">
 <span>class <span class="ident">Args</span></span>
-<span>(</span><span>slurm: bool = False,<br>slurm_acct: str = 'PAS2136',<br>models_cvml: Annotated[list[<a title="biobench.interfaces.ModelArgsCvml" href="biobench/interfaces.html#biobench.interfaces.ModelArgsCvml">ModelArgsCvml</a>], _ArgConfig(name='models', metavar=None, help=None, help_behavior_hint=None, aliases=None, prefix_name=None, constructor_factory=None)] = &lt;factory&gt;,<br>models_mllm: Annotated[list[<a title="biobench.interfaces.ModelArgsMllm" href="biobench/interfaces.html#biobench.interfaces.ModelArgsMllm">ModelArgsMllm</a>], _ArgConfig(name='mllms', metavar=None, help=None, help_behavior_hint=None, aliases=None, prefix_name=None, constructor_factory=None)] = &lt;factory&gt;,<br>device: Literal['cpu', 'cuda'] = 'cuda',<br>debug: bool = False,<br>n_train: int = -1,<br>n_test: int = -1,<br>parallel: int = 1,<br>ssl: bool = True,<br>ages_run_cvml: bool = False,<br>ages_run_mllm: bool = False,<br>ages_args: <a title="biobench.ages.Args" href="biobench/ages/index.html#biobench.ages.Args">Args</a> = &lt;factory&gt;,<br>beluga_run_cvml: bool = False,<br>beluga_run_mllm: bool = False,<br>beluga_args: <a title="biobench.beluga.Args" href="biobench/beluga/index.html#biobench.beluga.Args">Args</a> = &lt;factory&gt;,<br>birds525_run_cvml: bool = False,<br>birds525_run_mllm: bool = False,<br>birds525_args: <a title="biobench.birds525.Args" href="biobench/birds525/index.html#biobench.birds525.Args">Args</a> = &lt;factory&gt;,<br>fishnet_run_cvml: bool = False,<br>fishnet_run_mllm: bool = False,<br>fishnet_args: <a title="biobench.fishnet.Args" href="biobench/fishnet/index.html#biobench.fishnet.Args">Args</a> = &lt;factory&gt;,<br>imagenet_run_cvml: bool = False,<br>imagenet_run_mllm: bool = False,<br>imagenet_args: <a title="biobench.imagenet.Args" href="biobench/imagenet/index.html#biobench.imagenet.Args">Args</a> = &lt;factory&gt;,<br>inat21_run_cvml: bool = False,<br>inat21_run_mllm: bool = False,<br>inat21_args: <a title="biobench.inat21.Args" href="biobench/inat21/index.html#biobench.inat21.Args">Args</a> = &lt;factory&gt;,<br>iwildcam_run_cvml: bool = False,<br>iwildcam_run_mllm: bool = False,<br>iwildcam_args: <a title="biobench.iwildcam.Args" href="biobench/iwildcam/index.html#biobench.iwildcam.Args">Args</a> = &lt;factory&gt;,<br>kabr_run_cvml: bool = False,<br>kabr_run_mllm: bool = False,<br>kabr_args: <a title="biobench.kabr.Args" href="biobench/kabr/index.html#biobench.kabr.Args">Args</a> = &lt;factory&gt;,<br>leopard_run_cvml: bool = False,<br>leopard_run_mllm: bool = False,<br>leopard_args: <a title="biobench.leopard.Args" href="biobench/leopard/index.html#biobench.leopard.Args">Args</a> = &lt;factory&gt;,<br>newt_run_cvml: bool = False,<br>newt_run_mllm: bool = False,<br>newt_args: <a title="biobench.newt.Args" href="biobench/newt/index.html#biobench.newt.Args">Args</a> = &lt;factory&gt;,<br>plankton_run_cvml: bool = False,<br>plankton_run_mllm: bool = False,<br>plankton_args: <a title="biobench.plankton.Args" href="biobench/plankton/index.html#biobench.plankton.Args">Args</a> = &lt;factory&gt;,<br>plantnet_run_cvml: bool = False,<br>plantnet_run_mllm: bool = False,<br>plantnet_args: <a title="biobench.plantnet.Args" href="biobench/plantnet/index.html#biobench.plantnet.Args">Args</a> = &lt;factory&gt;,<br>rarespecies_run_cvml: bool = False,<br>rarespecies_run_mllm: bool = False,<br>rarespecies_args: <a title="biobench.rarespecies.Args" href="biobench/rarespecies/index.html#biobench.rarespecies.Args">Args</a> = &lt;factory&gt;,<br>report_to: str = './reports',<br>graph: bool = True,<br>graph_to: str = './graphs',<br>log_to: str = './logs')</span>
+<span>(</span><span>slurm: bool = False,<br>slurm_acct: str = 'PAS2136',<br>models_cvml: Annotated[list[<a title="biobench.interfaces.ModelArgsCvml" href="biobench/interfaces.html#biobench.interfaces.ModelArgsCvml">ModelArgsCvml</a>], _ArgConfig(name='models', metavar=None, help=None, help_behavior_hint=None, aliases=None, prefix_name=None, constructor_factory=None)] = &lt;factory&gt;,<br>models_mllm: Annotated[list[<a title="biobench.interfaces.ModelArgsMllm" href="biobench/interfaces.html#biobench.interfaces.ModelArgsMllm">ModelArgsMllm</a>], _ArgConfig(name='mllms', metavar=None, help=None, help_behavior_hint=None, aliases=None, prefix_name=None, constructor_factory=None)] = &lt;factory&gt;,<br>device: Literal['cpu', 'mps', 'cuda'] = 'cuda',<br>debug: bool = False,<br>n_train: int = -1,<br>n_test: int = -1,<br>parallel: int = 1,<br>ssl: bool = True,<br>ages_run_cvml: bool = False,<br>ages_run_mllm: bool = False,<br>ages_args: <a title="biobench.ages.Args" href="biobench/ages/index.html#biobench.ages.Args">Args</a> = &lt;factory&gt;,<br>beluga_run_cvml: bool = False,<br>beluga_run_mllm: bool = False,<br>beluga_args: <a title="biobench.beluga.Args" href="biobench/beluga/index.html#biobench.beluga.Args">Args</a> = &lt;factory&gt;,<br>birds525_run_cvml: bool = False,<br>birds525_run_mllm: bool = False,<br>birds525_args: <a title="biobench.birds525.Args" href="biobench/birds525/index.html#biobench.birds525.Args">Args</a> = &lt;factory&gt;,<br>fishnet_run_cvml: bool = False,<br>fishnet_run_mllm: bool = False,<br>fishnet_args: <a title="biobench.fishnet.Args" href="biobench/fishnet/index.html#biobench.fishnet.Args">Args</a> = &lt;factory&gt;,<br>imagenet_run_cvml: bool = False,<br>imagenet_run_mllm: bool = False,<br>imagenet_args: <a title="biobench.imagenet.Args" href="biobench/imagenet/index.html#biobench.imagenet.Args">Args</a> = &lt;factory&gt;,<br>inat21_run_cvml: bool = False,<br>inat21_run_mllm: bool = False,<br>inat21_args: <a title="biobench.inat21.Args" href="biobench/inat21/index.html#biobench.inat21.Args">Args</a> = &lt;factory&gt;,<br>iwildcam_run_cvml: bool = False,<br>iwildcam_run_mllm: bool = False,<br>iwildcam_args: <a title="biobench.iwildcam.Args" href="biobench/iwildcam/index.html#biobench.iwildcam.Args">Args</a> = &lt;factory&gt;,<br>kabr_run_cvml: bool = False,<br>kabr_run_mllm: bool = False,<br>kabr_args: <a title="biobench.kabr.Args" href="biobench/kabr/index.html#biobench.kabr.Args">Args</a> = &lt;factory&gt;,<br>leopard_run_cvml: bool = False,<br>leopard_run_mllm: bool = False,<br>leopard_args: <a title="biobench.leopard.Args" href="biobench/leopard/index.html#biobench.leopard.Args">Args</a> = &lt;factory&gt;,<br>newt_run_cvml: bool = False,<br>newt_run_mllm: bool = False,<br>newt_args: <a title="biobench.newt.Args" href="biobench/newt/index.html#biobench.newt.Args">Args</a> = &lt;factory&gt;,<br>plankton_run_cvml: bool = False,<br>plankton_run_mllm: bool = False,<br>plankton_args: <a title="biobench.plankton.Args" href="biobench/plankton/index.html#biobench.plankton.Args">Args</a> = &lt;factory&gt;,<br>plantnet_run_cvml: bool = False,<br>plantnet_run_mllm: bool = False,<br>plantnet_args: <a title="biobench.plantnet.Args" href="biobench/plantnet/index.html#biobench.plantnet.Args">Args</a> = &lt;factory&gt;,<br>rarespecies_run_cvml: bool = False,<br>rarespecies_run_mllm: bool = False,<br>rarespecies_args: <a title="biobench.rarespecies.Args" href="biobench/rarespecies/index.html#biobench.rarespecies.Args">Args</a> = &lt;factory&gt;,<br>report_to: str = './reports',<br>graph: bool = True,<br>graph_to: str = './graphs',<br>log_to: str = './logs')</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -365,7 +438,7 @@ class Args:
         ]
     )
     &#34;&#34;&#34;MLLM checkpoints.&#34;&#34;&#34;
-    device: typing.Literal[&#34;cpu&#34;, &#34;cuda&#34;] = &#34;cuda&#34;
+    device: typing.Literal[&#34;cpu&#34;, &#34;mps&#34;, &#34;cuda&#34;] = &#34;cuda&#34;
     &#34;&#34;&#34;which kind of accelerator to use.&#34;&#34;&#34;
     debug: bool = False
     &#34;&#34;&#34;whether to run in debug mode.&#34;&#34;&#34;
@@ -546,7 +619,7 @@ class Args:
 <dd>
 <div class="desc"><p>whether to run in debug mode.</p></div>
 </dd>
-<dt id="benchmark.Args.device"><code class="name">var <span class="ident">device</span> : Literal['cpu', 'cuda']</code></dt>
+<dt id="benchmark.Args.device"><code class="name">var <span class="ident">device</span> : Literal['cpu', 'mps', 'cuda']</code></dt>
 <dd>
 <div class="desc"><p>which kind of accelerator to use.</p></div>
 </dd>
@@ -795,6 +868,7 @@ class Args:
 <li><h3><a href="#header-functions">Functions</a></h3>
 <ul class="">
 <li><code><a title="benchmark.main" href="#benchmark.main">main</a></code></li>
+<li><code><a title="benchmark.make_tables" href="#benchmark.make_tables">make_tables</a></code></li>
 <li><code><a title="benchmark.save" href="#benchmark.save">save</a></code></li>
 </ul>
 </li>

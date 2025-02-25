@@ -7,11 +7,11 @@ See `biobench.third_party_models` for examples of how to subclass it, and note t
 The benchmark interface is informal, but is a function that matches the following signature:
 
 ```py
-def benchmark(args: Args, model_args: tuple[str, str]) -> tuple[tuple[str, str], interfaces.TaskReport]:
+def benchmark(args: Args, model_args: ModelArgs) -> tuple[ModelArgs], interfaces.TaskReport]:
     ...
 ```
 
-In a Haskell-like signature, this is more like `Args -> (str, str) -> ((str, str), TaskReport)`.
+In a Haskell-like signature, this is more like `Args -> ModelArgs -> (ModelArgs, TaskReport)`.
 """
 
 import dataclasses
@@ -107,8 +107,6 @@ class TaskReport:
     # Actual details of the report
     name: str
     """The benchmark name."""
-    n_train: int
-    """The maximum number of training examples used."""
     predictions: list[Prediction]
     """A list of (example_id, score, info) objects"""
     _: dataclasses.KW_ONLY
@@ -194,6 +192,9 @@ class ModelArgsCvml:
     org: str
     ckpt: str
 
+    def to_dict(self) -> dict[str, object]:
+        return {"type": "cvml", **dataclasses.asdict(self)}
+
 
 @dataclasses.dataclass(frozen=True)
 class ModelArgsMllm:
@@ -201,3 +202,6 @@ class ModelArgsMllm:
     temp: float = 0.0
     prompts: typing.Literal["single-turn", "multi-turn"] = "single-turn"
     quantizations: list[str] = dataclasses.field(default_factory=list)
+
+    def to_dict(self) -> dict[str, object]:
+        return {"type": "mllm", **dataclasses.asdict(self)}

@@ -10,11 +10,11 @@ See `biobench.third_party_models` for examples of how to subclass it, and note t
 The benchmark interface is informal, but is a function that matches the following signature:
 
 ```py
-def benchmark(args: Args, model_args: tuple[str, str]) -> tuple[tuple[str, str], interfaces.TaskReport]:
+def benchmark(args: Args, model_args: ModelArgs) -> tuple[ModelArgs], interfaces.TaskReport]:
     ...
 ```
 
-In a Haskell-like signature, this is more like `Args -> (str, str) -> ((str, str), TaskReport)`.
+In a Haskell-like signature, this is more like `Args -> ModelArgs -> (ModelArgs, TaskReport)`.
 """
 
 import dataclasses
@@ -110,8 +110,6 @@ class TaskReport:
     # Actual details of the report
     name: str
     """The benchmark name."""
-    n_train: int
-    """The maximum number of training examples used."""
     predictions: list[Prediction]
     """A list of (example_id, score, info) objects"""
     _: dataclasses.KW_ONLY
@@ -197,6 +195,9 @@ class ModelArgsCvml:
     org: str
     ckpt: str
 
+    def to_dict(self) -> dict[str, object]:
+        return {"type": "cvml", **dataclasses.asdict(self)}
+
 
 @dataclasses.dataclass(frozen=True)
 class ModelArgsMllm:
@@ -204,6 +205,9 @@ class ModelArgsMllm:
     temp: float = 0.0
     prompts: typing.Literal["single-turn", "multi-turn"] = "single-turn"
     quantizations: list[str] = dataclasses.field(default_factory=list)
+
+    def to_dict(self) -> dict[str, object]:
+        return {"type": "mllm", **dataclasses.asdict(self)}
 
 ```
 
@@ -1160,12 +1164,16 @@ class Args:
     """how often (number of batches) to log progress."""
 
     # Computed at runtime.
-    max_examples: int = -1
-    """(computed at runtime) Number of maximum training samples. Negative number means use all of them."""
     device: str = "cuda"
-    """(computed at runtime) Which kind of accelerator to use."""
+    """(computed at runtime) which kind of accelerator to use."""
     debug: bool = False
-    """(computed at runtime) Whether to run in debug mode."""
+    """(computed at runtime) whether to run in debug mode."""
+    n_train: int = -1
+    """(computed at runtime) number of maximum training samples. Negative number means use all of them."""
+    n_test: int = -1
+    """(computed at runtime) number of test samples. Negative number means use all of them."""
+    parallel: int = 1
+    """(computed at runtime) number of parallel requests per second to MLLM service providers."""
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -1428,12 +1436,16 @@ class Args:
     log_every: int = 10
     """how often (number of batches) to log progress."""
     # Computed at runtime.
-    max_examples: int = -1
-    """(computed at runtime) Number of maximum training samples. Negative number means use all of them."""
     device: str = "cuda"
-    """(computed at runtime) Which kind of accelerator to use."""
+    """(computed at runtime) which kind of accelerator to use."""
     debug: bool = False
-    """(computed at runtime) Whether to run in debug mode."""
+    """(computed at runtime) whether to run in debug mode."""
+    n_train: int = -1
+    """(computed at runtime) number of maximum training samples. Negative number means use all of them."""
+    n_test: int = -1
+    """(computed at runtime) number of test samples. Negative number means use all of them."""
+    parallel: int = 1
+    """(computed at runtime) number of parallel requests per second to MLLM service providers."""
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -1690,12 +1702,16 @@ class Args:
     log_every: int = 10
     """how often (number of batches) to log progress."""
     # Computed at runtime.
-    max_examples: int = -1
-    """(computed at runtime) Number of maximum training samples. Negative number means use all of them."""
     device: str = "cuda"
-    """(computed at runtime) Which kind of accelerator to use."""
+    """(computed at runtime) which kind of accelerator to use."""
     debug: bool = False
-    """(computed at runtime) Whether to run in debug mode."""
+    """(computed at runtime) whether to run in debug mode."""
+    n_train: int = -1
+    """(computed at runtime) number of maximum training samples. Negative number means use all of them."""
+    n_test: int = -1
+    """(computed at runtime) number of test samples. Negative number means use all of them."""
+    parallel: int = 1
+    """(computed at runtime) number of parallel requests per second to MLLM service providers."""
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -2020,12 +2036,16 @@ class Args:
     log_every: int = 10
     """how often (number of batches) to log progress."""
     # Computed at runtime.
-    max_examples: int = -1
-    """(computed at runtime) Number of maximum training samples. Negative number means use all of them."""
     device: str = "cuda"
-    """(computed at runtime) Which kind of accelerator to use."""
+    """(computed at runtime) which kind of accelerator to use."""
     debug: bool = False
-    """(computed at runtime) Whether to run in debug mode."""
+    """(computed at runtime) whether to run in debug mode."""
+    n_train: int = -1
+    """(computed at runtime) number of maximum training samples. Negative number means use all of them."""
+    n_test: int = -1
+    """(computed at runtime) number of test samples. Negative number means use all of them."""
+    parallel: int = 1
+    """(computed at runtime) number of parallel requests per second to MLLM service providers."""
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -2829,12 +2849,16 @@ class Args:
     n_jobs: int = 16
     """How many SVMs to train in parallel."""
     # Computed at runtime.
-    max_examples: int = -1
-    """(computed at runtime) Number of maximum training samples. Negative number means use all of them."""
     device: str = "cuda"
-    """(computed at runtime) Which kind of accelerator to use."""
+    """(computed at runtime) which kind of accelerator to use."""
     debug: bool = False
-    """(computed at runtime) Whether to run in debug mode."""
+    """(computed at runtime) whether to run in debug mode."""
+    n_train: int = -1
+    """(computed at runtime) number of maximum training samples. Negative number means use all of them."""
+    n_test: int = -1
+    """(computed at runtime) number of test samples. Negative number means use all of them."""
+    parallel: int = 1
+    """(computed at runtime) number of parallel requests per second to MLLM service providers."""
 
 
 @beartype.beartype
@@ -3115,16 +3139,18 @@ class Args:
     """How often to log while getting features."""
     seed: int = 42
     """random seed."""
-    parallel: int = 5
-    """Concurrent requests per second."""
 
     # Computed at runtime.
-    max_examples: int = -1
-    """(computed at runtime) Number of maximum training samples. Negative number means use all of them."""
     device: str = "cuda"
-    """(computed at runtime) Which kind of accelerator to use."""
+    """(computed at runtime) which kind of accelerator to use."""
     debug: bool = False
-    """(computed at runtime) Whether to run in debug mode."""
+    """(computed at runtime) whether to run in debug mode."""
+    n_train: int = -1
+    """Number of maximum training samples. Negative number means use all of them."""
+    n_test: int = -1
+    """Number of test samples. Negative number means use all of them."""
+    parallel: int = 1
+    """Number of parallel requests per second to MLLM service providers."""
 
 
 @beartype.beartype
@@ -3322,7 +3348,6 @@ class Args:
     """random seed."""
     data: str = ""
     """dataset directory; where you downloaded this task's data to."""
-
     batch_size: int = 256
     """batch size for deep model."""
     n_workers: int = 4
@@ -3331,13 +3356,18 @@ class Args:
     """how often (number of batches) to log progress."""
     n_repeats: int = 100
     """number of times to do 1-shot training."""
+
     # Computed at runtime.
-    max_examples: int = -1
-    """(computed at runtime) Number of maximum training samples. Negative number means use all of them."""
     device: str = "cuda"
-    """(computed at runtime) Which kind of accelerator to use."""
+    """(computed at runtime) which kind of accelerator to use."""
     debug: bool = False
-    """(computed at runtime) Whether to run in debug mode."""
+    """(computed at runtime) whether to run in debug mode."""
+    n_train: int = -1
+    """Number of maximum training samples. Negative number means use all of them."""
+    n_test: int = -1
+    """Number of test samples. Negative number means use all of them."""
+    parallel: int = 1
+    """Number of parallel requests per second to MLLM service providers."""
 
 
 @beartype.beartype
@@ -3708,16 +3738,18 @@ class Args:
     """how often (number of batches) to log progress."""
     seed: int = 42
     """random seed."""
-    parallel: int = 5
-    """Concurrent requests per second."""
 
     # Computed at runtime.
-    max_examples: int = -1
-    """(computed at runtime) Number of maximum training samples. Negative number means use all of them."""
     device: str = "cuda"
-    """(computed at runtime) Which kind of accelerator to use."""
+    """(computed at runtime) which kind of accelerator to use."""
     debug: bool = False
-    """(computed at runtime) Whether to run in debug mode."""
+    """(computed at runtime) whether to run in debug mode."""
+    n_train: int = -1
+    """(computed at runtime) number of maximum training samples. Negative number means use all of them."""
+    n_test: int = -1
+    """(computed at runtime) number of test samples. Negative number means use all of them."""
+    parallel: int = 1
+    """(computed at runtime) number of parallel requests per second to MLLM service providers."""
 
 
 @beartype.beartype
@@ -4856,12 +4888,16 @@ class Args:
     log_every: int = 10
     """how often (number of batches) to log progress."""
     # Computed at runtime.
-    max_examples: int = -1
-    """(computed at runtime) Number of maximum training samples. Negative number means use all of them."""
     device: str = "cuda"
-    """(computed at runtime) Which kind of accelerator to use."""
+    """(computed at runtime) which kind of accelerator to use."""
     debug: bool = False
-    """(computed at runtime) Whether to run in debug mode."""
+    """(computed at runtime) whether to run in debug mode."""
+    n_train: int = -1
+    """(computed at runtime) number of maximum training samples. Negative number means use all of them."""
+    n_test: int = -1
+    """(computed at runtime) number of test samples. Negative number means use all of them."""
+    parallel: int = 1
+    """(computed at runtime) number of parallel requests per second to MLLM service providers."""
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -5125,7 +5161,7 @@ import numpy as np
 import polars as pl
 import sklearn
 import torch
-from jaxtyping import Float, Int, Shaped, jaxtyped
+from jaxtyping import Float, Int, jaxtyped
 from PIL import Image
 from torch import Tensor
 
@@ -5141,7 +5177,7 @@ class Args:
 
     data: str = ""
     """dataset directory; where you downloaded this task's data to."""
-    batch_size_cv: int = 256
+    batch_size: int = 256
     """batch size for computer vision model."""
     n_workers: int = 4
     """number of dataloader worker processes."""
@@ -5170,7 +5206,7 @@ class Args:
 
 
 @jaxtyped(typechecker=beartype.beartype)
-class Features(torch.utils.data.Dataset):
+class FeaturesCvml(torch.utils.data.Dataset):
     """
     A dataset of learned features (dense vectors).
     """
@@ -5179,14 +5215,14 @@ class Features(torch.utils.data.Dataset):
     """Dense feature vectors from a vision backbone."""
     y: Int[Tensor, " n 9"]
     """0/1 labels of absence/presence of 9 different traits."""
-    ids: Shaped[np.ndarray, " n"]
+    ids: list[str]
     """Image ids."""
 
     def __init__(
         self,
         x: Float[Tensor, " n dim"],
         y: Int[Tensor, " n n_classes"],
-        ids: Shaped[np.ndarray, " n"],
+        ids: list[str],
     ):
         self.x = x
         self.y = y
@@ -5264,7 +5300,7 @@ def benchmark_cvml(
     The FishNet benchmark.
     """
     # 1. Load model.
-    backbone = registry.load_vision_backbone(*model_args)
+    backbone = registry.load_vision_backbone(model_args)
 
     # 2. Get features.
     train_dataset = get_features(args, backbone, is_train=True)
@@ -5329,13 +5365,12 @@ def evaluate(
         features, labels, ids = next(it)
         features = features.to(args.device)
         labels = labels.numpy()
-        ids = ids.numpy()
         with torch.no_grad():
             pred_logits = classifier(features)
         pred_logits = (pred_logits > args.threshold).cpu().numpy()
         for id, pred, true in zip(ids, pred_logits, labels):
             example = interfaces.Prediction(
-                str(id),
+                id,
                 float((pred == true).all()),
                 {"y_pred": pred.tolist(), "y_true": true.tolist()},
             )
@@ -5348,42 +5383,56 @@ def evaluate(
 @torch.no_grad()
 def get_features(
     args: Args, backbone: interfaces.VisionBackbone, *, is_train: bool
-) -> Features:
+) -> FeaturesCvml:
     """Extract visual features."""
-    if not os.path.isdir(args.datadir):
-        msg = f"Path '{args.datadir}' doesn't exist. Did you download the FishNet dataset? See the docstring at the top of this file for instructions. If you did download it, pass the path with '--fishnet-args.datadir'; see --help for more."
+    if not os.path.isdir(args.data):
+        msg = f"Path '{args.data}' doesn't exist. Did you download the FishNet dataset? See the docstring at the top of this file for instructions. If you did download it, pass the path with '--fishnet-args.data'; see --help for more."
         raise ValueError(msg)
 
     img_transform = backbone.make_img_transform()
     backbone = torch.compile(backbone.to(args.device))
 
     file = "train.csv" if is_train else "test.csv"
-    dataset = ImageDatasetCvml(args.datadir, file, transform=img_transform)
+    dataset = ImageDatasetCvml(args.data, file, transform=img_transform)
     dataloader = torch.utils.data.DataLoader(
-        dataset, batch_size=args.batch_size, num_workers=args.n_workers
+        dataset,
+        batch_size=args.batch_size,
+        num_workers=args.n_workers,
+        shuffle=True,
     )
 
     all_features, all_labels, all_ids = [], [], []
 
-    total = 2 if args.debug else len(dataloader)
+    if args.debug:
+        n = args.batch_size * 2
+        total = 2  # 2 batches
+    elif is_train and args.n_train >= 0:
+        n = args.n_train
+        total = n // args.batch_size + 1
+    elif not is_train and args.n_test > 0:
+        n = args.n_test
+        total = n // args.batch_size + 1
+    else:
+        n = len(dataset)
+        total = len(dataloader)
+
     it = iter(dataloader)
     for b in helpers.progress(range(total), every=args.log_every, desc=file):
-        images, labels, _ = next(it)
+        images, labels, ids = next(it)
         images = images.to(args.device)
 
         features = backbone.img_encode(images).img_features
         all_features.append(features.cpu())
         all_labels.append(labels)
 
-        ids = np.arange(len(labels)) + b * args.batch_size
-        all_ids.append(ids)
+        all_ids.extend(ids)
 
     # Keep the Tensor data type for subsequent training
-    all_features = torch.cat(all_features, dim=0)
-    all_labels = torch.cat(all_labels, dim=0)
-    all_ids = np.concatenate(all_ids, axis=0)
+    all_features = torch.cat(all_features, dim=0)[:n]
+    all_labels = torch.cat(all_labels, dim=0)[:n]
+    all_ids = all_ids[:n]
 
-    return Features(all_features, all_labels, all_ids)
+    return FeaturesCvml(all_features, all_labels, all_ids)
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -5419,7 +5468,7 @@ class ImageDatasetCvml(torch.utils.data.Dataset):
 
     def __getitem__(
         self, index: int
-    ) -> tuple[Float[Tensor, "3 width height"], Float[Tensor, "9"], str]:
+    ) -> tuple[Float[Tensor, "3 width height"], Int[Tensor, "9"], str]:
         row_data = self.df.row(index)
         image_name = row_data[self.image_col]
         image_name = image_name.split("/")[-1]
@@ -5777,12 +5826,16 @@ class Args:
     log_every: int = 10
     """how often (number of batches) to log progress."""
     # Computed at runtime.
-    max_examples: int = -1
-    """(computed at runtime) Number of maximum training samples. Negative number means use all of them."""
     device: str = "cuda"
-    """(computed at runtime) Which kind of accelerator to use."""
+    """(computed at runtime) which kind of accelerator to use."""
     debug: bool = False
-    """(computed at runtime) Whether to run in debug mode."""
+    """(computed at runtime) whether to run in debug mode."""
+    n_train: int = -1
+    """(computed at runtime) number of maximum training samples. Negative number means use all of them."""
+    n_test: int = -1
+    """(computed at runtime) number of test samples. Negative number means use all of them."""
+    parallel: int = 1
+    """(computed at runtime) number of parallel requests per second to MLLM service providers."""
 
 
 @beartype.beartype
@@ -6041,16 +6094,18 @@ class Args:
     """How to aggregate features across time dimension."""
     seed: int = 42
     """random seed."""
-    parallel: int = 5
-    """Concurrent requests per second."""
 
     # Computed at runtime.
-    max_examples: int = -1
-    """(computed at runtime) Number of maximum training samples. Negative number means use all of them."""
     device: str = "cuda"
-    """(computed at runtime) Which kind of accelerator to use."""
+    """(computed at runtime) which kind of accelerator to use."""
     debug: bool = False
-    """(computed at runtime) Whether to run in debug mode."""
+    """(computed at runtime) whether to run in debug mode."""
+    n_train: int = -1
+    """Number of maximum training samples. Negative number means use all of them."""
+    n_test: int = -1
+    """Number of test samples. Negative number means use all of them."""
+    parallel: int = 1
+    """Number of parallel requests per second to MLLM service providers."""
 
 
 @beartype.beartype
@@ -6297,6 +6352,7 @@ For example, see `biobench.newt.download` for an example.
 .. include:: ./design.md
 """
 
+import csv
 import dataclasses
 import json
 import logging
@@ -6372,7 +6428,7 @@ class Args:
         ]
     )
     """MLLM checkpoints."""
-    device: typing.Literal["cpu", "cuda"] = "cuda"
+    device: typing.Literal["cpu", "mps", "cuda"] = "cuda"
     """which kind of accelerator to use."""
     debug: bool = False
     """whether to run in debug mode."""
@@ -6532,17 +6588,16 @@ def save(
 
     lower, upper = report.get_confidence_interval()
     values = (
-        json.dumps(dataclasses.asdict(model_args)),
-        args.n_train,
+        json.dumps(model_args.to_dict()),
         report.name,
         int(time.time()),
         report.get_mean_score(),
         lower,
         upper,
-        json.dumps(dataclasses.asdict(args)),
+        json.dumps(args.to_dict()),
         json.dumps(report.to_dict()),
     )
-    conn.execute("INSERT INTO reports VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)", values)
+    conn.execute("INSERT INTO reports VALUES(?, ?, ?, ?, ?, ?, ?, ?)", values)
     conn.commit()
 
     logger.info(
@@ -6550,6 +6605,68 @@ def save(
     )
     for name, score in report.splits.items():
         logger.info("%s on %s (%s): %.3f", model_args.ckpt, report.name, name, score)
+
+
+@beartype.beartype
+def make_tables(args: Args):
+    """TODO: document."""
+
+    # CSV
+    columns = [
+        "task",
+        "model",
+        "n_train",
+        "n_test",
+        "sampling",
+        "prompting",  # MLLM only
+        "classifier",  # CV+ML only
+        "hparams_json",  # Both CV+ML/MLLM
+        "confidence_lower",
+        "mean_score",
+        "confidence_upper",
+        "n_successful_parses",  # MLLM only
+        "usd_per_answer",  # MLLM only
+    ]
+
+    conn = args.get_sqlite_connection()
+    stmt = """
+    SELECT task, model_config, confidence_lower, mean_score, confidence_upper, args, MAX(posix) AS posix 
+    FROM reports 
+    GROUP BY model_config, task, args
+    ORDER BY task, model_config, args ASC;
+    """
+    data = conn.execute(stmt, ()).fetchall()
+
+    with open(os.path.join(args.report_to, "table.csv"), "w") as fd:
+        writer = csv.DictWriter(fd, columns)
+        writer.writeheader()
+        for task, model_args_json, ci_lower, mean, ci_upper, task_args_json, _ in data:
+            model_args = json.loads(model_args_json)
+            task_args = json.loads(task_args_json)
+
+            if model_args["type"] == "mllm":
+                hparams = {"temp": model_args["temp"]}
+            elif model_args["type"] == "cvml":
+                hparams = {}
+            else:
+                raise ValueError(model_args)
+
+            # breakpoint()
+            writer.writerow({
+                "task": task,
+                "model": model_args["ckpt"],
+                "n_train": task_args["n_train"],
+                "n_test": task_args["n_test"],
+                "sampling": "uniform",
+                "prompting": model_args.get("prompts", ""),
+                "classifier": model_args.get("classifier", ""),
+                "hparams_json": json.dumps(hparams),
+                "confidence_lower": ci_lower,
+                "mean_score": mean,
+                "confidence_upper": ci_upper,
+            })
+
+    # LaTeX
 
 
 @beartype.beartype
@@ -6676,7 +6793,7 @@ def main(args: Args):
 
     logger.info("Submitted %d jobs.", len(jobs))
 
-    # 3. Display results.
+    # 3. Write results to sqlite.
     os.makedirs(args.report_to, exist_ok=True)
     for i, future in enumerate(submitit.helpers.as_completed(jobs)):
         err = future.exception()
@@ -6687,6 +6804,9 @@ def main(args: Args):
         model_args, report = future.result()
         save(args, model_args, report)
         logger.info("Finished %d/%d jobs.", i + 1, len(jobs))
+
+    # 4. Make the table in both CSV and LaTeX.
+    make_tables(args)
 
     logger.info("Finished.")
 

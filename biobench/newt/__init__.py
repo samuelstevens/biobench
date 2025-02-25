@@ -61,16 +61,18 @@ class Args:
     """how often (number of batches) to log progress."""
     seed: int = 42
     """random seed."""
-    parallel: int = 5
-    """Concurrent requests per second."""
 
     # Computed at runtime.
-    max_examples: int = -1
-    """(computed at runtime) Number of maximum training samples. Negative number means use all of them."""
     device: str = "cuda"
-    """(computed at runtime) Which kind of accelerator to use."""
+    """(computed at runtime) which kind of accelerator to use."""
     debug: bool = False
-    """(computed at runtime) Whether to run in debug mode."""
+    """(computed at runtime) whether to run in debug mode."""
+    n_train: int = -1
+    """(computed at runtime) number of maximum training samples. Negative number means use all of them."""
+    n_test: int = -1
+    """(computed at runtime) number of test samples. Negative number means use all of them."""
+    parallel: int = 1
+    """(computed at runtime) number of parallel requests per second to MLLM service providers."""
 
 
 @beartype.beartype

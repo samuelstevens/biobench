@@ -12,6 +12,7 @@ For example, see `biobench.newt.download` for an example.
 .. include:: ./design.md
 """
 
+import csv
 import dataclasses
 import json
 import logging
@@ -87,7 +88,7 @@ class Args:
         ]
     )
     """MLLM checkpoints."""
-    device: typing.Literal["cpu", "cuda"] = "cuda"
+    device: typing.Literal["cpu", "mps", "cuda"] = "cuda"
     """which kind of accelerator to use."""
     debug: bool = False
     """whether to run in debug mode."""
@@ -247,17 +248,16 @@ def save(
 
     lower, upper = report.get_confidence_interval()
     values = (
-        json.dumps(dataclasses.asdict(model_args)),
-        args.n_train,
+        json.dumps(model_args.to_dict()),
         report.name,
         int(time.time()),
         report.get_mean_score(),
         lower,
         upper,
-        json.dumps(dataclasses.asdict(args)),
+        json.dumps(args.to_dict()),
         json.dumps(report.to_dict()),
     )
-    conn.execute("INSERT INTO reports VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)", values)
+    conn.execute("INSERT INTO reports VALUES(?, ?, ?, ?, ?, ?, ?, ?)", values)
     conn.commit()
 
     logger.info(
@@ -265,6 +265,68 @@ def save(
     )
     for name, score in report.splits.items():
         logger.info("%s on %s (%s): %.3f", model_args.ckpt, report.name, name, score)
+
+
+@beartype.beartype
+def make_tables(args: Args):
+    """TODO: document."""
+
+    # CSV
+    columns = [
+        "task",
+        "model",
+        "n_train",
+        "n_test",
+        "sampling",
+        "prompting",  # MLLM only
+        "classifier",  # CV+ML only
+        "hparams_json",  # Both CV+ML/MLLM
+        "confidence_lower",
+        "mean_score",
+        "confidence_upper",
+        "n_successful_parses",  # MLLM only
+        "usd_per_answer",  # MLLM only
+    ]
+
+    conn = args.get_sqlite_connection()
+    stmt = """
+    SELECT task, model_config, confidence_lower, mean_score, confidence_upper, args, MAX(posix) AS posix 
+    FROM reports 
+    GROUP BY model_config, task, args
+    ORDER BY task, model_config, args ASC;
+    """
+    data = conn.execute(stmt, ()).fetchall()
+
+    with open(os.path.join(args.report_to, "table.csv"), "w") as fd:
+        writer = csv.DictWriter(fd, columns)
+        writer.writeheader()
+        for task, model_args_json, ci_lower, mean, ci_upper, task_args_json, _ in data:
+            model_args = json.loads(model_args_json)
+            task_args = json.loads(task_args_json)
+
+            if model_args["type"] == "mllm":
+                hparams = {"temp": model_args["temp"]}
+            elif model_args["type"] == "cvml":
+                hparams = {}
+            else:
+                raise ValueError(model_args)
+
+            # breakpoint()
+            writer.writerow({
+                "task": task,
+                "model": model_args["ckpt"],
+                "n_train": task_args["n_train"],
+                "n_test": task_args["n_test"],
+                "sampling": "uniform",
+                "prompting": model_args.get("prompts", ""),
+                "classifier": model_args.get("classifier", ""),
+                "hparams_json": json.dumps(hparams),
+                "confidence_lower": ci_lower,
+                "mean_score": mean,
+                "confidence_upper": ci_upper,
+            })
+
+    # LaTeX
 
 
 @beartype.beartype
@@ -391,7 +453,7 @@ def main(args: Args):
 
     logger.info("Submitted %d jobs.", len(jobs))
 
-    # 3. Display results.
+    # 3. Write results to sqlite.
     os.makedirs(args.report_to, exist_ok=True)
     for i, future in enumerate(submitit.helpers.as_completed(jobs)):
         err = future.exception()
@@ -402,6 +464,9 @@ def main(args: Args):
         model_args, report = future.result()
         save(args, model_args, report)
         logger.info("Finished %d/%d jobs.", i + 1, len(jobs))
+
+    # 4. Make the table in both CSV and LaTeX.
+    make_tables(args)
 
     logger.info("Finished.")
 

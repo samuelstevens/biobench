@@ -28,19 +28,25 @@ logger = logging.getLogger("iwildcam")
 class Args:
     """Arguments for the iWildCam task."""
 
-    batch_size: int = 2048
+    data: str = ""
+    """dataset directory; where you downloaded this task's data to."""
+    batch_size_cv: int = 2048
     """batch size for deep model."""
     n_workers: int = 4
     """number of dataloader worker processes."""
     log_every: int = 10
     """how often (number of batches) to log progress."""
     # Computed at runtime.
-    max_examples: int = -1
-    """(computed at runtime) Number of maximum training samples. Negative number means use all of them."""
     device: str = "cuda"
-    """(computed at runtime) Which kind of accelerator to use."""
+    """(computed at runtime) which kind of accelerator to use."""
     debug: bool = False
-    """(computed at runtime) Whether to run in debug mode."""
+    """(computed at runtime) whether to run in debug mode."""
+    n_train: int = -1
+    """(computed at runtime) number of maximum training samples. Negative number means use all of them."""
+    n_test: int = -1
+    """(computed at runtime) number of test samples. Negative number means use all of them."""
+    parallel: int = 1
+    """(computed at runtime) number of parallel requests per second to MLLM service providers."""
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -63,21 +69,20 @@ class MeanScoreCalculator:
 
 
 @beartype.beartype
-def benchmark(
+def benchmark_cvml(
     args: Args, model_args: interfaces.ModelArgsCvml
 ) -> tuple[interfaces.ModelArgsCvml, interfaces.TaskReport]:
-    backbone = registry.load_vision_backbone(*model_args)
+    backbone = registry.load_vision_backbone(model_args)
 
     # 1. Load dataloaders.
     transform = backbone.make_img_transform()
-    if not os.path.exists(args.datadir) or not os.path.isdir(args.datadir):
-        msg = f"Path '{args.datadir}' doesn't exist. Did you download the iWildCam dataset? See the docstring at the top of this file for instructions. If you did download it, pass the path as --datadir PATH"
+    if not os.path.exists(args.data) or not os.path.isdir(args.data):
+        msg = f"Path '{args.data}' doesn't exist. Did you download the iWildCam dataset? See the docstring at the top of this file for instructions. If you did download it, pass the path as --iwildcam-args.data PATH"
         raise RuntimeError(msg)
-    dataset = wilds.get_dataset(
-        dataset="iwildcam", download=False, root_dir=args.datadir
-    )
+    dataset = wilds.get_dataset(dataset="iwildcam", download=False, root_dir=args.data)
 
     test_data = dataset.get_subset("test", transform=transform)
+    breakpoint()
     test_dataloader = wilds.common.data_loaders.get_eval_loader(
         "standard",
         test_data,

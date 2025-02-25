@@ -42,10 +42,10 @@ el.replaceWith(d);
 <p>The model interface is <code><a title="biobench.interfaces.VisionBackbone" href="#biobench.interfaces.VisionBackbone">VisionBackbone</a></code>.
 See <code><a title="biobench.third_party_models" href="third_party_models.html">biobench.third_party_models</a></code> for examples of how to subclass it, and note that you have to call <code><a title="biobench.register_vision_backbone" href="index.html#biobench.register_vision_backbone">register_vision_backbone()</a></code> for it to show up.</p>
 <p>The benchmark interface is informal, but is a function that matches the following signature:</p>
-<pre><code class="language-py">def benchmark(args: Args, model_args: tuple[str, str]) -&gt; tuple[tuple[str, str], interfaces.TaskReport]:
+<pre><code class="language-py">def benchmark(args: Args, model_args: ModelArgs) -&gt; tuple[ModelArgs], interfaces.TaskReport]:
     ...
 </code></pre>
-<p>In a Haskell-like signature, this is more like <code>Args -&gt; (str, str) -&gt; ((str, str), TaskReport)</code>.</p>
+<p>In a Haskell-like signature, this is more like <code>Args -&gt; ModelArgs -&gt; (ModelArgs, TaskReport)</code>.</p>
 </section>
 <section>
 </section>
@@ -148,7 +148,10 @@ class EncodedImgBatch:
 <pre><code class="python">@dataclasses.dataclass(frozen=True)
 class ModelArgsCvml:
     org: str
-    ckpt: str</code></pre>
+    ckpt: str
+
+    def to_dict(self) -&gt; dict[str, object]:
+        return {&#34;type&#34;: &#34;cvml&#34;, **dataclasses.asdict(self)}</code></pre>
 </details>
 <div class="desc"><p>ModelArgsCvml(org: str, ckpt: str)</p></div>
 <h3>Class variables</h3>
@@ -159,6 +162,22 @@ class ModelArgsCvml:
 </dd>
 <dt id="biobench.interfaces.ModelArgsCvml.org"><code class="name">var <span class="ident">org</span> : str</code></dt>
 <dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="biobench.interfaces.ModelArgsCvml.to_dict"><code class="name flex">
+<span>def <span class="ident">to_dict</span></span>(<span>self) ‑> dict[str, object]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def to_dict(self) -&gt; dict[str, object]:
+    return {&#34;type&#34;: &#34;cvml&#34;, **dataclasses.asdict(self)}</code></pre>
+</details>
 <div class="desc"></div>
 </dd>
 </dl>
@@ -177,7 +196,10 @@ class ModelArgsMllm:
     ckpt: str
     temp: float = 0.0
     prompts: typing.Literal[&#34;single-turn&#34;, &#34;multi-turn&#34;] = &#34;single-turn&#34;
-    quantizations: list[str] = dataclasses.field(default_factory=list)</code></pre>
+    quantizations: list[str] = dataclasses.field(default_factory=list)
+
+    def to_dict(self) -&gt; dict[str, object]:
+        return {&#34;type&#34;: &#34;mllm&#34;, **dataclasses.asdict(self)}</code></pre>
 </details>
 <div class="desc"><p>ModelArgsMllm(ckpt: str, temp: float = 0.0, prompts: Literal['single-turn', 'multi-turn'] = 'single-turn', quantizations: list[str] = <factory>)</p></div>
 <h3>Class variables</h3>
@@ -196,6 +218,22 @@ class ModelArgsMllm:
 </dd>
 <dt id="biobench.interfaces.ModelArgsMllm.temp"><code class="name">var <span class="ident">temp</span> : float</code></dt>
 <dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="biobench.interfaces.ModelArgsMllm.to_dict"><code class="name flex">
+<span>def <span class="ident">to_dict</span></span>(<span>self) ‑> dict[str, object]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def to_dict(self) -&gt; dict[str, object]:
+    return {&#34;type&#34;: &#34;mllm&#34;, **dataclasses.asdict(self)}</code></pre>
+</details>
 <div class="desc"></div>
 </dd>
 </dl>
@@ -240,7 +278,7 @@ class Prediction:
 </dd>
 <dt id="biobench.interfaces.TaskReport"><code class="flex name class">
 <span>class <span class="ident">TaskReport</span></span>
-<span>(</span><span>name: str,<br>n_train: int,<br>predictions: list[<a title="biobench.interfaces.Prediction" href="#biobench.interfaces.Prediction">Prediction</a>],<br>*,<br>calc_mean_score: Callable[[list[<a title="biobench.interfaces.Prediction" href="#biobench.interfaces.Prediction">Prediction</a>]], float] = &lt;function default_calc_mean_score&gt;,<br>splits: dict[str, float] = &lt;factory&gt;,<br>argv: list[str] = &lt;factory&gt;,<br>commit: str = 'd9e8a235c75ae08681baade2ca399ea4ce1907d7',<br>posix_time: float = &lt;factory&gt;,<br>gpu_name: str = &lt;factory&gt;,<br>hostname: str = &lt;factory&gt;)</span>
+<span>(</span><span>name: str,<br>predictions: list[<a title="biobench.interfaces.Prediction" href="#biobench.interfaces.Prediction">Prediction</a>],<br>*,<br>calc_mean_score: Callable[[list[<a title="biobench.interfaces.Prediction" href="#biobench.interfaces.Prediction">Prediction</a>]], float] = &lt;function default_calc_mean_score&gt;,<br>splits: dict[str, float] = &lt;factory&gt;,<br>argv: list[str] = &lt;factory&gt;,<br>commit: str = 'f73f200013d7fa0fcb700310266f02bf077daef1',<br>posix_time: float = &lt;factory&gt;,<br>gpu_name: str = &lt;factory&gt;,<br>hostname: str = &lt;factory&gt;)</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -257,8 +295,6 @@ class TaskReport:
     # Actual details of the report
     name: str
     &#34;&#34;&#34;The benchmark name.&#34;&#34;&#34;
-    n_train: int
-    &#34;&#34;&#34;The maximum number of training examples used.&#34;&#34;&#34;
     predictions: list[Prediction]
     &#34;&#34;&#34;A list of (example_id, score, info) objects&#34;&#34;&#34;
     _: dataclasses.KW_ONLY
@@ -356,10 +392,6 @@ class TaskReport:
 <dt id="biobench.interfaces.TaskReport.hostname"><code class="name">var <span class="ident">hostname</span> : str</code></dt>
 <dd>
 <div class="desc"><p>Machine hostname that ran this experiment.</p></div>
-</dd>
-<dt id="biobench.interfaces.TaskReport.n_train"><code class="name">var <span class="ident">n_train</span> : int</code></dt>
-<dd>
-<div class="desc"><p>The maximum number of training examples used.</p></div>
 </dd>
 <dt id="biobench.interfaces.TaskReport.name"><code class="name">var <span class="ident">name</span> : str</code></dt>
 <dd>
@@ -598,6 +630,7 @@ This should be an evaluation transform, not a training transform, because we are
 <ul class="">
 <li><code><a title="biobench.interfaces.ModelArgsCvml.ckpt" href="#biobench.interfaces.ModelArgsCvml.ckpt">ckpt</a></code></li>
 <li><code><a title="biobench.interfaces.ModelArgsCvml.org" href="#biobench.interfaces.ModelArgsCvml.org">org</a></code></li>
+<li><code><a title="biobench.interfaces.ModelArgsCvml.to_dict" href="#biobench.interfaces.ModelArgsCvml.to_dict">to_dict</a></code></li>
 </ul>
 </li>
 <li>
@@ -607,6 +640,7 @@ This should be an evaluation transform, not a training transform, because we are
 <li><code><a title="biobench.interfaces.ModelArgsMllm.prompts" href="#biobench.interfaces.ModelArgsMllm.prompts">prompts</a></code></li>
 <li><code><a title="biobench.interfaces.ModelArgsMllm.quantizations" href="#biobench.interfaces.ModelArgsMllm.quantizations">quantizations</a></code></li>
 <li><code><a title="biobench.interfaces.ModelArgsMllm.temp" href="#biobench.interfaces.ModelArgsMllm.temp">temp</a></code></li>
+<li><code><a title="biobench.interfaces.ModelArgsMllm.to_dict" href="#biobench.interfaces.ModelArgsMllm.to_dict">to_dict</a></code></li>
 </ul>
 </li>
 <li>
@@ -627,7 +661,6 @@ This should be an evaluation transform, not a training transform, because we are
 <li><code><a title="biobench.interfaces.TaskReport.get_mean_score" href="#biobench.interfaces.TaskReport.get_mean_score">get_mean_score</a></code></li>
 <li><code><a title="biobench.interfaces.TaskReport.gpu_name" href="#biobench.interfaces.TaskReport.gpu_name">gpu_name</a></code></li>
 <li><code><a title="biobench.interfaces.TaskReport.hostname" href="#biobench.interfaces.TaskReport.hostname">hostname</a></code></li>
-<li><code><a title="biobench.interfaces.TaskReport.n_train" href="#biobench.interfaces.TaskReport.n_train">n_train</a></code></li>
 <li><code><a title="biobench.interfaces.TaskReport.name" href="#biobench.interfaces.TaskReport.name">name</a></code></li>
 <li><code><a title="biobench.interfaces.TaskReport.posix_time" href="#biobench.interfaces.TaskReport.posix_time">posix_time</a></code></li>
 <li><code><a title="biobench.interfaces.TaskReport.predictions" href="#biobench.interfaces.TaskReport.predictions">predictions</a></code></li>

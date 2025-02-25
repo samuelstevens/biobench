@@ -35,7 +35,7 @@ import numpy as np
 import polars as pl
 import sklearn
 import torch
-from jaxtyping import Float, Int, Shaped, jaxtyped
+from jaxtyping import Float, Int, jaxtyped
 from PIL import Image
 from torch import Tensor
 
@@ -51,7 +51,7 @@ class Args:
 
     data: str = ""
     """dataset directory; where you downloaded this task's data to."""
-    batch_size_cv: int = 256
+    batch_size: int = 256
     """batch size for computer vision model."""
     n_workers: int = 4
     """number of dataloader worker processes."""
@@ -80,7 +80,7 @@ class Args:
 
 
 @jaxtyped(typechecker=beartype.beartype)
-class Features(torch.utils.data.Dataset):
+class FeaturesCvml(torch.utils.data.Dataset):
     """
     A dataset of learned features (dense vectors).
     """
@@ -89,14 +89,14 @@ class Features(torch.utils.data.Dataset):
     """Dense feature vectors from a vision backbone."""
     y: Int[Tensor, " n 9"]
     """0/1 labels of absence/presence of 9 different traits."""
-    ids: Shaped[np.ndarray, " n"]
+    ids: list[str]
     """Image ids."""
 
     def __init__(
         self,
         x: Float[Tensor, " n dim"],
         y: Int[Tensor, " n n_classes"],
-        ids: Shaped[np.ndarray, " n"],
+        ids: list[str],
     ):
         self.x = x
         self.y = y
@@ -174,7 +174,7 @@ def benchmark_cvml(
     The FishNet benchmark.
     """
     # 1. Load model.
-    backbone = registry.load_vision_backbone(*model_args)
+    backbone = registry.load_vision_backbone(model_args)
 
     # 2. Get features.
     train_dataset = get_features(args, backbone, is_train=True)
@@ -239,13 +239,12 @@ def evaluate(
         features, labels, ids = next(it)
         features = features.to(args.device)
         labels = labels.numpy()
-        ids = ids.numpy()
         with torch.no_grad():
             pred_logits = classifier(features)
         pred_logits = (pred_logits > args.threshold).cpu().numpy()
         for id, pred, true in zip(ids, pred_logits, labels):
             example = interfaces.Prediction(
-                str(id),
+                id,
                 float((pred == true).all()),
                 {"y_pred": pred.tolist(), "y_true": true.tolist()},
             )
@@ -258,42 +257,56 @@ def evaluate(
 @torch.no_grad()
 def get_features(
     args: Args, backbone: interfaces.VisionBackbone, *, is_train: bool
-) -> Features:
+) -> FeaturesCvml:
     """Extract visual features."""
-    if not os.path.isdir(args.datadir):
-        msg = f"Path '{args.datadir}' doesn't exist. Did you download the FishNet dataset? See the docstring at the top of this file for instructions. If you did download it, pass the path with '--fishnet-args.datadir'; see --help for more."
+    if not os.path.isdir(args.data):
+        msg = f"Path '{args.data}' doesn't exist. Did you download the FishNet dataset? See the docstring at the top of this file for instructions. If you did download it, pass the path with '--fishnet-args.data'; see --help for more."
         raise ValueError(msg)
 
     img_transform = backbone.make_img_transform()
     backbone = torch.compile(backbone.to(args.device))
 
     file = "train.csv" if is_train else "test.csv"
-    dataset = ImageDatasetCvml(args.datadir, file, transform=img_transform)
+    dataset = ImageDatasetCvml(args.data, file, transform=img_transform)
     dataloader = torch.utils.data.DataLoader(
-        dataset, batch_size=args.batch_size, num_workers=args.n_workers
+        dataset,
+        batch_size=args.batch_size,
+        num_workers=args.n_workers,
+        shuffle=True,
     )
 
     all_features, all_labels, all_ids = [], [], []
 
-    total = 2 if args.debug else len(dataloader)
+    if args.debug:
+        n = args.batch_size * 2
+        total = 2  # 2 batches
+    elif is_train and args.n_train >= 0:
+        n = args.n_train
+        total = n // args.batch_size + 1
+    elif not is_train and args.n_test > 0:
+        n = args.n_test
+        total = n // args.batch_size + 1
+    else:
+        n = len(dataset)
+        total = len(dataloader)
+
     it = iter(dataloader)
     for b in helpers.progress(range(total), every=args.log_every, desc=file):
-        images, labels, _ = next(it)
+        images, labels, ids = next(it)
         images = images.to(args.device)
 
         features = backbone.img_encode(images).img_features
         all_features.append(features.cpu())
         all_labels.append(labels)
 
-        ids = np.arange(len(labels)) + b * args.batch_size
-        all_ids.append(ids)
+        all_ids.extend(ids)
 
     # Keep the Tensor data type for subsequent training
-    all_features = torch.cat(all_features, dim=0)
-    all_labels = torch.cat(all_labels, dim=0)
-    all_ids = np.concatenate(all_ids, axis=0)
+    all_features = torch.cat(all_features, dim=0)[:n]
+    all_labels = torch.cat(all_labels, dim=0)[:n]
+    all_ids = all_ids[:n]
 
-    return Features(all_features, all_labels, all_ids)
+    return FeaturesCvml(all_features, all_labels, all_ids)
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -329,7 +342,7 @@ class ImageDatasetCvml(torch.utils.data.Dataset):
 
     def __getitem__(
         self, index: int
-    ) -> tuple[Float[Tensor, "3 width height"], Float[Tensor, "9"], str]:
+    ) -> tuple[Float[Tensor, "3 width height"], Int[Tensor, "9"], str]:
         row_data = self.df.row(index)
         image_name = row_data[self.image_col]
         image_name = image_name.split("/")[-1]

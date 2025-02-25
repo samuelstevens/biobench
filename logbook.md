@@ -406,7 +406,19 @@ Hopefully we will see
 2. Performance goes up with samples
 3. Single > multi
 
+# 02/24/2025
+
 Ages is such a dumb task, it explicitly is a train/test mismatch.
 Without any training samples, obviously you do better.
 
 What about FishNet?
+
+FishNet worked! More samples is better.
+Now I want to track
+
+1. How many examples actually fit into the prompt.
+2. I want to save a sample of the MLLM responses
+3. Cost per response
+
+And I need to try multi-turn prompts as well.
+Then just show me the freaking graphs baby!
