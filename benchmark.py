@@ -156,16 +156,18 @@ def benchmark(cfg: str):
     """
     cfgs = config.load(cfg)
 
-    # Verify all configs have consistent slurm settings. This includes slurm_acct, log_to and ssl. AI!
+    # Verify all configs have consistent execution settings
     if len(cfgs) > 1:
         first = cfgs[0]
         for cfg in cfgs[1:]:
             if cfg.slurm != first.slurm:
                 raise ValueError("All configs must have the same value for slurm")
             if cfg.slurm and cfg.slurm_acct != first.slurm_acct:
-                raise ValueError(
-                    "All configs must have the same slurm_acct when slurm=True"
-                )
+                raise ValueError("All configs must have the same slurm_acct when slurm=True")
+            if cfg.log_to != first.log_to:
+                raise ValueError("All configs must have the same log_to directory")
+            if cfg.ssl != first.ssl:
+                raise ValueError("All configs must have the same ssl setting")
 
     # 1. Setup executor.
     if cfgs[0].slurm:
