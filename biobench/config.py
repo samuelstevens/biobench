@@ -75,4 +75,40 @@ def load(path: str) -> list[Experiment]:
 
     None of the fields in Experiment are lists, so anytime we find a list in the TOML, we add another dimension to our grid search over all possible experiments.
     """
-    # Implement this function. Look at example TOML files to understand the structure. AI!
+    with open(path, "rb") as f:
+        data = tomllib.load(f)
+
+    if not isinstance(data, dict):
+        raise ValueError(f"TOML file {path} must contain a dictionary at the root level")
+
+    # Extract models list
+    models = data.pop("models", [])
+    if not isinstance(models, list):
+        raise ValueError("models must be a list of tables in TOML")
+
+    # Start with models as base experiments
+    experiments = [
+        {"model": Model(org=model["org"], ckpt=model["ckpt"])}
+        for model in models
+    ]
+
+    # For each remaining field in the TOML
+    for key, value in data.items():
+        new_experiments = []
+
+        # Convert single values to lists
+        if not isinstance(value, list):
+            value = [value]
+
+        # For each existing partial experiment
+        for exp in experiments:
+            # Add every value for this field
+            for v in value:
+                new_exp = exp.copy()
+                new_exp[key] = v
+                new_experiments.append(new_exp)
+
+        experiments = new_experiments
+
+    # Convert dictionaries to Experiment objects
+    return [Experiment(**exp) for exp in experiments]
