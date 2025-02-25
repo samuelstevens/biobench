@@ -157,36 +157,36 @@ class Report:
         Convert the report to a JSON-compatible dictionary.
         Handles custom objects by calling their to_dict() methods.
         """
+        # Update this method to simply use dataclasses.asdict(self) and handle the special cases by hand. No getattr, hasattr, isisntance, etc. AI!
         result = {}
         for field in dataclasses.fields(self):
             value = getattr(self, field.name)
-            
+
             # Handle None
             if value is None:
                 result[field.name] = None
                 continue
-                
+
             # Handle lists of objects
             if isinstance(value, list):
                 result[field.name] = [
-                    v.to_dict() if hasattr(v, "to_dict") else v
-                    for v in value
+                    v.to_dict() if hasattr(v, "to_dict") else v for v in value
                 ]
                 continue
-                
+
             # Handle individual objects
             if hasattr(value, "to_dict"):
                 result[field.name] = value.to_dict()
                 continue
-                
+
             # Handle callables (like calc_mean_score)
             if callable(value):
                 result[field.name] = value.__name__
                 continue
-                
+
             # Everything else passes through as-is
             result[field.name] = value
-            
+
         return result
 
     def get_mean_score(self) -> float:
