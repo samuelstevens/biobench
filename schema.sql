@@ -1,8 +1,6 @@
 CREATE TABLE IF NOT EXISTS results (
     -- Experiment metadata
     posix INTEGER NOT NULL,  -- POSIX timestamp
-    method TEXT NOT NULL,  -- "mllm" or "cvml"
-    runtime_s REAL,
 
     -- Task information
     task_name TEXT NOT NULL,  -- "newt", "iwildcam", etc.
@@ -11,7 +9,9 @@ CREATE TABLE IF NOT EXISTS results (
     sampling TEXT NOT NULL,  -- "uniform" or "class_balanced"
 
     -- Model information
-    model_name TEXT NOT NULL,  -- "GPT-4o", "DINOv2-H", etc.
+    model_method TEXT NOT NULL,  -- "mllm" or "cvml"
+    model_org TEXT NOT NULL,
+    model_ckpt TEXT NOT NULL,
 
     -- Common metrics
     mean_score REAL NOT NULL,  -- Primary metric
@@ -26,10 +26,8 @@ CREATE TABLE IF NOT EXISTS results (
 
     -- CVML-specific fields
     classifier_type TEXT,  -- "knn", "svm", or "ridge"
-    embedding_dim INTEGER,
 
     -- Flexible storage for complete configurations and detailed results
-    model_args TEXT NOT NULL,  -- JSON blob with full model configuration
-    args TEXT NOT NULL,  -- JSON blob with full experiment configuration
+    exp_cfg TEXT NOT NULL,  -- JSON blob with full experiment configuration
     report TEXT NOT NULL  -- JSON blob with detailed results
 );

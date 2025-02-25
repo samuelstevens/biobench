@@ -78,20 +78,8 @@ This raises the question: why do we have multiple tasks that fill the same role?
 .. include:: ./confidence-intervals.md
 """
 
-import typing
-
-import tyro
-from beartype.claw import beartype_this_package
-
 from . import interfaces, third_party_models
-from .registry import (
-    list_vision_backbones,
-    load_vision_backbone,
-    register_mllm,
-    register_vision_backbone,
-)
-
-beartype_this_package()
+from .registry import register_mllm, register_vision_backbone
 
 register_vision_backbone("timm-vit", third_party_models.TimmVit)
 register_vision_backbone("open-clip", third_party_models.OpenClip)
@@ -101,20 +89,11 @@ register_mllm(
         "meta-llama/llama-3.2-3b-instruct", 131_000, 0.015, 0.025, ["fp32", "bf16"]
     ),
 )
-
-# Some helpful types
-if typing.TYPE_CHECKING:
-    # Static type seen by language servers, type checkers, etc.
-    ModelOrg = str
-else:
-    # Runtime type used by tyro.
-    ModelOrg = tyro.extras.literal_type_from_choices(list_vision_backbones())
-
-
-__all__ = [
-    "interfaces",
-    "load_vision_backbone",
-    "register_vision_backbone",
-    "list_vision_backbones",
-    "ModelOrg",
-]
+register_mllm(
+    "openrouter",
+    interfaces.Mllm("google/gemini-flash-1.5-8b", 1_000_000, 0.0375, 0.15),
+)
+register_mllm(
+    "openrouter",
+    interfaces.Mllm("qwen/qwen-2-vl-7b-instruct", 4096, 0.1, 0.1, ["fp32", "bf16"]),
+)

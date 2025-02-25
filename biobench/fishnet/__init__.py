@@ -39,44 +39,22 @@ from jaxtyping import Float, Int, jaxtyped
 from PIL import Image
 from torch import Tensor
 
-from .. import helpers, interfaces, mllms, registry
+from .. import config, helpers, interfaces, mllms, registry
 
 logger = logging.getLogger("fishnet")
 
 
-@beartype.beartype
-@dataclasses.dataclass(frozen=True)
-class Args:
-    """FishNet task arguments."""
+log_every: int = 10
+"""how often (number of epochs) to log progress."""
 
-    data: str = ""
-    """dataset directory; where you downloaded this task's data to."""
-    batch_size: int = 256
-    """batch size for computer vision model."""
-    n_workers: int = 4
-    """number of dataloader worker processes."""
-    log_every: int = 10
-    """how often (number of epochs) to log progress."""
-    n_epochs: int = 100
-    """How many epochs to train the MLP classifier."""
-    learning_rate: float = 5e-4
-    """The learning rate for training the MLP classifier."""
-    threshold: float = 0.5
-    """The threshold to predict "presence" rather than "absence"."""
-    seed: int = 42
-    """random seed."""
+n_epochs: int = 100
+"""How many epochs to train the MLP classifier."""
 
-    # Computed at runtime.
-    device: str = "cuda"
-    """(computed at runtime) which kind of accelerator to use."""
-    debug: bool = False
-    """(computed at runtime) whether to run in debug mode."""
-    n_train: int = -1
-    """Number of maximum training samples. Negative number means use all of them."""
-    n_test: int = -1
-    """Number of test samples. Negative number means use all of them."""
-    parallel: int = 1
-    """Number of parallel requests per second to MLLM service providers."""
+learning_rate: float = 5e-4
+"""The learning rate for training the MLP classifier."""
+
+threshold: float = 0.5
+"""The threshold to predict "presence" rather than "absence"."""
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -167,9 +145,7 @@ def calc_macro_f1(preds: list[interfaces.Prediction]) -> float:
 
 
 @beartype.beartype
-def benchmark_cvml(
-    args: Args, model_args: interfaces.ModelArgsCvml
-) -> tuple[interfaces.ModelArgsCvml, interfaces.TaskReport]:
+def benchmark_cvml(cfg: config.Experiment) -> interfaces.Report:
     """
     The FishNet benchmark.
     """
@@ -217,14 +193,12 @@ def benchmark_cvml(
             score = calc_macro_f1(examples)
             logger.info("Epoch %d/%d: %.3f", epoch + 1, args.n_epochs, score)
 
-    return model_args, interfaces.TaskReport(
-        "FishNet", examples, calc_mean_score=calc_macro_f1
-    )
+    return interfaces.Report("FishNet", examples, calc_mean_score=calc_macro_f1)
 
 
 @beartype.beartype
 def evaluate(
-    args: Args, classifier: torch.nn.Module, dataloader
+    cfg: config.Experiment, classifier: torch.nn.Module, dataloader
 ) -> list[interfaces.Prediction]:
     """
     Evaluates the trained classifier on a test split.
@@ -256,7 +230,7 @@ def evaluate(
 @jaxtyped(typechecker=beartype.beartype)
 @torch.no_grad()
 def get_features(
-    args: Args, backbone: interfaces.VisionBackbone, *, is_train: bool
+    cfg: config.Experiment, backbone: interfaces.VisionBackbone, *, is_train: bool
 ) -> FeaturesCvml:
     """Extract visual features."""
     if not os.path.isdir(args.data):
@@ -373,24 +347,22 @@ class ImageDatasetCvml(torch.utils.data.Dataset):
         return len(self.df)
 
 
-def benchmark_mllm(
-    args: Args, model_args: interfaces.ModelArgsMllm
-) -> tuple[interfaces.ModelArgsMllm, interfaces.TaskReport]:
-    if not os.path.isdir(args.data):
-        msg = f"Path '{args.data}' doesn't exist. Did you download the FishNet dataset? See the docstring at the top of this file for instructions. If you did download it, pass the path with '--fishnet-args.data'; see --help for more."
+def benchmark_mllm(cfg: config.Experiment) -> interfaces.Report:
+    if not os.path.isdir(cfg.fishnet_data):
+        msg = f"Path '{cfg.fishnet_data}' doesn't exist. Did you download the FishNet dataset? See the docstring at the top of this file for instructions. If you did download it, set the path 'fishnet_data' in your config."
         raise ValueError(msg)
 
-    train_dataset = DatasetMllm(args.data, "train.csv")
-    test_dataset = DatasetMllm(args.data, "test.csv")
-    rng = random.Random(args.seed)
+    train_dataset = DatasetMllm(cfg.fishnet_data, "train.csv")
+    test_dataset = DatasetMllm(cfg.fishnet_data, "test.csv")
+    rng = random.Random(cfg.seed)
 
     with asyncio.Runner() as loop:
-        limiter = mllms.RateLimiter(args.parallel)
-        semaphore = asyncio.Semaphore(args.parallel)
+        limiter = mllms.RateLimiter(cfg.parallel)
+        semaphore = asyncio.Semaphore(cfg.parallel)
 
         # We load all the training samples into memory right away because they will be re-used over and over again.
         # Test samples are loaded one by one on demand.
-        i_train = rng.sample(range(len(train_dataset)), k=args.n_train)
+        i_train = rng.sample(range(len(train_dataset)), k=cfg.n_train)
         train_examples = [
             train_dataset[i].to_example()
             for i in helpers.progress(i_train, desc="load train samples")
@@ -404,11 +376,8 @@ def benchmark_mllm(
                 n_examples = 0
                 fewshot_examples = []
                 while mllms.fits(
-                    model_args,
-                    fewshot_examples,
-                    test_example.image_b64,
-                    test_example.user,
-                ) and (args.n_train < 0 or n_examples < args.n_train):
+                    cfg, fewshot_examples, test_example.image_b64, test_example.user
+                ) and (cfg.n_train < 0 or n_examples < cfg.n_train):
                     # Add another example.
                     n_examples += 1
                     fewshot_examples = train_examples[:n_examples]
@@ -418,10 +387,7 @@ def benchmark_mllm(
 
                 await limiter.acquire()
                 assistant = await mllms.send(
-                    model_args,
-                    fewshot_examples,
-                    test_example.image_b64,
-                    test_example.user,
+                    cfg, fewshot_examples, test_example.image_b64, test_example.user
                 )
                 preds = test_example.parse_assistant(assistant)
                 # Convert feeding path to bool and combine with other binary values
@@ -434,19 +400,20 @@ def benchmark_mllm(
                         "y_true": test_example.true,
                         "y_pred": preds,
                         "assistant": assistant,
+                        "n_examples": len(fewshot_examples),
                     },
                 )
 
         @beartype.beartype
         async def run_all() -> list[interfaces.Prediction]:
-            if args.debug:
+            if cfg.debug:
                 logger.info("Using the first 10 samples out of %d.", len(test_dataset))
                 test_i = list(range(10))
-            elif args.n_test >= 0:
+            elif cfg.n_test >= 0:
                 logger.info(
-                    "Using %d random samples out of %d.", args.n_test, len(test_dataset)
+                    "Using %d random samples out of %d.", cfg.n_test, len(test_dataset)
                 )
-                test_i = rng.sample(range(len(test_dataset)), k=args.n_test)
+                test_i = rng.sample(range(len(test_dataset)), k=cfg.n_test)
 
             jobs = [asyncio.create_task(run_one(i)) for i in test_i]
 
@@ -458,8 +425,12 @@ def benchmark_mllm(
 
         preds = loop.run(run_all())
 
-    return model_args, interfaces.TaskReport(
-        "FishNet", args.n_train, preds, calc_mean_score=calc_macro_f1
+    return interfaces.Report(
+        "FishNet",
+        preds,
+        preds[0].info["n_examples"],
+        cfg,
+        calc_mean_score=calc_macro_f1,
     )
 
 
@@ -604,8 +575,8 @@ What functional traits does this fish have? For each of these ten traits, respon
             self.brackish,
         ]
 
-    def to_example(self) -> mllms.Example:
-        return mllms.Example(
+    def to_example(self) -> interfaces.ExampleMllm:
+        return interfaces.ExampleMllm(
             image_b64=self.image_b64,
             user=self.user,
             assistant=self.assistant,

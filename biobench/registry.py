@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 _global_backbone_registry: dict[str, type[interfaces.VisionBackbone]] = {}
 
 
+@beartype.beartype
 def load_vision_backbone(
     model_cfg: config.Model,
 ) -> interfaces.VisionBackbone:
@@ -30,6 +31,7 @@ def load_vision_backbone(
     return cls(model_cfg.ckpt)
 
 
+@beartype.beartype
 def register_vision_backbone(model_org: str, cls: type[interfaces.VisionBackbone]):
     """
     Register a new vision backbone class.
@@ -39,6 +41,7 @@ def register_vision_backbone(model_org: str, cls: type[interfaces.VisionBackbone
     _global_backbone_registry[model_org] = cls
 
 
+@beartype.beartype
 def list_vision_backbones() -> list[str]:
     """
     List all vision backbone model orgs.
@@ -46,20 +49,22 @@ def list_vision_backbones() -> list[str]:
     return list(_global_backbone_registry.keys())
 
 
-_global_mllm_registry: dict[config.Model, interfaces.Mllm] = {}
+_global_mllm_registry: dict[tuple[str, str], interfaces.Mllm] = {}
 
 
 @beartype.beartype
-def load_mllm(model_args: config.Model) -> interfaces.Mllm:
+def load_mllm(cfg: config.Model) -> interfaces.Mllm:
     """
     Load a multimodal LLM configuration.
     """
-    if model_args.ckpt not in _global_mllm_registry:
-        raise ValueError(f"Model '{model_args.ckpt}' not found.")
+    key = (cfg.org, cfg.ckpt)
+    if key not in _global_mllm_registry:
+        raise ValueError(f"Model '{key}' not found.")
 
-    return _global_mllm_registry[model_args.ckpt]
+    return _global_mllm_registry[key]
 
 
+@beartype.beartype
 def register_mllm(model_org: str, mllm: interfaces.Mllm):
     """
     Register a new multimodal LLM configuration.
@@ -70,6 +75,7 @@ def register_mllm(model_org: str, mllm: interfaces.Mllm):
     _global_mllm_registry[key] = mllm
 
 
+@beartype.beartype
 def list_mllms() -> list[tuple[str, str]]:
     """
     List all registered multimodal LLM models.

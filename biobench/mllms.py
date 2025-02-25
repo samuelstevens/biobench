@@ -7,7 +7,7 @@ import typing
 import beartype
 import litellm
 
-from . import config, interfaces
+from . import config, interfaces, registry
 
 logger = logging.getLogger("mllms")
 
@@ -16,36 +16,17 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("LiteLLM").setLevel(logging.WARNING)
 
 
+@beartype.beartype
 def fits(
-    model_cfg: config.Model,
-    exp_cfg: config.Experiment,
+    cfg: config.Experiment,
     examples: list[interfaces.ExampleMllm],
     image_b64: str,
     user: str,
 ) -> bool:
+    mllm = registry.load_mllm(cfg.model)
     messages = make_prompt(cfg, examples, image_b64, user)
-    n_tokens = litellm.token_counter(model=cfg.ckpt, messages=messages)
-    return n_tokens <= self.max_tokens
-
-
-# @beartype.beartype
-# def get_max_tokens(args: interfaces.ModelArgsMllm) -> int:
-#     try:
-#         return litellm.get_max_tokens(args.ckpt)
-#     except Exception:
-#         pass
-
-#     if args.ckpt.endswith("google/gemini-2.0-flash-001"):
-#         return 1_000_000
-#     elif args.ckpt.endswith("google/gemini-flash-1.5-8b"):
-#         return 1_000_000
-#     elif args.ckpt.endswith("qwen/qwen-2-vl-7b-instruct"):
-#         return 4_096
-#     elif args.ckpt.endswith("meta-llama/llama-3.2-3b-instruct"):
-#         return 131_000
-#     else:
-#         err_msg = f"Model '{args.ckpt}' isn't mapped yet by biobench or litellm."
-#         raise ValueError(err_msg)
+    n_tokens = litellm.token_counter(model=cfg.model.ckpt, messages=messages)
+    return n_tokens <= mllm.max_tokens
 
 
 @beartype.beartype
@@ -76,7 +57,7 @@ class RateLimiter:
 
 @beartype.beartype
 async def send(
-    exp_cfg: config.Experiment,
+    cfg: config.Experiment,
     examples: list[interfaces.ExampleMllm],
     image_b64: str,
     user: str,
@@ -88,7 +69,7 @@ async def send(
     Send a message to the LLM and get the response.
 
     Args:
-        args: Args for the MLLM.
+        cfg: TODO
         examples: Few-shot examples.
         image: The input image.
         user: The user request.
@@ -101,7 +82,8 @@ async def send(
         RuntimeError: If LLM call fails
     """
 
-    messages = make_prompt(args, examples, image_b64, user)
+    messages = make_prompt(cfg, examples, image_b64, user)
+    mllm = registry.load_mllm(cfg.model)
 
     # Make LLM call with retries
     last_err = None
@@ -122,10 +104,10 @@ async def send(
 
             # Make LLM call
             response = await litellm.acompletion(
-                model=args.ckpt,
+                model=cfg.model.org + "/" + cfg.model.ckpt,
                 messages=messages,
-                temperature=args.temp,
-                provider={"quantizations": args.quantizations},
+                temperature=cfg.temp,
+                provider={"quantizations": mllm.quantizations},
             )
         except RuntimeError as err:
             last_err = err
@@ -166,22 +148,24 @@ async def send(
 #############
 
 
+@beartype.beartype
 def make_prompt(
-    exp_cfg: config.Experiment,
+    cfg: config.Experiment,
     examples: list[interfaces.ExampleMllm],
     image_b64: str,
     user: str,
     *,
     system: str = "",
 ) -> list[object]:
-    if exp_cfg.prompting == "single":
+    if cfg.prompting == "single":
         return _make_single_turn_prompt(examples, image_b64, user, system=system)
-    elif exp_cfg.prompting == "multi":
+    elif cfg.prompting == "multi":
         return _make_multi_turn_prompt(examples, image_b64, user, system=system)
     else:
-        typing.assert_never(exp_cfg.prompting)
+        typing.assert_never(cfg.prompting)
 
 
+@beartype.beartype
 def _make_single_turn_prompt(
     examples: list[interfaces.ExampleMllm],
     image_b64: str,
@@ -207,13 +191,14 @@ def _make_single_turn_prompt(
     return messages
 
 
+@beartype.beartype
 def _make_multi_turn_prompt(
     examples: list[interfaces.ExampleMllm],
     image_b64: str,
     user: str,
     *,
     system: str = "",
-) -> list[str]:
+) -> list[object]:
     # Format messages for chat completion
     messages = []
 

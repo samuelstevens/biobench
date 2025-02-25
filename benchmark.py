@@ -12,12 +12,13 @@ For example, see `biobench.newt.download` for an example.
 .. include:: ./design.md
 """
 
-import csv
 import json
 import logging
 import os
 import resource
+import sqlite3
 import time
+import typing
 
 import beartype
 import submitit
@@ -28,7 +29,7 @@ from biobench import (
     # beluga,
     # birds525,
     config,
-    # fishnet,
+    fishnet,
     # imagenet,
     # inat21,
     interfaces,
@@ -47,11 +48,7 @@ logger = logging.getLogger("benchmark.py")
 
 
 @beartype.beartype
-def save(
-    exp_cfg: config.Experiment,
-    model_cfg: config.Model,
-    report: interfaces.TaskReport,
-) -> None:
+def save(report: interfaces.Report) -> None:
     """
     Saves the report to disk in a machine-readable SQLite format.
 
@@ -60,92 +57,49 @@ def save(
         model_args: a pair of model_org, model_ckpt strings.
         report: the task report from the model_args.
     """
-    conn = args.get_sqlite_connection()
+    os.makedirs(report.exp_cfg.report_to, exist_ok=True)
+    conn = sqlite3.connect(os.path.join(report.exp_cfg.report_to, "results.sqlite"))
     with open("schema.sql") as fd:
         schema = fd.read()
     conn.execute(schema)
 
     lower, upper = report.get_confidence_interval()
+
     values = (
-        json.dumps(model_args.to_dict()),
-        report.name,
         int(time.time()),
+        report.task_name,
+        report.n_train,
+        len(report.predictions),
+        report.exp_cfg.sampling,
+        report.exp_cfg.model.method,
+        report.exp_cfg.model.org,
+        report.exp_cfg.model.ckpt,
         report.get_mean_score(),
         lower,
         upper,
-        json.dumps(args.to_dict()),
+        # MLLM
+        report.exp_cfg.prompting,
+        report.exp_cfg.cot_enabled,
+        report.parse_success_rate,
+        report.usd_per_answer,
+        # CVML
+        report.classifier,
+        # JSON blobs
+        json.dumps(report.exp_cfg.to_dict()),
         json.dumps(report.to_dict()),
     )
-    conn.execute("INSERT INTO reports VALUES(?, ?, ?, ?, ?, ?, ?, ?)", values)
+    conn.execute(
+        "INSERT INTO results VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        values,
+    )
     conn.commit()
 
     logger.info(
-        "%s on %s: %.1f%%", model_args.ckpt, report.name, report.get_mean_score() * 100
+        "%s on %s: %.1f%%",
+        report.exp_cfg.model.ckpt,
+        report.task_name,
+        report.get_mean_score(),
     )
-    for name, score in report.splits.items():
-        logger.info("%s on %s (%s): %.3f", model_args.ckpt, report.name, name, score)
-
-
-@beartype.beartype
-def make_tables(cfg: config.Experiment):
-    """TODO: document."""
-
-    # CSV
-    columns = [
-        "task",
-        "model",
-        "n_train",
-        "n_test",
-        "sampling",
-        "prompting",  # MLLM only
-        "classifier",  # CV+ML only
-        "hparams_json",  # Both CV+ML/MLLM
-        "confidence_lower",
-        "mean_score",
-        "confidence_upper",
-        "n_successful_parses",  # MLLM only
-        "usd_per_answer",  # MLLM only
-    ]
-
-    conn = args.get_sqlite_connection()
-    stmt = """
-    SELECT task, model_config, confidence_lower, mean_score, confidence_upper, args, MAX(posix) AS posix 
-    FROM reports 
-    GROUP BY model_config, task, args
-    ORDER BY task, model_config, args ASC;
-    """
-    data = conn.execute(stmt, ()).fetchall()
-
-    with open(os.path.join(args.report_to, "table.csv"), "w") as fd:
-        writer = csv.DictWriter(fd, columns)
-        writer.writeheader()
-        for task, model_args_json, ci_lower, mean, ci_upper, task_args_json, _ in data:
-            model_args = json.loads(model_args_json)
-            task_args = json.loads(task_args_json)
-
-            if model_args["type"] == "mllm":
-                hparams = {"temp": model_args["temp"]}
-            elif model_args["type"] == "cvml":
-                hparams = {}
-            else:
-                raise ValueError(model_args)
-
-            # breakpoint()
-            writer.writerow({
-                "task": task,
-                "model": model_args["ckpt"],
-                "n_train": task_args["n_train"],
-                "n_test": task_args["n_test"],
-                "sampling": "uniform",
-                "prompting": model_args.get("prompts", ""),
-                "classifier": model_args.get("classifier", ""),
-                "hparams_json": json.dumps(hparams),
-                "confidence_lower": ci_lower,
-                "mean_score": mean,
-                "confidence_upper": ci_upper,
-            })
-
-    # LaTeX
 
 
 @beartype.beartype
@@ -194,106 +148,32 @@ def benchmark(cfg: str):
         if not first.ssl:
             os.environ["BIOBENCH_DISABLE_SSL"] = "1"
 
-    breakpoint()
-
     # 2. Run benchmarks.
     jobs = []
-    for model_args in args.models_cvml:
-        if args.ages_run_cvml:
-            job = executor.submit(ages.benchmark_cvml, ages_args, model_args)
-            jobs.append(job)
-        if args.beluga_run_cvml:
-            job = executor.submit(beluga.benchmark_cvml, beluga_args, model_args)
-            jobs.append(job)
-        if args.birds525_run_cvml:
-            job = executor.submit(birds525.benchmark_cvml, birds525_args, model_args)
-            jobs.append(job)
-        if args.fishnet_run_cvml:
-            job = executor.submit(fishnet.benchmark_cvml, fishnet_args, model_args)
-            jobs.append(job)
-        if args.imagenet_run_cvml:
-            job = executor.submit(imagenet.benchmark_cvml, imagenet_args, model_args)
-            jobs.append(job)
-        if args.inat21_run_cvml:
-            job = executor.submit(inat21.benchmark_cvml, inat21_args, model_args)
-            jobs.append(job)
-        if args.iwildcam_run_cvml:
-            job = executor.submit(iwildcam.benchmark_cvml, iwildcam_args, model_args)
-            jobs.append(job)
-        if args.kabr_run_cvml:
-            job = executor.submit(kabr.benchmark_cvml, kabr_args, model_args)
-            jobs.append()
-        if args.leopard_run_cvml:
-            job = executor.submit(leopard.benchmark_cvml, leopard_args, model_args)
-            jobs.append(job)
-        if args.newt_run_cvml:
-            jobs.append(executor.submit(newt.benchmark_cvml, newt_args, model_args))
-        if args.plankton_run_cvml:
-            job = executor.submit(plankton.benchmark, plankton_args, model_args)
-            jobs.append(job)
-        if args.plantnet_run_cvml:
-            job = executor.submit(plantnet.benchmark, plantnet_args, model_args)
-            jobs.append(job)
-        if args.rarespecies_run_cvml:
-            job = executor.submit(rarespecies.benchmark, rarespecies_args, model_args)
-            jobs.append(job)
-
-    for model_args in args.models_mllm:
-        if args.ages_run_mllm:
-            job = executor.submit(ages.benchmark_mllm, ages_args, model_args)
-            jobs.append(job)
-        if args.beluga_run_mllm:
-            job = executor.submit(beluga.benchmark_mllm, beluga_args, model_args)
-            jobs.append(job)
-        if args.birds525_run_mllm:
-            job = executor.submit(birds525.benchmark_mllm, birds525_args, model_args)
-            jobs.append(job)
-        if args.fishnet_run_mllm:
-            job = executor.submit(fishnet.benchmark_mllm, fishnet_args, model_args)
-            jobs.append(job)
-        if args.imagenet_run_mllm:
-            job = executor.submit(imagenet.benchmark_mllm, imagenet_args, model_args)
-            jobs.append(job)
-        if args.inat21_run_mllm:
-            job = executor.submit(inat21.benchmark_mllm, inat21_args, model_args)
-            jobs.append(job)
-        if args.iwildcam_run_mllm:
-            job = executor.submit(iwildcam.benchmark_mllm, iwildcam_args, model_args)
-            jobs.append(job)
-        if args.kabr_run_mllm:
-            jobs.append(executor.submit(kabr.benchmark_mllm, kabr_args, model_args))
-        if args.leopard_run_mllm:
-            job = executor.submit(leopard.benchmark_mllm, leopard_args, model_args)
-            jobs.append(job)
-        if args.newt_run_mllm:
-            job = executor.submit(newt.benchmark_mllm, newt_args, model_args)
-            jobs.append()
-        if args.plankton_run_mllm:
-            job = executor.submit(plankton.benchmark, plankton_args, model_args)
-            jobs.append(job)
-        if args.plantnet_run_mllm:
-            job = executor.submit(plantnet.benchmark, plantnet_args, model_args)
-            jobs.append(job)
-        if args.rarespecies_run_mllm:
-            job = executor.submit(rarespecies.benchmark, rarespecies_args, model_args)
-            jobs.append(job)
+    for cfg in cfgs:
+        if cfg.model.method == "cvml":
+            if cfg.fishnet_data:
+                job = executor.submit(fishnet.benchmark_cvml, cfg)
+                jobs.append(job)
+        elif cfg.model.method == "mllm":
+            if cfg.fishnet_data:
+                job = executor.submit(fishnet.benchmark_mllm, cfg)
+                jobs.append(job)
+        else:
+            typing.assert_never(cfg.model.method)
 
     logger.info("Submitted %d jobs.", len(jobs))
 
     # 3. Write results to sqlite.
-    os.makedirs(args.report_to, exist_ok=True)
     for i, future in enumerate(submitit.helpers.as_completed(jobs)):
         err = future.exception()
         if err:
             logger.warning("Error running job: %s: %s", err, err.__cause__)
             continue
 
-        model_args, report = future.result()
-        save(args, model_args, report)
+        report = future.result()
+        save(report)
         logger.info("Finished %d/%d jobs.", i + 1, len(jobs))
-
-    # 4. Make the table in both CSV and LaTeX.
-    make_tables(args)
 
     logger.info("Finished.")
 

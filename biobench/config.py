@@ -6,6 +6,7 @@ import typing
 
 @dataclasses.dataclass(frozen=True)
 class Model:
+    method: typing.Literal["cvml", "mllm"]
     org: str
     ckpt: str
 
@@ -49,6 +50,12 @@ class Experiment:
     """whether to use submitit to run jobs on a slurm cluster."""
     slurm_acct: str = ""
     """slurm account string."""
+    batch_size: int = 256
+    """Batch size for computer vision model."""
+    n_workers: int = 4
+    """Number of dataloader worker processes."""
+    seed: int = 17
+    """Radnom seed."""
 
     # Task-specific args
     ages_data: str = ""
@@ -89,9 +96,7 @@ def load(path: str) -> list[Experiment]:
         raise ValueError("models must be a list of tables in TOML")
 
     # Start with models as base experiments
-    experiments = [
-        {"model": Model(org=model["org"], ckpt=model["ckpt"])} for model in models
-    ]
+    experiments = [{"model": Model(**model)} for model in models]
 
     # For each remaining field in the TOML
     for key, value in data.items():

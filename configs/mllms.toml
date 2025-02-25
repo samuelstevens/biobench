@@ -2,20 +2,23 @@ prompting = ["single", "multi"]
 cot_enabled = false
 parallel = 10
 
-n_train = [0, 1, 3, 10, 30]
+n_train = [0, 1, 3, 10, 30, 100]
 n_test = 100
 
+fishnet_data = "datasets/fishnet"
+
 [[models]]
+method = "mllm"
 org = "openrouter"
 ckpt = "meta-llama/llama-3.2-3b-instruct"
 
 [[models]]
+method = "mllm"
 org = "openrouter"
 ckpt = "qwen/qwen-2-vl-7b-instruct"
 
 [[models]]
+method = "mllm"
 org = "openrouter"
 ckpt = "google/gemini-flash-1.5-8b"
 
-ages_data = "datasets/newt"
-fishnet_data = "datasets/fishnet"

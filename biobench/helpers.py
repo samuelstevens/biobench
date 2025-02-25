@@ -7,9 +7,11 @@ import io
 import logging
 import os.path
 import time
+import typing
 
 import beartype
 import pybase64
+import submitit
 from PIL import Image
 
 
@@ -106,3 +108,49 @@ def load_img_b64(path: str) -> str:
     b64 = pybase64.b64encode(buf.getvalue())
     s64 = b64.decode("utf8")
     return "data:image/webp;base64," + s64
+
+
+R = typing.TypeVar("R", covariant=True)
+
+
+def as_completed(
+    jobs: typing.Sequence[submitit.Job[R]],
+    timeout: int | float | None = None,
+    poll_frequency: float = 10,
+) -> typing.Iterator[submitit.Job[R]]:
+    """
+    Yields jobs as they complete (finished, failed or were cancelled).
+    Raises a TimeoutError if the result isn’t available after timeout seconds.
+    timeout can be an int or float. If timeout is not specified or None, there is no
+    limit to the wait time.
+
+    Parameters
+    ----------
+    jobs: list
+        Jobs instances
+
+    timeout: int/float
+        Maximum time (in sec) to wait for jobs completion
+
+    poll_frequency: float
+        Frequency in second at which we check job status.
+
+    Yields
+    ------
+    Job
+        The next completed job
+    """
+    start = time.time()
+    jobs_done: set[int] = set()
+    while True:
+        if timeout is not None and time.time() - start > timeout:
+            raise TimeoutError
+        for i, job in enumerate(jobs):
+            if i in jobs_done:
+                continue
+            if job.done():
+                jobs_done.add(i)
+                yield job
+        if len(jobs_done) == len(jobs):
+            break
+        time.sleep(poll_frequency)
