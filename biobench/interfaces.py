@@ -160,8 +160,10 @@ class Report:
 
         dct = dataclasses.asdict(self)
 
+        # Handle special cases
         dct["exp_cfg"] = self.exp_cfg.to_dict()
-        # Handle the rest of the weird values like above AI!
+        dct["calc_mean_score"] = self.calc_mean_score.__name__
+        dct["predictions"] = [p.to_dict() for p in self.predictions]
 
         return dct
 
