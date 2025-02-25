@@ -61,16 +61,6 @@ def benchmark(
     return model_args, interfaces.TaskReport("RareSpecies", examples)
 
 
-class LabelProcessor:
-    def __init__(self):
-        self._lookup = {}
-
-    def transform(self, label) -> int:
-        if label not in self._lookup:
-            self._lookup[label] = len(self._lookup)
-        return self._lookup[label]
-
-
 @jaxtyped(typechecker=beartype.beartype)
 @dataclasses.dataclass(frozen=True)
 class Features:
@@ -122,8 +112,6 @@ def get_features(args: Args, backbone: interfaces.VisionBackbone) -> Features:
         shuffle=False,  # We use dataset.shuffle instead
     )
 
-    label_processor = LabelProcessor()
-
     all_features, all_labels, all_ids = [], [], []
 
     total = math.ceil(11984 / args.batch_size) if not args.debug else 2
@@ -138,10 +126,7 @@ def get_features(args: Args, backbone: interfaces.VisionBackbone) -> Features:
             features = backbone.img_encode(images).img_features
 
         all_features.append(features.cpu())
-
-        labels = [label_processor.transform(label) for label in batch["label"]]
-        all_labels.extend(labels)
-
+        all_labels.extend(batch["label"])
         all_ids.extend(batch["rarespecies_id"])
 
     all_features = torch.cat(all_features, dim=0).cpu()
