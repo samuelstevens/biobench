@@ -47,4 +47,33 @@ def list_vision_backbones() -> list[str]:
     return list(_global_backbone_registry.keys())
 
 
-# Write a similar set of functions for mllm instead of vision_backbones. Use the MultimodalLlm class from interfaces.py AI!
+_global_mllm_registry: dict[str, interfaces.MultimodalLlm] = {}
+
+
+@beartype.beartype
+def load_mllm(
+    model_args: interfaces.ModelArgsMllm,
+) -> interfaces.MultimodalLlm:
+    """
+    Load a multimodal LLM configuration.
+    """
+    if model_args.ckpt not in _global_mllm_registry:
+        raise ValueError(f"Model '{model_args.ckpt}' not found.")
+
+    return _global_mllm_registry[model_args.ckpt]
+
+
+def register_mllm(model_name: str, mllm: interfaces.MultimodalLlm):
+    """
+    Register a new multimodal LLM configuration.
+    """
+    if model_name in _global_mllm_registry:
+        logger.warning("Overwriting key '%s' in registry.", model_name)
+    _global_mllm_registry[model_name] = mllm
+
+
+def list_mllms() -> list[str]:
+    """
+    List all registered multimodal LLM models.
+    """
+    return list(_global_mllm_registry.keys())
