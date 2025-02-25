@@ -27,7 +27,7 @@ import torch
 from jaxtyping import Float, jaxtyped
 from torch import Tensor
 
-from . import helpers
+from . import config, helpers
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -64,6 +64,23 @@ class VisionBackbone(torch.nn.Module):
         """
         err_msg = f"{self.__class__.__name__} must implemented make_img_transform()."
         raise NotImplementedError(err_msg)
+
+
+@beartype.beartype
+@dataclasses.dataclass(frozen=True)
+class ExampleMllm:
+    image_b64: str
+    user: str
+    assistant: str
+
+
+@dataclasses.dataclass(frozen=True)
+class Mllm:
+    name: str
+    max_tokens: int
+    usd_per_m_input: float
+    usd_per_m_output: float
+    quantizations: list[str]
 
 
 def get_git_hash() -> str:
@@ -185,43 +202,3 @@ class TaskReport:
             "gpu_name": self.gpu_name,
             "hostname": self.hostname,
         }
-
-
-@dataclasses.dataclass(frozen=True)
-class MultimodalLlm:
-    name: str
-    max_tokens: int
-    usd_per_1k_input: float
-    usd_per_1k_output: float
-    quantizations: list[str]
-
-    def fits(
-        self,
-        cfg: ExperimentConfig,
-        examples: list[ExampleMllm],
-        image_b64: str,
-        user: str,
-    ) -> bool:
-        messages = make_prompt(cfg, examples, image_b64, user)
-        n_tokens = litellm.token_counter(model=cfg.ckpt, messages=messages)
-        return n_tokens <= self.max_tokens
-
-
-@dataclasses.dataclass(frozen=True)
-class ModelArgsCvml:
-    org: str
-    ckpt: str
-
-    def to_dict(self) -> dict[str, object]:
-        return {"type": "cvml", **dataclasses.asdict(self)}
-
-
-@dataclasses.dataclass(frozen=True)
-class ModelArgsMllm:
-    ckpt: str
-    temp: float = 0.0
-    prompts: typing.Literal["single-turn", "multi-turn"] = "single-turn"
-    quantizations: list[str] = dataclasses.field(default_factory=list)
-
-    def to_dict(self) -> dict[str, object]:
-        return {"type": "mllm", **dataclasses.asdict(self)}

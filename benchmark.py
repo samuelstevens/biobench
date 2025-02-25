@@ -13,224 +13,43 @@ For example, see `biobench.newt.download` for an example.
 """
 
 import csv
-import dataclasses
 import json
 import logging
 import os
 import resource
-import sqlite3
 import time
-import typing
 
 import beartype
 import submitit
 import tyro
 
 from biobench import (
-    ages,
-    beluga,
-    birds525,
-    fishnet,
-    imagenet,
-    inat21,
+    # ages,
+    # beluga,
+    # birds525,
+    config,
+    # fishnet,
+    # imagenet,
+    # inat21,
     interfaces,
-    iwildcam,
-    kabr,
-    leopard,
-    newt,
-    plankton,
-    plantnet,
-    rarespecies,
+    # iwildcam,
+    # kabr,
+    # leopard,
+    # newt,
+    # plankton,
+    # plantnet,
+    # rarespecies,
 )
 
 log_format = "[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s"
 logging.basicConfig(level=logging.INFO, format=log_format)
-logger = logging.getLogger("biobench")
-
-
-@beartype.beartype
-@dataclasses.dataclass(frozen=True)
-class Args:
-    """Params to run one or more benchmarks in a parallel setting."""
-
-    slurm: bool = False
-    """whether to use submitit to run jobs on a slurm cluster."""
-    slurm_acct: str = "PAS2136"
-    """slurm account string."""
-
-    models_cvml: typing.Annotated[
-        list[interfaces.ModelArgsCvml], tyro.conf.arg(name="models")
-    ] = dataclasses.field(
-        default_factory=lambda: [
-            interfaces.ModelArgsCvml("open-clip", "RN50/openai"),
-            interfaces.ModelArgsCvml("open-clip", "ViT-B-16/openai"),
-            interfaces.ModelArgsCvml("open-clip", "ViT-B-16/laion400m_e32"),
-            interfaces.ModelArgsCvml("open-clip", "hf-hub:imageomics/bioclip"),
-            interfaces.ModelArgsCvml("open-clip", "ViT-B-16-SigLIP/webli"),
-            interfaces.ModelArgsCvml(
-                "timm-vit", "vit_base_patch14_reg4_dinov2.lvd142m"
-            ),
-        ]
-    )
-    """CV models; a pair of model org (interface) and checkpoint."""
-    models_mllm: typing.Annotated[
-        list[interfaces.ModelArgsMllm], tyro.conf.arg(name="mllms")
-    ] = dataclasses.field(
-        default_factory=lambda: [
-            interfaces.ModelArgsMllm(
-                "openrouter/meta-llama/llama-3.2-3b-instruct",
-                quantizations=["fp32", "bf16"],
-            ),
-            interfaces.ModelArgsMllm(
-                "openrouter/qwen/qwen-2-vl-7b-instruct", quantizations=["fp32", "bf16"]
-            ),
-            interfaces.ModelArgsMllm("openrouter/google/gemini-flash-1.5-8b"),
-        ]
-    )
-    """MLLM checkpoints."""
-    device: typing.Literal["cpu", "mps", "cuda"] = "cuda"
-    """which kind of accelerator to use."""
-    debug: bool = False
-    """whether to run in debug mode."""
-    n_train: int = -1
-    """Number of maximum training samples. Negative number means use all of them."""
-    n_test: int = -1
-    """Number of test samples. Negative number means use all of them."""
-    parallel: int = 1
-    """Number of parallel requests per second to MLLM service providers."""
-
-    ssl: bool = True
-    """Use SSL when connecting to remote servers to download checkpoints; use --no-ssl if your machine has certificate issues. See `biobench.third_party_models.get_ssl()` for a discussion of how this works."""
-
-    # Individual benchmarks.
-    ages_run_cvml: bool = False
-    """Whether to run the bird age benchmark with CV+ML."""
-    ages_run_mllm: bool = False
-    """Whether to run the bird age benchmark with MLLM."""
-    ages_args: ages.Args = dataclasses.field(default_factory=ages.Args)
-    """Arguments for the bird age benchmark."""
-
-    beluga_run_cvml: bool = False
-    """Whether to run the Beluga whale re-ID benchmark with CV+ML."""
-    beluga_run_mllm: bool = False
-    """Whether to run the Beluga whale re-ID benchmark with MLLM."""
-    beluga_args: beluga.Args = dataclasses.field(default_factory=beluga.Args)
-    """Arguments for the Beluga whale re-ID benchmark."""
-
-    birds525_run_cvml: bool = False
-    """Whether to run the Birds 525 benchmark with CV+ML."""
-    birds525_run_mllm: bool = False
-    """Whether to run the Birds 525 benchmark with MLLM."""
-    birds525_args: birds525.Args = dataclasses.field(default_factory=birds525.Args)
-    """Arguments for the Birds 525 benchmark."""
-
-    fishnet_run_cvml: bool = False
-    """Whether to run the FishNet benchmark with CV+ML."""
-    fishnet_run_mllm: bool = False
-    """Whether to run the FishNet benchmark with MLLM."""
-    fishnet_args: fishnet.Args = dataclasses.field(default_factory=fishnet.Args)
-    """Arguments for the FishNet benchmark."""
-
-    imagenet_run_cvml: bool = False
-    """Whether to run the ImageNet-1K benchmark with CV+ML."""
-    imagenet_run_mllm: bool = False
-    """Whether to run the ImageNet-1K benchmark with MLLM."""
-    imagenet_args: imagenet.Args = dataclasses.field(default_factory=imagenet.Args)
-    """Arguments for the ImageNet-1K benchmark."""
-
-    inat21_run_cvml: bool = False
-    """Whether to run the iNat21 benchmark with CV+ML."""
-    inat21_run_mllm: bool = False
-    """Whether to run the iNat21 benchmark with MLLM."""
-    inat21_args: inat21.Args = dataclasses.field(default_factory=inat21.Args)
-    """Arguments for the iNat21 benchmark."""
-
-    iwildcam_run_cvml: bool = False
-    """Whether to run the iWildCam benchmark with CV+ML."""
-    iwildcam_run_mllm: bool = False
-    """Whether to run the iWildCam benchmark with MLLM."""
-    iwildcam_args: iwildcam.Args = dataclasses.field(default_factory=iwildcam.Args)
-    """Arguments for the iWildCam benchmark."""
-
-    kabr_run_cvml: bool = False
-    """Whether to run the KABR benchmark with CV+ML."""
-    kabr_run_mllm: bool = False
-    """Whether to run the KABR benchmark with MLLM."""
-    kabr_args: kabr.Args = dataclasses.field(default_factory=kabr.Args)
-    """Arguments for the KABR benchmark."""
-
-    leopard_run_cvml: bool = False
-    """Whether to run the leopard re-ID benchmark with CV+ML."""
-    leopard_run_mllm: bool = False
-    """Whether to run the leopard re-ID benchmark with MLLM."""
-    leopard_args: leopard.Args = dataclasses.field(default_factory=leopard.Args)
-    """Arguments for the leopard re-ID benchmark."""
-
-    newt_run_cvml: bool = False
-    """Whether to run the NeWT benchmark with CV+ML."""
-    newt_run_mllm: bool = False
-    """Whether to run the NeWT benchmark with MLLM."""
-    newt_args: newt.Args = dataclasses.field(default_factory=newt.Args)
-    """Arguments for the NeWT benchmark."""
-
-    plankton_run_cvml: bool = False
-    """Whether to run the Plankton benchmark with CV+ML."""
-    plankton_run_mllm: bool = False
-    """Whether to run the Plankton benchmark with MLLM."""
-    plankton_args: plankton.Args = dataclasses.field(default_factory=plankton.Args)
-    """Arguments for the Plankton benchmark."""
-
-    plantnet_run_cvml: bool = False
-    """Whether to run the Pl@ntNet benchmark with CV+ML."""
-    plantnet_run_mllm: bool = False
-    """Whether to run the Pl@ntNet benchmark with MLLM."""
-    plantnet_args: plantnet.Args = dataclasses.field(default_factory=plantnet.Args)
-    """Arguments for the Pl@ntNet benchmark."""
-
-    rarespecies_run_cvml: bool = False
-    """Whether to run the Rare Species benchmark with CV+ML."""
-    rarespecies_run_mllm: bool = False
-    """Whether to run the Rare Species benchmark with MLLM."""
-    rarespecies_args: rarespecies.Args = dataclasses.field(
-        default_factory=rarespecies.Args
-    )
-    """Arguments for the Rare Species benchmark."""
-
-    # Reporting and graphing.
-    report_to: str = os.path.join(".", "reports")
-    """where to save reports to."""
-    graph: bool = True
-    """whether to make graphs."""
-    graph_to: str = os.path.join(".", "graphs")
-    """where to save graphs to."""
-    log_to: str = os.path.join(".", "logs")
-    """where to save logs to."""
-
-    def to_dict(self) -> dict[str, object]:
-        return dataclasses.asdict(self)
-
-    def get_sqlite_connection(self) -> sqlite3.Connection:
-        """Get a connection to the reports database.
-        Returns:
-            a connection to a sqlite3 database.
-        """
-        return sqlite3.connect(os.path.join(self.report_to, "reports.sqlite"))
-
-    def update(self, other):
-        return dataclasses.replace(
-            other,
-            device=self.device,
-            debug=self.debug,
-            n_train=self.n_train,
-            n_test=self.n_test,
-            parallel=self.parallel,
-        )
+logger = logging.getLogger("benchmark.py")
 
 
 @beartype.beartype
 def save(
-    args: Args,
-    model_args: interfaces.ModelArgsCvml | interfaces.ModelArgsMllm,
+    exp_cfg: config.Experiment,
+    model_cfg: config.Model,
     report: interfaces.TaskReport,
 ) -> None:
     """
@@ -268,7 +87,7 @@ def save(
 
 
 @beartype.beartype
-def make_tables(args: Args):
+def make_tables(cfg: config.Experiment):
     """TODO: document."""
 
     # CSV
@@ -330,7 +149,7 @@ def make_tables(args: Args):
 
 
 @beartype.beartype
-def main(args: Args):
+def benchmark(cfg: str):
     """
     Launch all jobs, using either a local GPU or a Slurm cluster.
     Then report results and save to disk.
@@ -472,11 +291,8 @@ def main(args: Args):
 
 
 if __name__ == "__main__":
-    args = tyro.cli(Args)
-
     soft, hard = resource.getrlimit(resource.RLIMIT_NOFILE)
     min_nofile = 1024 * 8
     if soft < min_nofile:
         resource.setrlimit(resource.RLIMIT_NOFILE, (min_nofile, hard))
-
-    main(args)
+    tyro.cli(benchmark)

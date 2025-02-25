@@ -10,25 +10,24 @@ import logging
 
 import beartype
 
-from . import interfaces
+from . import config, interfaces
 
 logger = logging.getLogger(__name__)
 
 _global_backbone_registry: dict[str, type[interfaces.VisionBackbone]] = {}
 
 
-@beartype.beartype
 def load_vision_backbone(
-    model_args: interfaces.ModelArgsCvml,
+    model_cfg: config.Model,
 ) -> interfaces.VisionBackbone:
     """
     Load a pretrained vision backbone.
     """
-    if model_args.org not in _global_backbone_registry:
-        raise ValueError(f"Org '{model_args.org}' not found.")
+    if model_cfg.org not in _global_backbone_registry:
+        raise ValueError(f"Org '{model_cfg.org}' not found.")
 
-    cls = _global_backbone_registry[model_args.org]
-    return cls(model_args.ckpt)
+    cls = _global_backbone_registry[model_cfg.org]
+    return cls(model_cfg.ckpt)
 
 
 def register_vision_backbone(model_org: str, cls: type[interfaces.VisionBackbone]):
@@ -47,13 +46,11 @@ def list_vision_backbones() -> list[str]:
     return list(_global_backbone_registry.keys())
 
 
-_global_mllm_registry: dict[str, interfaces.MultimodalLlm] = {}
+_global_mllm_registry: dict[config.Model, interfaces.Mllm] = {}
 
 
 @beartype.beartype
-def load_mllm(
-    model_args: interfaces.ModelArgsMllm,
-) -> interfaces.MultimodalLlm:
+def load_mllm(model_args: config.Model) -> interfaces.Mllm:
     """
     Load a multimodal LLM configuration.
     """
@@ -63,16 +60,17 @@ def load_mllm(
     return _global_mllm_registry[model_args.ckpt]
 
 
-def register_mllm(model_name: str, mllm: interfaces.MultimodalLlm):
+def register_mllm(model_org: str, mllm: interfaces.Mllm):
     """
     Register a new multimodal LLM configuration.
     """
-    if model_name in _global_mllm_registry:
-        logger.warning("Overwriting key '%s' in registry.", model_name)
-    _global_mllm_registry[model_name] = mllm
+    key = (model_org, mllm.name)
+    if key in _global_mllm_registry:
+        logger.warning("Overwriting key '%s' in registry.", key)
+    _global_mllm_registry[key] = mllm
 
 
-def list_mllms() -> list[str]:
+def list_mllms() -> list[tuple[str, str]]:
     """
     List all registered multimodal LLM models.
     """

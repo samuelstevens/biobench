@@ -87,6 +87,7 @@ from . import interfaces, third_party_models
 from .registry import (
     list_vision_backbones,
     load_vision_backbone,
+    register_mllm,
     register_vision_backbone,
 )
 
@@ -94,6 +95,12 @@ beartype_this_package()
 
 register_vision_backbone("timm-vit", third_party_models.TimmVit)
 register_vision_backbone("open-clip", third_party_models.OpenClip)
+register_mllm(
+    "openrouter",
+    interfaces.Mllm(
+        "meta-llama/llama-3.2-3b-instruct", 131_000, 0.015, 0.025, ["fp32", "bf16"]
+    ),
+)
 
 # Some helpful types
 if typing.TYPE_CHECKING:

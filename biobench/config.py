@@ -2,23 +2,16 @@ import dataclasses
 import os.path
 import typing
 
-# @dataclasses.dataclass(frozen=True)
-# class ModelArgsCvml:
-#     org: str
-#     ckpt: str
-#     def to_dict(self) -> dict[str, object]:
-#         return {"type": "cvml", **dataclasses.asdict(self)}
-
 
 @dataclasses.dataclass(frozen=True)
-class ModelConfig:
+class Model:
     org: str
     ckpt: str
 
 
 @dataclasses.dataclass(frozen=True)
-class ExperimentConfig:
-    model: ModelConfig
+class Experiment:
+    model: Model
 
     n_train: int = -1
     """Number of maximum training samples. Negative number means use all of them."""

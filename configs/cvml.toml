@@ -1,2 +1,22 @@
 n_train = [0, 1, 3, 10, 30, 100, 300, 1_000]
 n_test = [100, -1]
+
+[[models]]
+org = "open-clip"
+ckpt = "RN50/openai"
+
+[[models]]
+org = "open-clip"
+ckpt = "ViT-B-16/opeai"
+
+[[models]]
+org = "open-clip"
+ckpt = "hf-hub:imageomics/bioclip"
+
+[[models]]
+org = "open-clip"
+ckpt = "ViT-B-16-SigLIP/webli"
+
+[[models]]
+org = "timm-vit"
+ckpt = "vit_base_patch14_reg4_dinov2.lvd142m"
