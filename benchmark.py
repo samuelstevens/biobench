@@ -156,52 +156,45 @@ def benchmark(cfg: str):
     """
     cfgs = config.load(cfg)
 
+    if not cfgs:
+        # Do something
+        pass
+
+    first = cfgs[0]
     # Verify all configs have consistent execution settings
-    if len(cfgs) > 1:
-        first = cfgs[0]
-        for cfg in cfgs[1:]:
-            if cfg.slurm != first.slurm:
-                raise ValueError("All configs must have the same value for slurm")
-            if cfg.slurm and cfg.slurm_acct != first.slurm_acct:
-                raise ValueError("All configs must have the same slurm_acct when slurm=True")
-            if cfg.log_to != first.log_to:
-                raise ValueError("All configs must have the same log_to directory")
-            if cfg.ssl != first.ssl:
-                raise ValueError("All configs must have the same ssl setting")
+    for cfg in cfgs[1:]:
+        if cfg.slurm != first.slurm:
+            raise ValueError("All configs must have the same value for slurm")
+        if cfg.slurm and cfg.slurm_acct != first.slurm_acct:
+            raise ValueError(
+                "All configs must have the same slurm_acct when slurm=True"
+            )
+        if cfg.log_to != first.log_to:
+            raise ValueError("All configs must have the same log_to directory")
+        if cfg.ssl != first.ssl:
+            raise ValueError("All configs must have the same ssl setting")
 
     # 1. Setup executor.
-    if cfgs[0].slurm:
-        executor = submitit.SlurmExecutor(folder=args.log_to)
+    if first.slurm:
+        executor = submitit.SlurmExecutor(folder=first.log_to)
         executor.update_parameters(
             time=30,
             gpus_per_node=1,
             cpus_per_task=8,
             stderr_to_stdout=True,
             partition="debug",
-            account=args.slurm_acct,
+            account=first.slurm_acct,
         )
         # See biobench.third_party_models.get_ssl() for a discussion of this variable.
-        if not args.ssl:
+        if not first.ssl:
             executor.update_parameters(setup=["export BIOBENCH_DISABLE_SSL=1"])
     else:
-        executor = submitit.DebugExecutor(folder=args.log_to)
+        executor = submitit.DebugExecutor(folder=first.log_to)
         # See biobench.third_party_models.get_ssl() for a discussion of this variable.
-        if not args.ssl:
+        if not first.ssl:
             os.environ["BIOBENCH_DISABLE_SSL"] = "1"
 
-    ages_args = args.update(args.ages_args)
-    beluga_args = args.update(args.beluga_args)
-    birds525_args = args.update(args.birds525_args)
-    fishnet_args = args.update(args.fishnet_args)
-    imagenet_args = args.update(args.imagenet_args)
-    inat21_args = args.update(args.inat21_args)
-    iwildcam_args = args.update(args.iwildcam_args)
-    kabr_args = args.update(args.kabr_args)
-    leopard_args = args.update(args.leopard_args)
-    newt_args = args.update(args.newt_args)
-    plankton_args = args.update(args.plankton_args)
-    plantnet_args = args.update(args.plantnet_args)
-    rarespecies_args = args.update(args.rarespecies_args)
+    breakpoint()
 
     # 2. Run benchmarks.
     jobs = []

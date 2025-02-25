@@ -79,7 +79,9 @@ def load(path: str) -> list[Experiment]:
         data = tomllib.load(f)
 
     if not isinstance(data, dict):
-        raise ValueError(f"TOML file {path} must contain a dictionary at the root level")
+        raise ValueError(
+            f"TOML file {path} must contain a dictionary at the root level"
+        )
 
     # Extract models list
     models = data.pop("models", [])
@@ -88,8 +90,7 @@ def load(path: str) -> list[Experiment]:
 
     # Start with models as base experiments
     experiments = [
-        {"model": Model(org=model["org"], ckpt=model["ckpt"])}
-        for model in models
+        {"model": Model(org=model["org"], ckpt=model["ckpt"])} for model in models
     ]
 
     # For each remaining field in the TOML

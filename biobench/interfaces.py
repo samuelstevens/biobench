@@ -27,7 +27,7 @@ import torch
 from jaxtyping import Float, jaxtyped
 from torch import Tensor
 
-from . import config, helpers
+from . import helpers
 
 
 @jaxtyped(typechecker=beartype.beartype)
