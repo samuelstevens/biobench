@@ -96,8 +96,8 @@ class Prediction:
     """Any additional information included. This might be the original class, the true label, etc."""
 
     def to_dict(self) -> dict[str, object]:
-        # Implement this. AI!
-        pass
+        """Convert prediction to a JSON-compatible dictionary."""
+        return dataclasses.asdict(self)
 
 
 def default_calc_mean_score(predictions: list[Prediction]) -> float:
