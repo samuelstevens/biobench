@@ -66,3 +66,8 @@ class Experiment:
 
     def to_dict(self) -> dict[str, object]:
         return dataclasses.asdict(self)
+
+
+def load(path: str) -> list[Experiment]:
+    # Implement this function. path is a path to a TOML file. Use built in libraries only. AI!
+    breakpoint()
