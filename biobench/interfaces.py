@@ -95,6 +95,10 @@ class Prediction:
     info: dict[str, object]
     """Any additional information included. This might be the original class, the true label, etc."""
 
+    def to_dict(self) -> dict[str, object]:
+        # Implement this. AI!
+        pass
+
 
 def default_calc_mean_score(predictions: list[Prediction]) -> float:
     return np.mean([prediction.score for prediction in predictions]).item()
