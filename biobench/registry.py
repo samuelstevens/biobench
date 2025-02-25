@@ -45,3 +45,6 @@ def list_vision_backbones() -> list[str]:
     List all vision backbone model orgs.
     """
     return list(_global_backbone_registry.keys())
+
+
+# Write a similar set of functions for mllm instead of vision_backbones. Use the MultimodalLlm class from interfaces.py AI!
