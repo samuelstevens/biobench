@@ -11,9 +11,14 @@ import typing
 
 
 @dataclasses.dataclass(frozen=True)
+class ModelConfig:
+    org: str
+    ckpt: str
+
+
+@dataclasses.dataclass(frozen=True)
 class ExperimentConfig:
-    model_org: str
-    model_ckpt: str
+    model: ModelConfig
 
     n_train: int = -1
     """Number of maximum training samples. Negative number means use all of them."""
@@ -40,12 +45,16 @@ class ExperimentConfig:
 
     # MLLM only
     temp: float = 0.0
-    prompts: typing.Literal["single", "multi"] = "single"
+    prompting: typing.Literal["single", "multi"] = "single"
     cot_enabled: bool = False
     parallel: int = 1
     """Number of parallel requests per second to MLLM service providers."""
 
     # CVML only
+    slurm: bool = False
+    """whether to use submitit to run jobs on a slurm cluster."""
+    slurm_acct: str = ""
+    """slurm account string."""
 
     # Task-specific args
     ages_data: str = ""

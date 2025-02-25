@@ -188,6 +188,26 @@ class TaskReport:
 
 
 @dataclasses.dataclass(frozen=True)
+class MultimodalLlm:
+    name: str
+    max_tokens: int
+    usd_per_1k_input: float
+    usd_per_1k_output: float
+    quantizations: list[str]
+
+    def fits(
+        self,
+        cfg: ExperimentConfig,
+        examples: list[ExampleMllm],
+        image_b64: str,
+        user: str,
+    ) -> bool:
+        messages = make_prompt(cfg, examples, image_b64, user)
+        n_tokens = litellm.token_counter(model=cfg.ckpt, messages=messages)
+        return n_tokens <= self.max_tokens
+
+
+@dataclasses.dataclass(frozen=True)
 class ModelArgsCvml:
     org: str
     ckpt: str

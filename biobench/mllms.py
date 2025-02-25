@@ -19,7 +19,7 @@ logging.getLogger("LiteLLM").setLevel(logging.WARNING)
 
 @beartype.beartype
 @dataclasses.dataclass(frozen=True)
-class Example:
+class ExampleMllm:
     image_b64: str
     user: str
     assistant: str
@@ -27,7 +27,6 @@ class Example:
 
 @beartype.beartype
 def fits(
-    args: interfaces.ModelArgsMllm,
     examples: list[Example],
     image_b64: str,
     user: str,
@@ -241,3 +240,128 @@ def _make_multi_turn_prompt(
         ],
     })
     return messages
+
+
+class MultimodalLLM:
+    """
+    A minimal interface for interacting with multimodal language models.
+    """
+
+    def fits(self, examples: list[ExampleMllm], img_b64: str, user: str) -> bool:
+        """
+        Check if the given examples, image and prompt will fit in the model's context window.
+
+        Args:
+            TODO
+
+        Returns:
+            True if the inputs fit within the context window, False otherwise
+        """
+        max_tokens = self.get_max_tokens()
+        messages = self.make_prompt(examples, image_b64, user)
+        n_tokens = litellm.token_counter(model=args.ckpt, messages=messages)
+        return n_tokens <= max_tokens
+        err_msg = f"{self.__class__.__name__} must implemented fits()."
+        raise NotImplementedError(err_msg)
+
+    def get_max_tokens(self) -> int:
+        """
+        Get the maximum token limit for this model.
+
+        Returns:
+            Maximum token count this model can process
+        """
+        err_msg = f"{self.__class__.__name__} must implemented get_max_tokens()."
+        raise NotImplementedError(err_msg)
+
+    async def send(
+        self,
+        examples: list[ExampleMllm],
+        image_b64: str,
+        user: str,
+        *,
+        max_retries: int = 5,
+        system: str = "",
+        temperature: float = 0.0,
+    ) -> str:
+        """
+        Send examples, image and prompt to the model and get a response.
+
+        Args:
+            TODO
+
+        Returns:
+            The model's text response
+        """
+        raise NotImplementedError()
+
+    def make_prompt(
+        self,
+        args: interfaces.ModelArgsMllm,
+        examples: list[Example],
+        image_b64: str,
+        user: str,
+        *,
+        system: str = "",
+    ) -> list[object]:
+        if args.prompts == "single-turn":
+            return _make_single_turn_prompt(examples, image_b64, user, system=system)
+        elif args.prompt == "multi-turn":
+            return _make_multi_turn_prompt(examples, image_b64, user, system=system)
+        else:
+            typing.assert_never(args.prompts)
+
+    def _make_single_turn_prompt(
+        self, examples: list[Example], image_b64: str, user: str, *, system: str = ""
+    ) -> list[object]:
+        messages = []
+
+        if system:
+            messages.append({"role": "system", "content": system})
+
+        content = []
+        for example in examples:
+            content.append({
+                "type": "image_url",
+                "image_url": {"url": example.image_b64},
+            })
+            content.append({
+                "type": "text",
+                "text": f"{example.user}\n{example.assistant}",
+            })
+
+        content.append({"type": "image_url", "image_url": {"url": image_b64}})
+        content.append({"type": "text", "text": user})
+
+        messages.append({"role": "user", "content": content})
+
+        return messages
+
+    def _make_multi_turn_prompt(
+        self, examples: list[Example], image_b64: str, user: str, *, system: str = ""
+    ) -> list[str]:
+        # Format messages for chat completion
+        messages = []
+
+        if system:
+            messages.append({"role": "system", "content": system})
+
+        for example in examples:
+            messages.append({
+                "role": "user",
+                "content": [
+                    {"type": "image_url", "image_url": {"url": example.image_b64}},
+                    {"type": "text", "text": example.user},
+                ],
+            })
+            messages.append({"role": "assistant", "content": example.assistant})
+
+        # Add current message
+        messages.append({
+            "role": "user",
+            "content": [
+                {"type": "image_url", "image_url": {"url": image_b64}},
+                {"type": "text", "text": user},
+            ],
+        })
+        return messages
