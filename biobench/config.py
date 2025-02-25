@@ -1,5 +1,6 @@
 import dataclasses
 import os.path
+import tomllib
 import typing
 
 
@@ -71,30 +72,7 @@ class Experiment:
 def load(path: str) -> list[Experiment]:
     """
     Load experiments from a TOML file.
-    
-    The TOML file should contain a list of tables under [[experiment]].
-    Each experiment table can specify any field from the Experiment dataclass.
-    The model field should be specified as model.org and model.ckpt.
+
+    None of the fields in Experiment are lists, so anytime we find a list in the TOML, we add another dimension to our grid search over all possible experiments.
     """
-    import tomllib
-    
-    with open(path, "rb") as f:
-        data = tomllib.load(f)
-    
-    if "experiment" not in data:
-        raise ValueError(f"No [[experiment]] tables found in {path}")
-        
-    experiments = []
-    for exp_data in data["experiment"]:
-        # Extract model fields into a Model object
-        model_data = exp_data.pop("model", {})
-        model = Model(
-            org=model_data.get("org", ""),
-            ckpt=model_data.get("ckpt", "")
-        )
-        
-        # Create Experiment with model and remaining fields
-        exp = Experiment(model=model, **exp_data)
-        experiments.append(exp)
-        
-    return experiments
+    # Implement this function. AI!
