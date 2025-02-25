@@ -154,6 +154,9 @@ def benchmark(cfg: str):
     Launch all jobs, using either a local GPU or a Slurm cluster.
     Then report results and save to disk.
     """
+    cfgs = config.load(cfg)
+    # Assert that all cfgs have the same values for slurm and slurm_acct. AI!
+
     # 1. Setup executor.
     if args.slurm:
         executor = submitit.SlurmExecutor(folder=args.log_to)
