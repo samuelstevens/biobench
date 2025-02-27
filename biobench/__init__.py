@@ -78,8 +78,7 @@ This raises the question: why do we have multiple tasks that fill the same role?
 .. include:: ./confidence-intervals.md
 """
 
-from . import third_party_models
-from .registry import register_vision_backbone
+from . import cvml, third_party_models
 
-register_vision_backbone("timm-vit", third_party_models.TimmVit)
-register_vision_backbone("open-clip", third_party_models.OpenClip)
+cvml.register_vision_backbone("timm-vit", third_party_models.TimmVit)
+cvml.register_vision_backbone("open-clip", third_party_models.OpenClip)
