@@ -268,9 +268,17 @@ def benchmark_mllm(cfg: config.Experiment) -> interfaces.Report:
 
     results = []
     with asyncio.Runner() as loop:
+        limiter = mllms.RateLimiter(cfg.parallel)
+        semaphore = asyncio.Semaphore(cfg.parallel)
+
         for task, dataset in get_all_tasks_mllm(cfg):
-            limiter = mllms.RateLimiter(cfg.parallel)
-            semaphore = asyncio.Semaphore(cfg.parallel)
+            # We load all the training samples into memory right away because they will be re-used over and over again.
+            # Test samples are loaded one by one on demand.
+            i_train = rng.sample(range(len(train_dataset)), k=cfg.n_train)
+            train_examples = [
+                train_dataset[i].to_example()
+                for i in helpers.progress(i_train, desc="load train samples")
+            ]
 
             @beartype.beartype
             async def run_one(
@@ -284,11 +292,17 @@ def benchmark_mllm(cfg: config.Experiment) -> interfaces.Report:
                         test_example.img_b64,
                         test_example.make_user(rng),
                     )
-                    pred_y = test_example.parse_assistant(assistant)
+                    pred_y, parsed = test_example.parse_assistant(assistant)
                     return interfaces.Prediction(
                         test_example.img_id,
                         float(pred_y == test_example.label),
-                        info={"cluster": task.cluster, "task": task.name},
+                        len(fewshot_examples),
+                        info={
+                            "task": task.name,
+                            "cluster": task.cluster,
+                            "subcluster": task.subcluster,
+                            "parsed": parsed,
+                        },
                     )
 
             @beartype.beartype
@@ -338,10 +352,10 @@ def benchmark_mllm(cfg: config.Experiment) -> interfaces.Report:
                 "test_acc": test_acc,
             })
 
-    predictions = list(
+    preds = list(
         itertools.chain.from_iterable((result.pop("predictions") for result in results))
     )
-    return interfaces.Report("NeWT", predictions)
+    return interfaces.Report("NeWT", preds, preds[0].n_train, cfg)
 
 
 @beartype.beartype
@@ -368,7 +382,10 @@ class SampleMllm:
     def assistant(self) -> str:
         return f"**{self.classname}**"
 
-    def parse_assistant(self, assistant: str) -> int:
+    def parse_assistant(self, assistant: str) -> tuple[int, bool]:
+        """
+        Returns a label, parsed to an integer. Also returns a boolean indicating whether parsing was successful.
+        """
         pattern = re.compile(r"\*\*(.*)\*\*")
         match = pattern.match(assistant)
         if match:
@@ -376,15 +393,20 @@ class SampleMllm:
             pred = difflib.get_close_matches(
                 match.group(1), self.classnames, cutoff=0.0
             )[0]
+            successful = True
         else:
             # Get the closest classname.
             pred = difflib.get_close_matches(assistant, self.classnames, cutoff=0.0)[0]
+            successful = False
 
         for i, classname in enumerate(self.classnames):
             if classname == pred:
-                return i
-        logger.warning("Something is wrong in parse_assistant.")
-        return 0
+                return (i, successful)
+
+        logger.warning(
+            "Something is wrong in %s.parse_assistant.", self.__class__.__name__
+        )
+        return (0, False)
 
     def to_example(self, rng: random.Random) -> mllms.Example:
         return mllms.Example(
@@ -435,6 +457,7 @@ class TaskMllm:
 
     name: str
     cluster: str
+    subcluster: str | None
     train: Integer[np.ndarray, " n_train"]
     test: Integer[np.ndarray, " n_test"]
 
@@ -462,11 +485,21 @@ def get_all_tasks_mllm(
     for task in df.get_column("task").unique():
         task_df = df.filter(pl.col("task") == task)
 
+        # Get the cluster and sub-cluster for this task
+        cluster = task_df.item(row=0, column="task_cluster")
+        subcluster = task_df.item(row=0, column="task_subcluster")
+
+        if not include_task(cfg.newt, task, cluster, subcluster):
+            continue
+
         task_idx = task_df.get_column("index").to_numpy()
         is_train = task_df.select(pl.col("split") == "train").get_column("split")
         cluster = task_df.item(row=0, column="task_cluster")
 
-        yield TaskMllm(task, cluster, task_idx[is_train], task_idx[~is_train]), dataset
+        task = TaskMllm(
+            task, cluster, subcluster, task_idx[is_train], task_idx[~is_train]
+        )
+        yield (task, dataset)
 
 
 text_label_to_classname = {
@@ -1146,6 +1179,7 @@ text_label_to_classname = {
 ##########
 
 
+@beartype.beartype
 def include_task(
     cfg: config.Newt, name: str, cluster: str, subcluster: str | None
 ) -> bool:
@@ -1164,34 +1198,34 @@ def include_task(
     # Check explicit exclusions first
     if cfg.exclude_tasks and name in cfg.exclude_tasks:
         return False
-    
+
     if cfg.exclude_clusters and cluster in cfg.exclude_clusters:
         return False
-    
+
     if cfg.exclude_subclusters and subcluster and subcluster in cfg.exclude_subclusters:
         return False
-    
+
     # Check inclusions - if any inclusion filter is specified, the task must match at least one
     has_inclusion_filter = False
-    
+
     # Check specific tasks
     if cfg.tasks:
         has_inclusion_filter = True
         if name in cfg.tasks:
             return True
-    
+
     # Check clusters
     if cfg.include_clusters:
         has_inclusion_filter = True
         if cluster in cfg.include_clusters:
             return True
-    
+
     # Check subclusters
     if cfg.include_subclusters and subcluster:
         has_inclusion_filter = True
         if subcluster in cfg.include_subclusters:
             return True
-    
+
     # If no inclusion filters were specified, include by default
     # Otherwise, exclude because it didn't match any inclusion filter
     return not has_inclusion_filter
