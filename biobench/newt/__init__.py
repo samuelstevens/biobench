@@ -271,13 +271,18 @@ def benchmark_mllm(cfg: config.Experiment) -> interfaces.Report:
         limiter = mllms.RateLimiter(cfg.parallel)
         semaphore = asyncio.Semaphore(cfg.parallel)
 
-        for task, dataset in get_all_tasks_mllm(cfg):
+        for task_dataset in get_all_tasks_mllm(cfg):
             # We load all the training samples into memory right away because they will be re-used over and over again.
             # Test samples are loaded one by one on demand.
-            i_train = rng.sample(range(len(train_dataset)), k=cfg.n_train)
+            train_indices = list(range(len(task_dataset.train_indices)))
+            i_train = rng.sample(train_indices, k=min(cfg.n_train, len(train_indices)))
+            
+            # Get the actual indices in the full dataset
+            train_global_indices = [task_dataset.train_indices[i] for i in i_train]
+            
             train_examples = [
-                train_dataset[i].to_example()
-                for i in helpers.progress(i_train, desc="load train samples")
+                task_dataset[i].to_example(rng)
+                for i in helpers.progress(train_global_indices, desc="load train samples")
             ]
 
             @beartype.beartype
@@ -298,9 +303,9 @@ def benchmark_mllm(cfg: config.Experiment) -> interfaces.Report:
                         float(pred_y == test_example.label),
                         len(fewshot_examples),
                         info={
-                            "task": task.name,
-                            "cluster": task.cluster,
-                            "subcluster": task.subcluster,
+                            "task": task_dataset.name,
+                            "cluster": task_dataset.cluster,
+                            "subcluster": task_dataset.subcluster,
                             "parsed": parsed,
                         },
                     )
@@ -317,10 +322,13 @@ def benchmark_mllm(cfg: config.Experiment) -> interfaces.Report:
                 return preds
 
             llm_args = []
-            i_train = rng.choices(task.train, k=cfg.n_train)
-
-            for i in task.test:
-                test_example = dataset[i]
+            # Get indices of test samples in the task dataset
+            test_indices = list(range(len(task_dataset.test_indices)))
+            
+            for i in test_indices:
+                # Get the actual index in the full dataset
+                test_global_idx = task_dataset.test_indices[i]
+                test_example = task_dataset[test_global_idx]
 
                 # Try to fit them into a prompt.
                 n_examples = 0
@@ -337,7 +345,7 @@ def benchmark_mllm(cfg: config.Experiment) -> interfaces.Report:
                     # Add another example.
                     n_examples += 1
                     fewshot_examples = [
-                        dataset[j].to_example(rng) for j in i_train[:n_examples]
+                        task_dataset[j].to_example(rng) for j in train_global_indices[:n_examples]
                     ]
 
                 llm_args.append((fewshot_examples, test_example))
@@ -346,8 +354,8 @@ def benchmark_mllm(cfg: config.Experiment) -> interfaces.Report:
             test_acc = np.mean([pred.score for pred in preds]).item()
 
             results.append({
-                "task": task.name,
-                "cluster": task.cluster,
+                "task": task_dataset.name,
+                "cluster": task_dataset.cluster,
                 "predictions": preds,
                 "test_acc": test_acc,
             })
@@ -416,23 +424,63 @@ class SampleMllm:
         )
 
 
+# DatasetMllm class has been merged with TaskMllm into TaskDatasetMllm
+
+
 @jaxtyped(typechecker=beartype.beartype)
-class DatasetMllm(torch.utils.data.Dataset):
+@dataclasses.dataclass
+class TaskDatasetMllm(torch.utils.data.Dataset):
     """
-    A dataset that returns SampleMllms.
+    A dataset that returns SampleMllms for a specific task.
+    Combines the functionality of the previous TaskMllm and DatasetMllm classes.
+    
+    This dataset presents a clean 0-n indexing interface while internally
+    mapping to the appropriate indices in the full dataset.
     """
-
-    def __init__(self, root: str, df):
-        self.root = root
-
-        self.img_ids = df.get_column("id").to_list()
-        self.labels = df.get_column("label").to_list()
-        self.tasks = df.get_column("task").to_list()
+    name: str
+    cluster: str
+    subcluster: str | None
+    train_indices: Integer[np.ndarray, " n_train"]
+    test_indices: Integer[np.ndarray, " n_test"]
+    root: str
+    df: pl.DataFrame
+    
+    def __post_init__(self):
+        # Store the full dataset information
+        self.img_ids = self.df.get_column("id").to_list()
+        self.labels = self.df.get_column("label").to_list()
+        self.tasks = self.df.get_column("task").to_list()
+        
+        # Create task-specific dataframes for efficient access
+        self.task_df = self.df.filter(pl.col("task") == self.name)
+        
+        # Store the combined indices for __len__ calculation
+        self._all_indices = np.concatenate([self.train_indices, self.test_indices])
+        
+    def __repr__(self) -> str:
+        return f"TaskDatasetMllm(name={self.name}, cluster={self.cluster}, n_train={len(self.train_indices)}, n_test={len(self.test_indices)})"
+    
+    @property
+    def train(self) -> Integer[np.ndarray, " n_train"]:
+        """Return the train indices for compatibility with existing code"""
+        return self.train_indices
+        
+    @property
+    def test(self) -> Integer[np.ndarray, " n_test"]:
+        """Return the test indices for compatibility with existing code"""
+        return self.test_indices
 
     def __getitem__(self, i: int) -> SampleMllm:
-        img_id = self.img_ids[i]
-        label = self.labels[i]
-        task = self.tasks[i]
+        """
+        Get a sample by its index in this task dataset (0 to len-1).
+        Internally maps to the correct index in the full dataset.
+        """
+        # Map the task-local index to the global index
+        global_idx = self._all_indices[i]
+        
+        img_id = self.img_ids[global_idx]
+        label = self.labels[global_idx]
+        task = self.tasks[global_idx]
 
         classnames = tuple(text_label_to_classname[task].keys())
         img_b64 = helpers.load_img_b64(os.path.join(self.root, f"{img_id}.jpg"))
@@ -445,31 +493,15 @@ class DatasetMllm(torch.utils.data.Dataset):
         )
 
     def __len__(self) -> int:
-        return len(self.img_ids)
-
-
-@jaxtyped(typechecker=beartype.beartype)
-@dataclasses.dataclass(frozen=True)
-class TaskMllm:
-    """
-    Task is a group of indices for a MLLM with a train/test split.
-    """
-
-    name: str
-    cluster: str
-    subcluster: str | None
-    train: Integer[np.ndarray, " n_train"]
-    test: Integer[np.ndarray, " n_test"]
-
-    def __repr__(self) -> str:
-        return f"Task(name={self.name}, cluster={self.cluster}, n_train={len(self.train)}, n_test={len(self.test)})"
+        """Return the total number of samples in this task (train + test)"""
+        return len(self._all_indices)
 
 
 @jaxtyped(typechecker=beartype.beartype)
 def get_all_tasks_mllm(
     cfg: config.Experiment,
-) -> collections.abc.Iterator[tuple[TaskMllm, DatasetMllm]]:
-    """ """
+) -> collections.abc.Iterator[TaskDatasetMllm]:
+    """Get all tasks as TaskDatasetMllm instances"""
     labels_csv_name = "newt2021_labels.csv"
     labels_csv_path = os.path.join(cfg.newt_data, labels_csv_name)
     images_dir_name = "newt2021_images"
@@ -480,26 +512,31 @@ def get_all_tasks_mllm(
         raise RuntimeError(msg)
 
     df = pl.read_csv(labels_csv_path).with_row_index()
-    dataset = DatasetMllm(images_dir_path, df)
 
-    for task in df.get_column("task").unique():
-        task_df = df.filter(pl.col("task") == task)
+    for task_name in df.get_column("task").unique():
+        task_df = df.filter(pl.col("task") == task_name)
 
         # Get the cluster and sub-cluster for this task
         cluster = task_df.item(row=0, column="task_cluster")
         subcluster = task_df.item(row=0, column="task_subcluster")
 
-        if not include_task(cfg.newt, task, cluster, subcluster):
+        if not include_task(cfg.newt, task_name, cluster, subcluster):
             continue
 
         task_idx = task_df.get_column("index").to_numpy()
-        is_train = task_df.select(pl.col("split") == "train").get_column("split")
-        cluster = task_df.item(row=0, column="task_cluster")
-
-        task = TaskMllm(
-            task, cluster, subcluster, task_idx[is_train], task_idx[~is_train]
+        is_train = task_df.select(pl.col("split") == "train").get_column("split").to_numpy()
+        
+        task_dataset = TaskDatasetMllm(
+            name=task_name,
+            cluster=cluster,
+            subcluster=subcluster,
+            train_indices=task_idx[is_train],
+            test_indices=task_idx[~is_train],
+            root=images_dir_path,
+            df=df
         )
-        yield (task, dataset)
+        
+        yield task_dataset
 
 
 text_label_to_classname = {
