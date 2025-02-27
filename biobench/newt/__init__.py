@@ -1161,5 +1161,37 @@ def include_task(
     Returns:
         True if the task should be included, False otherwise
     """
-    # Implement this function based on config.py and this file. AI!
-    breakpoint()
+    # Check explicit exclusions first
+    if cfg.exclude_tasks and name in cfg.exclude_tasks:
+        return False
+    
+    if cfg.exclude_clusters and cluster in cfg.exclude_clusters:
+        return False
+    
+    if cfg.exclude_subclusters and subcluster and subcluster in cfg.exclude_subclusters:
+        return False
+    
+    # Check inclusions - if any inclusion filter is specified, the task must match at least one
+    has_inclusion_filter = False
+    
+    # Check specific tasks
+    if cfg.tasks:
+        has_inclusion_filter = True
+        if name in cfg.tasks:
+            return True
+    
+    # Check clusters
+    if cfg.include_clusters:
+        has_inclusion_filter = True
+        if cluster in cfg.include_clusters:
+            return True
+    
+    # Check subclusters
+    if cfg.include_subclusters and subcluster:
+        has_inclusion_filter = True
+        if subcluster in cfg.include_subclusters:
+            return True
+    
+    # If no inclusion filters were specified, include by default
+    # Otherwise, exclude because it didn't match any inclusion filter
+    return not has_inclusion_filter
