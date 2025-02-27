@@ -22,33 +22,15 @@ def _(expand_json_column, pl, sqlite3):
 
     df = pl.read_database("SELECT * FROM results", conn)
     df = expand_json_column(df, "exp_cfg")
-    # df = expand_json_column(df, "report")
-    # df = expand_json_column(df, "args")
-    # df = df.drop("report.predictions", "report.argv")
     df
     return conn, df
-
-
-@app.cell
-def _(pl):
-    def expand_json_column(df, column: str):
-        original_keys = set(df.columns)
-        df = (
-            df.with_columns(pl.col(column).str.json_decode())
-            .with_columns(pl.col(column).name.prefix_fields(f"{column}."))
-            .unnest(column)
-        )
-        new_keys = set(df.columns) - original_keys
-        return df
-
-    return (expand_json_column,)
 
 
 @app.cell
 def _(ALL_RGB01, df, pl, plt):
     tasks = sorted(df.get_column("task_name").unique().to_list())
     fig, axes = plt.subplots(
-        ncols=len(tasks), squeeze=False, figsize=(6 * len(tasks), 6)
+        ncols=len(tasks), squeeze=False, figsize=(6 * len(tasks), 5)
     )
 
     # Plot performance for each MLLM with respect to number of training samples.
@@ -213,8 +195,18 @@ def _():
 
 
 @app.cell
-def _():
-    return
+def _(pl):
+    def expand_json_column(df, column: str):
+        original_keys = set(df.columns)
+        df = (
+            df.with_columns(pl.col(column).str.json_decode())
+            .with_columns(pl.col(column).name.prefix_fields(f"{column}."))
+            .unnest(column)
+        )
+        new_keys = set(df.columns) - original_keys
+        return df
+
+    return (expand_json_column,)
 
 
 if __name__ == "__main__":
