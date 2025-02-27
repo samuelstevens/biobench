@@ -184,36 +184,43 @@ def get_all_tasks_cvml(
 
     all_features, all_ids = [], []
 
-    # Get all the ids for training and and testing. Use cfg.n_train and cfg.n_test to figure it out. Call them train_i and test_i. AI!
+    # Determine indices for training and testing based on configuration
+    train_indices = []
+    test_indices = []
+    
+    # Get all task IDs from the dataset
+    all_indices = list(range(len(dataset)))
+    
+    # Split indices based on train/test split in the dataset
+    for i, split in enumerate(df.get_column("split").to_list()):
+        if split == "train":
+            train_indices.append(i)
+        else:
+            test_indices.append(i)
+    
+    # Apply n_train and n_test limits if specified
+    if cfg.n_train > 0 and len(train_indices) > cfg.n_train:
+        train_indices = random.sample(train_indices, cfg.n_train)
+    
+    if cfg.n_test > 0 and len(test_indices) > cfg.n_test:
+        test_indices = random.sample(test_indices, cfg.n_test)
 
     if cfg.debug:
         n = cfg.batch_size * 2
         total = 2  # 2 batches
 
-    elif is_train:
-        if cfg.n_train == 0:
-            # There is no training data.
-            return FeaturesCvml(
-                torch.zeros((0, 768), dtype=float), torch.zeros((0, 9), dtype=float), []
-            )
-
-        elif cfg.n_train > 0:
-            n = cfg.n_train
-            total = n // cfg.batch_size + 1
-
-        else:
-            n = len(dataset)
-            total = len(dataloader)
-    else:
-        assert cfg.n_test != 0
-
-        if cfg.n_test > 0:
-            n = cfg.n_test
-            total = n // cfg.batch_size + 1
-
-        else:
-            n = len(dataset)
-            total = len(dataloader)
+    # Use the appropriate indices based on whether we're processing training or testing data
+    selected_indices = train_indices if is_train else test_indices
+    
+    if len(selected_indices) == 0:
+        # No data for this split
+        return FeaturesCvml(
+            torch.zeros((0, 768), dtype=float), torch.zeros((0, 9), dtype=float), []
+        )
+    
+    # Calculate total batches needed
+    n = len(selected_indices)
+    total = (n + cfg.batch_size - 1) // cfg.batch_size  # Ceiling division
 
     it = iter(dataloader)
     for b in helpers.progress(range(total), every=10, desc="embed"):
