@@ -27,6 +27,7 @@ import logging
 import os
 import random
 import re
+import typing
 
 import beartype
 import numpy as np
@@ -53,12 +54,6 @@ logger = logging.getLogger("newt")
 
 @beartype.beartype
 def benchmark_cvml(cfg: config.Experiment) -> interfaces.Report:
-    """
-    The NeWT benchmark.
-    First, get features for all images.
-    Second, select the subsets of features that correspond to different tasks and train an SVM.
-    Third, evaluate the SVM and report results.
-    """
     # 1. Load model
     backbone = cvml.load_vision_backbone(cfg.model)
 
@@ -109,69 +104,58 @@ def benchmark_cvml(cfg: config.Experiment) -> interfaces.Report:
 
 
 @jaxtyped(typechecker=beartype.beartype)
-class DatasetCvml(torch.utils.data.Dataset):
-    """
-    A dataset that returns `(example id, image tensor)` tuples.
-    """
-
-    def __init__(self, dir: str, df, transform=None):
-        self.transform = transform
-        self.image_ids = df.get_column("id").to_list()
-        self.dir = dir
-
-    def __getitem__(self, i: int) -> tuple[str, Float[Tensor, "3 width height"]]:
-        image_id = self.image_ids[i]
-        image = Image.open(os.path.join(self.dir, f"{image_id}.jpg"))
-        if self.transform is not None:
-            image = self.transform(image)
-        return image_id, image
-
-    def __len__(self) -> int:
-        return len(self.image_ids)
+class ImageSample(typing.TypedDict):
+    img_id: str
+    img: Float[Tensor, "3 width height"]
 
 
 @jaxtyped(typechecker=beartype.beartype)
-@dataclasses.dataclass(frozen=True)
-class TaskCvml:
+class ImageDataset(torch.utils.data.Dataset):
     """
-    Task is a group of features and labels for an SVM + a train/test split.
+    A dataset that returns ImageSample dictionaries.
     """
 
-    task: str
-    cluster: str
-    features: Float[np.ndarray, "batch dim"]
-    labels: Int[np.ndarray, " batch"]
-    is_train: Bool[np.ndarray, " batch"]
-    example_ids: Shaped[np.ndarray, " batch"]  # Should be String[...]
+    def __init__(self, root: str, img_ids: list[str], transform=None):
+        self.transform = transform
+        self.root = root
+        self.img_ids = img_ids
 
-    def __repr__(self) -> str:
-        return f"Task(task={self.task}, cluster={self.cluster}, features={self.features.shape})"
+    def __getitem__(self, i: int) -> ImageSample:
+        img_id = self.img_ids[i]
+        img = Image.open(os.path.join(self.root, f"{img_id}.jpg"))
+        if self.transform is not None:
+            img = self.transform(img)
+        return {"img_id": img_id, "img": img}
 
-    @property
-    def splits(
-        self,
-    ) -> tuple[
-        tuple[Float[np.ndarray, "n_train dim"], Int[np.ndarray, " n_train"]],
-        tuple[Float[np.ndarray, "n_test dim"], Int[np.ndarray, " n_test"]],
-    ]:
-        """
-        The features and labels for train and test splits.
+    def __len__(self) -> int:
+        return len(self.img_ids)
 
-        Returned as `(x_train, y_train), (x_test, y_test)`.
-        """
-        x_train = self.features[self.is_train]
-        y_train = self.labels[self.is_train]
-        x_test = self.features[~self.is_train]
-        y_test = self.labels[~self.is_train]
 
-        return (x_train, y_train), (x_test, y_test)
+@beartype.beartype
+class FeatureSample(typing.TypedDict):
+    img_id: str
+    x: Float[Tensor, " d"]
+    y: Int[Tensor, ""]
+
+
+@jaxtyped(typechecker=beartype.beartype)
+class FeatureDataset(torch.utils.data.Dataset):
+    """
+    A dataset that returs Feature
+    """
+
+    def __init__(self):
+        pass
+
+    def __getitem__(self, i: int) -> FeatureSample:
+        raise NotImplementedError()
 
 
 @jaxtyped(typechecker=beartype.beartype)
 @torch.no_grad()
 def get_all_tasks_cvml(
     cfg: config.Experiment, backbone: cvml.VisionBackbone
-) -> collections.abc.Iterator[TaskCvml]:
+) -> collections.abc.Iterator[tuple[FeatureDataset, FeatureDataset]]:
     """ """
     labels_csv_name = "newt2021_labels.csv"
     labels_csv_path = os.path.join(cfg.newt_data, labels_csv_name)
@@ -200,9 +184,39 @@ def get_all_tasks_cvml(
 
     all_features, all_ids = [], []
 
-    total = len(dataloader) if not cfg.debug else 2
+    # Get all the ids for training and and testing. Use cfg.n_train and cfg.n_test to figure it out. Call them train_i and test_i. AI!
+
+    if cfg.debug:
+        n = cfg.batch_size * 2
+        total = 2  # 2 batches
+
+    elif is_train:
+        if cfg.n_train == 0:
+            # There is no training data.
+            return FeaturesCvml(
+                torch.zeros((0, 768), dtype=float), torch.zeros((0, 9), dtype=float), []
+            )
+
+        elif cfg.n_train > 0:
+            n = cfg.n_train
+            total = n // cfg.batch_size + 1
+
+        else:
+            n = len(dataset)
+            total = len(dataloader)
+    else:
+        assert cfg.n_test != 0
+
+        if cfg.n_test > 0:
+            n = cfg.n_test
+            total = n // cfg.batch_size + 1
+
+        else:
+            n = len(dataset)
+            total = len(dataloader)
+
     it = iter(dataloader)
-    for b in helpers.progress(range(total), every=cfg.log_every, desc="embed"):
+    for b in helpers.progress(range(total), every=10, desc="embed"):
         ids, images = next(it)
         images = images.to(cfg.device)
 
