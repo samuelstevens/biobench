@@ -1,7 +1,7 @@
 """
 Stores all vision backbones.
 Users can register new custom backbones from their code to evaluate on biobench using `register_vision_backbone`.
-As long as it satisfies the `biobench.interfaces.VisionBackbone` interface, it will work will all tasks.
+As long as it satisfies the `biobench.cvml.VisionBackbone` interface, it will work will all tasks.
 
 .. include:: ./tutorial.md
 """
@@ -10,17 +10,17 @@ import logging
 
 import beartype
 
-from . import config, interfaces
+from . import config, cvml
 
 logger = logging.getLogger(__name__)
 
-_global_backbone_registry: dict[str, type[interfaces.VisionBackbone]] = {}
+_global_backbone_registry: dict[str, type[cvml.VisionBackbone]] = {}
 
 
 @beartype.beartype
 def load_vision_backbone(
     model_cfg: config.Model,
-) -> interfaces.VisionBackbone:
+) -> cvml.VisionBackbone:
     """
     Load a pretrained vision backbone.
     """
@@ -32,7 +32,7 @@ def load_vision_backbone(
 
 
 @beartype.beartype
-def register_vision_backbone(model_org: str, cls: type[interfaces.VisionBackbone]):
+def register_vision_backbone(model_org: str, cls: type[cvml.VisionBackbone]):
     """
     Register a new vision backbone class.
     """
@@ -47,37 +47,3 @@ def list_vision_backbones() -> list[str]:
     List all vision backbone model orgs.
     """
     return list(_global_backbone_registry.keys())
-
-
-_global_mllm_registry: dict[tuple[str, str], interfaces.Mllm] = {}
-
-
-@beartype.beartype
-def load_mllm(cfg: config.Model) -> interfaces.Mllm:
-    """
-    Load a multimodal LLM configuration.
-    """
-    key = (cfg.org, cfg.ckpt)
-    if key not in _global_mllm_registry:
-        raise ValueError(f"Model '{key}' not found.")
-
-    return _global_mllm_registry[key]
-
-
-@beartype.beartype
-def register_mllm(model_org: str, mllm: interfaces.Mllm):
-    """
-    Register a new multimodal LLM configuration.
-    """
-    key = (model_org, mllm.name)
-    if key in _global_mllm_registry:
-        logger.warning("Overwriting key '%s' in registry.", key)
-    _global_mllm_registry[key] = mllm
-
-
-@beartype.beartype
-def list_mllms() -> list[tuple[str, str]]:
-    """
-    List all registered multimodal LLM models.
-    """
-    return list(_global_mllm_registry.keys())

@@ -78,22 +78,8 @@ This raises the question: why do we have multiple tasks that fill the same role?
 .. include:: ./confidence-intervals.md
 """
 
-from . import interfaces, third_party_models
-from .registry import register_mllm, register_vision_backbone
+from . import third_party_models
+from .registry import register_vision_backbone
 
 register_vision_backbone("timm-vit", third_party_models.TimmVit)
 register_vision_backbone("open-clip", third_party_models.OpenClip)
-register_mllm(
-    "openrouter",
-    interfaces.Mllm(
-        "meta-llama/llama-3.2-3b-instruct", 131_000, 0.015, 0.025, ["fp32", "bf16"]
-    ),
-)
-register_mllm(
-    "openrouter",
-    interfaces.Mllm("google/gemini-flash-1.5-8b", 1_000_000, 0.0375, 0.15),
-)
-register_mllm(
-    "openrouter",
-    interfaces.Mllm("qwen/qwen-2-vl-7b-instruct", 4096, 0.1, 0.1, ["fp32", "bf16"]),
-)

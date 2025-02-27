@@ -18,75 +18,88 @@ def _():
 
 @app.cell
 def _(expand_json_column, pl, sqlite3):
-    conn = sqlite3.connect("reports/reports.sqlite")
+    conn = sqlite3.connect("results/results.sqlite")
 
-    df = pl.read_database("SELECT * FROM reports", conn)
-    df = expand_json_column(df, "model_config")
-    df = expand_json_column(df, "report")
-    df = expand_json_column(df, "args")
-    df = df.drop("report.predictions", "report.argv")
+    df = pl.read_database("SELECT * FROM results", conn)
+    df = expand_json_column(df, "exp_cfg")
+    # df = expand_json_column(df, "report")
+    # df = expand_json_column(df, "args")
+    # df = df.drop("report.predictions", "report.argv")
+    df
     return conn, df
 
 
-app._unparsable_cell(
-    r"""
-        def expand_json_column(df, column: str):
+@app.cell
+def _(pl):
+    def expand_json_column(df, column: str):
         original_keys = set(df.columns)
-        df = df.with_columns(pl.col(column).str.json_decode()).unnest(column)
+        df = (
+            df.with_columns(pl.col(column).str.json_decode())
+            .with_columns(pl.col(column).name.prefix_fields(f"{column}."))
+            .unnest(column)
+        )
         new_keys = set(df.columns) - original_keys
-        rename_map = {k: f\"{column}.{k}\" for k in new_keys}
-        df = df.rename(rename_map)
         return df
-    """,
-    name="_",
-)
+
+    return (expand_json_column,)
 
 
 @app.cell
 def _(ALL_RGB01, df, pl, plt):
-    tasks = df.get_column("task").unique().to_list()
-    fig, axes = plt.subplots(ncols=len(tasks), squeeze=False)
+    tasks = sorted(df.get_column("task_name").unique().to_list())
+    fig, axes = plt.subplots(
+        ncols=len(tasks), squeeze=False, figsize=(6 * len(tasks), 6)
+    )
 
     # Plot performance for each MLLM with respect to number of training samples.
     for task, ax in zip(tasks, axes[0]):
         for model, color in zip(
-            sorted(df.get_column("model_config.ckpt").unique().to_list()), ALL_RGB01
+            sorted(df.get_column("model_ckpt").unique().to_list()),
+            ALL_RGB01[1::2],
         ):
-            filtered_df = df.filter(
-                (pl.col("model_config.ckpt") == model) & (pl.col("task") == task)
-            ).sort("args.n_train")
+            for prompting in ("single", "multi"):
+                filtered_df = df.filter(
+                    (pl.col("model_ckpt") == model)
+                    & (pl.col("task_name") == task)
+                    & (pl.col("prompting") == prompting)
+                ).sort("n_train")
 
-            lowers = filtered_df.get_column("confidence_lower").to_list()
-            means = filtered_df.get_column("mean_score").to_list()
-            uppers = filtered_df.get_column("confidence_upper").to_list()
-            xs = filtered_df.get_column("args.n_train").to_list()
+                lowers = filtered_df.get_column("confidence_lower").to_list()
+                means = filtered_df.get_column("mean_score").to_list()
+                uppers = filtered_df.get_column("confidence_upper").to_list()
+                xs = filtered_df.get_column("n_train").to_list()
 
-            ax.plot(
-                xs,
-                means,
-                marker="o",
-                label=f"Mean Score ({model.removeprefix('openrouter/')})",
-                color=color,
-            )
-            ax.fill_between(xs, lowers, uppers, alpha=0.2, color=color, linewidth=0)
-            ax.set_xlabel("Number of Training Samples")
-            ax.set_ylabel("Score")
-            ax.set_title(f"{task}")
-            ax.set_xscale("symlog", linthresh=3)
+                linestyle = "--" if prompting == "multi" else "-"
+
+                ax.plot(
+                    xs,
+                    means,
+                    marker="o",
+                    label=f"Mean Score ({model.removeprefix('openrouter/')}, {prompting})",
+                    color=color,
+                    linestyle=linestyle,
+                )
+                ax.fill_between(xs, lowers, uppers, alpha=0.2, color=color, linewidth=0)
+                ax.set_xlabel("Number of Training Samples")
+                ax.set_ylabel("Score")
+                ax.set_ylim(0, 1.0)
+                ax.set_title(f"{task}")
+                ax.set_xscale("symlog", linthresh=3)
 
     ax.legend(loc="best")
     fig.tight_layout()
     plt.show()
-
     return (
         ax,
         axes,
         color,
         fig,
         filtered_df,
+        linestyle,
         lowers,
         means,
         model,
+        prompting,
         task,
         tasks,
         uppers,
@@ -163,7 +176,6 @@ def _():
         SCARLET_RGB01,
         RED_RGB01,
     ]
-
     return (
         ALL_HEX,
         ALL_RGB01,

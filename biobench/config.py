@@ -12,6 +12,30 @@ class Model:
 
 
 @dataclasses.dataclass(frozen=True)
+class Newt:
+    """Configuration options specific to the NeWT benchmark."""
+
+    # Filter options - can specify task names, clusters, sub-clusters, or combinations
+    tasks: list[str] | None = None
+    """List of specific NeWT task names to run. If None, all tasks are included unless filtered by other criteria."""
+
+    include_clusters: list[str] | None = None
+    """List of NeWT task clusters to run (e.g., "appearance", "behavior", "context"). If None, all clusters are included."""
+
+    include_subclusters: list[str] | None = None
+    """List of NeWT task sub-clusters to run (e.g., "species", "age", "health"). If None, all sub-clusters are included."""
+
+    exclude_tasks: list[str] | None = None
+    """List of task names to exclude even if they match other criteria."""
+
+    exclude_clusters: list[str] | None = None
+    """List of cluster names to exclude even if they contain tasks that match other criteria."""
+
+    exclude_subclusters: list[str] | None = None
+    """List of sub-cluster names to exclude even if they contain tasks that match other criteria."""
+
+
+@dataclasses.dataclass(frozen=True)
 class Experiment:
     model: Model
 
@@ -72,6 +96,8 @@ class Experiment:
     plantnet_data: str = ""
     rarespecies_data: str = ""
 
+    newt: Newt = dataclasses.field(default_factory=Newt)
+
     def to_dict(self) -> dict[str, object]:
         return dataclasses.asdict(self)
 
@@ -98,6 +124,9 @@ def load(path: str) -> list[Experiment]:
     # Start with models as base experiments
     experiments = [{"model": Model(**model)} for model in models]
 
+    # Handle NeWT config specially
+    newt = data.pop("newt", {})
+
     # For each remaining field in the TOML
     for key, value in data.items():
         new_experiments = []
@@ -115,6 +144,10 @@ def load(path: str) -> list[Experiment]:
                 new_experiments.append(new_exp)
 
         experiments = new_experiments
+
+    # Now add the NeWT config to all experiments
+    for exp in experiments:
+        exp["newt"] = Newt(**newt)
 
     # Convert dictionaries to Experiment objects
     return [Experiment(**exp) for exp in experiments]

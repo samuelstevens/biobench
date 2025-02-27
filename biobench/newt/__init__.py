@@ -266,7 +266,7 @@ def init_svc():
 def benchmark_mllm(cfg: config.Experiment) -> interfaces.Report:
     rng = random.Random(cfg.seed)
 
-    results = []
+    all_preds = []
     with asyncio.Runner() as loop:
         limiter = mllms.RateLimiter(cfg.parallel)
         semaphore = asyncio.Semaphore(cfg.parallel)
@@ -283,22 +283,35 @@ def benchmark_mllm(cfg: config.Experiment) -> interfaces.Report:
             ]
 
             @beartype.beartype
-            async def run_one(
-                fewshot_examples: list[mllms.Example], test_example: SampleMllm
-            ) -> interfaces.Prediction:
+            async def run_one(i: int) -> interfaces.Prediction:
                 async with semaphore:
+                    example = test_dataset[i]
+
+                    # Set up prompt.
+                    n = 0
+                    fewshot = []
+                    while (
+                        mllms.fits(
+                            cfg, fewshot, example.img_b64, example.make_user(rng)
+                        )
+                    ) and (cfg.n_train < 0 or n < cfg.n_train):
+                        # Add another example.
+                        n += 1
+                        fewshot = train_examples[:n]
+
+                    # Only shuffle once.
+                    rng.shuffle(fewshot)
+
                     await limiter.acquire()
                     assistant = await mllms.send(
-                        cfg,
-                        fewshot_examples,
-                        test_example.img_b64,
-                        test_example.make_user(rng),
+                        cfg, fewshot, example.img_b64, example.make_user(rng)
                     )
-                    pred_y, parsed = test_example.parse_assistant(assistant)
+                    pred_y, parsed = example.parse_assistant(assistant)
+
                     return interfaces.Prediction(
-                        test_example.img_id,
-                        float(pred_y == test_example.label),
-                        len(fewshot_examples),
+                        example.img_id,
+                        float(pred_y == example.label),
+                        len(fewshot),
                         info={
                             "task": test_dataset.name,
                             "cluster": test_dataset.cluster,
@@ -308,58 +321,35 @@ def benchmark_mllm(cfg: config.Experiment) -> interfaces.Report:
                     )
 
             @beartype.beartype
-            async def run_all(
-                submissions: list[tuple[list[mllms.Example], SampleMllm]],
-            ) -> list[interfaces.Prediction]:
-                tasks = [asyncio.create_task(run_one(*args)) for args in submissions]
+            async def run_all() -> list[interfaces.Prediction]:
+                if cfg.debug:
+                    logger.info(
+                        "Using the first 10 samples out of %d.", len(test_dataset)
+                    )
+                    test_i = list(range(10))
+                elif cfg.n_test >= 0 and cfg.n_test < len(test_dataset):
+                    logger.info(
+                        "Using %d random samples out of %d.",
+                        cfg.n_test,
+                        len(test_dataset),
+                    )
+                    test_i = rng.sample(range(len(test_dataset)), k=cfg.n_test)
+                else:
+                    logger.info(
+                        "Using entire test set (%d samples).", len(test_dataset)
+                    )
+                    test_i = list(range(len(test_dataset)))
+
+                jobs = [asyncio.create_task(run_one(i)) for i in test_i]
                 preds = []
-                for task in helpers.progress(tasks):
-                    pred: interfaces.Prediction = await task
+                for job in helpers.progress(jobs):
+                    pred: interfaces.Prediction = await job
                     preds.append(pred)
                 return preds
 
-            llm_args = []
-            # Get indices of test samples
-            test_indices = list(range(len(test_dataset)))
+            all_preds.extend(loop.run(run_all()))
 
-            for i in test_indices:
-                test_example = test_dataset[i]
-
-                # Try to fit them into a prompt.
-                n_examples = 0
-                fewshot_examples = []
-                while (
-                    mllms.fits(
-                        cfg,
-                        fewshot_examples,
-                        test_example.img_b64,
-                        test_example.make_user(rng),
-                    )
-                    and n_examples < cfg.n_train
-                ):
-                    # Add another example.
-                    n_examples += 1
-                    fewshot_examples = [
-                        train_dataset[j].to_example(rng)
-                        for j in i_train[:n_examples]
-                    ]
-
-                llm_args.append((fewshot_examples, test_example))
-
-            preds = loop.run(run_all(llm_args))
-            test_acc = np.mean([pred.score for pred in preds]).item()
-
-            results.append({
-                "task": test_dataset.name,
-                "cluster": test_dataset.cluster,
-                "predictions": preds,
-                "test_acc": test_acc,
-            })
-
-    preds = list(
-        itertools.chain.from_iterable((result.pop("predictions") for result in results))
-    )
-    return interfaces.Report("NeWT", preds, preds[0].n_train, cfg)
+    return interfaces.Report("NeWT", all_preds, all_preds[0].n_train, cfg)
 
 
 @beartype.beartype
@@ -425,7 +415,7 @@ class DatasetMllm(torch.utils.data.Dataset):
     """
     A dataset that returns SampleMllms for a specific task.
     This dataset can be instantiated as either a training or test dataset.
-    
+
     This dataset presents a clean 0-n indexing interface while internally
     mapping to the appropriate indices in the full dataset.
     """
@@ -466,8 +456,10 @@ class DatasetMllm(torch.utils.data.Dataset):
         Internally maps to the correct index in the full dataset.
         """
         if i >= len(self.indices):
-            raise IndexError(f"Index {i} out of bounds for dataset with {len(self.indices)} samples")
-            
+            raise IndexError(
+                f"Index {i} out of bounds for dataset with {len(self.indices)} samples"
+            )
+
         # Map the local index to the global index
         global_idx = self.indices[i]
 
@@ -533,7 +525,7 @@ def get_all_tasks_mllm(
             df=df,
             is_train=True,
         )
-        
+
         test_dataset = DatasetMllm(
             name=task_name,
             cluster=cluster,

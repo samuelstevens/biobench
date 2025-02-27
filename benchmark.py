@@ -29,14 +29,14 @@ from biobench import (
     # beluga,
     # birds525,
     config,
-    fishnet,
+    # fishnet,
     # imagenet,
     # inat21,
     interfaces,
     # iwildcam,
     # kabr,
     # leopard,
-    # newt,
+    newt,
     # plankton,
     # plantnet,
     # rarespecies,
@@ -95,8 +95,10 @@ def save(report: interfaces.Report) -> None:
     conn.commit()
 
     logger.info(
-        "%s on %s: %.1f%%",
+        "%s with %d (%d actual) examples on %s: %.3f",
         report.exp_cfg.model.ckpt,
+        report.exp_cfg.n_train,
+        report.n_train,
         report.task_name,
         report.get_mean_score(),
     )
@@ -152,12 +154,18 @@ def benchmark(cfg: str):
     jobs = []
     for cfg in cfgs:
         if cfg.model.method == "cvml":
-            if cfg.fishnet_data:
-                job = executor.submit(fishnet.benchmark_cvml, cfg)
+            # if cfg.fishnet_data:
+            #     job = executor.submit(fishnet.benchmark_cvml, cfg)
+            #     jobs.append(job)
+            if cfg.newt_data:
+                job = executor.submit(newt.benchmark_cvml, cfg)
                 jobs.append(job)
         elif cfg.model.method == "mllm":
-            if cfg.fishnet_data:
-                job = executor.submit(fishnet.benchmark_mllm, cfg)
+            # if cfg.fishnet_data:
+            #     job = executor.submit(fishnet.benchmark_mllm, cfg)
+            #     jobs.append(job)
+            if cfg.newt_data:
+                job = executor.submit(newt.benchmark_mllm, cfg)
                 jobs.append(job)
         else:
             typing.assert_never(cfg.model.method)

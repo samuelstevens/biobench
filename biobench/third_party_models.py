@@ -5,7 +5,7 @@ import beartype
 from jaxtyping import Float, jaxtyped
 from torch import Tensor
 
-from biobench import interfaces
+from biobench import cvml
 
 logger = logging.getLogger("third_party")
 
@@ -39,7 +39,7 @@ def get_ssl() -> bool:
 
 
 @jaxtyped(typechecker=beartype.beartype)
-class OpenClip(interfaces.VisionBackbone):
+class OpenClip(cvml.VisionBackbone):
     """
     Loads checkpoints from [open_clip](https://github.com/mlfoundations/open_clip), an open-source reproduction of the original [CLIP](https://arxiv.org/abs/2103.00020) paper.
 
@@ -76,18 +76,18 @@ class OpenClip(interfaces.VisionBackbone):
 
     def img_encode(
         self, batch: Float[Tensor, "batch 3 width height"]
-    ) -> interfaces.EncodedImgBatch:
+    ) -> cvml.EncodedImgBatch:
         result = self.model(batch)
         # Sometimes the model does not return patch features if it has none.
         if isinstance(result, tuple):
             img, patches = result
-            return interfaces.EncodedImgBatch(img, patches)
+            return cvml.EncodedImgBatch(img, patches)
         else:
-            return interfaces.EncodedImgBatch(result, None)
+            return cvml.EncodedImgBatch(result, None)
 
 
 @jaxtyped(typechecker=beartype.beartype)
-class TimmVit(interfaces.VisionBackbone):
+class TimmVit(cvml.VisionBackbone):
     """ """
 
     # TODO: docs + describe the ckpt format.
@@ -107,7 +107,7 @@ class TimmVit(interfaces.VisionBackbone):
 
     def img_encode(
         self, batch: Float[Tensor, "batch 3 width height"]
-    ) -> interfaces.EncodedImgBatch:
+    ) -> cvml.EncodedImgBatch:
         patches = self.model.forward_features(batch)
         # Use [CLS] token if it exists, otherwise do a maxpool
         if self.model.num_prefix_tokens > 0:
@@ -118,11 +118,11 @@ class TimmVit(interfaces.VisionBackbone):
         # Remove all non-image patches, like the [CLS] token or registers
         patches = patches[:, self.model.num_prefix_tokens :, ...]
 
-        return interfaces.EncodedImgBatch(img, patches)
+        return cvml.EncodedImgBatch(img, patches)
 
 
 @jaxtyped(typechecker=beartype.beartype)
-class TorchvisionModel(interfaces.VisionBackbone):
+class TorchvisionModel(cvml.VisionBackbone):
     def __init__(self, ckpt: str):
         import torchvision
 
@@ -132,7 +132,7 @@ class TorchvisionModel(interfaces.VisionBackbone):
 
     def img_encode(
         self, batch: Float[Tensor, "batch 3 width height"]
-    ) -> interfaces.EncodedImgBatch:
+    ) -> cvml.EncodedImgBatch:
         breakpoint()
 
     def make_img_transform(self):

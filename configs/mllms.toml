@@ -1,11 +1,11 @@
-prompting = ["single", "multi"]
+prompting = ["single"]
 cot_enabled = false
 parallel = 10
 
 n_train = [0, 1, 3, 10, 30, 100]
 n_test = 100
 
-fishnet_data = "datasets/fishnet"
+newt_data = "datasets/newt"
 
 [[models]]
 method = "mllm"
@@ -15,10 +15,43 @@ ckpt = "meta-llama/llama-3.2-3b-instruct"
 [[models]]
 method = "mllm"
 org = "openrouter"
-ckpt = "qwen/qwen-2-vl-7b-instruct"
-
-[[models]]
-method = "mllm"
-org = "openrouter"
 ckpt = "google/gemini-flash-1.5-8b"
 
+[newt]
+
+# Run only these specific tasks (optional)
+tasks = [
+  "fgvcx_icassava_healthy_vs_sick",
+  "ml_photo_rating_12_vs_45_v1",
+  "ml_bio_has_red_eyes",
+  "ml_tag_feeding_young",
+  "ml_age_coopers_hawk",
+  "nabirds_species_classification_amekes_merlin",
+  "inat_non_species_dead_jackal",
+]
+
+# Run only tasks from these clusters (optional)
+# include_clusters = [
+#   "behavior"
+# ]
+
+# Run only tasks from these sub-clusters (optional)
+# include_subclusters = [
+#   "species",
+#   "age"
+# ]
+
+# Exclude these specific tasks (optional)
+# exclude_tasks = [
+#   "ml_bio_raptor_utility_pole"
+# ]
+
+# Exclude tasks from these clusters (optional)
+# exclude_clusters = [
+#   "context"
+# ]
+
+# Exclude tasks from these sub-clusters (optional)
+# exclude_subclusters = [
+#   "health"
+# ]
