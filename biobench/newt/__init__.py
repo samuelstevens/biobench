@@ -175,13 +175,9 @@ def get_all_tasks_cvml(
     train_indices = []
     test_indices = []
 
-    # Split indices based on train/test split in the dataset
-    # Use native polar methods to filter based on split column as a list of ids. AI!
-    for i, split in enumerate(df.get_column("split").to_list()):
-        if split == "train":
-            train_indices.append(i)
-        else:
-            test_indices.append(i)
+    # Split indices based on train/test split in the dataset using native Polars methods
+    train_indices = df.filter(pl.col("split") == "train").get_column("index").to_list()
+    test_indices = df.filter(pl.col("split") != "train").get_column("index").to_list()
 
     # Apply n_train and n_test limits if specified
     if cfg.n_train > 0 and len(train_indices) > cfg.n_train:
