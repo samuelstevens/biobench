@@ -437,6 +437,8 @@ class DatasetMllm(torch.utils.data.Dataset):
     mapping to the appropriate indices in the full dataset.
     """
 
+    # I want to have test_dataset and train_dataset instances of this class, so the class should not have both train and test indices. Please update this accordingly. Don't worry about compatibility with existing code. AI!
+
     def __init__(
         self,
         name: str,
@@ -454,7 +456,7 @@ class DatasetMllm(torch.utils.data.Dataset):
         self.test_indices = test_indices
         self.root = root
         self.df = df
-        
+
         # Store the full dataset information
         self.img_ids = self.df.get_column("id").to_list()
         self.labels = self.df.get_column("label").to_list()
