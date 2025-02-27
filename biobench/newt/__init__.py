@@ -171,37 +171,22 @@ def get_all_tasks_cvml(
     img_transform = backbone.make_img_transform()
     backbone = torch.compile(backbone.to(cfg.device))
 
-    dataset = DatasetCvml(images_dir_path, df, img_transform)
-    dataloader = torch.utils.data.DataLoader(
-        dataset,
-        batch_size=cfg.batch_size,
-        num_workers=cfg.n_workers,
-        drop_last=False,
-        shuffle=False,
-        pin_memory=False,
-        persistent_workers=False,
-    )
-
-    all_features, all_ids = [], []
-
     # Determine indices for training and testing based on configuration
     train_indices = []
     test_indices = []
-    
-    # Get all task IDs from the dataset
-    all_indices = list(range(len(dataset)))
-    
+
     # Split indices based on train/test split in the dataset
+    # Use native polar methods to filter based on split column as a list of ids. AI!
     for i, split in enumerate(df.get_column("split").to_list()):
         if split == "train":
             train_indices.append(i)
         else:
             test_indices.append(i)
-    
+
     # Apply n_train and n_test limits if specified
     if cfg.n_train > 0 and len(train_indices) > cfg.n_train:
         train_indices = random.sample(train_indices, cfg.n_train)
-    
+
     if cfg.n_test > 0 and len(test_indices) > cfg.n_test:
         test_indices = random.sample(test_indices, cfg.n_test)
 
@@ -211,13 +196,13 @@ def get_all_tasks_cvml(
 
     # Use the appropriate indices based on whether we're processing training or testing data
     selected_indices = train_indices if is_train else test_indices
-    
+
     if len(selected_indices) == 0:
         # No data for this split
         return FeaturesCvml(
             torch.zeros((0, 768), dtype=float), torch.zeros((0, 9), dtype=float), []
         )
-    
+
     # Calculate total batches needed
     n = len(selected_indices)
     total = (n + cfg.batch_size - 1) // cfg.batch_size  # Ceiling division
