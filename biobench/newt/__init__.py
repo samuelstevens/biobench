@@ -41,44 +41,18 @@ from jaxtyping import Bool, Float, Int, Integer, Shaped, jaxtyped
 from PIL import Image
 from torch import Tensor
 
-from .. import helpers, interfaces, mllms, registry
+from .. import config, cvml, helpers, interfaces, mllms
 
 logger = logging.getLogger("newt")
 
 
-@beartype.beartype
-@dataclasses.dataclass(frozen=True)
-class Args:
-    """NeWT task arguments."""
-
-    data: str = ""
-    """dataset directory; where you downloaded this task's data to."""
-    batch_size_cv: int = 256
-    """batch size for computer vision model."""
-    n_workers: int = 4
-    """number of dataloader worker processes."""
-    log_every: int = 10
-    """how often (number of batches) to log progress."""
-    seed: int = 42
-    """random seed."""
-
-    # Computed at runtime.
-    device: str = "cuda"
-    """(computed at runtime) which kind of accelerator to use."""
-    debug: bool = False
-    """(computed at runtime) whether to run in debug mode."""
-    n_train: int = -1
-    """(computed at runtime) number of maximum training samples. Negative number means use all of them."""
-    n_test: int = -1
-    """(computed at runtime) number of test samples. Negative number means use all of them."""
-    parallel: int = 1
-    """(computed at runtime) number of parallel requests per second to MLLM service providers."""
+########
+# CVML #
+########
 
 
 @beartype.beartype
-def benchmark_cvml(
-    args: Args, model_args: interfaces.ModelArgsCvml
-) -> tuple[interfaces.ModelArgsCvml, interfaces.TaskReport]:
+def benchmark_cvml(cfg: config.Experiment) -> interfaces.Report:
     """
     The NeWT benchmark.
     First, get features for all images.
@@ -86,10 +60,10 @@ def benchmark_cvml(
     Third, evaluate the SVM and report results.
     """
     # 1. Load model
-    backbone = registry.load_vision_backbone(*model_args)
+    backbone = cvml.load_vision_backbone(cfg.model)
 
     # 2. Get features.
-    all_task_features = get_all_tasks_cvml(args, backbone)
+    all_task_features = get_all_tasks_cvml(cfg, backbone)
 
     # Fit SVMs.
     results = []
@@ -130,96 +104,8 @@ def benchmark_cvml(
         itertools.chain.from_iterable((result.pop("examples") for result in results))
     )
 
-    return model_args, interfaces.TaskReport("NeWT", examples)
-
-
-@beartype.beartype
-def benchmark_mllm(
-    args: Args, model_args: interfaces.ModelArgsMllm
-) -> tuple[interfaces.ModelArgsMllm, interfaces.TaskReport]:
-    rng = random.Random(args.seed)
-
-    results = []
-    with asyncio.Runner() as loop:
-        for task, dataset in get_all_tasks_mllm(args):
-            limiter = mllms.RateLimiter(args.parallel)
-            semaphore = asyncio.Semaphore(args.parallel)
-
-            @beartype.beartype
-            async def run_one(
-                fewshot_examples: list[mllms.Example], test_example: SampleMllm
-            ) -> interfaces.Prediction:
-                async with semaphore:
-                    await limiter.acquire()
-                    assistant = await mllms.send(
-                        model_args,
-                        fewshot_examples,
-                        test_example.image,
-                        test_example.make_user(rng),
-                    )
-                    pred_y = test_example.parse_assistant(assistant)
-                    return interfaces.Prediction(
-                        test_example.image_id,
-                        float(pred_y == test_example.label),
-                        info={"cluster": task.cluster, "task": task.name},
-                    )
-
-            @beartype.beartype
-            async def run_all(
-                submissions: list[tuple[list[mllms.Example], SampleMllm]],
-            ) -> list[interfaces.Prediction]:
-                tasks = [asyncio.create_task(run_one(*args)) for args in submissions]
-                preds = []
-                for task in helpers.progress(tasks):
-                    pred: interfaces.Prediction = await task
-                    preds.append(pred)
-                return preds
-
-            llm_args = []
-            i_train = rng.choices(task.train, k=args.max_examples)
-
-            for i in task.test:
-                test_example = dataset[i]
-
-                # Try to fit them into a prompt.
-                n_examples = 0
-                fewshot_examples = []
-                while (
-                    mllms.fits(
-                        model_args,
-                        fewshot_examples,
-                        test_example.image,
-                        test_example.make_user(rng),
-                    )
-                    and n_examples < args.max_examples
-                ):
-                    # Add another example.
-                    n_examples += 1
-                    fewshot_examples = [
-                        dataset[j].to_example(rng) for j in i_train[:n_examples]
-                    ]
-
-                llm_args.append((fewshot_examples, test_example))
-
-            preds = loop.run(run_all(llm_args))
-            test_acc = np.mean([pred.score for pred in preds]).item()
-
-            results.append({
-                "task": task.name,
-                "cluster": task.cluster,
-                "predictions": preds,
-                "test_acc": test_acc,
-            })
-
-    predictions = list(
-        itertools.chain.from_iterable((result.pop("predictions") for result in results))
-    )
-    return model_args, interfaces.TaskReport("NeWT", args.max_examples, predictions)
-
-
-########
-# CVML #
-########
+    # TODO: this is not right
+    return interfaces.Report("NeWT", examples)
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -284,13 +170,13 @@ class TaskCvml:
 @jaxtyped(typechecker=beartype.beartype)
 @torch.no_grad()
 def get_all_tasks_cvml(
-    args: Args, backbone: interfaces.VisionBackbone
+    cfg: config.Experiment, backbone: cvml.VisionBackbone
 ) -> collections.abc.Iterator[TaskCvml]:
     """ """
     labels_csv_name = "newt2021_labels.csv"
-    labels_csv_path = os.path.join(args.data, labels_csv_name)
+    labels_csv_path = os.path.join(cfg.newt_data, labels_csv_name)
     images_dir_name = "newt2021_images"
-    images_dir_path = os.path.join(args.data, images_dir_name)
+    images_dir_path = os.path.join(cfg.newt_data, images_dir_name)
 
     if not os.path.isfile(labels_csv_path):
         msg = f"Path '{labels_csv_path}' doesn't exist. Did you download the Newt dataset? See the docstring at the top of this file for instructions. If you did download it, pass the path with '--data'; see --help for more."
@@ -299,13 +185,13 @@ def get_all_tasks_cvml(
     df = pl.read_csv(labels_csv_path).with_row_index()
 
     img_transform = backbone.make_img_transform()
-    backbone = torch.compile(backbone.to(args.device))
+    backbone = torch.compile(backbone.to(cfg.device))
 
     dataset = DatasetCvml(images_dir_path, df, img_transform)
     dataloader = torch.utils.data.DataLoader(
         dataset,
-        batch_size=args.batch_size,
-        num_workers=args.n_workers,
+        batch_size=cfg.batch_size,
+        num_workers=cfg.n_workers,
         drop_last=False,
         shuffle=False,
         pin_memory=False,
@@ -314,11 +200,11 @@ def get_all_tasks_cvml(
 
     all_features, all_ids = [], []
 
-    total = len(dataloader) if not args.debug else 2
+    total = len(dataloader) if not cfg.debug else 2
     it = iter(dataloader)
-    for b in helpers.progress(range(total), every=args.log_every, desc="embed"):
+    for b in helpers.progress(range(total), every=cfg.log_every, desc="embed"):
         ids, images = next(it)
-        images = images.to(args.device)
+        images = images.to(cfg.device)
 
         with torch.amp.autocast("cuda"):
             features = backbone.img_encode(images).img_features
@@ -377,10 +263,92 @@ def init_svc():
 
 
 @beartype.beartype
+def benchmark_mllm(cfg: config.Experiment) -> interfaces.Report:
+    rng = random.Random(cfg.seed)
+
+    results = []
+    with asyncio.Runner() as loop:
+        for task, dataset in get_all_tasks_mllm(cfg):
+            limiter = mllms.RateLimiter(cfg.parallel)
+            semaphore = asyncio.Semaphore(cfg.parallel)
+
+            @beartype.beartype
+            async def run_one(
+                fewshot_examples: list[mllms.Example], test_example: SampleMllm
+            ) -> interfaces.Prediction:
+                async with semaphore:
+                    await limiter.acquire()
+                    assistant = await mllms.send(
+                        cfg,
+                        fewshot_examples,
+                        test_example.img_b64,
+                        test_example.make_user(rng),
+                    )
+                    pred_y = test_example.parse_assistant(assistant)
+                    return interfaces.Prediction(
+                        test_example.img_id,
+                        float(pred_y == test_example.label),
+                        info={"cluster": task.cluster, "task": task.name},
+                    )
+
+            @beartype.beartype
+            async def run_all(
+                submissions: list[tuple[list[mllms.Example], SampleMllm]],
+            ) -> list[interfaces.Prediction]:
+                tasks = [asyncio.create_task(run_one(*args)) for args in submissions]
+                preds = []
+                for task in helpers.progress(tasks):
+                    pred: interfaces.Prediction = await task
+                    preds.append(pred)
+                return preds
+
+            llm_args = []
+            i_train = rng.choices(task.train, k=cfg.n_train)
+
+            for i in task.test:
+                test_example = dataset[i]
+
+                # Try to fit them into a prompt.
+                n_examples = 0
+                fewshot_examples = []
+                while (
+                    mllms.fits(
+                        cfg,
+                        fewshot_examples,
+                        test_example.img_b64,
+                        test_example.make_user(rng),
+                    )
+                    and n_examples < cfg.n_train
+                ):
+                    # Add another example.
+                    n_examples += 1
+                    fewshot_examples = [
+                        dataset[j].to_example(rng) for j in i_train[:n_examples]
+                    ]
+
+                llm_args.append((fewshot_examples, test_example))
+
+            preds = loop.run(run_all(llm_args))
+            test_acc = np.mean([pred.score for pred in preds]).item()
+
+            results.append({
+                "task": task.name,
+                "cluster": task.cluster,
+                "predictions": preds,
+                "test_acc": test_acc,
+            })
+
+    predictions = list(
+        itertools.chain.from_iterable((result.pop("predictions") for result in results))
+    )
+    return interfaces.Report("NeWT", predictions)
+
+
+@beartype.beartype
 @dataclasses.dataclass(frozen=True)
 class SampleMllm:
-    image_id: str
-    image: Image.Image
+    img_id: str
+    img_b64: str
     label: int
 
     # TODO: these classnames are not being translated correctly.
@@ -420,7 +388,7 @@ class SampleMllm:
 
     def to_example(self, rng: random.Random) -> mllms.Example:
         return mllms.Example(
-            image=self.image,
+            img_b64=self.img_b64,
             user=self.make_user(rng),
             assistant=self.assistant,
         )
@@ -435,27 +403,27 @@ class DatasetMllm(torch.utils.data.Dataset):
     def __init__(self, root: str, df):
         self.root = root
 
-        self.image_ids = df.get_column("id").to_list()
+        self.img_ids = df.get_column("id").to_list()
         self.labels = df.get_column("label").to_list()
         self.tasks = df.get_column("task").to_list()
 
     def __getitem__(self, i: int) -> SampleMllm:
-        image_id = self.image_ids[i]
+        img_id = self.img_ids[i]
         label = self.labels[i]
         task = self.tasks[i]
 
         classnames = tuple(text_label_to_classname[task].keys())
-        image = Image.open(os.path.join(self.root, f"{image_id}.jpg"))
+        img_b64 = helpers.load_img_b64(os.path.join(self.root, f"{img_id}.jpg"))
 
         return SampleMllm(
-            image_id,
-            image,
+            img_id,
+            img_b64,
             label,
             classnames,
         )
 
     def __len__(self) -> int:
-        return len(self.image_ids)
+        return len(self.img_ids)
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -476,13 +444,13 @@ class TaskMllm:
 
 @jaxtyped(typechecker=beartype.beartype)
 def get_all_tasks_mllm(
-    args: Args,
+    cfg: config.Experiment,
 ) -> collections.abc.Iterator[tuple[TaskMllm, DatasetMllm]]:
     """ """
     labels_csv_name = "newt2021_labels.csv"
-    labels_csv_path = os.path.join(args.data, labels_csv_name)
+    labels_csv_path = os.path.join(cfg.newt_data, labels_csv_name)
     images_dir_name = "newt2021_images"
-    images_dir_path = os.path.join(args.data, images_dir_name)
+    images_dir_path = os.path.join(cfg.newt_data, images_dir_name)
 
     if not os.path.isfile(labels_csv_path):
         msg = f"Path '{labels_csv_path}' doesn't exist. Did you download the Newt dataset? See the docstring at the top of this file for instructions. If you did download it, pass the path with '--data'; see --help for more."
@@ -1171,3 +1139,27 @@ text_label_to_classname = {
         "Cuphea hyssopifolia": "Cuphea hyssopifolia",
     },
 }
+
+
+##########
+# SHARED #
+##########
+
+
+def include_task(
+    cfg: config.Newt, name: str, cluster: str, subcluster: str | None
+) -> bool:
+    """
+    Determine if a task should be included based on the configuration.
+
+    Args:
+        cfg: The newt configuration
+        name: The name of the task
+        cluster: The cluster the task belongs to
+        subcluster: The sub-cluster the task belongs to (may be None)
+
+    Returns:
+        True if the task should be included, False otherwise
+    """
+    # Implement this function based on config.py and this file. AI!
+    breakpoint()
