@@ -86,14 +86,14 @@ def benchmark_cvml(cfg: config.Experiment) -> interfaces.Report:
             interfaces.Prediction(
                 str(id),
                 float(pred == true),
-                {"cluster": task.cluster, "task": task.name},
+                {"cluster": task.cluster, "task": task.task},
             )
             for id, pred, true in zip(task.example_ids, y_pred, y_test)
         ]
         test_acc = np.mean(y_pred == y_test)
 
         results.append({
-            "task": task.name,
+            "task": task.task,
             "cluster": task.cluster,
             "examples": examples,
             "test_acc": test_acc,
@@ -137,7 +137,7 @@ class TaskCvml:
     Task is a group of features and labels for an SVM + a train/test split.
     """
 
-    name: str
+    task: str
     cluster: str
     features: Float[np.ndarray, "batch dim"]
     labels: Int[np.ndarray, " batch"]
@@ -145,7 +145,7 @@ class TaskCvml:
     example_ids: Shaped[np.ndarray, " batch"]  # Should be String[...]
 
     def __repr__(self) -> str:
-        return f"Task(task={self.name}, cluster={self.cluster}, features={self.features.shape})"
+        return f"Task(task={self.task}, cluster={self.cluster}, features={self.features.shape})"
 
     @property
     def splits(
@@ -313,7 +313,7 @@ def benchmark_mllm(cfg: config.Experiment) -> interfaces.Report:
                         float(pred_y == example.label),
                         len(fewshot),
                         info={
-                            "task": test_dataset.name,
+                            "task": test_dataset.task,
                             "cluster": test_dataset.cluster,
                             "subcluster": test_dataset.subcluster,
                             "parsed": parsed,
@@ -342,7 +342,7 @@ def benchmark_mllm(cfg: config.Experiment) -> interfaces.Report:
 
                 jobs = [asyncio.create_task(run_one(i)) for i in test_i]
                 preds = []
-                for job in helpers.progress(jobs):
+                for job in helpers.progress(jobs, desc=train_dataset.task):
                     pred: interfaces.Prediction = await job
                     preds.append(pred)
                 return preds
@@ -422,7 +422,7 @@ class DatasetMllm(torch.utils.data.Dataset):
 
     def __init__(
         self,
-        name: str,
+        task: str,
         cluster: str,
         subcluster: str | None,
         indices: Integer[np.ndarray, " n_samples"],
@@ -430,7 +430,7 @@ class DatasetMllm(torch.utils.data.Dataset):
         df: pl.DataFrame,
         is_train: bool,
     ):
-        self.name = name
+        self.task = task
         self.cluster = cluster
         self.subcluster = subcluster
         self.indices = indices
@@ -444,11 +444,11 @@ class DatasetMllm(torch.utils.data.Dataset):
         self.tasks = self.df.get_column("task").to_list()
 
         # Create task-specific dataframes for efficient access
-        self.task_df = self.df.filter(pl.col("task") == self.name)
+        self.task_df = self.df.filter(pl.col("task") == self.task)
 
     def __repr__(self) -> str:
         split = "train" if self.is_train else "test"
-        return f"DatasetMllm(name={self.name}, cluster={self.cluster}, split={split}, n_samples={len(self.indices)})"
+        return f"DatasetMllm(task={self.task}, cluster={self.cluster}, split={split}, n_samples={len(self.indices)})"
 
     def __getitem__(self, i: int) -> SampleMllm:
         """
@@ -517,7 +517,7 @@ def get_all_tasks_mllm(
         )
 
         train_dataset = DatasetMllm(
-            name=task_name,
+            task=task_name,
             cluster=cluster,
             subcluster=subcluster,
             indices=task_idx[is_train],
@@ -527,7 +527,7 @@ def get_all_tasks_mllm(
         )
 
         test_dataset = DatasetMllm(
-            name=task_name,
+            task=task_name,
             cluster=cluster,
             subcluster=subcluster,
             indices=task_idx[~is_train],
@@ -1218,14 +1218,14 @@ text_label_to_classname = {
 
 @beartype.beartype
 def include_task(
-    cfg: config.Newt, name: str, cluster: str, subcluster: str | None
+    cfg: config.Newt, task: str, cluster: str, subcluster: str | None
 ) -> bool:
     """
     Determine if a task should be included based on the configuration.
 
     Args:
         cfg: The newt configuration
-        name: The name of the task
+        task: The name of the task
         cluster: The cluster the task belongs to
         subcluster: The sub-cluster the task belongs to (may be None)
 
@@ -1233,7 +1233,7 @@ def include_task(
         True if the task should be included, False otherwise
     """
     # Check explicit exclusions first
-    if cfg.exclude_tasks and name in cfg.exclude_tasks:
+    if cfg.exclude_tasks and task in cfg.exclude_tasks:
         return False
 
     if cfg.exclude_clusters and cluster in cfg.exclude_clusters:
@@ -1248,7 +1248,7 @@ def include_task(
     # Check specific tasks
     if cfg.tasks:
         has_inclusion_filter = True
-        if name in cfg.tasks:
+        if task in cfg.tasks:
             return True
 
     # Check clusters

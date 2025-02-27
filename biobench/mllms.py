@@ -299,6 +299,7 @@ def list_mllms() -> list[tuple[str, str]]:
 # Built-in models #
 ###################
 
+# Open-Source
 
 register_mllm(
     "openrouter",
@@ -306,9 +307,16 @@ register_mllm(
 )
 register_mllm(
     "openrouter",
+    Mllm("qwen/qwen-2-vl-7b-instruct", 4096, 0.1, 0.1, ["fp32", "bf16"]),
+)
+
+# Proprietary
+
+register_mllm(
+    "openrouter",
     Mllm("google/gemini-flash-1.5-8b", 1_000_000, 0.0375, 0.15),
 )
 register_mllm(
     "openrouter",
-    Mllm("qwen/qwen-2-vl-7b-instruct", 4096, 0.1, 0.1, ["fp32", "bf16"]),
+    Mllm("google/gemini-2.0-flash-lite-001", 1_000_000, 0.075, 0.3),
 )
