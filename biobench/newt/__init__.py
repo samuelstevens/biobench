@@ -437,19 +437,24 @@ class DatasetMllm(torch.utils.data.Dataset):
     mapping to the appropriate indices in the full dataset.
     """
 
-    name: str
-    cluster: str
-    subcluster: str | None
-    train_indices: Integer[np.ndarray, " n_train"]
-    test_indices: Integer[np.ndarray, " n_test"]
-    root: str
-    df: pl.DataFrame
-
-    def __init__(self):
-        # Set up init, merging init and post_init. AI!
-        pass
-
-    def __post_init__(self):
+    def __init__(
+        self,
+        name: str,
+        cluster: str,
+        subcluster: str | None,
+        train_indices: Integer[np.ndarray, " n_train"],
+        test_indices: Integer[np.ndarray, " n_test"],
+        root: str,
+        df: pl.DataFrame,
+    ):
+        self.name = name
+        self.cluster = cluster
+        self.subcluster = subcluster
+        self.train_indices = train_indices
+        self.test_indices = test_indices
+        self.root = root
+        self.df = df
+        
         # Store the full dataset information
         self.img_ids = self.df.get_column("id").to_list()
         self.labels = self.df.get_column("label").to_list()
@@ -504,8 +509,8 @@ class DatasetMllm(torch.utils.data.Dataset):
 @jaxtyped(typechecker=beartype.beartype)
 def get_all_tasks_mllm(
     cfg: config.Experiment,
-) -> collections.abc.Iterator[TaskDatasetMllm]:
-    """Get all tasks as TaskDatasetMllm instances"""
+) -> collections.abc.Iterator[DatasetMllm]:
+    """Get all tasks as DatasetMllm instances"""
     labels_csv_name = "newt2021_labels.csv"
     labels_csv_path = os.path.join(cfg.newt_data, labels_csv_name)
     images_dir_name = "newt2021_images"
@@ -532,7 +537,7 @@ def get_all_tasks_mllm(
             task_df.select(pl.col("split") == "train").get_column("split").to_numpy()
         )
 
-        task_dataset = TaskDatasetMllm(
+        task_dataset = DatasetMllm(
             name=task_name,
             cluster=cluster,
             subcluster=subcluster,
