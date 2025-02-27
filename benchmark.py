@@ -179,8 +179,9 @@ def benchmark(cfg: str):
             logger.warning("Error running job: %s: %s", err, err.__cause__)
             continue
 
-        report = future.result()
-        save(report)
+        reports: list[interfaces.Report] = future.result()
+        for report in reports:
+            save(report)
         logger.info("Finished %d/%d jobs.", i + 1, len(jobs))
 
     logger.info("Finished.")

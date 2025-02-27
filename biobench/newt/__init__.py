@@ -263,10 +263,10 @@ def init_svc():
 
 
 @beartype.beartype
-def benchmark_mllm(cfg: config.Experiment) -> interfaces.Report:
+def benchmark_mllm(cfg: config.Experiment) -> list[interfaces.Report]:
     rng = random.Random(cfg.seed)
 
-    all_preds = []
+    reports = []
     with asyncio.Runner() as loop:
         limiter = mllms.RateLimiter(cfg.parallel)
         semaphore = asyncio.Semaphore(cfg.parallel)
@@ -277,10 +277,9 @@ def benchmark_mllm(cfg: config.Experiment) -> interfaces.Report:
             train_indices = list(range(len(train_dataset)))
             i_train = rng.sample(train_indices, k=min(cfg.n_train, len(train_indices)))
 
-            train_examples = [
-                train_dataset[i].to_example(rng)
-                for i in helpers.progress(i_train, desc="load train samples")
-            ]
+            train_examples = [train_dataset[i].to_example(rng) for i in i_train]
+            if train_examples:
+                logger.info("Loaded %d training examples.", len(train_examples))
 
             @beartype.beartype
             async def run_one(i: int) -> interfaces.Prediction:
@@ -324,19 +323,19 @@ def benchmark_mllm(cfg: config.Experiment) -> interfaces.Report:
             async def run_all() -> list[interfaces.Prediction]:
                 if cfg.debug:
                     logger.info(
-                        "Using the first 10 samples out of %d.", len(test_dataset)
+                        "Using the first 10 examples out of %d.", len(test_dataset)
                     )
                     test_i = list(range(10))
                 elif cfg.n_test >= 0 and cfg.n_test < len(test_dataset):
                     logger.info(
-                        "Using %d random samples out of %d.",
+                        "Using %d random examples out of %d.",
                         cfg.n_test,
                         len(test_dataset),
                     )
                     test_i = rng.sample(range(len(test_dataset)), k=cfg.n_test)
                 else:
                     logger.info(
-                        "Using entire test set (%d samples).", len(test_dataset)
+                        "Using entire test set (%d examples).", len(test_dataset)
                     )
                     test_i = list(range(len(test_dataset)))
 
@@ -347,9 +346,13 @@ def benchmark_mllm(cfg: config.Experiment) -> interfaces.Report:
                     preds.append(pred)
                 return preds
 
-            all_preds.extend(loop.run(run_all()))
+            preds = loop.run(run_all())
+            report = interfaces.Report(
+                f"NeWT::{train_dataset.task}", preds, preds[0].n_train, cfg
+            )
+            reports.append(report)
 
-    return interfaces.Report("NeWT", all_preds, all_preds[0].n_train, cfg)
+    return reports
 
 
 @beartype.beartype

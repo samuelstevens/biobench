@@ -7,13 +7,14 @@ app = marimo.App(width="medium")
 @app.cell
 def _():
     import marimo as mo
+    import math
     import sqlite3
 
     import polars as pl
     import matplotlib.pyplot as plt
     import matplotlib as mpl
 
-    return mo, mpl, pl, plt, sqlite3
+    return math, mo, mpl, pl, plt, sqlite3
 
 
 @app.cell
@@ -27,19 +28,22 @@ def _(expand_json_column, pl, sqlite3):
 
 
 @app.cell
-def _(ALL_RGB01, df, pl, plt):
+def _(ALL_RGB01, df, math, pl, plt):
     tasks = sorted(df.get_column("task_name").unique().to_list())
+    ncols = min(len(tasks), 3)
+    nrows = math.ceil(len(tasks) / ncols)
+
     fig, axes = plt.subplots(
-        ncols=len(tasks), squeeze=False, figsize=(6 * len(tasks), 5)
+        ncols=ncols, nrows=nrows, squeeze=False, figsize=(6 * ncols, 6 * nrows)
     )
 
     # Plot performance for each MLLM with respect to number of training samples.
-    for task, ax in zip(tasks, axes[0]):
+    for task, ax in zip(tasks, axes.reshape(-1)):
         for model, color in zip(
             sorted(df.get_column("model_ckpt").unique().to_list()),
             ALL_RGB01[1::2],
         ):
-            for prompting in ("single", "multi"):
+            for prompting in ("single",):
                 filtered_df = df.filter(
                     (pl.col("model_ckpt") == model)
                     & (pl.col("task_name") == task)
@@ -57,20 +61,22 @@ def _(ALL_RGB01, df, pl, plt):
                     xs,
                     means,
                     marker="o",
-                    label=f"Mean Score ({model.removeprefix('openrouter/')}, {prompting})",
+                    label=f"{model.removeprefix('openrouter/')}",
                     color=color,
                     linestyle=linestyle,
                 )
                 ax.fill_between(xs, lowers, uppers, alpha=0.2, color=color, linewidth=0)
                 ax.set_xlabel("Number of Training Samples")
-                ax.set_ylabel("Score")
-                ax.set_ylim(0, 1.0)
+                ax.set_ylabel("Mean Accuracy")
+                ax.set_ylim(0, 1.05)
                 ax.set_title(f"{task}")
-                ax.set_xscale("symlog", linthresh=3)
+                ax.set_xscale("symlog", linthresh=2)
+                ax.set_xlim(-0.15, 130)
 
-    ax.legend(loc="best")
+                ax.legend(loc="best")
+
     fig.tight_layout()
-    plt.show()
+    fig
     return (
         ax,
         axes,
@@ -81,6 +87,8 @@ def _(ALL_RGB01, df, pl, plt):
         lowers,
         means,
         model,
+        ncols,
+        nrows,
         prompting,
         task,
         tasks,
