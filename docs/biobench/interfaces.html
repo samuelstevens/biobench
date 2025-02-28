@@ -3,13 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
-<meta name="generator" content="pdoc3 0.11.5">
+<meta name="generator" content="pdoc3 0.11.1">
 <title>biobench.interfaces API documentation</title>
 <meta name="description" content="Common interfaces for models and tasks so that it&#39;s easy to add new models (which will work right away with all tasks) and easy to add new tasks …">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
-<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin-bottom:1em}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
 <style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
 <style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
 <script type="text/x-mathjax-config">MathJax.Hub.Config({ tex2jax: { inlineMath: [ ['$','$'], ["\\(","\\)"] ], processEscapes: true } });</script>
@@ -18,17 +18,6 @@
 <script>window.addEventListener('DOMContentLoaded', () => {
 hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
 hljs.highlightAll();
-/* Collapse source docstrings */
-setTimeout(() => {
-[...document.querySelectorAll('.hljs.language-python > .hljs-string')]
-.filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
-.forEach(el => {
-let d = document.createElement('details');
-d.classList.add('hljs-string');
-d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
-el.replaceWith(d);
-});
-}, 100);
 })</script>
 </head>
 <body>
@@ -39,13 +28,9 @@ el.replaceWith(d);
 </header>
 <section id="section-intro">
 <p>Common interfaces for models and tasks so that it's easy to add new models (which will work right away with all tasks) and easy to add new tasks (which will work right away with all models).</p>
-<p>The model interface is <code><a title="biobench.interfaces.VisionBackbone" href="#biobench.interfaces.VisionBackbone">VisionBackbone</a></code>.
-See <code><a title="biobench.third_party_models" href="third_party_models.html">biobench.third_party_models</a></code> for examples of how to subclass it, and note that you have to call <code><a title="biobench.register_vision_backbone" href="index.html#biobench.register_vision_backbone">register_vision_backbone()</a></code> for it to show up.</p>
-<p>The benchmark interface is informal, but is a function that matches the following signature:</p>
-<pre><code class="language-py">def benchmark(args: Args, model_args: ModelArgs) -&gt; tuple[ModelArgs], interfaces.TaskReport]:
-    ...
-</code></pre>
-<p>In a Haskell-like signature, this is more like <code>Args -&gt; ModelArgs -&gt; (ModelArgs, TaskReport)</code>.</p>
+<p>The model interface is <code>VisionBackbone</code>.
+See <code><a title="biobench.third_party_models" href="third_party_models.html">biobench.third_party_models</a></code> for examples of how to subclass it, and note that you have to call <code>biobench.register_vision_backbone</code> for it to show up.</p>
+<p>The benchmark interface is informal.</p>
 </section>
 <section>
 </section>
@@ -58,45 +43,18 @@ See <code><a title="biobench.third_party_models" href="third_party_models.html">
 <span>def <span class="ident">default_calc_mean_score</span></span>(<span>predictions: list[<a title="biobench.interfaces.Prediction" href="#biobench.interfaces.Prediction">Prediction</a>]) ‑> float</span>
 </code></dt>
 <dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def default_calc_mean_score(predictions: list[Prediction]) -&gt; float:
-    return np.mean([prediction.score for prediction in predictions]).item()</code></pre>
-</details>
 <div class="desc"></div>
 </dd>
 <dt id="biobench.interfaces.get_git_hash"><code class="name flex">
 <span>def <span class="ident">get_git_hash</span></span>(<span>) ‑> str</span>
 </code></dt>
 <dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def get_git_hash() -&gt; str:
-    &#34;&#34;&#34;
-    Returns the hash of the current git commit, assuming we are in a git repo.
-    &#34;&#34;&#34;
-    return subprocess.check_output([&#34;git&#34;, &#34;rev-parse&#34;, &#34;HEAD&#34;]).decode(&#34;ascii&#34;).strip()</code></pre>
-</details>
 <div class="desc"><p>Returns the hash of the current git commit, assuming we are in a git repo.</p></div>
 </dd>
 <dt id="biobench.interfaces.get_gpu_name"><code class="name flex">
 <span>def <span class="ident">get_gpu_name</span></span>(<span>) ‑> str</span>
 </code></dt>
 <dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def get_gpu_name() -&gt; str:
-    if torch.cuda.is_available():
-        return torch.cuda.get_device_properties(0).name
-    else:
-        return &#34;&#34;</code></pre>
-</details>
 <div class="desc"></div>
 </dd>
 </dl>
@@ -104,145 +62,12 @@ See <code><a title="biobench.third_party_models" href="third_party_models.html">
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
-<dt id="biobench.interfaces.EncodedImgBatch"><code class="flex name class">
-<span>class <span class="ident">EncodedImgBatch</span></span>
-<span>(</span><span>img_features: jaxtyping.Float[Tensor, 'batch img_dim'],<br>patch_features: jaxtyping.Float[Tensor, 'batch n_patches patch_dim'] | None)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
-@dataclasses.dataclass(frozen=True)
-class EncodedImgBatch:
-    &#34;&#34;&#34;The output of a `VisionBackbone`&#39;s `VisionBackbone.img_encode()` method.&#34;&#34;&#34;
-
-    img_features: Float[Tensor, &#34;batch img_dim&#34;]
-    &#34;&#34;&#34;Image-level features. Each image is represented by a single vector.&#34;&#34;&#34;
-    patch_features: Float[Tensor, &#34;batch n_patches patch_dim&#34;] | None
-    &#34;&#34;&#34;Patch-level features. Only ViTs have patch-level features. These features might be a different dimension that the image features because of projection heads or such.&#34;&#34;&#34;</code></pre>
-</details>
-<div class="desc"><p>The output of a <code><a title="biobench.interfaces.VisionBackbone" href="#biobench.interfaces.VisionBackbone">VisionBackbone</a></code>'s <code><a title="biobench.interfaces.VisionBackbone.img_encode" href="#biobench.interfaces.VisionBackbone.img_encode">VisionBackbone.img_encode()</a></code> method.</p></div>
-<h3>Class variables</h3>
-<dl>
-<dt id="biobench.interfaces.EncodedImgBatch.img_features"><code class="name">var <span class="ident">img_features</span> : jaxtyping.Float[Tensor, 'batch img_dim']</code></dt>
-<dd>
-<div class="desc"><p>Image-level features. Each image is represented by a single vector.</p></div>
-</dd>
-<dt id="biobench.interfaces.EncodedImgBatch.patch_features"><code class="name">var <span class="ident">patch_features</span> : jaxtyping.Float[Tensor, 'batch n_patches patch_dim'] | None</code></dt>
-<dd>
-<div class="desc"><p>Patch-level features. Only ViTs have patch-level features. These features might be a different dimension that the image features because of projection heads or such.</p></div>
-</dd>
-</dl>
-</dd>
-<dt id="biobench.interfaces.ModelArgsCvml"><code class="flex name class">
-<span>class <span class="ident">ModelArgsCvml</span></span>
-<span>(</span><span>org: str, ckpt: str)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">@dataclasses.dataclass(frozen=True)
-class ModelArgsCvml:
-    org: str
-    ckpt: str
-
-    def to_dict(self) -&gt; dict[str, object]:
-        return {&#34;type&#34;: &#34;cvml&#34;, **dataclasses.asdict(self)}</code></pre>
-</details>
-<div class="desc"><p>ModelArgsCvml(org: str, ckpt: str)</p></div>
-<h3>Class variables</h3>
-<dl>
-<dt id="biobench.interfaces.ModelArgsCvml.ckpt"><code class="name">var <span class="ident">ckpt</span> : str</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="biobench.interfaces.ModelArgsCvml.org"><code class="name">var <span class="ident">org</span> : str</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-<h3>Methods</h3>
-<dl>
-<dt id="biobench.interfaces.ModelArgsCvml.to_dict"><code class="name flex">
-<span>def <span class="ident">to_dict</span></span>(<span>self) ‑> dict[str, object]</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def to_dict(self) -&gt; dict[str, object]:
-    return {&#34;type&#34;: &#34;cvml&#34;, **dataclasses.asdict(self)}</code></pre>
-</details>
-<div class="desc"></div>
-</dd>
-</dl>
-</dd>
-<dt id="biobench.interfaces.ModelArgsMllm"><code class="flex name class">
-<span>class <span class="ident">ModelArgsMllm</span></span>
-<span>(</span><span>ckpt: str,<br>temp: float = 0.0,<br>prompts: Literal['single-turn', 'multi-turn'] = 'single-turn',<br>quantizations: list[str] = &lt;factory&gt;)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">@dataclasses.dataclass(frozen=True)
-class ModelArgsMllm:
-    ckpt: str
-    temp: float = 0.0
-    prompts: typing.Literal[&#34;single-turn&#34;, &#34;multi-turn&#34;] = &#34;single-turn&#34;
-    quantizations: list[str] = dataclasses.field(default_factory=list)
-
-    def to_dict(self) -&gt; dict[str, object]:
-        return {&#34;type&#34;: &#34;mllm&#34;, **dataclasses.asdict(self)}</code></pre>
-</details>
-<div class="desc"><p>ModelArgsMllm(ckpt: str, temp: float = 0.0, prompts: Literal['single-turn', 'multi-turn'] = 'single-turn', quantizations: list[str] = <factory>)</p></div>
-<h3>Class variables</h3>
-<dl>
-<dt id="biobench.interfaces.ModelArgsMllm.ckpt"><code class="name">var <span class="ident">ckpt</span> : str</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="biobench.interfaces.ModelArgsMllm.prompts"><code class="name">var <span class="ident">prompts</span> : Literal['single-turn', 'multi-turn']</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="biobench.interfaces.ModelArgsMllm.quantizations"><code class="name">var <span class="ident">quantizations</span> : list[str]</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="biobench.interfaces.ModelArgsMllm.temp"><code class="name">var <span class="ident">temp</span> : float</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-<h3>Methods</h3>
-<dl>
-<dt id="biobench.interfaces.ModelArgsMllm.to_dict"><code class="name flex">
-<span>def <span class="ident">to_dict</span></span>(<span>self) ‑> dict[str, object]</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def to_dict(self) -&gt; dict[str, object]:
-    return {&#34;type&#34;: &#34;mllm&#34;, **dataclasses.asdict(self)}</code></pre>
-</details>
-<div class="desc"></div>
-</dd>
-</dl>
-</dd>
 <dt id="biobench.interfaces.Prediction"><code class="flex name class">
 <span>class <span class="ident">Prediction</span></span>
-<span>(</span><span>id: str, score: float, info: dict[str, object])</span>
+<span>(</span><span>id: str, score: float, n_train: int, info: dict[str, object])</span>
 </code></dt>
 <dd>
+<div class="desc"><p>An individual test prediction.</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -256,10 +81,15 @@ class Prediction:
     &#34;&#34;&#34;Whatever kind of ID; used to find the original image/example.&#34;&#34;&#34;
     score: float
     &#34;&#34;&#34;Test score; typically 0 or 1 for classification tasks.&#34;&#34;&#34;
+    n_train: int
+    &#34;&#34;&#34;Number of training examples used in this prection.&#34;&#34;&#34;
     info: dict[str, object]
-    &#34;&#34;&#34;Any additional information included. This might be the original class, the true label, etc.&#34;&#34;&#34;</code></pre>
+    &#34;&#34;&#34;Any additional information included. This might be the original class, the true label, etc.&#34;&#34;&#34;
+
+    def to_dict(self) -&gt; dict[str, object]:
+        &#34;&#34;&#34;Convert prediction to a JSON-compatible dictionary.&#34;&#34;&#34;
+        return dataclasses.asdict(self)</code></pre>
 </details>
-<div class="desc"><p>An individual test prediction.</p></div>
 <h3>Class variables</h3>
 <dl>
 <dt id="biobench.interfaces.Prediction.id"><code class="name">var <span class="ident">id</span> : str</code></dt>
@@ -270,40 +100,65 @@ class Prediction:
 <dd>
 <div class="desc"><p>Any additional information included. This might be the original class, the true label, etc.</p></div>
 </dd>
+<dt id="biobench.interfaces.Prediction.n_train"><code class="name">var <span class="ident">n_train</span> : int</code></dt>
+<dd>
+<div class="desc"><p>Number of training examples used in this prection.</p></div>
+</dd>
 <dt id="biobench.interfaces.Prediction.score"><code class="name">var <span class="ident">score</span> : float</code></dt>
 <dd>
 <div class="desc"><p>Test score; typically 0 or 1 for classification tasks.</p></div>
 </dd>
 </dl>
-</dd>
-<dt id="biobench.interfaces.TaskReport"><code class="flex name class">
-<span>class <span class="ident">TaskReport</span></span>
-<span>(</span><span>name: str,<br>predictions: list[<a title="biobench.interfaces.Prediction" href="#biobench.interfaces.Prediction">Prediction</a>],<br>*,<br>calc_mean_score: Callable[[list[<a title="biobench.interfaces.Prediction" href="#biobench.interfaces.Prediction">Prediction</a>]], float] = &lt;function default_calc_mean_score&gt;,<br>splits: dict[str, float] = &lt;factory&gt;,<br>argv: list[str] = &lt;factory&gt;,<br>commit: str = 'f73f200013d7fa0fcb700310266f02bf077daef1',<br>posix_time: float = &lt;factory&gt;,<br>gpu_name: str = &lt;factory&gt;,<br>hostname: str = &lt;factory&gt;)</span>
+<h3>Methods</h3>
+<dl>
+<dt id="biobench.interfaces.Prediction.to_dict"><code class="name flex">
+<span>def <span class="ident">to_dict</span></span>(<span>self) ‑> dict[str, object]</span>
 </code></dt>
 <dd>
+<div class="desc"><p>Convert prediction to a JSON-compatible dictionary.</p></div>
+</dd>
+</dl>
+</dd>
+<dt id="biobench.interfaces.Report"><code class="flex name class">
+<span>class <span class="ident">Report</span></span>
+<span>(</span><span>task_name: str, predictions: list[<a title="biobench.interfaces.Prediction" href="#biobench.interfaces.Prediction">Prediction</a>], n_train: int, exp_cfg: <a title="biobench.config.Experiment" href="config.html#biobench.config.Experiment">Experiment</a>, *, calc_mean_score: Callable[[list[<a title="biobench.interfaces.Prediction" href="#biobench.interfaces.Prediction">Prediction</a>]], float] = &lt;function default_calc_mean_score&gt;, parse_success_rate: float | None = None, usd_per_answer: float | None = None, classifier: Optional[Literal['knn', 'svm', 'ridge']] = None, argv: list[str] = &lt;factory&gt;, commit: str = '6739274b2ab7588a62b77753f2b64f043f54e7a1', posix_time: float = &lt;factory&gt;, gpu_name: str = &lt;factory&gt;, hostname: str = &lt;factory&gt;)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>The result of running a benchmark task.</p>
+<p>This class is designed to store results and metadata, with experiment configuration
+stored in the exp_cfg field to avoid duplication.</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
-@dataclasses.dataclass(frozen=True)
-class TaskReport:
+<pre><code class="python">@dataclasses.dataclass
+class Report:
     &#34;&#34;&#34;
     The result of running a benchmark task.
+
+    This class is designed to store results and metadata, with experiment configuration
+    stored in the exp_cfg field to avoid duplication.
     &#34;&#34;&#34;
 
-    # Actual details of the report
-    name: str
-    &#34;&#34;&#34;The benchmark name.&#34;&#34;&#34;
+    task_name: str
     predictions: list[Prediction]
-    &#34;&#34;&#34;A list of (example_id, score, info) objects&#34;&#34;&#34;
+    n_train: int
+    &#34;&#34;&#34;Number of training samples *actually* used.&#34;&#34;&#34;
+
+    exp_cfg: config.Experiment
+
     _: dataclasses.KW_ONLY
+
     calc_mean_score: typing.Callable[[list[Prediction]], float] = (
         default_calc_mean_score
     )
-    &#34;&#34;&#34;A way to calculate mean score from a list of predictions.&#34;&#34;&#34;
-    splits: dict[str, float] = dataclasses.field(default_factory=dict)
-    &#34;&#34;&#34;Other scores that you would like to report. These do not have confidence intervals.&#34;&#34;&#34;
+
+    # MLLM-specific
+    parse_success_rate: float | None = None
+    usd_per_answer: float | None = None
+
+    # CVML-specific
+    classifier: typing.Literal[&#34;knn&#34;, &#34;svm&#34;, &#34;ridge&#34;] | None = None
 
     # Stuff for trying to reproduce this result. These are filled in by default.
     argv: list[str] = dataclasses.field(default_factory=lambda: sys.argv)
@@ -318,10 +173,23 @@ class TaskReport:
     &#34;&#34;&#34;Machine hostname that ran this experiment.&#34;&#34;&#34;
 
     def __repr__(self):
-        return f&#34;Report({self.name} with {len(self.predictions)} predictions)&#34;
+        model_name = self.exp_cfg.model.ckpt
+        return f&#34;Report({self.task_name}, {model_name}, {len(self.predictions)} predictions)&#34;
 
-    def __str__(self):
-        return repr(self)
+    def to_dict(self) -&gt; dict[str, object]:
+        &#34;&#34;&#34;
+        Convert the report to a JSON-compatible dictionary.
+        Uses dataclasses.asdict() with custom handling for special types.
+        &#34;&#34;&#34;
+
+        dct = dataclasses.asdict(self)
+
+        # Handle special cases
+        dct[&#34;exp_cfg&#34;] = self.exp_cfg.to_dict()
+        dct[&#34;calc_mean_score&#34;] = self.calc_mean_score.__name__
+        dct[&#34;predictions&#34;] = [p.to_dict() for p in self.predictions]
+
+        return dct
 
     def get_mean_score(self) -&gt; float:
         &#34;&#34;&#34;
@@ -350,249 +218,94 @@ class TaskReport:
         )
 
         scores = []
-        for choice in helpers.progress(choices, desc=f&#34;CI for {self.name}&#34;, every=100):
+        for choice in helpers.progress(
+            choices, desc=f&#34;CI for {self.task_name}&#34;, every=100
+        ):
             scores.append(self.calc_mean_score([self.predictions[i] for i in choice]))
 
         percentiles = (100 - confidence) / 2, (100 - confidence) / 2 + confidence
         lower, upper = np.percentile(scores, percentiles).tolist()
 
-        return lower, upper
-
-    def to_dict(self) -&gt; dict[str, object]:
-        &#34;&#34;&#34;
-        Returns a json-encodable dictionary representation of self.
-        &#34;&#34;&#34;
-        return {
-            &#34;name&#34;: self.name,
-            &#34;predictions&#34;: [
-                dataclasses.asdict(prediction) for prediction in self.predictions
-            ],
-            &#34;argv&#34;: self.argv,
-            &#34;commit&#34;: self.commit,
-            &#34;posix_time&#34;: self.posix_time,
-            &#34;gpu_name&#34;: self.gpu_name,
-            &#34;hostname&#34;: self.hostname,
-        }</code></pre>
+        return lower, upper</code></pre>
 </details>
-<div class="desc"><p>The result of running a benchmark task.</p></div>
 <h3>Class variables</h3>
 <dl>
-<dt id="biobench.interfaces.TaskReport.argv"><code class="name">var <span class="ident">argv</span> : list[str]</code></dt>
+<dt id="biobench.interfaces.Report.argv"><code class="name">var <span class="ident">argv</span> : list[str]</code></dt>
 <dd>
 <div class="desc"><p>Command used to get this report.</p></div>
 </dd>
-<dt id="biobench.interfaces.TaskReport.commit"><code class="name">var <span class="ident">commit</span> : str</code></dt>
+<dt id="biobench.interfaces.Report.classifier"><code class="name">var <span class="ident">classifier</span> : Optional[Literal['knn', 'svm', 'ridge']]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.interfaces.Report.commit"><code class="name">var <span class="ident">commit</span> : str</code></dt>
 <dd>
 <div class="desc"><p>Git commit for this current report.</p></div>
 </dd>
-<dt id="biobench.interfaces.TaskReport.gpu_name"><code class="name">var <span class="ident">gpu_name</span> : str</code></dt>
+<dt id="biobench.interfaces.Report.exp_cfg"><code class="name">var <span class="ident">exp_cfg</span> : <a title="biobench.config.Experiment" href="config.html#biobench.config.Experiment">Experiment</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.interfaces.Report.gpu_name"><code class="name">var <span class="ident">gpu_name</span> : str</code></dt>
 <dd>
 <div class="desc"><p>Name of the GPU that ran this experiment.</p></div>
 </dd>
-<dt id="biobench.interfaces.TaskReport.hostname"><code class="name">var <span class="ident">hostname</span> : str</code></dt>
+<dt id="biobench.interfaces.Report.hostname"><code class="name">var <span class="ident">hostname</span> : str</code></dt>
 <dd>
 <div class="desc"><p>Machine hostname that ran this experiment.</p></div>
 </dd>
-<dt id="biobench.interfaces.TaskReport.name"><code class="name">var <span class="ident">name</span> : str</code></dt>
+<dt id="biobench.interfaces.Report.n_train"><code class="name">var <span class="ident">n_train</span> : int</code></dt>
 <dd>
-<div class="desc"><p>The benchmark name.</p></div>
+<div class="desc"><p>Number of training samples <em>actually</em> used.</p></div>
 </dd>
-<dt id="biobench.interfaces.TaskReport.posix_time"><code class="name">var <span class="ident">posix_time</span> : float</code></dt>
+<dt id="biobench.interfaces.Report.parse_success_rate"><code class="name">var <span class="ident">parse_success_rate</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.interfaces.Report.posix_time"><code class="name">var <span class="ident">posix_time</span> : float</code></dt>
 <dd>
 <div class="desc"><p>Time when this report was constructed.</p></div>
 </dd>
-<dt id="biobench.interfaces.TaskReport.predictions"><code class="name">var <span class="ident">predictions</span> : list[<a title="biobench.interfaces.Prediction" href="#biobench.interfaces.Prediction">Prediction</a>]</code></dt>
+<dt id="biobench.interfaces.Report.predictions"><code class="name">var <span class="ident">predictions</span> : list[<a title="biobench.interfaces.Prediction" href="#biobench.interfaces.Prediction">Prediction</a>]</code></dt>
 <dd>
-<div class="desc"><p>A list of (example_id, score, info) objects</p></div>
+<div class="desc"></div>
 </dd>
-<dt id="biobench.interfaces.TaskReport.splits"><code class="name">var <span class="ident">splits</span> : dict[str, float]</code></dt>
+<dt id="biobench.interfaces.Report.task_name"><code class="name">var <span class="ident">task_name</span> : str</code></dt>
 <dd>
-<div class="desc"><p>Other scores that you would like to report. These do not have confidence intervals.</p></div>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.interfaces.Report.usd_per_answer"><code class="name">var <span class="ident">usd_per_answer</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
 </dd>
 </dl>
 <h3>Methods</h3>
 <dl>
-<dt id="biobench.interfaces.TaskReport.calc_mean_score"><code class="name flex">
+<dt id="biobench.interfaces.Report.calc_mean_score"><code class="name flex">
 <span>def <span class="ident">calc_mean_score</span></span>(<span>predictions: list[<a title="biobench.interfaces.Prediction" href="#biobench.interfaces.Prediction">Prediction</a>]) ‑> float</span>
 </code></dt>
 <dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def default_calc_mean_score(predictions: list[Prediction]) -&gt; float:
-    return np.mean([prediction.score for prediction in predictions]).item()</code></pre>
-</details>
 <div class="desc"></div>
 </dd>
-<dt id="biobench.interfaces.TaskReport.get_confidence_interval"><code class="name flex">
-<span>def <span class="ident">get_confidence_interval</span></span>(<span>self,<br>statistic='mean',<br>confidence: float = 95,<br>n_resamples: int = 500,<br>seed: int = 42) ‑> tuple[float, float]</span>
+<dt id="biobench.interfaces.Report.get_confidence_interval"><code class="name flex">
+<span>def <span class="ident">get_confidence_interval</span></span>(<span>self, statistic='mean', confidence: float = 95, n_resamples: int = 500, seed: int = 42) ‑> tuple[float, float]</span>
 </code></dt>
 <dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def get_confidence_interval(
-    self,
-    statistic=&#34;mean&#34;,
-    confidence: float = 95,
-    n_resamples: int = 500,
-    seed: int = 42,
-) -&gt; tuple[float, float]:
-    &#34;&#34;&#34;
-    Get the confidence interval for the statistics (mean) by bootstrapping individual scores of the predictions.
-
-    NOTE: it&#39;s crazy how much easier this would be in Jax. PyTrees of Predictions would simply contains batch dimensions, and then I would `jax.vmap(get_mean_score)(batched_predictions)`.
-    &#34;&#34;&#34;
-
-    rng = np.random.default_rng(seed=seed)
-    choices = rng.choice(
-        len(self.predictions),
-        size=(n_resamples, len(self.predictions)),
-        replace=True,
-    )
-
-    scores = []
-    for choice in helpers.progress(choices, desc=f&#34;CI for {self.name}&#34;, every=100):
-        scores.append(self.calc_mean_score([self.predictions[i] for i in choice]))
-
-    percentiles = (100 - confidence) / 2, (100 - confidence) / 2 + confidence
-    lower, upper = np.percentile(scores, percentiles).tolist()
-
-    return lower, upper</code></pre>
-</details>
 <div class="desc"><p>Get the confidence interval for the statistics (mean) by bootstrapping individual scores of the predictions.</p>
 <p>NOTE: it's crazy how much easier this would be in Jax. PyTrees of Predictions would simply contains batch dimensions, and then I would <code>jax.vmap(get_mean_score)(batched_predictions)</code>.</p></div>
 </dd>
-<dt id="biobench.interfaces.TaskReport.get_mean_score"><code class="name flex">
+<dt id="biobench.interfaces.Report.get_mean_score"><code class="name flex">
 <span>def <span class="ident">get_mean_score</span></span>(<span>self) ‑> float</span>
 </code></dt>
 <dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def get_mean_score(self) -&gt; float:
-    &#34;&#34;&#34;
-    Get the mean score of all predictions.
-    &#34;&#34;&#34;
-    return self.calc_mean_score(self.predictions)</code></pre>
-</details>
 <div class="desc"><p>Get the mean score of all predictions.</p></div>
 </dd>
-<dt id="biobench.interfaces.TaskReport.to_dict"><code class="name flex">
+<dt id="biobench.interfaces.Report.to_dict"><code class="name flex">
 <span>def <span class="ident">to_dict</span></span>(<span>self) ‑> dict[str, object]</span>
 </code></dt>
 <dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def to_dict(self) -&gt; dict[str, object]:
-    &#34;&#34;&#34;
-    Returns a json-encodable dictionary representation of self.
-    &#34;&#34;&#34;
-    return {
-        &#34;name&#34;: self.name,
-        &#34;predictions&#34;: [
-            dataclasses.asdict(prediction) for prediction in self.predictions
-        ],
-        &#34;argv&#34;: self.argv,
-        &#34;commit&#34;: self.commit,
-        &#34;posix_time&#34;: self.posix_time,
-        &#34;gpu_name&#34;: self.gpu_name,
-        &#34;hostname&#34;: self.hostname,
-    }</code></pre>
-</details>
-<div class="desc"><p>Returns a json-encodable dictionary representation of self.</p></div>
-</dd>
-</dl>
-</dd>
-<dt id="biobench.interfaces.VisionBackbone"><code class="flex name class">
-<span>class <span class="ident">VisionBackbone</span></span>
-<span>(</span><span>*args, **kwargs)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
-class VisionBackbone(torch.nn.Module):
-    &#34;&#34;&#34;
-    A frozen vision model that embeds batches of images into batches of vectors.
-
-    To add new models to the benchmark, you can simply create a new class that satisfies this interface and register it.
-    See `biobench.registry` for a tutorial on adding new vision backbones.
-    &#34;&#34;&#34;
-
-    def img_encode(
-        self, batch: Float[Tensor, &#34;batch 3 width height&#34;]
-    ) -&gt; EncodedImgBatch:
-        &#34;&#34;&#34;Encode a batch of images.&#34;&#34;&#34;
-        err_msg = f&#34;{self.__class__.__name__} must implemented img_encode().&#34;
-        raise NotImplementedError(err_msg)
-
-    def make_img_transform(self):
-        &#34;&#34;&#34;
-        Return whatever function the backbone wants for image preprocessing.
-        This should be an evaluation transform, not a training transform, because we are using the output features of this backbone as data and not updating this backbone.
-        &#34;&#34;&#34;
-        err_msg = f&#34;{self.__class__.__name__} must implemented make_img_transform().&#34;
-        raise NotImplementedError(err_msg)</code></pre>
-</details>
-<div class="desc"><p>A frozen vision model that embeds batches of images into batches of vectors.</p>
-<p>To add new models to the benchmark, you can simply create a new class that satisfies this interface and register it.
-See <code><a title="biobench.registry" href="registry.html">biobench.registry</a></code> for a tutorial on adding new vision backbones.</p>
-<p>Initialize internal Module state, shared by both nn.Module and ScriptModule.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li>torch.nn.modules.module.Module</li>
-</ul>
-<h3>Subclasses</h3>
-<ul class="hlist">
-<li><a title="biobench.third_party_models.OpenClip" href="third_party_models.html#biobench.third_party_models.OpenClip">OpenClip</a></li>
-<li><a title="biobench.third_party_models.TimmVit" href="third_party_models.html#biobench.third_party_models.TimmVit">TimmVit</a></li>
-<li><a title="biobench.third_party_models.TorchvisionModel" href="third_party_models.html#biobench.third_party_models.TorchvisionModel">TorchvisionModel</a></li>
-</ul>
-<h3>Methods</h3>
-<dl>
-<dt id="biobench.interfaces.VisionBackbone.img_encode"><code class="name flex">
-<span>def <span class="ident">img_encode</span></span>(<span>self, batch: jaxtyping.Float[Tensor, 'batch 3 width height']) ‑> <a title="biobench.interfaces.EncodedImgBatch" href="#biobench.interfaces.EncodedImgBatch">EncodedImgBatch</a></span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def img_encode(
-    self, batch: Float[Tensor, &#34;batch 3 width height&#34;]
-) -&gt; EncodedImgBatch:
-    &#34;&#34;&#34;Encode a batch of images.&#34;&#34;&#34;
-    err_msg = f&#34;{self.__class__.__name__} must implemented img_encode().&#34;
-    raise NotImplementedError(err_msg)</code></pre>
-</details>
-<div class="desc"><p>Encode a batch of images.</p></div>
-</dd>
-<dt id="biobench.interfaces.VisionBackbone.make_img_transform"><code class="name flex">
-<span>def <span class="ident">make_img_transform</span></span>(<span>self)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def make_img_transform(self):
-    &#34;&#34;&#34;
-    Return whatever function the backbone wants for image preprocessing.
-    This should be an evaluation transform, not a training transform, because we are using the output features of this backbone as data and not updating this backbone.
-    &#34;&#34;&#34;
-    err_msg = f&#34;{self.__class__.__name__} must implemented make_img_transform().&#34;
-    raise NotImplementedError(err_msg)</code></pre>
-</details>
-<div class="desc"><p>Return whatever function the backbone wants for image preprocessing.
-This should be an evaluation transform, not a training transform, because we are using the output features of this backbone as data and not updating this backbone.</p></div>
+<div class="desc"><p>Convert the report to a JSON-compatible dictionary.
+Uses dataclasses.asdict() with custom handling for special types.</p></div>
 </dd>
 </dl>
 </dd>
@@ -619,60 +332,34 @@ This should be an evaluation transform, not a training transform, because we are
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
 <li>
-<h4><code><a title="biobench.interfaces.EncodedImgBatch" href="#biobench.interfaces.EncodedImgBatch">EncodedImgBatch</a></code></h4>
-<ul class="">
-<li><code><a title="biobench.interfaces.EncodedImgBatch.img_features" href="#biobench.interfaces.EncodedImgBatch.img_features">img_features</a></code></li>
-<li><code><a title="biobench.interfaces.EncodedImgBatch.patch_features" href="#biobench.interfaces.EncodedImgBatch.patch_features">patch_features</a></code></li>
-</ul>
-</li>
-<li>
-<h4><code><a title="biobench.interfaces.ModelArgsCvml" href="#biobench.interfaces.ModelArgsCvml">ModelArgsCvml</a></code></h4>
-<ul class="">
-<li><code><a title="biobench.interfaces.ModelArgsCvml.ckpt" href="#biobench.interfaces.ModelArgsCvml.ckpt">ckpt</a></code></li>
-<li><code><a title="biobench.interfaces.ModelArgsCvml.org" href="#biobench.interfaces.ModelArgsCvml.org">org</a></code></li>
-<li><code><a title="biobench.interfaces.ModelArgsCvml.to_dict" href="#biobench.interfaces.ModelArgsCvml.to_dict">to_dict</a></code></li>
-</ul>
-</li>
-<li>
-<h4><code><a title="biobench.interfaces.ModelArgsMllm" href="#biobench.interfaces.ModelArgsMllm">ModelArgsMllm</a></code></h4>
-<ul class="">
-<li><code><a title="biobench.interfaces.ModelArgsMllm.ckpt" href="#biobench.interfaces.ModelArgsMllm.ckpt">ckpt</a></code></li>
-<li><code><a title="biobench.interfaces.ModelArgsMllm.prompts" href="#biobench.interfaces.ModelArgsMllm.prompts">prompts</a></code></li>
-<li><code><a title="biobench.interfaces.ModelArgsMllm.quantizations" href="#biobench.interfaces.ModelArgsMllm.quantizations">quantizations</a></code></li>
-<li><code><a title="biobench.interfaces.ModelArgsMllm.temp" href="#biobench.interfaces.ModelArgsMllm.temp">temp</a></code></li>
-<li><code><a title="biobench.interfaces.ModelArgsMllm.to_dict" href="#biobench.interfaces.ModelArgsMllm.to_dict">to_dict</a></code></li>
-</ul>
-</li>
-<li>
 <h4><code><a title="biobench.interfaces.Prediction" href="#biobench.interfaces.Prediction">Prediction</a></code></h4>
 <ul class="">
 <li><code><a title="biobench.interfaces.Prediction.id" href="#biobench.interfaces.Prediction.id">id</a></code></li>
 <li><code><a title="biobench.interfaces.Prediction.info" href="#biobench.interfaces.Prediction.info">info</a></code></li>
+<li><code><a title="biobench.interfaces.Prediction.n_train" href="#biobench.interfaces.Prediction.n_train">n_train</a></code></li>
 <li><code><a title="biobench.interfaces.Prediction.score" href="#biobench.interfaces.Prediction.score">score</a></code></li>
+<li><code><a title="biobench.interfaces.Prediction.to_dict" href="#biobench.interfaces.Prediction.to_dict">to_dict</a></code></li>
 </ul>
 </li>
 <li>
-<h4><code><a title="biobench.interfaces.TaskReport" href="#biobench.interfaces.TaskReport">TaskReport</a></code></h4>
+<h4><code><a title="biobench.interfaces.Report" href="#biobench.interfaces.Report">Report</a></code></h4>
 <ul class="">
-<li><code><a title="biobench.interfaces.TaskReport.argv" href="#biobench.interfaces.TaskReport.argv">argv</a></code></li>
-<li><code><a title="biobench.interfaces.TaskReport.calc_mean_score" href="#biobench.interfaces.TaskReport.calc_mean_score">calc_mean_score</a></code></li>
-<li><code><a title="biobench.interfaces.TaskReport.commit" href="#biobench.interfaces.TaskReport.commit">commit</a></code></li>
-<li><code><a title="biobench.interfaces.TaskReport.get_confidence_interval" href="#biobench.interfaces.TaskReport.get_confidence_interval">get_confidence_interval</a></code></li>
-<li><code><a title="biobench.interfaces.TaskReport.get_mean_score" href="#biobench.interfaces.TaskReport.get_mean_score">get_mean_score</a></code></li>
-<li><code><a title="biobench.interfaces.TaskReport.gpu_name" href="#biobench.interfaces.TaskReport.gpu_name">gpu_name</a></code></li>
-<li><code><a title="biobench.interfaces.TaskReport.hostname" href="#biobench.interfaces.TaskReport.hostname">hostname</a></code></li>
-<li><code><a title="biobench.interfaces.TaskReport.name" href="#biobench.interfaces.TaskReport.name">name</a></code></li>
-<li><code><a title="biobench.interfaces.TaskReport.posix_time" href="#biobench.interfaces.TaskReport.posix_time">posix_time</a></code></li>
-<li><code><a title="biobench.interfaces.TaskReport.predictions" href="#biobench.interfaces.TaskReport.predictions">predictions</a></code></li>
-<li><code><a title="biobench.interfaces.TaskReport.splits" href="#biobench.interfaces.TaskReport.splits">splits</a></code></li>
-<li><code><a title="biobench.interfaces.TaskReport.to_dict" href="#biobench.interfaces.TaskReport.to_dict">to_dict</a></code></li>
-</ul>
-</li>
-<li>
-<h4><code><a title="biobench.interfaces.VisionBackbone" href="#biobench.interfaces.VisionBackbone">VisionBackbone</a></code></h4>
-<ul class="">
-<li><code><a title="biobench.interfaces.VisionBackbone.img_encode" href="#biobench.interfaces.VisionBackbone.img_encode">img_encode</a></code></li>
-<li><code><a title="biobench.interfaces.VisionBackbone.make_img_transform" href="#biobench.interfaces.VisionBackbone.make_img_transform">make_img_transform</a></code></li>
+<li><code><a title="biobench.interfaces.Report.argv" href="#biobench.interfaces.Report.argv">argv</a></code></li>
+<li><code><a title="biobench.interfaces.Report.calc_mean_score" href="#biobench.interfaces.Report.calc_mean_score">calc_mean_score</a></code></li>
+<li><code><a title="biobench.interfaces.Report.classifier" href="#biobench.interfaces.Report.classifier">classifier</a></code></li>
+<li><code><a title="biobench.interfaces.Report.commit" href="#biobench.interfaces.Report.commit">commit</a></code></li>
+<li><code><a title="biobench.interfaces.Report.exp_cfg" href="#biobench.interfaces.Report.exp_cfg">exp_cfg</a></code></li>
+<li><code><a title="biobench.interfaces.Report.get_confidence_interval" href="#biobench.interfaces.Report.get_confidence_interval">get_confidence_interval</a></code></li>
+<li><code><a title="biobench.interfaces.Report.get_mean_score" href="#biobench.interfaces.Report.get_mean_score">get_mean_score</a></code></li>
+<li><code><a title="biobench.interfaces.Report.gpu_name" href="#biobench.interfaces.Report.gpu_name">gpu_name</a></code></li>
+<li><code><a title="biobench.interfaces.Report.hostname" href="#biobench.interfaces.Report.hostname">hostname</a></code></li>
+<li><code><a title="biobench.interfaces.Report.n_train" href="#biobench.interfaces.Report.n_train">n_train</a></code></li>
+<li><code><a title="biobench.interfaces.Report.parse_success_rate" href="#biobench.interfaces.Report.parse_success_rate">parse_success_rate</a></code></li>
+<li><code><a title="biobench.interfaces.Report.posix_time" href="#biobench.interfaces.Report.posix_time">posix_time</a></code></li>
+<li><code><a title="biobench.interfaces.Report.predictions" href="#biobench.interfaces.Report.predictions">predictions</a></code></li>
+<li><code><a title="biobench.interfaces.Report.task_name" href="#biobench.interfaces.Report.task_name">task_name</a></code></li>
+<li><code><a title="biobench.interfaces.Report.to_dict" href="#biobench.interfaces.Report.to_dict">to_dict</a></code></li>
+<li><code><a title="biobench.interfaces.Report.usd_per_answer" href="#biobench.interfaces.Report.usd_per_answer">usd_per_answer</a></code></li>
 </ul>
 </li>
 </ul>
@@ -681,7 +368,7 @@ This should be an evaluation transform, not a training transform, because we are
 </nav>
 </main>
 <footer id="footer">
-<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.5</a>.</p>
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.1</a>.</p>
 </footer>
 </body>
 </html>

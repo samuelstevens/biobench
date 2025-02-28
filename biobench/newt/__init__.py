@@ -22,7 +22,6 @@ import asyncio
 import collections.abc
 import dataclasses
 import difflib
-import itertools
 import logging
 import os
 import random
@@ -38,7 +37,7 @@ import sklearn.pipeline
 import sklearn.preprocessing
 import sklearn.svm
 import torch
-from jaxtyping import Bool, Float, Int, Integer, Shaped, jaxtyped
+from jaxtyping import Float, Int, Integer, jaxtyped
 from PIL import Image
 from torch import Tensor
 
@@ -53,17 +52,22 @@ logger = logging.getLogger("newt")
 
 
 @beartype.beartype
-def benchmark_cvml(cfg: config.Experiment) -> interfaces.Report:
-    # 1. Load model
+def benchmark_cvml(cfg: config.Experiment) -> list[interfaces.Report]:
+    rng = random.Random(cfg.seed)
+
     backbone = cvml.load_vision_backbone(cfg.model)
 
-    # 2. Get features.
-    all_task_features = get_all_tasks_cvml(cfg, backbone)
+    reports = []
+    for train_dataset, test_dataset in helpers.progress(
+        get_all_tasks_cvml(cfg, backbone, rng), every=1, desc="tasks"
+    ):
+        x_train = train_dataset.x.numpy()
+        y_train = train_dataset.y.numpy()
+        x_test = test_dataset.x.numpy()
+        y_test = test_dataset.y.numpy()
 
-    # Fit SVMs.
-    results = []
-    for task in all_task_features:
-        (x_train, y_train), (x_test, y_test) = task.splits
+        n_train = len(x_train)
+        assert n_train >= 10
 
         x_mean = x_train.mean(axis=0, keepdims=True)
 
@@ -73,40 +77,34 @@ def benchmark_cvml(cfg: config.Experiment) -> interfaces.Report:
         x_test = x_test - x_mean
         x_test = l2_normalize(x_test)
 
-        svc = init_svc()
-
+        svc = init_svc(n_train)
         svc.fit(x_train, y_train)
+
         y_pred = svc.predict(x_test)
-        examples = [
-            interfaces.Prediction(
-                str(id),
-                float(pred == true),
-                {"cluster": task.cluster, "task": task.task},
-            )
-            for id, pred, true in zip(task.example_ids, y_pred, y_test)
+
+        info = {
+            "task": test_dataset.task,
+            "cluster": test_dataset.cluster,
+            "subcluster": test_dataset.subcluster,
+        }
+
+        preds = [
+            interfaces.Prediction(str(id), float(pred == true), n_train, info)
+            for id, pred, true in zip(test_dataset.img_ids, y_pred, y_test)
         ]
-        test_acc = np.mean(y_pred == y_test)
+        report = interfaces.Report(
+            f"NeWT::{test_dataset.task}", preds, preds[0].n_train, cfg
+        )
+        reports.append(report)
 
-        results.append({
-            "task": task.task,
-            "cluster": task.cluster,
-            "examples": examples,
-            "test_acc": test_acc,
-        })
-
-    # Removes 'examples' from each dict in results
-    examples = list(
-        itertools.chain.from_iterable((result.pop("examples") for result in results))
-    )
-
-    # TODO: this is not right
-    return interfaces.Report("NeWT", examples)
+    return reports
 
 
 @jaxtyped(typechecker=beartype.beartype)
 class ImageSample(typing.TypedDict):
     img_id: str
     img: Float[Tensor, "3 width height"]
+    label: Int[Tensor, ""]
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -115,17 +113,21 @@ class ImageDataset(torch.utils.data.Dataset):
     A dataset that returns ImageSample dictionaries.
     """
 
-    def __init__(self, root: str, img_ids: list[str], transform=None):
+    def __init__(
+        self, root: str, img_ids: list[str], labels: list[int], transform=None
+    ):
         self.transform = transform
         self.root = root
         self.img_ids = img_ids
+        self.labels = labels
 
     def __getitem__(self, i: int) -> ImageSample:
         img_id = self.img_ids[i]
         img = Image.open(os.path.join(self.root, f"{img_id}.jpg"))
         if self.transform is not None:
             img = self.transform(img)
-        return {"img_id": img_id, "img": img}
+        label = self.labels[i]
+        return {"img_id": img_id, "img": img, "label": label}
 
     def __len__(self) -> int:
         return len(self.img_ids)
@@ -139,22 +141,24 @@ class FeatureSample(typing.TypedDict):
 
 
 @jaxtyped(typechecker=beartype.beartype)
-class FeatureDataset(torch.utils.data.Dataset):
-    """
-    A dataset that returs Feature
-    """
+@dataclasses.dataclass(frozen=True)
+class FeatureDataset:
+    img_ids: list[str]
+    x: Float[Tensor, "n dim"]
+    y: Int[Tensor, " n"]
 
-    def __init__(self):
-        pass
+    task: str
+    cluster: str
+    subcluster: str | None
 
     def __getitem__(self, i: int) -> FeatureSample:
-        raise NotImplementedError()
+        return {"img_id": self.img_ids[i], "x": self.x[i], "y": self.y[i]}
 
 
 @jaxtyped(typechecker=beartype.beartype)
 @torch.no_grad()
 def get_all_tasks_cvml(
-    cfg: config.Experiment, backbone: cvml.VisionBackbone
+    cfg: config.Experiment, backbone: cvml.VisionBackbone, rng: random.Random
 ) -> collections.abc.Iterator[tuple[FeatureDataset, FeatureDataset]]:
     """ """
     labels_csv_name = "newt2021_labels.csv"
@@ -171,65 +175,86 @@ def get_all_tasks_cvml(
     img_transform = backbone.make_img_transform()
     backbone = torch.compile(backbone.to(cfg.device))
 
-    # Determine indices for training and testing based on configuration
-    train_indices = []
-    test_indices = []
-
-    # Split indices based on train/test split in the dataset using native Polars methods
-    train_indices = df.filter(pl.col("split") == "train").get_column("index").to_list()
-    test_indices = df.filter(pl.col("split") != "train").get_column("index").to_list()
-
-    # Apply n_train and n_test limits if specified
-    if cfg.n_train > 0 and len(train_indices) > cfg.n_train:
-        train_indices = random.sample(train_indices, cfg.n_train)
-
-    if cfg.n_test > 0 and len(test_indices) > cfg.n_test:
-        test_indices = random.sample(test_indices, cfg.n_test)
-
-    if cfg.debug:
-        n = cfg.batch_size * 2
-        total = 2  # 2 batches
-
-    # Use the appropriate indices based on whether we're processing training or testing data
-    selected_indices = train_indices if is_train else test_indices
-
-    if len(selected_indices) == 0:
-        # No data for this split
-        return FeaturesCvml(
-            torch.zeros((0, 768), dtype=float), torch.zeros((0, 9), dtype=float), []
-        )
-
-    # Calculate total batches needed
-    n = len(selected_indices)
-    total = (n + cfg.batch_size - 1) // cfg.batch_size  # Ceiling division
-
-    it = iter(dataloader)
-    for b in helpers.progress(range(total), every=10, desc="embed"):
-        ids, images = next(it)
-        images = images.to(cfg.device)
-
-        with torch.amp.autocast("cuda"):
-            features = backbone.img_encode(images).img_features
-            features = torch.nn.functional.normalize(features, dim=-1)
-            all_features.append(features.cpu())
-
-        all_ids.extend(ids)
-
-    all_features = torch.cat(all_features, dim=0).cpu()
-    all_ids = np.array(all_ids)
-
     for task in df.get_column("task").unique():
         task_df = df.filter(pl.col("task") == task)
 
-        task_idx = task_df.get_column("index").to_numpy()
-        features = all_features[task_idx].numpy()
-        ids = all_ids[task_idx]
-
-        labels = task_df.get_column("label").to_numpy()
-        is_train = task_df.select(pl.col("split") == "train").get_column("split")
-
         cluster = task_df.item(row=0, column="task_cluster")
-        yield TaskCvml(task, cluster, features, labels, is_train.to_numpy(), ids)
+        subcluster = task_df.item(row=0, column="task_subcluster")
+
+        if not include_task(cfg.newt, task, cluster, subcluster):
+            continue
+
+        # Split indices based on train/test split in the dataset using native Polars methods.
+        train_rows = (
+            task_df.filter(pl.col("split") == "train").select("id", "label").rows()
+        )
+        test_rows = (
+            task_df.filter(pl.col("split") != "train").select("id", "label").rows()
+        )
+
+        # Apply n_train and n_test limits if specified
+        if cfg.n_train == 0:
+            train_rows = []
+            train_ids, train_labels = (), ()
+        elif cfg.n_train > 0 and len(train_rows) > cfg.n_train:
+            train_rows = rng.sample(train_rows, cfg.n_train)
+            train_ids, train_labels = zip(*train_rows)
+        else:
+            train_ids, train_labels = zip(*train_rows)
+
+        if cfg.n_test > 0 and len(test_rows) > cfg.n_test:
+            test_rows = rng.sample(test_rows, cfg.n_test)
+            test_ids, test_labels = zip(*test_rows)
+        else:
+            test_ids, test_labels = zip(*test_rows)
+
+        dataset = ImageDataset(
+            images_dir_path,
+            train_ids + test_ids,
+            train_labels + test_labels,
+            img_transform,
+        )
+        dataloader = torch.utils.data.DataLoader(
+            dataset, batch_size=cfg.batch_size, num_workers=cfg.n_workers, shuffle=False
+        )
+
+        all_features, all_labels, all_ids = [], [], []
+        for batch in helpers.progress(dataloader, desc=task):
+            imgs = batch["img"].to(cfg.device)
+
+            with torch.amp.autocast("cuda"):
+                features = backbone.img_encode(imgs).img_features
+                features = torch.nn.functional.normalize(features, dim=-1)
+                all_features.append(features.cpu())
+
+            all_ids.extend(batch["img_id"])
+            all_labels.extend(batch["label"])
+
+        all_features = torch.cat(all_features, dim=0).cpu()
+        all_labels = torch.tensor(all_labels)
+
+        n_train = len(train_ids)
+        n_test = len(test_ids)
+        assert n_train + n_test == len(all_ids)
+
+        train_dataset = FeatureDataset(
+            all_ids[:n_train],
+            all_features[:n_train],
+            all_labels[:n_train],
+            task=task,
+            cluster=cluster,
+            subcluster=subcluster,
+        )
+        test_dataset = FeatureDataset(
+            all_ids[n_train:],
+            all_features[n_train:],
+            all_labels[n_train:],
+            task=task,
+            cluster=cluster,
+            subcluster=subcluster,
+        )
+
+        yield (train_dataset, test_dataset)
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -241,12 +266,24 @@ def l2_normalize(
     return features / norms
 
 
-def init_svc():
+class DummyBinaryClassifier:
+    def __init__(self):
+        self.rng = random.Random()
+
+    def fit(*args, **kwargs):
+        logger.info("Doing nothing because it's a dummy classifier.")
+
+    def predict(self, data):
+        return np.array([int(self.rng.random() > 0.5) for _ in data])
+
+
+def init_svc(n_train: int):
     """Create a new, randomly initialized SVM with a random hyperparameter search over kernel, C and gamma. It uses only 16 jobs in parallel to prevent overloading the CPUs on a shared machine."""
+
     return sklearn.model_selection.RandomizedSearchCV(
         sklearn.pipeline.make_pipeline(
             sklearn.preprocessing.StandardScaler(),
-            sklearn.svm.SVC(C=1.0, kernel="rbf"),
+            sklearn.svm.SVC(C=0.1, kernel="linear"),
         ),
         {
             "svc__C": scipy.stats.loguniform(a=1e-3, b=1e1),

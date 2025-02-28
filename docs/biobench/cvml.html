@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+<meta name="generator" content="pdoc3 0.11.1">
+<title>biobench.cvml API documentation</title>
+<meta name="description" content="Stores all vision backbones.
+Users can register new custom backbones from their code to evaluate on biobench using `register_vision_backbone`.
+As long …">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin-bottom:1em}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script type="text/x-mathjax-config">MathJax.Hub.Config({ tex2jax: { inlineMath: [ ['$','$'], ["\\(","\\)"] ], processEscapes: true } });</script>
+<script async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS_CHTML" integrity="sha256-kZafAc6mZvK3W3v1pHOcUix30OHQN6pU/NO2oFkqZVw=" crossorigin></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => {
+hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+hljs.highlightAll();
+})</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>biobench.cvml</code></h1>
+</header>
+<section id="section-intro">
+<p>Stores all vision backbones.
+Users can register new custom backbones from their code to evaluate on biobench using <code><a title="biobench.cvml.register_vision_backbone" href="#biobench.cvml.register_vision_backbone">register_vision_backbone()</a></code>.
+As long as it satisfies the <code><a title="biobench.cvml.VisionBackbone" href="#biobench.cvml.VisionBackbone">VisionBackbone</a></code> interface, it will work will all tasks.</p>
+<h1 id="adding-new-models">Adding New Models</h1>
+<p>To add a new model, you need to:</p>
+<ol>
+<li>Write a new class that satisfies <code>biobench.interfaces.VisionBackbone</code>.</li>
+<li>Register the class using <code><a title="biobench.cvml.register_vision_backbone" href="#biobench.cvml.register_vision_backbone">register_vision_backbone()</a></code> under a new name.</li>
+</ol>
+<h2 id="1-create-a-new-class">1. Create a New Class</h2>
+<p>Here is an example of writing a new class for <a href="https://pytorch.org/vision/stable/models.html">pre-trained torchvision models</a>.
+First, create a new class that will satisy the interface:</p>
+<pre><code class="language-python">@jaxtyped(typechecker=beartype.beartype)
+class TorchvisionModel(biobench.interfaces.VisionBackbone):
+    def __init__(self, ckpt: str):
+        import torchvision
+
+        arch, weights = ckpt.split(&quot;/&quot;)
+        if not hasattr(torchvision, arch):
+            raise ValueError(f&quot;'{arch}' is not a valid torchvision architecture.&quot;)
+        self.model = getattr(torchvision, arch)(weights=weights)
+        self.model.eval()
+
+    def img_encode(
+        self, batch: Float[Tensor, &quot;batch 3 width height&quot;]
+    ) -&gt; biobench.interfaces.EncodedImgBatch:
+        breakpoint()
+
+    def make_img_transform(self):
+        # Per the docs, each set of weights has its own transform: https://pytorch.org/vision/stable/models.html#using-the-pre-trained-models
+        return self.model.weights.transforms()
+</code></pre>
+<p>All models are initialized with a single checkpoint string.
+This string can be in whatever format you want, so it is best to document it somewhere so users know how to format it.</p>
+<p>Here, we will split on <code>/</code> and then assume the first half is a valid classname on <code>torchvision</code>.
+To make this a little easier on our users, we raise an error that has a more helpful description.
+Then we load the weights.</p>
+<div class="admonition tip">
+<p class="admonition-title">Tip:&ensp;See that we don't import <code>torchvision</code> until we finally initialize an instance of <code>TorchvisionModel</code>; this means that we don't have the runtime cost of importing <code>torchvision</code> if no instance of <code>TorchvisionModel</code> is actually used.</p>
+</div>
+<h2 id="2-register-the-class">2. Register the Class</h2>
+<p>Somewhere in your main script, you need to run:</p>
+<pre><code class="language-py">biobench.registry.register_vision_backbone(&quot;torchvision&quot;, TorchvisionModel)
+</code></pre>
+<p>You can add this line to your copy of <code><a title="benchmark" href="../benchmark.html">benchmark</a></code> to use <code>--model torchvision resnet50/IMAGENET1K_V2</code> to load a ResNet50 trained on ImageNet-1K.</p>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-functions">Functions</h2>
+<dl>
+<dt id="biobench.cvml.list_vision_backbones"><code class="name flex">
+<span>def <span class="ident">list_vision_backbones</span></span>(<span>) ‑> list[str]</span>
+</code></dt>
+<dd>
+<div class="desc"><p>List all vision backbone model orgs.</p></div>
+</dd>
+<dt id="biobench.cvml.load_vision_backbone"><code class="name flex">
+<span>def <span class="ident">load_vision_backbone</span></span>(<span>model_cfg: <a title="biobench.config.Model" href="config.html#biobench.config.Model">Model</a>) ‑> <a title="biobench.cvml.VisionBackbone" href="#biobench.cvml.VisionBackbone">VisionBackbone</a></span>
+</code></dt>
+<dd>
+<div class="desc"><p>Load a pretrained vision backbone.</p></div>
+</dd>
+<dt id="biobench.cvml.register_vision_backbone"><code class="name flex">
+<span>def <span class="ident">register_vision_backbone</span></span>(<span>model_org: str, cls: type[<a title="biobench.cvml.VisionBackbone" href="#biobench.cvml.VisionBackbone">VisionBackbone</a>])</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Register a new vision backbone class.</p></div>
+</dd>
+</dl>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="biobench.cvml.EncodedImgBatch"><code class="flex name class">
+<span>class <span class="ident">EncodedImgBatch</span></span>
+<span>(</span><span>img_features: jaxtyping.Float[Tensor, 'batch img_dim'], patch_features: jaxtyping.Float[Tensor, 'batch n_patches patch_dim'] | None)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>The output of a <code><a title="biobench.cvml.VisionBackbone" href="#biobench.cvml.VisionBackbone">VisionBackbone</a></code>'s <code><a title="biobench.cvml.VisionBackbone.img_encode" href="#biobench.cvml.VisionBackbone.img_encode">VisionBackbone.img_encode()</a></code> method.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
+@dataclasses.dataclass(frozen=True)
+class EncodedImgBatch:
+    &#34;&#34;&#34;The output of a `VisionBackbone`&#39;s `VisionBackbone.img_encode()` method.&#34;&#34;&#34;
+
+    img_features: Float[Tensor, &#34;batch img_dim&#34;]
+    &#34;&#34;&#34;Image-level features. Each image is represented by a single vector.&#34;&#34;&#34;
+    patch_features: Float[Tensor, &#34;batch n_patches patch_dim&#34;] | None
+    &#34;&#34;&#34;Patch-level features. Only ViTs have patch-level features. These features might be a different dimension that the image features because of projection heads or such.&#34;&#34;&#34;</code></pre>
+</details>
+<h3>Class variables</h3>
+<dl>
+<dt id="biobench.cvml.EncodedImgBatch.img_features"><code class="name">var <span class="ident">img_features</span> : jaxtyping.Float[Tensor, 'batch img_dim']</code></dt>
+<dd>
+<div class="desc"><p>Image-level features. Each image is represented by a single vector.</p></div>
+</dd>
+<dt id="biobench.cvml.EncodedImgBatch.patch_features"><code class="name">var <span class="ident">patch_features</span> : jaxtyping.Float[Tensor, 'batch n_patches patch_dim'] | None</code></dt>
+<dd>
+<div class="desc"><p>Patch-level features. Only ViTs have patch-level features. These features might be a different dimension that the image features because of projection heads or such.</p></div>
+</dd>
+</dl>
+</dd>
+<dt id="biobench.cvml.VisionBackbone"><code class="flex name class">
+<span>class <span class="ident">VisionBackbone</span></span>
+<span>(</span><span>*args, **kwargs)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>A frozen vision model that embeds batches of images into batches of vectors.</p>
+<p>To add new models to the benchmark, you can simply create a new class that satisfies this interface and register it.
+See <code>biobench.registry</code> for a tutorial on adding new vision backbones.</p>
+<p>Initialize internal Module state, shared by both nn.Module and ScriptModule.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
+class VisionBackbone(torch.nn.Module):
+    &#34;&#34;&#34;
+    A frozen vision model that embeds batches of images into batches of vectors.
+
+    To add new models to the benchmark, you can simply create a new class that satisfies this interface and register it.
+    See `biobench.registry` for a tutorial on adding new vision backbones.
+    &#34;&#34;&#34;
+
+    def img_encode(
+        self, batch: Float[Tensor, &#34;batch 3 width height&#34;]
+    ) -&gt; EncodedImgBatch:
+        &#34;&#34;&#34;Encode a batch of images.&#34;&#34;&#34;
+        err_msg = f&#34;{self.__class__.__name__} must implemented img_encode().&#34;
+        raise NotImplementedError(err_msg)
+
+    def make_img_transform(self):
+        &#34;&#34;&#34;
+        Return whatever function the backbone wants for image preprocessing.
+        This should be an evaluation transform, not a training transform, because we are using the output features of this backbone as data and not updating this backbone.
+        &#34;&#34;&#34;
+        err_msg = f&#34;{self.__class__.__name__} must implemented make_img_transform().&#34;
+        raise NotImplementedError(err_msg)</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>torch.nn.modules.module.Module</li>
+</ul>
+<h3>Subclasses</h3>
+<ul class="hlist">
+<li><a title="biobench.third_party_models.OpenClip" href="third_party_models.html#biobench.third_party_models.OpenClip">OpenClip</a></li>
+<li><a title="biobench.third_party_models.TimmVit" href="third_party_models.html#biobench.third_party_models.TimmVit">TimmVit</a></li>
+<li><a title="biobench.third_party_models.TorchvisionModel" href="third_party_models.html#biobench.third_party_models.TorchvisionModel">TorchvisionModel</a></li>
+</ul>
+<h3>Methods</h3>
+<dl>
+<dt id="biobench.cvml.VisionBackbone.img_encode"><code class="name flex">
+<span>def <span class="ident">img_encode</span></span>(<span>self, batch: jaxtyping.Float[Tensor, 'batch 3 width height']) ‑> <a title="biobench.cvml.EncodedImgBatch" href="#biobench.cvml.EncodedImgBatch">EncodedImgBatch</a></span>
+</code></dt>
+<dd>
+<div class="desc"><p>Encode a batch of images.</p></div>
+</dd>
+<dt id="biobench.cvml.VisionBackbone.make_img_transform"><code class="name flex">
+<span>def <span class="ident">make_img_transform</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Return whatever function the backbone wants for image preprocessing.
+This should be an evaluation transform, not a training transform, because we are using the output features of this backbone as data and not updating this backbone.</p></div>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<div class="toc">
+<ul>
+<li><a href="#adding-new-models">Adding New Models</a><ul>
+<li><a href="#1-create-a-new-class">1. Create a New Class</a></li>
+<li><a href="#2-register-the-class">2. Register the Class</a></li>
+</ul>
+</li>
+</ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="biobench" href="index.html">biobench</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-functions">Functions</a></h3>
+<ul class="">
+<li><code><a title="biobench.cvml.list_vision_backbones" href="#biobench.cvml.list_vision_backbones">list_vision_backbones</a></code></li>
+<li><code><a title="biobench.cvml.load_vision_backbone" href="#biobench.cvml.load_vision_backbone">load_vision_backbone</a></code></li>
+<li><code><a title="biobench.cvml.register_vision_backbone" href="#biobench.cvml.register_vision_backbone">register_vision_backbone</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="biobench.cvml.EncodedImgBatch" href="#biobench.cvml.EncodedImgBatch">EncodedImgBatch</a></code></h4>
+<ul class="">
+<li><code><a title="biobench.cvml.EncodedImgBatch.img_features" href="#biobench.cvml.EncodedImgBatch.img_features">img_features</a></code></li>
+<li><code><a title="biobench.cvml.EncodedImgBatch.patch_features" href="#biobench.cvml.EncodedImgBatch.patch_features">patch_features</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="biobench.cvml.VisionBackbone" href="#biobench.cvml.VisionBackbone">VisionBackbone</a></code></h4>
+<ul class="">
+<li><code><a title="biobench.cvml.VisionBackbone.img_encode" href="#biobench.cvml.VisionBackbone.img_encode">img_encode</a></code></li>
+<li><code><a title="biobench.cvml.VisionBackbone.make_img_transform" href="#biobench.cvml.VisionBackbone.make_img_transform">make_img_transform</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.1</a>.</p>
+</footer>
+</body>
+</html>

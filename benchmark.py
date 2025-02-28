@@ -24,23 +24,7 @@ import beartype
 import submitit
 import tyro
 
-from biobench import (
-    # ages,
-    # beluga,
-    # birds525,
-    config,
-    # fishnet,
-    # imagenet,
-    # inat21,
-    interfaces,
-    # iwildcam,
-    # kabr,
-    # leopard,
-    newt,
-    # plankton,
-    # plantnet,
-    # rarespecies,
-)
+from biobench import config, interfaces, newt
 
 log_format = "[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s"
 logging.basicConfig(level=logging.INFO, format=log_format)

@@ -1,0 +1,456 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+<meta name="generator" content="pdoc3 0.11.1">
+<title>biobench.config API documentation</title>
+<meta name="description" content="">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin-bottom:1em}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script type="text/x-mathjax-config">MathJax.Hub.Config({ tex2jax: { inlineMath: [ ['$','$'], ["\\(","\\)"] ], processEscapes: true } });</script>
+<script async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS_CHTML" integrity="sha256-kZafAc6mZvK3W3v1pHOcUix30OHQN6pU/NO2oFkqZVw=" crossorigin></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => {
+hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+hljs.highlightAll();
+})</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>biobench.config</code></h1>
+</header>
+<section id="section-intro">
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-functions">Functions</h2>
+<dl>
+<dt id="biobench.config.load"><code class="name flex">
+<span>def <span class="ident">load</span></span>(<span>path: str) ‑> list[<a title="biobench.config.Experiment" href="#biobench.config.Experiment">Experiment</a>]</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Load experiments from a TOML file.</p>
+<p>None of the fields in Experiment are lists, so anytime we find a list in the TOML, we add another dimension to our grid search over all possible experiments.</p></div>
+</dd>
+</dl>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="biobench.config.Experiment"><code class="flex name class">
+<span>class <span class="ident">Experiment</span></span>
+<span>(</span><span>model: <a title="biobench.config.Model" href="#biobench.config.Model">Model</a>, n_train: int = -1, n_test: int = -1, sampling: Literal['uniform', 'balanced'] = 'uniform', device: Literal['cpu', 'mps', 'cuda'] = 'cuda', debug: bool = False, ssl: bool = True, report_to: str = './results', graph: bool = True, graph_to: str = './graphs', log_to: str = './logs', temp: float = 0.0, prompting: Literal['single', 'multi'] = 'single', cot_enabled: bool = False, parallel: int = 1, slurm: bool = False, slurm_acct: str = '', batch_size: int = 256, n_workers: int = 8, seed: int = 17, ages_data: str = '', beluga_data: str = '', birds525_data: str = '', fishnet_data: str = '', imagenet_data: str = '', inat21_data: str = '', iwildcam_data: str = '', kabr_data: str = '', leopard_data: str = '', newt_data: str = '', plankton_data: str = '', plantnet_data: str = '', rarespecies_data: str = '', newt: <a title="biobench.config.Newt" href="#biobench.config.Newt">Newt</a> = &lt;factory&gt;)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Experiment(model: biobench.config.Model, n_train: int = -1, n_test: int = -1, sampling: Literal['uniform', 'balanced'] = 'uniform', device: Literal['cpu', 'mps', 'cuda'] = 'cuda', debug: bool = False, ssl: bool = True, report_to: str = './results', graph: bool = True, graph_to: str = './graphs', log_to: str = './logs', temp: float = 0.0, prompting: Literal['single', 'multi'] = 'single', cot_enabled: bool = False, parallel: int = 1, slurm: bool = False, slurm_acct: str = '', batch_size: int = 256, n_workers: int = 8, seed: int = 17, ages_data: str = '', beluga_data: str = '', birds525_data: str = '', fishnet_data: str = '', imagenet_data: str = '', inat21_data: str = '', iwildcam_data: str = '', kabr_data: str = '', leopard_data: str = '', newt_data: str = '', plankton_data: str = '', plantnet_data: str = '', rarespecies_data: str = '', newt: biobench.config.Newt = <factory>)</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@dataclasses.dataclass(frozen=True)
+class Experiment:
+    model: Model
+
+    n_train: int = -1
+    &#34;&#34;&#34;Number of maximum training samples. Negative number means use all of them.&#34;&#34;&#34;
+    n_test: int = -1
+    &#34;&#34;&#34;Number of test samples. Negative number means use all of them.&#34;&#34;&#34;
+    sampling: typing.Literal[&#34;uniform&#34;, &#34;balanced&#34;] = &#34;uniform&#34;
+
+    device: typing.Literal[&#34;cpu&#34;, &#34;mps&#34;, &#34;cuda&#34;] = &#34;cuda&#34;
+    &#34;&#34;&#34;which kind of accelerator to use.&#34;&#34;&#34;
+    debug: bool = False
+    &#34;&#34;&#34;whether to run in debug mode.&#34;&#34;&#34;
+
+    ssl: bool = True
+    &#34;&#34;&#34;Use SSL when connecting to remote servers to download checkpoints; use --no-ssl if your machine has certificate issues. See `biobench.third_party_models.get_ssl()` for a discussion of how this works.&#34;&#34;&#34;
+    # Reporting and graphing.
+    report_to: str = os.path.join(&#34;.&#34;, &#34;results&#34;)
+    &#34;&#34;&#34;where to save reports to.&#34;&#34;&#34;
+    graph: bool = True
+    &#34;&#34;&#34;whether to make graphs.&#34;&#34;&#34;
+    graph_to: str = os.path.join(&#34;.&#34;, &#34;graphs&#34;)
+    &#34;&#34;&#34;where to save graphs to.&#34;&#34;&#34;
+    log_to: str = os.path.join(&#34;.&#34;, &#34;logs&#34;)
+    &#34;&#34;&#34;where to save logs to.&#34;&#34;&#34;
+
+    # MLLM only
+    temp: float = 0.0
+    prompting: typing.Literal[&#34;single&#34;, &#34;multi&#34;] = &#34;single&#34;
+    cot_enabled: bool = False
+    parallel: int = 1
+    &#34;&#34;&#34;Number of parallel requests per second to MLLM service providers.&#34;&#34;&#34;
+
+    # CVML only
+    slurm: bool = False
+    &#34;&#34;&#34;whether to use submitit to run jobs on a slurm cluster.&#34;&#34;&#34;
+    slurm_acct: str = &#34;&#34;
+    &#34;&#34;&#34;slurm account string.&#34;&#34;&#34;
+    batch_size: int = 256
+    &#34;&#34;&#34;Batch size for computer vision model.&#34;&#34;&#34;
+    n_workers: int = 8
+    &#34;&#34;&#34;Number of dataloader worker processes.&#34;&#34;&#34;
+    seed: int = 17
+    &#34;&#34;&#34;Radnom seed.&#34;&#34;&#34;
+
+    # Task-specific args
+    ages_data: str = &#34;&#34;
+    beluga_data: str = &#34;&#34;
+    birds525_data: str = &#34;&#34;
+    fishnet_data: str = &#34;&#34;
+    imagenet_data: str = &#34;&#34;
+    inat21_data: str = &#34;&#34;
+    iwildcam_data: str = &#34;&#34;
+    kabr_data: str = &#34;&#34;
+    leopard_data: str = &#34;&#34;
+    newt_data: str = &#34;&#34;
+    plankton_data: str = &#34;&#34;
+    plantnet_data: str = &#34;&#34;
+    rarespecies_data: str = &#34;&#34;
+
+    newt: Newt = dataclasses.field(default_factory=Newt)
+
+    def to_dict(self) -&gt; dict[str, object]:
+        return dataclasses.asdict(self)</code></pre>
+</details>
+<h3>Class variables</h3>
+<dl>
+<dt id="biobench.config.Experiment.ages_data"><code class="name">var <span class="ident">ages_data</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.config.Experiment.batch_size"><code class="name">var <span class="ident">batch_size</span> : int</code></dt>
+<dd>
+<div class="desc"><p>Batch size for computer vision model.</p></div>
+</dd>
+<dt id="biobench.config.Experiment.beluga_data"><code class="name">var <span class="ident">beluga_data</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.config.Experiment.birds525_data"><code class="name">var <span class="ident">birds525_data</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.config.Experiment.cot_enabled"><code class="name">var <span class="ident">cot_enabled</span> : bool</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.config.Experiment.debug"><code class="name">var <span class="ident">debug</span> : bool</code></dt>
+<dd>
+<div class="desc"><p>whether to run in debug mode.</p></div>
+</dd>
+<dt id="biobench.config.Experiment.device"><code class="name">var <span class="ident">device</span> : Literal['cpu', 'mps', 'cuda']</code></dt>
+<dd>
+<div class="desc"><p>which kind of accelerator to use.</p></div>
+</dd>
+<dt id="biobench.config.Experiment.fishnet_data"><code class="name">var <span class="ident">fishnet_data</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.config.Experiment.graph"><code class="name">var <span class="ident">graph</span> : bool</code></dt>
+<dd>
+<div class="desc"><p>whether to make graphs.</p></div>
+</dd>
+<dt id="biobench.config.Experiment.graph_to"><code class="name">var <span class="ident">graph_to</span> : str</code></dt>
+<dd>
+<div class="desc"><p>where to save graphs to.</p></div>
+</dd>
+<dt id="biobench.config.Experiment.imagenet_data"><code class="name">var <span class="ident">imagenet_data</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.config.Experiment.inat21_data"><code class="name">var <span class="ident">inat21_data</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.config.Experiment.iwildcam_data"><code class="name">var <span class="ident">iwildcam_data</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.config.Experiment.kabr_data"><code class="name">var <span class="ident">kabr_data</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.config.Experiment.leopard_data"><code class="name">var <span class="ident">leopard_data</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.config.Experiment.log_to"><code class="name">var <span class="ident">log_to</span> : str</code></dt>
+<dd>
+<div class="desc"><p>where to save logs to.</p></div>
+</dd>
+<dt id="biobench.config.Experiment.model"><code class="name">var <span class="ident">model</span> : <a title="biobench.config.Model" href="#biobench.config.Model">Model</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.config.Experiment.n_test"><code class="name">var <span class="ident">n_test</span> : int</code></dt>
+<dd>
+<div class="desc"><p>Number of test samples. Negative number means use all of them.</p></div>
+</dd>
+<dt id="biobench.config.Experiment.n_train"><code class="name">var <span class="ident">n_train</span> : int</code></dt>
+<dd>
+<div class="desc"><p>Number of maximum training samples. Negative number means use all of them.</p></div>
+</dd>
+<dt id="biobench.config.Experiment.n_workers"><code class="name">var <span class="ident">n_workers</span> : int</code></dt>
+<dd>
+<div class="desc"><p>Number of dataloader worker processes.</p></div>
+</dd>
+<dt id="biobench.config.Experiment.newt"><code class="name">var <span class="ident">newt</span> : <a title="biobench.config.Newt" href="#biobench.config.Newt">Newt</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.config.Experiment.newt_data"><code class="name">var <span class="ident">newt_data</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.config.Experiment.parallel"><code class="name">var <span class="ident">parallel</span> : int</code></dt>
+<dd>
+<div class="desc"><p>Number of parallel requests per second to MLLM service providers.</p></div>
+</dd>
+<dt id="biobench.config.Experiment.plankton_data"><code class="name">var <span class="ident">plankton_data</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.config.Experiment.plantnet_data"><code class="name">var <span class="ident">plantnet_data</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.config.Experiment.prompting"><code class="name">var <span class="ident">prompting</span> : Literal['single', 'multi']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.config.Experiment.rarespecies_data"><code class="name">var <span class="ident">rarespecies_data</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.config.Experiment.report_to"><code class="name">var <span class="ident">report_to</span> : str</code></dt>
+<dd>
+<div class="desc"><p>where to save reports to.</p></div>
+</dd>
+<dt id="biobench.config.Experiment.sampling"><code class="name">var <span class="ident">sampling</span> : Literal['uniform', 'balanced']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.config.Experiment.seed"><code class="name">var <span class="ident">seed</span> : int</code></dt>
+<dd>
+<div class="desc"><p>Radnom seed.</p></div>
+</dd>
+<dt id="biobench.config.Experiment.slurm"><code class="name">var <span class="ident">slurm</span> : bool</code></dt>
+<dd>
+<div class="desc"><p>whether to use submitit to run jobs on a slurm cluster.</p></div>
+</dd>
+<dt id="biobench.config.Experiment.slurm_acct"><code class="name">var <span class="ident">slurm_acct</span> : str</code></dt>
+<dd>
+<div class="desc"><p>slurm account string.</p></div>
+</dd>
+<dt id="biobench.config.Experiment.ssl"><code class="name">var <span class="ident">ssl</span> : bool</code></dt>
+<dd>
+<div class="desc"><p>Use SSL when connecting to remote servers to download checkpoints; use &ndash;no-ssl if your machine has certificate issues. See <code><a title="biobench.third_party_models.get_ssl" href="third_party_models.html#biobench.third_party_models.get_ssl">get_ssl()</a></code> for a discussion of how this works.</p></div>
+</dd>
+<dt id="biobench.config.Experiment.temp"><code class="name">var <span class="ident">temp</span> : float</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="biobench.config.Experiment.to_dict"><code class="name flex">
+<span>def <span class="ident">to_dict</span></span>(<span>self) ‑> dict[str, object]</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="biobench.config.Model"><code class="flex name class">
+<span>class <span class="ident">Model</span></span>
+<span>(</span><span>method: Literal['cvml', 'mllm'], org: str, ckpt: str)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Model(method: Literal['cvml', 'mllm'], org: str, ckpt: str)</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@dataclasses.dataclass(frozen=True)
+class Model:
+    method: typing.Literal[&#34;cvml&#34;, &#34;mllm&#34;]
+    org: str
+    ckpt: str</code></pre>
+</details>
+<h3>Class variables</h3>
+<dl>
+<dt id="biobench.config.Model.ckpt"><code class="name">var <span class="ident">ckpt</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.config.Model.method"><code class="name">var <span class="ident">method</span> : Literal['cvml', 'mllm']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.config.Model.org"><code class="name">var <span class="ident">org</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="biobench.config.Newt"><code class="flex name class">
+<span>class <span class="ident">Newt</span></span>
+<span>(</span><span>tasks: list[str] | None = None, include_clusters: list[str] | None = None, include_subclusters: list[str] | None = None, exclude_tasks: list[str] | None = None, exclude_clusters: list[str] | None = None, exclude_subclusters: list[str] | None = None)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Configuration options specific to the NeWT benchmark.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@dataclasses.dataclass(frozen=True)
+class Newt:
+    &#34;&#34;&#34;Configuration options specific to the NeWT benchmark.&#34;&#34;&#34;
+
+    # Filter options - can specify task names, clusters, sub-clusters, or combinations
+    tasks: list[str] | None = None
+    &#34;&#34;&#34;List of specific NeWT task names to run. If None, all tasks are included unless filtered by other criteria.&#34;&#34;&#34;
+
+    include_clusters: list[str] | None = None
+    &#34;&#34;&#34;List of NeWT task clusters to run (e.g., &#34;appearance&#34;, &#34;behavior&#34;, &#34;context&#34;). If None, all clusters are included.&#34;&#34;&#34;
+
+    include_subclusters: list[str] | None = None
+    &#34;&#34;&#34;List of NeWT task sub-clusters to run (e.g., &#34;species&#34;, &#34;age&#34;, &#34;health&#34;). If None, all sub-clusters are included.&#34;&#34;&#34;
+
+    exclude_tasks: list[str] | None = None
+    &#34;&#34;&#34;List of task names to exclude even if they match other criteria.&#34;&#34;&#34;
+
+    exclude_clusters: list[str] | None = None
+    &#34;&#34;&#34;List of cluster names to exclude even if they contain tasks that match other criteria.&#34;&#34;&#34;
+
+    exclude_subclusters: list[str] | None = None
+    &#34;&#34;&#34;List of sub-cluster names to exclude even if they contain tasks that match other criteria.&#34;&#34;&#34;</code></pre>
+</details>
+<h3>Class variables</h3>
+<dl>
+<dt id="biobench.config.Newt.exclude_clusters"><code class="name">var <span class="ident">exclude_clusters</span> : list[str] | None</code></dt>
+<dd>
+<div class="desc"><p>List of cluster names to exclude even if they contain tasks that match other criteria.</p></div>
+</dd>
+<dt id="biobench.config.Newt.exclude_subclusters"><code class="name">var <span class="ident">exclude_subclusters</span> : list[str] | None</code></dt>
+<dd>
+<div class="desc"><p>List of sub-cluster names to exclude even if they contain tasks that match other criteria.</p></div>
+</dd>
+<dt id="biobench.config.Newt.exclude_tasks"><code class="name">var <span class="ident">exclude_tasks</span> : list[str] | None</code></dt>
+<dd>
+<div class="desc"><p>List of task names to exclude even if they match other criteria.</p></div>
+</dd>
+<dt id="biobench.config.Newt.include_clusters"><code class="name">var <span class="ident">include_clusters</span> : list[str] | None</code></dt>
+<dd>
+<div class="desc"><p>List of NeWT task clusters to run (e.g., "appearance", "behavior", "context"). If None, all clusters are included.</p></div>
+</dd>
+<dt id="biobench.config.Newt.include_subclusters"><code class="name">var <span class="ident">include_subclusters</span> : list[str] | None</code></dt>
+<dd>
+<div class="desc"><p>List of NeWT task sub-clusters to run (e.g., "species", "age", "health"). If None, all sub-clusters are included.</p></div>
+</dd>
+<dt id="biobench.config.Newt.tasks"><code class="name">var <span class="ident">tasks</span> : list[str] | None</code></dt>
+<dd>
+<div class="desc"><p>List of specific NeWT task names to run. If None, all tasks are included unless filtered by other criteria.</p></div>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="biobench" href="index.html">biobench</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-functions">Functions</a></h3>
+<ul class="">
+<li><code><a title="biobench.config.load" href="#biobench.config.load">load</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="biobench.config.Experiment" href="#biobench.config.Experiment">Experiment</a></code></h4>
+<ul class="two-column">
+<li><code><a title="biobench.config.Experiment.ages_data" href="#biobench.config.Experiment.ages_data">ages_data</a></code></li>
+<li><code><a title="biobench.config.Experiment.batch_size" href="#biobench.config.Experiment.batch_size">batch_size</a></code></li>
+<li><code><a title="biobench.config.Experiment.beluga_data" href="#biobench.config.Experiment.beluga_data">beluga_data</a></code></li>
+<li><code><a title="biobench.config.Experiment.birds525_data" href="#biobench.config.Experiment.birds525_data">birds525_data</a></code></li>
+<li><code><a title="biobench.config.Experiment.cot_enabled" href="#biobench.config.Experiment.cot_enabled">cot_enabled</a></code></li>
+<li><code><a title="biobench.config.Experiment.debug" href="#biobench.config.Experiment.debug">debug</a></code></li>
+<li><code><a title="biobench.config.Experiment.device" href="#biobench.config.Experiment.device">device</a></code></li>
+<li><code><a title="biobench.config.Experiment.fishnet_data" href="#biobench.config.Experiment.fishnet_data">fishnet_data</a></code></li>
+<li><code><a title="biobench.config.Experiment.graph" href="#biobench.config.Experiment.graph">graph</a></code></li>
+<li><code><a title="biobench.config.Experiment.graph_to" href="#biobench.config.Experiment.graph_to">graph_to</a></code></li>
+<li><code><a title="biobench.config.Experiment.imagenet_data" href="#biobench.config.Experiment.imagenet_data">imagenet_data</a></code></li>
+<li><code><a title="biobench.config.Experiment.inat21_data" href="#biobench.config.Experiment.inat21_data">inat21_data</a></code></li>
+<li><code><a title="biobench.config.Experiment.iwildcam_data" href="#biobench.config.Experiment.iwildcam_data">iwildcam_data</a></code></li>
+<li><code><a title="biobench.config.Experiment.kabr_data" href="#biobench.config.Experiment.kabr_data">kabr_data</a></code></li>
+<li><code><a title="biobench.config.Experiment.leopard_data" href="#biobench.config.Experiment.leopard_data">leopard_data</a></code></li>
+<li><code><a title="biobench.config.Experiment.log_to" href="#biobench.config.Experiment.log_to">log_to</a></code></li>
+<li><code><a title="biobench.config.Experiment.model" href="#biobench.config.Experiment.model">model</a></code></li>
+<li><code><a title="biobench.config.Experiment.n_test" href="#biobench.config.Experiment.n_test">n_test</a></code></li>
+<li><code><a title="biobench.config.Experiment.n_train" href="#biobench.config.Experiment.n_train">n_train</a></code></li>
+<li><code><a title="biobench.config.Experiment.n_workers" href="#biobench.config.Experiment.n_workers">n_workers</a></code></li>
+<li><code><a title="biobench.config.Experiment.newt" href="#biobench.config.Experiment.newt">newt</a></code></li>
+<li><code><a title="biobench.config.Experiment.newt_data" href="#biobench.config.Experiment.newt_data">newt_data</a></code></li>
+<li><code><a title="biobench.config.Experiment.parallel" href="#biobench.config.Experiment.parallel">parallel</a></code></li>
+<li><code><a title="biobench.config.Experiment.plankton_data" href="#biobench.config.Experiment.plankton_data">plankton_data</a></code></li>
+<li><code><a title="biobench.config.Experiment.plantnet_data" href="#biobench.config.Experiment.plantnet_data">plantnet_data</a></code></li>
+<li><code><a title="biobench.config.Experiment.prompting" href="#biobench.config.Experiment.prompting">prompting</a></code></li>
+<li><code><a title="biobench.config.Experiment.rarespecies_data" href="#biobench.config.Experiment.rarespecies_data">rarespecies_data</a></code></li>
+<li><code><a title="biobench.config.Experiment.report_to" href="#biobench.config.Experiment.report_to">report_to</a></code></li>
+<li><code><a title="biobench.config.Experiment.sampling" href="#biobench.config.Experiment.sampling">sampling</a></code></li>
+<li><code><a title="biobench.config.Experiment.seed" href="#biobench.config.Experiment.seed">seed</a></code></li>
+<li><code><a title="biobench.config.Experiment.slurm" href="#biobench.config.Experiment.slurm">slurm</a></code></li>
+<li><code><a title="biobench.config.Experiment.slurm_acct" href="#biobench.config.Experiment.slurm_acct">slurm_acct</a></code></li>
+<li><code><a title="biobench.config.Experiment.ssl" href="#biobench.config.Experiment.ssl">ssl</a></code></li>
+<li><code><a title="biobench.config.Experiment.temp" href="#biobench.config.Experiment.temp">temp</a></code></li>
+<li><code><a title="biobench.config.Experiment.to_dict" href="#biobench.config.Experiment.to_dict">to_dict</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="biobench.config.Model" href="#biobench.config.Model">Model</a></code></h4>
+<ul class="">
+<li><code><a title="biobench.config.Model.ckpt" href="#biobench.config.Model.ckpt">ckpt</a></code></li>
+<li><code><a title="biobench.config.Model.method" href="#biobench.config.Model.method">method</a></code></li>
+<li><code><a title="biobench.config.Model.org" href="#biobench.config.Model.org">org</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="biobench.config.Newt" href="#biobench.config.Newt">Newt</a></code></h4>
+<ul class="two-column">
+<li><code><a title="biobench.config.Newt.exclude_clusters" href="#biobench.config.Newt.exclude_clusters">exclude_clusters</a></code></li>
+<li><code><a title="biobench.config.Newt.exclude_subclusters" href="#biobench.config.Newt.exclude_subclusters">exclude_subclusters</a></code></li>
+<li><code><a title="biobench.config.Newt.exclude_tasks" href="#biobench.config.Newt.exclude_tasks">exclude_tasks</a></code></li>
+<li><code><a title="biobench.config.Newt.include_clusters" href="#biobench.config.Newt.include_clusters">include_clusters</a></code></li>
+<li><code><a title="biobench.config.Newt.include_subclusters" href="#biobench.config.Newt.include_subclusters">include_subclusters</a></code></li>
+<li><code><a title="biobench.config.Newt.tasks" href="#biobench.config.Newt.tasks">tasks</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.1</a>.</p>
+</footer>
+</body>
+</html>

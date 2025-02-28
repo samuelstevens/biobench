@@ -3,13 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
-<meta name="generator" content="pdoc3 0.11.5">
+<meta name="generator" content="pdoc3 0.11.1">
 <title>biobench.mllms API documentation</title>
 <meta name="description" content="">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
-<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin-bottom:1em}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
 <style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
 <style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
 <script type="text/x-mathjax-config">MathJax.Hub.Config({ tex2jax: { inlineMath: [ ['$','$'], ["\\(","\\)"] ], processEscapes: true } });</script>
@@ -18,17 +18,6 @@
 <script>window.addEventListener('DOMContentLoaded', () => {
 hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
 hljs.highlightAll();
-/* Collapse source docstrings */
-setTimeout(() => {
-[...document.querySelectorAll('.hljs.language-python > .hljs-string')]
-.filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
-.forEach(el => {
-let d = document.createElement('details');
-d.classList.add('hljs-string');
-d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
-el.replaceWith(d);
-});
-}, 100);
 })</script>
 </head>
 <body>
@@ -47,177 +36,44 @@ el.replaceWith(d);
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
 <dt id="biobench.mllms.fits"><code class="name flex">
-<span>def <span class="ident">fits</span></span>(<span>args: <a title="biobench.interfaces.ModelArgsMllm" href="interfaces.html#biobench.interfaces.ModelArgsMllm">ModelArgsMllm</a>,<br>examples: list[<a title="biobench.mllms.Example" href="#biobench.mllms.Example">Example</a>],<br>image_b64: str,<br>user: str) ‑> bool</span>
+<span>def <span class="ident">fits</span></span>(<span>cfg: <a title="biobench.config.Experiment" href="config.html#biobench.config.Experiment">Experiment</a>, examples: list[<a title="biobench.mllms.Example" href="#biobench.mllms.Example">Example</a>], img_b64: str, user: str) ‑> bool</span>
 </code></dt>
 <dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def fits(
-    args: interfaces.ModelArgsMllm,
-    examples: list[Example],
-    image_b64: str,
-    user: str,
-) -&gt; bool:
-    max_tokens = get_max_tokens(args)
-    messages = make_prompt(args, examples, image_b64, user)
-    n_tokens = litellm.token_counter(model=args.ckpt, messages=messages)
-    return n_tokens &lt;= max_tokens</code></pre>
-</details>
 <div class="desc"></div>
 </dd>
-<dt id="biobench.mllms.get_max_tokens"><code class="name flex">
-<span>def <span class="ident">get_max_tokens</span></span>(<span>args: <a title="biobench.interfaces.ModelArgsMllm" href="interfaces.html#biobench.interfaces.ModelArgsMllm">ModelArgsMllm</a>) ‑> int</span>
+<dt id="biobench.mllms.list_mllms"><code class="name flex">
+<span>def <span class="ident">list_mllms</span></span>(<span>) ‑> list[tuple[str, str]]</span>
 </code></dt>
 <dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def get_max_tokens(args: interfaces.ModelArgsMllm) -&gt; int:
-    try:
-        return litellm.get_max_tokens(args.ckpt)
-    except Exception:
-        pass
-
-    if args.ckpt.endswith(&#34;google/gemini-2.0-flash-001&#34;):
-        return 1_000_000
-    elif args.ckpt.endswith(&#34;google/gemini-flash-1.5-8b&#34;):
-        return 1_000_000
-    elif args.ckpt.endswith(&#34;qwen/qwen-2-vl-7b-instruct&#34;):
-        return 4_096
-    elif args.ckpt.endswith(&#34;meta-llama/llama-3.2-3b-instruct&#34;):
-        return 131_000
-    else:
-        err_msg = f&#34;Model &#39;{args.ckpt}&#39; isn&#39;t mapped yet by biobench or litellm.&#34;
-        raise ValueError(err_msg)</code></pre>
-</details>
-<div class="desc"></div>
+<div class="desc"><p>List all registered multimodal LLM models.</p></div>
+</dd>
+<dt id="biobench.mllms.load_mllm"><code class="name flex">
+<span>def <span class="ident">load_mllm</span></span>(<span>cfg: <a title="biobench.config.Model" href="config.html#biobench.config.Model">Model</a>) ‑> <a title="biobench.mllms.Mllm" href="#biobench.mllms.Mllm">Mllm</a></span>
+</code></dt>
+<dd>
+<div class="desc"><p>Load a multimodal LLM configuration.</p></div>
 </dd>
 <dt id="biobench.mllms.make_prompt"><code class="name flex">
-<span>def <span class="ident">make_prompt</span></span>(<span>args: <a title="biobench.interfaces.ModelArgsMllm" href="interfaces.html#biobench.interfaces.ModelArgsMllm">ModelArgsMllm</a>,<br>examples: list[<a title="biobench.mllms.Example" href="#biobench.mllms.Example">Example</a>],<br>image_b64: str,<br>user: str,<br>*,<br>system: str = '') ‑> list[object]</span>
+<span>def <span class="ident">make_prompt</span></span>(<span>cfg: <a title="biobench.config.Experiment" href="config.html#biobench.config.Experiment">Experiment</a>, examples: list[<a title="biobench.mllms.Example" href="#biobench.mllms.Example">Example</a>], img_b64: str, user: str, *, system: str = '') ‑> list[object]</span>
 </code></dt>
 <dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def make_prompt(
-    args: interfaces.ModelArgsMllm,
-    examples: list[Example],
-    image_b64: str,
-    user: str,
-    *,
-    system: str = &#34;&#34;,
-) -&gt; list[object]:
-    if args.prompts == &#34;single-turn&#34;:
-        return _make_single_turn_prompt(examples, image_b64, user, system=system)
-    elif args.prompt == &#34;multi-turn&#34;:
-        return _make_multi_turn_prompt(examples, image_b64, user, system=system)
-    else:
-        typing.assert_never(args.prompts)</code></pre>
-</details>
 <div class="desc"></div>
 </dd>
-<dt id="biobench.mllms.send"><code class="name flex">
-<span>async def <span class="ident">send</span></span>(<span>args: <a title="biobench.interfaces.ModelArgsMllm" href="interfaces.html#biobench.interfaces.ModelArgsMllm">ModelArgsMllm</a>,<br>examples: list[<a title="biobench.mllms.Example" href="#biobench.mllms.Example">Example</a>],<br>image_b64: str,<br>user: str,<br>*,<br>max_retries: int = 5,<br>system: str = '') ‑> str</span>
+<dt id="biobench.mllms.register_mllm"><code class="name flex">
+<span>def <span class="ident">register_mllm</span></span>(<span>model_org: str, mllm: <a title="biobench.mllms.Mllm" href="#biobench.mllms.Mllm">Mllm</a>)</span>
 </code></dt>
 <dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">async def send(
-    args: interfaces.ModelArgsMllm,
-    examples: list[Example],
-    image_b64: str,
-    user: str,
-    *,
-    max_retries: int = 5,
-    system: str = &#34;&#34;,
-) -&gt; str:
-    &#34;&#34;&#34;
-    Send a message to the LLM and get the response.
-
-    Args:
-        args: Args for the MLLM.
-        examples: Few-shot examples.
-        image: The input image.
-        user: The user request.
-
-    Returns:
-        The LLM&#39;s response as a string.
-
-    Raises:
-        ValueError: If required settings are missing
-        RuntimeError: If LLM call fails
-    &#34;&#34;&#34;
-
-    messages = make_prompt(args, examples, image_b64, user)
-
-    # Make LLM call with retries
-    last_err = None
-
-    for attempt in range(max_retries):
-        try:
-            if attempt &gt; 0:
-                # Exponential backoff: 2, 4, 8, 16, ... seconds
-                wait_time_s = 2**attempt
-                logger.warning(
-                    &#34;LLM call failed (attempt %d/%d): %s. Retrying in %d seconds.&#34;,
-                    attempt,
-                    max_retries,
-                    last_err,
-                    wait_time_s,
-                )
-                await asyncio.sleep(wait_time_s)
-
-            # Make LLM call
-            response = await litellm.acompletion(
-                model=args.ckpt,
-                messages=messages,
-                temperature=args.temp,
-                provider={&#34;quantizations&#34;: args.quantizations},
-            )
-        except RuntimeError as err:
-            last_err = err
-            if attempt == max_retries - 1:
-                raise RuntimeError(f&#34;Max retries ({max_retries}) exceeded: {err}&#34;)
-
-        except litellm.APIConnectionError as err:
-            should_retry = litellm._should_retry(err.status_code)
-            if should_retry:
-                last_err = err
-                if attempt == max_retries - 1:
-                    raise RuntimeError(f&#34;Max retries ({max_retries}) exceeded: {err}&#34;)
-                continue
-            raise RuntimeError(f&#34;Non-retryable API connection error: {err}&#34;) from err
-
-        except (litellm.APIError, litellm.BadRequestError) as err:
-            # For some godforsaken reason, litellm does not parse the rate-limit error response from OpenRouter.
-            # It just raises a litellm.APIError, which happens when it gets a bad response.
-            # So in the interest of not failing, if err.llm_provider is &#39;openrouter&#39; we assume it&#39;s a rate limit, and try again.
-            if getattr(err, &#34;llm_provider&#34;, None) == &#34;openrouter&#34;:
-                # Treat as rate limit for OpenRouter
-                last_err = err
-                if attempt == max_retries - 1:
-                    raise RuntimeError(f&#34;Max retries ({max_retries}) exceeded: {err}&#34;)
-                continue
-            # For other providers, raise the error
-            raise RuntimeError(f&#34;API error: {err}&#34;) from err
-
-        # Extract response and update history
-        response = response.choices[0].message.content
-        if response is None:
-            return &#34;&#34;
-        return response</code></pre>
-</details>
+<div class="desc"><p>Register a new multimodal LLM configuration.</p></div>
+</dd>
+<dt id="biobench.mllms.send"><code class="name flex">
+<span>async def <span class="ident">send</span></span>(<span>cfg: <a title="biobench.config.Experiment" href="config.html#biobench.config.Experiment">Experiment</a>, examples: list[<a title="biobench.mllms.Example" href="#biobench.mllms.Example">Example</a>], img_b64: str, user: str, *, max_retries: int = 5, system: str = '') ‑> str</span>
+</code></dt>
+<dd>
 <div class="desc"><p>Send a message to the LLM and get the response.</p>
 <h2 id="args">Args</h2>
 <dl>
-<dt><strong><code>args</code></strong></dt>
-<dd>Args for the MLLM.</dd>
+<dt><strong><code>cfg</code></strong></dt>
+<dd>TODO</dd>
 <dt><strong><code>examples</code></strong></dt>
 <dd>Few-shot examples.</dd>
 <dt><strong><code>image</code></strong></dt>
@@ -242,9 +98,10 @@ el.replaceWith(d);
 <dl>
 <dt id="biobench.mllms.Example"><code class="flex name class">
 <span>class <span class="ident">Example</span></span>
-<span>(</span><span>image_b64: str, user: str, assistant: str)</span>
+<span>(</span><span>img_b64: str, user: str, assistant: str)</span>
 </code></dt>
 <dd>
+<div class="desc"><p>Example(img_b64: str, user: str, assistant: str)</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -252,22 +109,63 @@ el.replaceWith(d);
 <pre><code class="python">@beartype.beartype
 @dataclasses.dataclass(frozen=True)
 class Example:
-    image_b64: str
+    img_b64: str
     user: str
     assistant: str</code></pre>
 </details>
-<div class="desc"><p>Example(image_b64: str, user: str, assistant: str)</p></div>
 <h3>Class variables</h3>
 <dl>
 <dt id="biobench.mllms.Example.assistant"><code class="name">var <span class="ident">assistant</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="biobench.mllms.Example.image_b64"><code class="name">var <span class="ident">image_b64</span> : str</code></dt>
+<dt id="biobench.mllms.Example.img_b64"><code class="name">var <span class="ident">img_b64</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
 <dt id="biobench.mllms.Example.user"><code class="name">var <span class="ident">user</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="biobench.mllms.Mllm"><code class="flex name class">
+<span>class <span class="ident">Mllm</span></span>
+<span>(</span><span>name: str, max_tokens: int, usd_per_m_input: float, usd_per_m_output: float, quantizations: list[str] = &lt;factory&gt;)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Mllm(name: str, max_tokens: int, usd_per_m_input: float, usd_per_m_output: float, quantizations: list[str] = <factory>)</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@dataclasses.dataclass(frozen=True)
+class Mllm:
+    name: str
+    max_tokens: int
+    usd_per_m_input: float
+    usd_per_m_output: float
+    quantizations: list[str] = dataclasses.field(default_factory=list)</code></pre>
+</details>
+<h3>Class variables</h3>
+<dl>
+<dt id="biobench.mllms.Mllm.max_tokens"><code class="name">var <span class="ident">max_tokens</span> : int</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.mllms.Mllm.name"><code class="name">var <span class="ident">name</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.mllms.Mllm.quantizations"><code class="name">var <span class="ident">quantizations</span> : list[str]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.mllms.Mllm.usd_per_m_input"><code class="name">var <span class="ident">usd_per_m_input</span> : float</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.mllms.Mllm.usd_per_m_output"><code class="name">var <span class="ident">usd_per_m_output</span> : float</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -278,6 +176,7 @@ class Example:
 <span>(</span><span>max_rate: int, window_s: float = 1.0)</span>
 </code></dt>
 <dd>
+<div class="desc"></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -307,35 +206,12 @@ class RateLimiter:
         # Add current timestamp
         self.timestamps.append(time.monotonic())</code></pre>
 </details>
-<div class="desc"></div>
 <h3>Methods</h3>
 <dl>
 <dt id="biobench.mllms.RateLimiter.acquire"><code class="name flex">
 <span>async def <span class="ident">acquire</span></span>(<span>self)</span>
 </code></dt>
 <dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">async def acquire(self):
-    now = time.monotonic()
-
-    # Remove timestamps older than our window
-    while self.timestamps and now - self.timestamps[0] &gt; self.window_s:
-        self.timestamps.popleft()
-
-    # If we&#39;re at max capacity, wait until oldest timestamp expires
-    if len(self.timestamps) &gt;= self.max_rate:
-        wait_time = self.timestamps[0] + self.window_s - now
-        if wait_time &gt; 0:
-            if wait_time &gt; 1.0:
-                logger.info(&#34;Sleeping for %.2f seconds.&#34;, wait_time)
-            await asyncio.sleep(wait_time)
-
-    # Add current timestamp
-    self.timestamps.append(time.monotonic())</code></pre>
-</details>
 <div class="desc"></div>
 </dd>
 </dl>
@@ -354,10 +230,12 @@ class RateLimiter:
 </ul>
 </li>
 <li><h3><a href="#header-functions">Functions</a></h3>
-<ul class="">
+<ul class="two-column">
 <li><code><a title="biobench.mllms.fits" href="#biobench.mllms.fits">fits</a></code></li>
-<li><code><a title="biobench.mllms.get_max_tokens" href="#biobench.mllms.get_max_tokens">get_max_tokens</a></code></li>
+<li><code><a title="biobench.mllms.list_mllms" href="#biobench.mllms.list_mllms">list_mllms</a></code></li>
+<li><code><a title="biobench.mllms.load_mllm" href="#biobench.mllms.load_mllm">load_mllm</a></code></li>
 <li><code><a title="biobench.mllms.make_prompt" href="#biobench.mllms.make_prompt">make_prompt</a></code></li>
+<li><code><a title="biobench.mllms.register_mllm" href="#biobench.mllms.register_mllm">register_mllm</a></code></li>
 <li><code><a title="biobench.mllms.send" href="#biobench.mllms.send">send</a></code></li>
 </ul>
 </li>
@@ -367,8 +245,18 @@ class RateLimiter:
 <h4><code><a title="biobench.mllms.Example" href="#biobench.mllms.Example">Example</a></code></h4>
 <ul class="">
 <li><code><a title="biobench.mllms.Example.assistant" href="#biobench.mllms.Example.assistant">assistant</a></code></li>
-<li><code><a title="biobench.mllms.Example.image_b64" href="#biobench.mllms.Example.image_b64">image_b64</a></code></li>
+<li><code><a title="biobench.mllms.Example.img_b64" href="#biobench.mllms.Example.img_b64">img_b64</a></code></li>
 <li><code><a title="biobench.mllms.Example.user" href="#biobench.mllms.Example.user">user</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="biobench.mllms.Mllm" href="#biobench.mllms.Mllm">Mllm</a></code></h4>
+<ul class="">
+<li><code><a title="biobench.mllms.Mllm.max_tokens" href="#biobench.mllms.Mllm.max_tokens">max_tokens</a></code></li>
+<li><code><a title="biobench.mllms.Mllm.name" href="#biobench.mllms.Mllm.name">name</a></code></li>
+<li><code><a title="biobench.mllms.Mllm.quantizations" href="#biobench.mllms.Mllm.quantizations">quantizations</a></code></li>
+<li><code><a title="biobench.mllms.Mllm.usd_per_m_input" href="#biobench.mllms.Mllm.usd_per_m_input">usd_per_m_input</a></code></li>
+<li><code><a title="biobench.mllms.Mllm.usd_per_m_output" href="#biobench.mllms.Mllm.usd_per_m_output">usd_per_m_output</a></code></li>
 </ul>
 </li>
 <li>
@@ -383,7 +271,7 @@ class RateLimiter:
 </nav>
 </main>
 <footer id="footer">
-<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.5</a>.</p>
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.1</a>.</p>
 </footer>
 </body>
 </html>

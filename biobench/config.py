@@ -76,7 +76,7 @@ class Experiment:
     """slurm account string."""
     batch_size: int = 256
     """Batch size for computer vision model."""
-    n_workers: int = 4
+    n_workers: int = 8
     """Number of dataloader worker processes."""
     seed: int = 17
     """Radnom seed."""
