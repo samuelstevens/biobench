@@ -422,3 +422,13 @@ Now I want to track
 
 And I need to try multi-turn prompts as well.
 Then just show me the freaking graphs baby!
+
+# 02/28/2025
+
+What needs to be done for this benchmark such that I can chill out and work on my ICCV submission?
+
+1. Run bigger MLLMs, on more tasks ($$$)
+2. Run more CV models on more tasks (bug with HF)
+3. Try different ML models? I think Tanya made the point that if your data is separable, it doesn't matter if you use SVMs, kNNs, linear probing, etc.
+
+Also I would like docs so that others can contribute technical work to this project if they want.
