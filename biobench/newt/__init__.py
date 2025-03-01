@@ -387,7 +387,12 @@ def benchmark_mllm(cfg: config.Experiment) -> list[reporting.Report]:
 
             preds = loop.run(run_all())
             report = reporting.Report(
-                f"NeWT::{train_dataset.task}", preds, preds[0].n_train, cfg
+                "newt",
+                preds,
+                preds[0].n_train,
+                cfg,
+                task_cluster=test_dataset.cluster,
+                task_subcluster=test_dataset.subcluster,
             )
             reports.append(report)
 

@@ -9,212 +9,100 @@ def _():
     import marimo as mo
     import math
     import sqlite3
+    import numpy as np
 
     import polars as pl
     import matplotlib.pyplot as plt
     import matplotlib as mpl
 
-    return math, mo, mpl, pl, plt, sqlite3
+    import sys
+
+    if "." not in sys.path:
+        sys.path.append(".")
+    import biobench.reporting
+
+    return biobench, math, mo, mpl, np, pl, plt, sqlite3, sys
 
 
 @app.cell
-def _(expand_json_column, pl, sqlite3):
+def _(pl, sqlite3):
     conn = sqlite3.connect("results/results.sqlite")
 
-    df = pl.read_database("SELECT * FROM results", conn)
-    df = expand_json_column(df, "exp_cfg")
-    df
-    return conn, df
+    preds_df = pl.read_database(
+        "SELECT results.task_name, results.task_cluster, results.task_subcluster, results.model_ckpt, predictions.score, predictions.n_train FROM results JOIN predictions ON results.rowid = predictions.result_id",
+        conn,
+    )
+    return conn, preds_df
 
 
 @app.cell
-def _(ALL_RGB01, df, math, pl, plt):
-    tasks = sorted(df.get_column("task_name").unique().to_list())
-    ncols = min(len(tasks), 3)
-    nrows = math.ceil(len(tasks) / ncols)
+def _(preds_df):
+    preds_df
+    return
 
-    fig, axes = plt.subplots(
-        ncols=ncols, nrows=nrows, squeeze=False, figsize=(6 * ncols, 6 * nrows)
+
+@app.cell
+def _(np, pl, preds_df):
+    def bootstrap_ci(scores, n_resamples=1000):
+        scores = np.array(scores)
+        # Vectorized bootstrap: sample all at once
+        boot_samples = np.random.choice(
+            scores, size=(n_resamples, len(scores)), replace=True
+        )
+        boot_means = boot_samples.mean(axis=1)
+        ci_lower = np.percentile(boot_means, 2.5)
+        ci_upper = np.percentile(boot_means, 97.5)
+        return np.mean(scores), ci_lower, ci_upper
+
+    def boot_func(scores):
+        mean, ci_lower, ci_upper = bootstrap_ci(scores, 1000)
+        return {"mean": mean, "ci_lower": ci_lower, "ci_upper": ci_upper}
+
+    df = (
+        preds_df.group_by(
+            "task_name", "task_cluster", "task_subcluster", "n_train", "model_ckpt"
+        )
+        .all()
+        .with_columns(pl.col("score").map_elements(boot_func).alias("boot"))
+        .with_columns(
+            mean=pl.col("boot").struct.field("mean"),
+            ci_lower=pl.col("boot").struct.field("ci_lower"),
+            ci_upper=pl.col("boot").struct.field("ci_upper"),
+        )
     )
 
-    # Plot performance for each MLLM with respect to number of training samples.
-    for task, ax in zip(tasks, axes.reshape(-1)):
-        for model, color in zip(
-            sorted(df.get_column("model_ckpt").unique().to_list()),
-            ALL_RGB01[1::2],
-        ):
-            for prompting in ("single",):
-                filtered_df = df.filter(
-                    (pl.col("model_ckpt") == model)
-                    & (pl.col("task_name") == task)
-                    & (pl.col("prompting") == prompting)
-                ).sort("n_train")
+    df
+    return boot_func, bootstrap_ci, df
 
-                lowers = filtered_df.get_column("confidence_lower").to_list()
-                means = filtered_df.get_column("mean_score").to_list()
-                uppers = filtered_df.get_column("confidence_upper").to_list()
-                xs = filtered_df.get_column("n_train").to_list()
 
-                linestyle = "--" if prompting == "multi" else "-"
+@app.cell
+def _(biobench, df, pl, plt):
+    fig, ax = plt.subplots()
+    for model, color in zip(
+        sorted(df.get_column("model_ckpt").unique().to_list()),
+        biobench.reporting.ALL_RGB01[1::2],
+    ):
+        filtered_df = df.filter((pl.col("model_ckpt") == model)).sort("n_train")
 
-                ax.plot(
-                    xs,
-                    means,
-                    marker="o",
-                    label=f"{model.removeprefix('openrouter/')}",
-                    color=color,
-                    linestyle=linestyle,
-                )
-                ax.fill_between(xs, lowers, uppers, alpha=0.2, color=color, linewidth=0)
-                ax.set_xlabel("Number of Training Samples")
-                ax.set_ylabel("Mean Accuracy")
-                ax.set_ylim(0, 1.05)
-                ax.set_title(f"{task}")
-                ax.set_xscale("symlog", linthresh=2)
-                ax.set_xlim(-0.15, 130)
+        means = filtered_df.get_column("mean").to_list()
+        lowers = filtered_df.get_column("ci_lower").to_list()
+        uppers = filtered_df.get_column("ci_upper").to_list()
+        xs = filtered_df.get_column("n_train").to_list()
 
-                ax.legend(loc="best")
+        ax.plot(xs, means, marker="o", label=model, color=color)
+        ax.fill_between(xs, lowers, uppers, alpha=0.2, color=color, linewidth=0)
+        ax.set_xlabel("Number of Training Samples")
+        ax.set_ylabel("Mean Accuracy")
+        ax.set_ylim(0, 1.05)
+        ax.set_title("Counting")
+        ax.set_xscale("symlog", linthresh=2)
+        ax.set_xlim(-0.15, 130)
+
+        ax.legend(loc="best")
 
     fig.tight_layout()
     fig
-    return (
-        ax,
-        axes,
-        color,
-        fig,
-        filtered_df,
-        linestyle,
-        lowers,
-        means,
-        model,
-        ncols,
-        nrows,
-        prompting,
-        task,
-        tasks,
-        uppers,
-        xs,
-    )
-
-
-@app.cell
-def _():
-    # https://coolors.co/palette/001219-005f73-0a9396-94d2bd-e9d8a6-ee9b00-ca6702-bb3e03-ae2012-9b2226
-
-    BLACK_HEX = "001219"
-    BLACK_RGB = (0, 18, 25)
-    BLACK_RGB01 = tuple(c / 256 for c in BLACK_RGB)
-
-    BLUE_HEX = "005f73"
-    BLUE_RGB = (0, 95, 115)
-    BLUE_RGB01 = tuple(c / 256 for c in BLUE_RGB)
-
-    CYAN_HEX = "0a9396"
-    CYAN_RGB = (10, 147, 150)
-    CYAN_RGB01 = tuple(c / 256 for c in CYAN_RGB)
-
-    SEA_HEX = "94d2bd"
-    SEA_RGB = (148, 210, 189)
-    SEA_RGB01 = tuple(c / 256 for c in SEA_RGB)
-
-    CREAM_HEX = "e9d8a6"
-    CREAM_RGB = (233, 216, 166)
-    CREAM_RGB01 = tuple(c / 256 for c in CREAM_RGB)
-
-    GOLD_HEX = "ee9b00"
-    GOLD_RGB = (238, 155, 0)
-    GOLD_RGB01 = tuple(c / 256 for c in GOLD_RGB)
-
-    ORANGE_HEX = "ca6702"
-    ORANGE_RGB = (202, 103, 2)
-    ORANGE_RGB01 = tuple(c / 256 for c in ORANGE_RGB)
-
-    RUST_HEX = "bb3e03"
-    RUST_RGB = (187, 62, 3)
-    RUST_RGB01 = tuple(c / 256 for c in RUST_RGB)
-
-    SCARLET_HEX = "ae2012"
-    SCARLET_RGB = (174, 32, 18)
-    SCARLET_RGB01 = tuple(c / 256 for c in SCARLET_RGB)
-
-    RED_HEX = "9b2226"
-    RED_RGB = (155, 34, 38)
-    RED_RGB01 = tuple(c / 256 for c in RED_RGB)
-
-    ALL_HEX = [
-        BLACK_HEX,
-        BLUE_HEX,
-        CYAN_HEX,
-        SEA_HEX,
-        CREAM_HEX,
-        GOLD_HEX,
-        ORANGE_HEX,
-        RUST_HEX,
-        SCARLET_HEX,
-        RED_HEX,
-    ]
-
-    ALL_RGB01 = [
-        BLACK_RGB01,
-        BLUE_RGB01,
-        CYAN_RGB01,
-        SEA_RGB01,
-        CREAM_RGB01,
-        GOLD_RGB01,
-        ORANGE_RGB01,
-        RUST_RGB01,
-        SCARLET_RGB01,
-        RED_RGB01,
-    ]
-    return (
-        ALL_HEX,
-        ALL_RGB01,
-        BLACK_HEX,
-        BLACK_RGB,
-        BLACK_RGB01,
-        BLUE_HEX,
-        BLUE_RGB,
-        BLUE_RGB01,
-        CREAM_HEX,
-        CREAM_RGB,
-        CREAM_RGB01,
-        CYAN_HEX,
-        CYAN_RGB,
-        CYAN_RGB01,
-        GOLD_HEX,
-        GOLD_RGB,
-        GOLD_RGB01,
-        ORANGE_HEX,
-        ORANGE_RGB,
-        ORANGE_RGB01,
-        RED_HEX,
-        RED_RGB,
-        RED_RGB01,
-        RUST_HEX,
-        RUST_RGB,
-        RUST_RGB01,
-        SCARLET_HEX,
-        SCARLET_RGB,
-        SCARLET_RGB01,
-        SEA_HEX,
-        SEA_RGB,
-        SEA_RGB01,
-    )
-
-
-@app.cell
-def _(pl):
-    def expand_json_column(df, column: str):
-        original_keys = set(df.columns)
-        df = (
-            df.with_columns(pl.col(column).str.json_decode())
-            .with_columns(pl.col(column).name.prefix_fields(f"{column}."))
-            .unnest(column)
-        )
-        new_keys = set(df.columns) - original_keys
-        return df
-
-    return (expand_json_column,)
+    return ax, color, fig, filtered_df, lowers, means, model, uppers, xs
 
 
 if __name__ == "__main__":

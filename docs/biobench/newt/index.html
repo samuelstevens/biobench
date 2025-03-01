@@ -3,13 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
-<meta name="generator" content="pdoc3 0.11.1">
+<meta name="generator" content="pdoc3 0.11.5">
 <title>biobench.newt API documentation</title>
 <meta name="description" content="NeWT: Natural World Tasks …">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
-<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin-bottom:1em}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
 <style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
 <style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
 <script type="text/x-mathjax-config">MathJax.Hub.Config({ tex2jax: { inlineMath: [ ['$','$'], ["\\(","\\)"] ], processEscapes: true } });</script>
@@ -18,6 +18,17 @@
 <script>window.addEventListener('DOMContentLoaded', () => {
 hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
 hljs.highlightAll();
+/* Collapse source docstrings */
+setTimeout(() => {
+[...document.querySelectorAll('.hljs.language-python > .hljs-string')]
+.filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
+.forEach(el => {
+let d = document.createElement('details');
+d.classList.add('hljs-string');
+d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
+el.replaceWith(d);
+});
+}, 100);
 })</script>
 </head>
 <body>
@@ -58,31 +69,404 @@ We aggregate scores across all 164 tasks.</p>
 <span>def <span class="ident">benchmark_cvml</span></span>(<span>cfg: <a title="biobench.config.Experiment" href="../config.html#biobench.config.Experiment">Experiment</a>) ‑> list[<a title="biobench.reporting.Report" href="../reporting.html#biobench.reporting.Report">Report</a>]</span>
 </code></dt>
 <dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@beartype.beartype
+def benchmark_cvml(cfg: config.Experiment) -&gt; list[reporting.Report]:
+    rng = random.Random(cfg.seed)
+
+    backbone = cvml.load_vision_backbone(cfg.model)
+
+    reports = []
+    for train_dataset, test_dataset in helpers.progress(
+        get_all_tasks_cvml(cfg, backbone, rng), every=1, desc=&#34;tasks&#34;
+    ):
+        x_train = train_dataset.x.numpy()
+        y_train = train_dataset.y.numpy()
+        x_test = test_dataset.x.numpy()
+        y_test = test_dataset.y.numpy()
+
+        n_train = len(x_train)
+        assert n_train &gt;= 10
+
+        x_mean = x_train.mean(axis=0, keepdims=True)
+
+        x_train = x_train - x_mean
+        x_train = l2_normalize(x_train)
+
+        x_test = x_test - x_mean
+        x_test = l2_normalize(x_test)
+
+        svc = init_svc(n_train)
+        svc.fit(x_train, y_train)
+
+        y_pred = svc.predict(x_test)
+
+        info = {
+            &#34;task&#34;: test_dataset.task,
+            &#34;cluster&#34;: test_dataset.cluster,
+            &#34;subcluster&#34;: test_dataset.subcluster,
+        }
+
+        preds = [
+            reporting.Prediction(str(id), float(pred == true), n_train, info)
+            for id, pred, true in zip(test_dataset.img_ids, y_pred, y_test)
+        ]
+        report = reporting.Report(
+            f&#34;NeWT::{test_dataset.task}&#34;, preds, preds[0].n_train, cfg
+        )
+        reports.append(report)
+
+    return reports</code></pre>
+</details>
 <div class="desc"></div>
 </dd>
 <dt id="biobench.newt.benchmark_mllm"><code class="name flex">
 <span>def <span class="ident">benchmark_mllm</span></span>(<span>cfg: <a title="biobench.config.Experiment" href="../config.html#biobench.config.Experiment">Experiment</a>) ‑> list[<a title="biobench.reporting.Report" href="../reporting.html#biobench.reporting.Report">Report</a>]</span>
 </code></dt>
 <dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@beartype.beartype
+def benchmark_mllm(cfg: config.Experiment) -&gt; list[reporting.Report]:
+    rng = random.Random(cfg.seed)
+
+    reports = []
+    with asyncio.Runner() as loop:
+        limiter = mllms.RateLimiter(cfg.parallel)
+        semaphore = asyncio.Semaphore(cfg.parallel)
+
+        for train_dataset, test_dataset in get_all_tasks_mllm(cfg):
+            # We load all the training samples into memory right away because they will be re-used over and over again.
+            # Test samples are loaded one by one on demand.
+            train_indices = list(range(len(train_dataset)))
+            i_train = rng.sample(train_indices, k=min(cfg.n_train, len(train_indices)))
+
+            train_examples = [train_dataset[i].to_example(rng) for i in i_train]
+            if train_examples:
+                logger.info(&#34;Loaded %d training examples.&#34;, len(train_examples))
+
+            @beartype.beartype
+            async def run_one(i: int) -&gt; reporting.Prediction:
+                async with semaphore:
+                    example = test_dataset[i]
+
+                    # Set up prompt.
+                    n = 0
+                    fewshot = []
+                    while (
+                        mllms.fits(
+                            cfg, fewshot, example.img_b64, example.make_user(rng)
+                        )
+                    ) and (cfg.n_train &lt; 0 or n &lt; cfg.n_train):
+                        # Add another example.
+                        n += 1
+                        fewshot = train_examples[:n]
+
+                    # Only shuffle once.
+                    rng.shuffle(fewshot)
+
+                    await limiter.acquire()
+                    assistant = await mllms.send(
+                        cfg, fewshot, example.img_b64, example.make_user(rng)
+                    )
+                    pred_y, parsed = example.parse_assistant(assistant)
+
+                    return reporting.Prediction(
+                        example.img_id,
+                        float(pred_y == example.label),
+                        len(fewshot),
+                        info={
+                            &#34;task&#34;: test_dataset.task,
+                            &#34;cluster&#34;: test_dataset.cluster,
+                            &#34;subcluster&#34;: test_dataset.subcluster,
+                            &#34;parsed&#34;: parsed,
+                        },
+                    )
+
+            @beartype.beartype
+            async def run_all() -&gt; list[reporting.Prediction]:
+                if cfg.debug:
+                    logger.info(
+                        &#34;Using the first 10 examples out of %d.&#34;, len(test_dataset)
+                    )
+                    test_i = list(range(10))
+                elif cfg.n_test &gt;= 0 and cfg.n_test &lt; len(test_dataset):
+                    logger.info(
+                        &#34;Using %d random examples out of %d.&#34;,
+                        cfg.n_test,
+                        len(test_dataset),
+                    )
+                    test_i = rng.sample(range(len(test_dataset)), k=cfg.n_test)
+                else:
+                    logger.info(
+                        &#34;Using entire test set (%d examples).&#34;, len(test_dataset)
+                    )
+                    test_i = list(range(len(test_dataset)))
+
+                jobs = [asyncio.create_task(run_one(i)) for i in test_i]
+                preds = []
+                for job in helpers.progress(jobs, desc=train_dataset.task):
+                    pred: reporting.Prediction = await job
+                    preds.append(pred)
+                return preds
+
+            preds = loop.run(run_all())
+            report = reporting.Report(
+                &#34;newt&#34;,
+                preds,
+                preds[0].n_train,
+                cfg,
+                task_cluster=test_dataset.cluster,
+                task_subcluster=test_dataset.subcluster,
+            )
+            reports.append(report)
+
+    return reports</code></pre>
+</details>
 <div class="desc"></div>
 </dd>
 <dt id="biobench.newt.get_all_tasks_cvml"><code class="name flex">
-<span>def <span class="ident">get_all_tasks_cvml</span></span>(<span>cfg: <a title="biobench.config.Experiment" href="../config.html#biobench.config.Experiment">Experiment</a>, backbone: <a title="biobench.cvml.VisionBackbone" href="../cvml.html#biobench.cvml.VisionBackbone">VisionBackbone</a>, rng: random.Random) ‑> collections.abc.Iterator[tuple[<a title="biobench.newt.FeatureDataset" href="#biobench.newt.FeatureDataset">FeatureDataset</a>, <a title="biobench.newt.FeatureDataset" href="#biobench.newt.FeatureDataset">FeatureDataset</a>]]</span>
+<span>def <span class="ident">get_all_tasks_cvml</span></span>(<span>cfg: <a title="biobench.config.Experiment" href="../config.html#biobench.config.Experiment">Experiment</a>,<br>backbone: <a title="biobench.cvml.VisionBackbone" href="../cvml.html#biobench.cvml.VisionBackbone">VisionBackbone</a>,<br>rng: random.Random) ‑> Iterator[tuple[<a title="biobench.newt.FeatureDataset" href="#biobench.newt.FeatureDataset">FeatureDataset</a>, <a title="biobench.newt.FeatureDataset" href="#biobench.newt.FeatureDataset">FeatureDataset</a>]]</span>
 </code></dt>
 <dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
+@torch.no_grad()
+def get_all_tasks_cvml(
+    cfg: config.Experiment, backbone: cvml.VisionBackbone, rng: random.Random
+) -&gt; collections.abc.Iterator[tuple[FeatureDataset, FeatureDataset]]:
+    &#34;&#34;&#34; &#34;&#34;&#34;
+    labels_csv_name = &#34;newt2021_labels.csv&#34;
+    labels_csv_path = os.path.join(cfg.newt_data, labels_csv_name)
+    images_dir_name = &#34;newt2021_images&#34;
+    images_dir_path = os.path.join(cfg.newt_data, images_dir_name)
+
+    if not os.path.isfile(labels_csv_path):
+        msg = f&#34;Path &#39;{labels_csv_path}&#39; doesn&#39;t exist. Did you download the Newt dataset? See the docstring at the top of this file for instructions. If you did download it, pass the path with &#39;--data&#39;; see --help for more.&#34;
+        raise RuntimeError(msg)
+
+    df = pl.read_csv(labels_csv_path).with_row_index()
+
+    img_transform = backbone.make_img_transform()
+    backbone = torch.compile(backbone.to(cfg.device))
+
+    for task in df.get_column(&#34;task&#34;).unique():
+        task_df = df.filter(pl.col(&#34;task&#34;) == task)
+
+        cluster = task_df.item(row=0, column=&#34;task_cluster&#34;)
+        subcluster = task_df.item(row=0, column=&#34;task_subcluster&#34;)
+
+        if not include_task(cfg.newt, task, cluster, subcluster):
+            continue
+
+        # Split indices based on train/test split in the dataset using native Polars methods.
+        train_rows = (
+            task_df.filter(pl.col(&#34;split&#34;) == &#34;train&#34;).select(&#34;id&#34;, &#34;label&#34;).rows()
+        )
+        test_rows = (
+            task_df.filter(pl.col(&#34;split&#34;) != &#34;train&#34;).select(&#34;id&#34;, &#34;label&#34;).rows()
+        )
+
+        # Apply n_train and n_test limits if specified
+        if cfg.n_train == 0:
+            train_rows = []
+            train_ids, train_labels = (), ()
+        elif cfg.n_train &gt; 0 and len(train_rows) &gt; cfg.n_train:
+            train_rows = rng.sample(train_rows, cfg.n_train)
+            train_ids, train_labels = zip(*train_rows)
+        else:
+            train_ids, train_labels = zip(*train_rows)
+
+        if cfg.n_test &gt; 0 and len(test_rows) &gt; cfg.n_test:
+            test_rows = rng.sample(test_rows, cfg.n_test)
+            test_ids, test_labels = zip(*test_rows)
+        else:
+            test_ids, test_labels = zip(*test_rows)
+
+        dataset = ImageDataset(
+            images_dir_path,
+            train_ids + test_ids,
+            train_labels + test_labels,
+            img_transform,
+        )
+        dataloader = torch.utils.data.DataLoader(
+            dataset, batch_size=cfg.batch_size, num_workers=cfg.n_workers, shuffle=False
+        )
+
+        all_features, all_labels, all_ids = [], [], []
+        for batch in helpers.progress(dataloader, desc=task):
+            imgs = batch[&#34;img&#34;].to(cfg.device)
+
+            with torch.amp.autocast(&#34;cuda&#34;):
+                features = backbone.img_encode(imgs).img_features
+                features = torch.nn.functional.normalize(features, dim=-1)
+                all_features.append(features.cpu())
+
+            all_ids.extend(batch[&#34;img_id&#34;])
+            all_labels.extend(batch[&#34;label&#34;])
+
+        all_features = torch.cat(all_features, dim=0).cpu()
+        all_labels = torch.tensor(all_labels)
+
+        n_train = len(train_ids)
+        n_test = len(test_ids)
+        assert n_train + n_test == len(all_ids)
+
+        train_dataset = FeatureDataset(
+            all_ids[:n_train],
+            all_features[:n_train],
+            all_labels[:n_train],
+            task=task,
+            cluster=cluster,
+            subcluster=subcluster,
+        )
+        test_dataset = FeatureDataset(
+            all_ids[n_train:],
+            all_features[n_train:],
+            all_labels[n_train:],
+            task=task,
+            cluster=cluster,
+            subcluster=subcluster,
+        )
+
+        yield (train_dataset, test_dataset)</code></pre>
+</details>
 <div class="desc"></div>
 </dd>
 <dt id="biobench.newt.get_all_tasks_mllm"><code class="name flex">
-<span>def <span class="ident">get_all_tasks_mllm</span></span>(<span>cfg: <a title="biobench.config.Experiment" href="../config.html#biobench.config.Experiment">Experiment</a>) ‑> collections.abc.Iterator[tuple[<a title="biobench.newt.DatasetMllm" href="#biobench.newt.DatasetMllm">DatasetMllm</a>, <a title="biobench.newt.DatasetMllm" href="#biobench.newt.DatasetMllm">DatasetMllm</a>]]</span>
+<span>def <span class="ident">get_all_tasks_mllm</span></span>(<span>cfg: <a title="biobench.config.Experiment" href="../config.html#biobench.config.Experiment">Experiment</a>) ‑> Iterator[tuple[<a title="biobench.newt.DatasetMllm" href="#biobench.newt.DatasetMllm">DatasetMllm</a>, <a title="biobench.newt.DatasetMllm" href="#biobench.newt.DatasetMllm">DatasetMllm</a>]]</span>
 </code></dt>
 <dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
+def get_all_tasks_mllm(
+    cfg: config.Experiment,
+) -&gt; collections.abc.Iterator[tuple[DatasetMllm, DatasetMllm]]:
+    &#34;&#34;&#34;
+    Get all tasks as pairs of (train_dataset, test_dataset).
+    Each dataset is a DatasetMllm instance.
+    &#34;&#34;&#34;
+    labels_csv_name = &#34;newt2021_labels.csv&#34;
+    labels_csv_path = os.path.join(cfg.newt_data, labels_csv_name)
+    images_dir_name = &#34;newt2021_images&#34;
+    images_dir_path = os.path.join(cfg.newt_data, images_dir_name)
+
+    if not os.path.isfile(labels_csv_path):
+        msg = f&#34;Path &#39;{labels_csv_path}&#39; doesn&#39;t exist. Did you download the Newt dataset? See the docstring at the top of this file for instructions. If you did download it, pass the path with &#39;--data&#39;; see --help for more.&#34;
+        raise RuntimeError(msg)
+
+    df = pl.read_csv(labels_csv_path).with_row_index()
+
+    for task_name in df.get_column(&#34;task&#34;).unique():
+        task_df = df.filter(pl.col(&#34;task&#34;) == task_name)
+
+        # Get the cluster and sub-cluster for this task
+        cluster = task_df.item(row=0, column=&#34;task_cluster&#34;)
+        subcluster = task_df.item(row=0, column=&#34;task_subcluster&#34;)
+
+        if not include_task(cfg.newt, task_name, cluster, subcluster):
+            continue
+
+        task_idx = task_df.get_column(&#34;index&#34;).to_numpy()
+        is_train = (
+            task_df.select(pl.col(&#34;split&#34;) == &#34;train&#34;).get_column(&#34;split&#34;).to_numpy()
+        )
+
+        train_dataset = DatasetMllm(
+            task=task_name,
+            cluster=cluster,
+            subcluster=subcluster,
+            indices=task_idx[is_train],
+            root=images_dir_path,
+            df=df,
+            is_train=True,
+        )
+
+        test_dataset = DatasetMllm(
+            task=task_name,
+            cluster=cluster,
+            subcluster=subcluster,
+            indices=task_idx[~is_train],
+            root=images_dir_path,
+            df=df,
+            is_train=False,
+        )
+
+        yield (train_dataset, test_dataset)</code></pre>
+</details>
 <div class="desc"><p>Get all tasks as pairs of (train_dataset, test_dataset).
 Each dataset is a DatasetMllm instance.</p></div>
 </dd>
 <dt id="biobench.newt.include_task"><code class="name flex">
-<span>def <span class="ident">include_task</span></span>(<span>cfg: <a title="biobench.config.Newt" href="../config.html#biobench.config.Newt">Newt</a>, task: str, cluster: str, subcluster: str | None) ‑> bool</span>
+<span>def <span class="ident">include_task</span></span>(<span>cfg: <a title="biobench.config.Newt" href="../config.html#biobench.config.Newt">Newt</a>,<br>task: str,<br>cluster: str,<br>subcluster: str | None) ‑> bool</span>
 </code></dt>
 <dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@beartype.beartype
+def include_task(
+    cfg: config.Newt, task: str, cluster: str, subcluster: str | None
+) -&gt; bool:
+    &#34;&#34;&#34;
+    Determine if a task should be included based on the configuration.
+
+    Args:
+        cfg: The newt configuration
+        task: The name of the task
+        cluster: The cluster the task belongs to
+        subcluster: The sub-cluster the task belongs to (may be None)
+
+    Returns:
+        True if the task should be included, False otherwise
+    &#34;&#34;&#34;
+    # Check explicit exclusions first
+    if cfg.exclude_tasks and task in cfg.exclude_tasks:
+        return False
+
+    if cfg.exclude_clusters and cluster in cfg.exclude_clusters:
+        return False
+
+    if cfg.exclude_subclusters and subcluster and subcluster in cfg.exclude_subclusters:
+        return False
+
+    # Check inclusions - if any inclusion filter is specified, the task must match at least one
+    has_inclusion_filter = False
+
+    # Check specific tasks
+    if cfg.tasks:
+        has_inclusion_filter = True
+        if task in cfg.tasks:
+            return True
+
+    # Check clusters
+    if cfg.include_clusters:
+        has_inclusion_filter = True
+        if cluster in cfg.include_clusters:
+            return True
+
+    # Check subclusters
+    if cfg.include_subclusters and subcluster:
+        has_inclusion_filter = True
+        if subcluster in cfg.include_subclusters:
+            return True
+
+    # If no inclusion filters were specified, include by default
+    # Otherwise, exclude because it didn&#39;t match any inclusion filter
+    return not has_inclusion_filter</code></pre>
+</details>
 <div class="desc"><p>Determine if a task should be included based on the configuration.</p>
 <h2 id="args">Args</h2>
 <dl>
@@ -102,12 +486,46 @@ Each dataset is a DatasetMllm instance.</p></div>
 <span>def <span class="ident">init_svc</span></span>(<span>n_train: int)</span>
 </code></dt>
 <dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def init_svc(n_train: int):
+    &#34;&#34;&#34;Create a new, randomly initialized SVM with a random hyperparameter search over kernel, C and gamma. It uses only 16 jobs in parallel to prevent overloading the CPUs on a shared machine.&#34;&#34;&#34;
+
+    return sklearn.model_selection.RandomizedSearchCV(
+        sklearn.pipeline.make_pipeline(
+            sklearn.preprocessing.StandardScaler(),
+            sklearn.svm.SVC(C=0.1, kernel=&#34;linear&#34;),
+        ),
+        {
+            &#34;svc__C&#34;: scipy.stats.loguniform(a=1e-3, b=1e1),
+            &#34;svc__kernel&#34;: [&#34;rbf&#34;, &#34;linear&#34;, &#34;sigmoid&#34;, &#34;poly&#34;],
+            &#34;svc__gamma&#34;: scipy.stats.loguniform(a=1e-4, b=1e-3),
+        },
+        n_iter=100,
+        n_jobs=16,
+        random_state=42,
+    )</code></pre>
+</details>
 <div class="desc"><p>Create a new, randomly initialized SVM with a random hyperparameter search over kernel, C and gamma. It uses only 16 jobs in parallel to prevent overloading the CPUs on a shared machine.</p></div>
 </dd>
 <dt id="biobench.newt.l2_normalize"><code class="name flex">
 <span>def <span class="ident">l2_normalize</span></span>(<span>features: jaxtyping.Float[ndarray, 'batch dim']) ‑> jaxtyping.Float[ndarray, 'batch dim']</span>
 </code></dt>
 <dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
+def l2_normalize(
+    features: Float[np.ndarray, &#34;batch dim&#34;],
+) -&gt; Float[np.ndarray, &#34;batch dim&#34;]:
+    &#34;&#34;&#34;Normalizes a batch of vectors to have L2 unit norm.&#34;&#34;&#34;
+    norms = np.linalg.norm(features, ord=2, axis=1, keepdims=True)
+    return features / norms</code></pre>
+</details>
 <div class="desc"><p>Normalizes a batch of vectors to have L2 unit norm.</p></div>
 </dd>
 </dl>
@@ -117,13 +535,9 @@ Each dataset is a DatasetMllm instance.</p></div>
 <dl>
 <dt id="biobench.newt.DatasetMllm"><code class="flex name class">
 <span>class <span class="ident">DatasetMllm</span></span>
-<span>(</span><span>task: str, cluster: str, subcluster: str | None, indices: jaxtyping.Integer[ndarray, 'n_samples'], root: str, df: polars.dataframe.frame.DataFrame, is_train: bool)</span>
+<span>(</span><span>task: str,<br>cluster: str,<br>subcluster: str | None,<br>indices: jaxtyping.Integer[ndarray, 'n_samples'],<br>root: str,<br>df: polars.dataframe.frame.DataFrame,<br>is_train: bool)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>A dataset that returns SampleMllms for a specific task.
-This dataset can be instantiated as either a training or test dataset.</p>
-<p>This dataset presents a clean 0-n indexing interface while internally
-mapping to the appropriate indices in the full dataset.</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -199,6 +613,10 @@ class DatasetMllm(torch.utils.data.Dataset):
         &#34;&#34;&#34;Return the number of samples in this dataset&#34;&#34;&#34;
         return len(self.indices)</code></pre>
 </details>
+<div class="desc"><p>A dataset that returns SampleMllms for a specific task.
+This dataset can be instantiated as either a training or test dataset.</p>
+<p>This dataset presents a clean 0-n indexing interface while internally
+mapping to the appropriate indices in the full dataset.</p></div>
 <h3>Ancestors</h3>
 <ul class="hlist">
 <li>torch.utils.data.dataset.Dataset</li>
@@ -209,7 +627,6 @@ class DatasetMllm(torch.utils.data.Dataset):
 <span>class <span class="ident">DummyBinaryClassifier</span></span>
 </code></dt>
 <dd>
-<div class="desc"></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -224,28 +641,42 @@ class DatasetMllm(torch.utils.data.Dataset):
     def predict(self, data):
         return np.array([int(self.rng.random() &gt; 0.5) for _ in data])</code></pre>
 </details>
+<div class="desc"></div>
 <h3>Methods</h3>
 <dl>
 <dt id="biobench.newt.DummyBinaryClassifier.fit"><code class="name flex">
 <span>def <span class="ident">fit</span></span>(<span>*args, **kwargs)</span>
 </code></dt>
 <dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def fit(*args, **kwargs):
+    logger.info(&#34;Doing nothing because it&#39;s a dummy classifier.&#34;)</code></pre>
+</details>
 <div class="desc"></div>
 </dd>
 <dt id="biobench.newt.DummyBinaryClassifier.predict"><code class="name flex">
 <span>def <span class="ident">predict</span></span>(<span>self, data)</span>
 </code></dt>
 <dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def predict(self, data):
+    return np.array([int(self.rng.random() &gt; 0.5) for _ in data])</code></pre>
+</details>
 <div class="desc"></div>
 </dd>
 </dl>
 </dd>
 <dt id="biobench.newt.FeatureDataset"><code class="flex name class">
 <span>class <span class="ident">FeatureDataset</span></span>
-<span>(</span><span>img_ids: list[str], x: jaxtyping.Float[Tensor, 'n dim'], y: jaxtyping.Int[Tensor, 'n'], task: str, cluster: str, subcluster: str | None)</span>
+<span>(</span><span>img_ids: list[str],<br>x: jaxtyping.Float[Tensor, 'n dim'],<br>y: jaxtyping.Int[Tensor, 'n'],<br>task: str,<br>cluster: str,<br>subcluster: str | None)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>FeatureDataset(img_ids: list[str], x: jaxtyping.Float[Tensor, 'n dim'], y: jaxtyping.Int[Tensor, 'n'], task: str, cluster: str, subcluster: str | None)</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -264,6 +695,7 @@ class FeatureDataset:
     def __getitem__(self, i: int) -&gt; FeatureSample:
         return {&#34;img_id&#34;: self.img_ids[i], &#34;x&#34;: self.x[i], &#34;y&#34;: self.y[i]}</code></pre>
 </details>
+<div class="desc"><p>FeatureDataset(img_ids: list[str], x: jaxtyping.Float[Tensor, 'n dim'], y: jaxtyping.Int[Tensor, 'n'], task: str, cluster: str, subcluster: str | None)</p></div>
 <h3>Class variables</h3>
 <dl>
 <dt id="biobench.newt.FeatureDataset.cluster"><code class="name">var <span class="ident">cluster</span> : str</code></dt>
@@ -297,6 +729,16 @@ class FeatureDataset:
 <span>(</span><span>*args, **kwargs)</span>
 </code></dt>
 <dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@beartype.beartype
+class FeatureSample(typing.TypedDict):
+    img_id: str
+    x: Float[Tensor, &#34; d&#34;]
+    y: Int[Tensor, &#34;&#34;]</code></pre>
+</details>
 <div class="desc"><p>dict() -&gt; new empty dictionary
 dict(mapping) -&gt; new dictionary initialized from a mapping object's
 (key, value) pairs
@@ -308,16 +750,6 @@ dict(**kwargs) -&gt; new dictionary initialized with the name=value pairs
 in the keyword argument list.
 For example:
 dict(one=1, two=2)</p></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">@beartype.beartype
-class FeatureSample(typing.TypedDict):
-    img_id: str
-    x: Float[Tensor, &#34; d&#34;]
-    y: Int[Tensor, &#34;&#34;]</code></pre>
-</details>
 <h3>Ancestors</h3>
 <ul class="hlist">
 <li>builtins.dict</li>
@@ -343,7 +775,6 @@ class FeatureSample(typing.TypedDict):
 <span>(</span><span>root: str, img_ids: list[str], labels: list[int], transform=None)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>A dataset that returns ImageSample dictionaries.</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -373,6 +804,7 @@ class ImageDataset(torch.utils.data.Dataset):
     def __len__(self) -&gt; int:
         return len(self.img_ids)</code></pre>
 </details>
+<div class="desc"><p>A dataset that returns ImageSample dictionaries.</p></div>
 <h3>Ancestors</h3>
 <ul class="hlist">
 <li>torch.utils.data.dataset.Dataset</li>
@@ -384,6 +816,16 @@ class ImageDataset(torch.utils.data.Dataset):
 <span>(</span><span>*args, **kwargs)</span>
 </code></dt>
 <dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
+class ImageSample(typing.TypedDict):
+    img_id: str
+    img: Float[Tensor, &#34;3 width height&#34;]
+    label: Int[Tensor, &#34;&#34;]</code></pre>
+</details>
 <div class="desc"><p>dict() -&gt; new empty dictionary
 dict(mapping) -&gt; new dictionary initialized from a mapping object's
 (key, value) pairs
@@ -395,16 +837,6 @@ dict(**kwargs) -&gt; new dictionary initialized with the name=value pairs
 in the keyword argument list.
 For example:
 dict(one=1, two=2)</p></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
-class ImageSample(typing.TypedDict):
-    img_id: str
-    img: Float[Tensor, &#34;3 width height&#34;]
-    label: Int[Tensor, &#34;&#34;]</code></pre>
-</details>
 <h3>Ancestors</h3>
 <ul class="hlist">
 <li>builtins.dict</li>
@@ -430,7 +862,6 @@ class ImageSample(typing.TypedDict):
 <span>(</span><span>img_id: str, img_b64: str, label: int, classnames: tuple[str, str])</span>
 </code></dt>
 <dd>
-<div class="desc"><p>SampleMllm(img_id: str, img_b64: str, label: int, classnames: tuple[str, str])</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -492,6 +923,7 @@ class SampleMllm:
             assistant=self.assistant,
         )</code></pre>
 </details>
+<div class="desc"><p>SampleMllm(img_id: str, img_b64: str, label: int, classnames: tuple[str, str])</p></div>
 <h3>Class variables</h3>
 <dl>
 <dt id="biobench.newt.SampleMllm.classnames"><code class="name">var <span class="ident">classnames</span> : tuple[str, str]</code></dt>
@@ -515,7 +947,6 @@ class SampleMllm:
 <dl>
 <dt id="biobench.newt.SampleMllm.assistant"><code class="name">prop <span class="ident">assistant</span> : str</code></dt>
 <dd>
-<div class="desc"></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -524,10 +955,10 @@ class SampleMllm:
 def assistant(self) -&gt; str:
     return f&#34;**{self.classname}**&#34;</code></pre>
 </details>
+<div class="desc"></div>
 </dd>
 <dt id="biobench.newt.SampleMllm.classname"><code class="name">prop <span class="ident">classname</span> : str</code></dt>
 <dd>
-<div class="desc"></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -536,6 +967,7 @@ def assistant(self) -&gt; str:
 def classname(self) -&gt; str:
     return self.classnames[self.label]</code></pre>
 </details>
+<div class="desc"></div>
 </dd>
 </dl>
 <h3>Methods</h3>
@@ -544,18 +976,69 @@ def classname(self) -&gt; str:
 <span>def <span class="ident">make_user</span></span>(<span>self, rng: random.Random) ‑> str</span>
 </code></dt>
 <dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def make_user(self, rng: random.Random) -&gt; str:
+    a, b = self.classnames
+    if rng.random() &gt; 0.5:
+        a, b = b, a
+    return f&#34;What is this a picture of, &#39;{a}&#39; or &#39;{b}&#39;? Respond with your answer in bold.&#34;</code></pre>
+</details>
 <div class="desc"></div>
 </dd>
 <dt id="biobench.newt.SampleMllm.parse_assistant"><code class="name flex">
 <span>def <span class="ident">parse_assistant</span></span>(<span>self, assistant: str) ‑> tuple[int, bool]</span>
 </code></dt>
 <dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def parse_assistant(self, assistant: str) -&gt; tuple[int, bool]:
+    &#34;&#34;&#34;
+    Returns a label, parsed to an integer. Also returns a boolean indicating whether parsing was successful.
+    &#34;&#34;&#34;
+    pattern = re.compile(r&#34;\*\*(.*)\*\*&#34;)
+    match = pattern.match(assistant)
+    if match:
+        # Return the closest classname in bold.
+        pred = difflib.get_close_matches(
+            match.group(1), self.classnames, cutoff=0.0
+        )[0]
+        successful = True
+    else:
+        # Get the closest classname.
+        pred = difflib.get_close_matches(assistant, self.classnames, cutoff=0.0)[0]
+        successful = False
+
+    for i, classname in enumerate(self.classnames):
+        if classname == pred:
+            return (i, successful)
+
+    logger.warning(
+        &#34;Something is wrong in %s.parse_assistant.&#34;, self.__class__.__name__
+    )
+    return (0, False)</code></pre>
+</details>
 <div class="desc"><p>Returns a label, parsed to an integer. Also returns a boolean indicating whether parsing was successful.</p></div>
 </dd>
 <dt id="biobench.newt.SampleMllm.to_example"><code class="name flex">
 <span>def <span class="ident">to_example</span></span>(<span>self, rng: random.Random) ‑> <a title="biobench.mllms.Example" href="../mllms.html#biobench.mllms.Example">Example</a></span>
 </code></dt>
 <dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def to_example(self, rng: random.Random) -&gt; mllms.Example:
+    return mllms.Example(
+        img_b64=self.img_b64,
+        user=self.make_user(rng),
+        assistant=self.assistant,
+    )</code></pre>
+</details>
 <div class="desc"></div>
 </dd>
 </dl>
@@ -653,7 +1136,7 @@ def classname(self) -&gt; str:
 </nav>
 </main>
 <footer id="footer">
-<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.1</a>.</p>
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.5</a>.</p>
 </footer>
 </body>
 </html>

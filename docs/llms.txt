@@ -1,3 +1,360 @@
+# biobench/cvml.py
+
+```python
+"""
+Stores all vision backbones.
+Users can register new custom backbones from their code to evaluate on biobench using `register_vision_backbone`.
+As long as it satisfies the `biobench.cvml.VisionBackbone` interface, it will work will all tasks.
+
+.. include:: ./tutorial.md
+"""
+
+import dataclasses
+import logging
+
+import beartype
+import torch
+from jaxtyping import Float, jaxtyped
+from torch import Tensor
+
+from . import config
+
+logger = logging.getLogger(__name__)
+
+
+@jaxtyped(typechecker=beartype.beartype)
+@dataclasses.dataclass(frozen=True)
+class EncodedImgBatch:
+    """The output of a `VisionBackbone`'s `VisionBackbone.img_encode()` method."""
+
+    img_features: Float[Tensor, "batch img_dim"]
+    """Image-level features. Each image is represented by a single vector."""
+    patch_features: Float[Tensor, "batch n_patches patch_dim"] | None
+    """Patch-level features. Only ViTs have patch-level features. These features might be a different dimension that the image features because of projection heads or such."""
+
+
+@jaxtyped(typechecker=beartype.beartype)
+class VisionBackbone(torch.nn.Module):
+    """
+    A frozen vision model that embeds batches of images into batches of vectors.
+
+    To add new models to the benchmark, you can simply create a new class that satisfies this interface and register it.
+    See `biobench.registry` for a tutorial on adding new vision backbones.
+    """
+
+    def img_encode(
+        self, batch: Float[Tensor, "batch 3 width height"]
+    ) -> EncodedImgBatch:
+        """Encode a batch of images."""
+        err_msg = f"{self.__class__.__name__} must implemented img_encode()."
+        raise NotImplementedError(err_msg)
+
+    def make_img_transform(self):
+        """
+        Return whatever function the backbone wants for image preprocessing.
+        This should be an evaluation transform, not a training transform, because we are using the output features of this backbone as data and not updating this backbone.
+        """
+        err_msg = f"{self.__class__.__name__} must implemented make_img_transform()."
+        raise NotImplementedError(err_msg)
+
+
+############
+# REGISTRY #
+############
+
+
+_global_backbone_registry: dict[str, type[VisionBackbone]] = {}
+
+
+@beartype.beartype
+def load_vision_backbone(
+    model_cfg: config.Model,
+) -> VisionBackbone:
+    """
+    Load a pretrained vision backbone.
+    """
+    if model_cfg.org not in _global_backbone_registry:
+        raise ValueError(f"Org '{model_cfg.org}' not found.")
+
+    cls = _global_backbone_registry[model_cfg.org]
+    return cls(model_cfg.ckpt)
+
+
+@beartype.beartype
+def register_vision_backbone(model_org: str, cls: type[VisionBackbone]):
+    """
+    Register a new vision backbone class.
+    """
+    if model_org in _global_backbone_registry:
+        logger.warning("Overwriting key '%s' in registry.", model_org)
+    _global_backbone_registry[model_org] = cls
+
+
+@beartype.beartype
+def list_vision_backbones() -> list[str]:
+    """
+    List all vision backbone model orgs.
+    """
+    return list(_global_backbone_registry.keys())
+
+```
+
+# biobench/config.py
+
+```python
+import dataclasses
+import os.path
+import tomllib
+import typing
+
+
+@dataclasses.dataclass(frozen=True)
+class Model:
+    method: typing.Literal["cvml", "mllm"]
+    org: str
+    ckpt: str
+
+
+@dataclasses.dataclass(frozen=True)
+class Newt:
+    """Configuration options specific to the NeWT benchmark."""
+
+    # Filter options - can specify task names, clusters, sub-clusters, or combinations
+    tasks: list[str] | None = None
+    """List of specific NeWT task names to run. If None, all tasks are included unless filtered by other criteria."""
+
+    include_clusters: list[str] | None = None
+    """List of NeWT task clusters to run (e.g., "appearance", "behavior", "context"). If None, all clusters are included."""
+
+    include_subclusters: list[str] | None = None
+    """List of NeWT task sub-clusters to run (e.g., "species", "age", "health"). If None, all sub-clusters are included."""
+
+    exclude_tasks: list[str] | None = None
+    """List of task names to exclude even if they match other criteria."""
+
+    exclude_clusters: list[str] | None = None
+    """List of cluster names to exclude even if they contain tasks that match other criteria."""
+
+    exclude_subclusters: list[str] | None = None
+    """List of sub-cluster names to exclude even if they contain tasks that match other criteria."""
+
+
+@dataclasses.dataclass(frozen=True)
+class Experiment:
+    model: Model
+
+    n_train: int = -1
+    """Number of maximum training samples. Negative number means use all of them."""
+    n_test: int = -1
+    """Number of test samples. Negative number means use all of them."""
+    sampling: typing.Literal["uniform", "balanced"] = "uniform"
+
+    device: typing.Literal["cpu", "mps", "cuda"] = "cuda"
+    """which kind of accelerator to use."""
+    debug: bool = False
+    """whether to run in debug mode."""
+
+    ssl: bool = True
+    """Use SSL when connecting to remote servers to download checkpoints; use --no-ssl if your machine has certificate issues. See `biobench.third_party_models.get_ssl()` for a discussion of how this works."""
+    # Reporting and graphing.
+    report_to: str = os.path.join(".", "results")
+    """where to save reports to."""
+    graph: bool = True
+    """whether to make graphs."""
+    graph_to: str = os.path.join(".", "graphs")
+    """where to save graphs to."""
+    log_to: str = os.path.join(".", "logs")
+    """where to save logs to."""
+
+    # MLLM only
+    temp: float = 0.0
+    prompting: typing.Literal["single", "multi"] = "single"
+    cot_enabled: bool = False
+    parallel: int = 1
+    """Number of parallel requests per second to MLLM service providers."""
+
+    # CVML only
+    slurm: bool = False
+    """whether to use submitit to run jobs on a slurm cluster."""
+    slurm_acct: str = ""
+    """slurm account string."""
+    batch_size: int = 256
+    """Batch size for computer vision model."""
+    n_workers: int = 8
+    """Number of dataloader worker processes."""
+    seed: int = 17
+    """Radnom seed."""
+
+    newt_data: str = ""
+    newt: Newt = dataclasses.field(default_factory=Newt)
+
+    def to_dict(self) -> dict[str, object]:
+        return dataclasses.asdict(self)
+
+
+def load(path: str) -> list[Experiment]:
+    """
+    Load experiments from a TOML file.
+
+    None of the fields in Experiment are lists, so anytime we find a list in the TOML, we add another dimension to our grid search over all possible experiments.
+    """
+    with open(path, "rb") as f:
+        data = tomllib.load(f)
+
+    if not isinstance(data, dict):
+        raise ValueError(
+            f"TOML file {path} must contain a dictionary at the root level"
+        )
+
+    # Extract models list
+    models = data.pop("models", [])
+    if not isinstance(models, list):
+        raise ValueError("models must be a list of tables in TOML")
+
+    # Start with models as base experiments
+    experiments = [{"model": Model(**model)} for model in models]
+
+    # Handle NeWT config specially
+    newt = data.pop("newt", {})
+
+    # For each remaining field in the TOML
+    for key, value in data.items():
+        new_experiments = []
+
+        # Convert single values to lists
+        if not isinstance(value, list):
+            value = [value]
+
+        # For each existing partial experiment
+        for exp in experiments:
+            # Add every value for this field
+            for v in value:
+                new_exp = exp.copy()
+                new_exp[key] = v
+                new_experiments.append(new_exp)
+
+        experiments = new_experiments
+
+    # Now add the NeWT config to all experiments
+    for exp in experiments:
+        exp["newt"] = Newt(**newt)
+
+    # Convert dictionaries to Experiment objects
+    return [Experiment(**exp) for exp in experiments]
+
+```
+
+# biobench/simpleshot.py
+
+```python
+"""
+Implements normalized nearest-centroid classifiers, as described in [this paper](https://arxiv.org/abs/1911.04623).
+
+If you use this work, be sure to cite the original work:
+
+```
+@article{wang2019simpleshot,
+  title={Simpleshot: Revisiting nearest-neighbor classification for few-shot learning},
+  author={Wang, Yan and Chao, Wei-Lun and Weinberger, Kilian Q and Van Der Maaten, Laurens},
+  journal={arXiv preprint arXiv:1911.04623},
+  year={2019}
+}
+```
+"""
+
+import collections.abc
+
+import beartype
+import numpy as np
+import sklearn.neighbors
+import torch
+from jaxtyping import Float, Int, jaxtyped
+from torch import Tensor
+
+
+@jaxtyped(typechecker=beartype.beartype)
+def l2_normalize(
+    features: Float[Tensor, "n_examples dim"],
+) -> Float[Tensor, "n_examples dim"]:
+    """L2-normalize a batch of features.
+
+    Args:
+        features: batch of $d$-dimensional vectors.
+
+    Returns:
+        batch of $d$-dimensional vectors with unit L2 norm.
+    """
+    norms = np.linalg.norm(features, ord=2, axis=1, keepdims=True)
+    return features / norms
+
+
+@beartype.beartype
+def batched_idx(
+    total_size: int, batch_size: int
+) -> collections.abc.Iterator[tuple[int, int]]:
+    """
+    Iterate over (start, end) indices for total_size examples, where end - start is at most batch_size.
+
+    Args:
+        total_size: total number of examples
+        batch_size: maximum distance between the generated indices.
+
+    Returns:
+        A generator of (int, int) tuples that can slice up a list or a tensor.
+    """
+    for start in range(0, total_size, batch_size):
+        stop = min(start + batch_size, total_size)
+        yield start, stop
+
+
+@jaxtyped(typechecker=beartype.beartype)
+def simpleshot(
+    x_train: Float[Tensor, "n_train dim"],
+    y_train: Int[Tensor, " n_train"],
+    x_test: Float[Tensor, "n_test dim"],
+    y_test: Int[Tensor, " n_test"],
+    batch_size: int,
+    device: str,
+) -> Float[Tensor, " n_test"]:
+    """
+    Applies simpleshot to features. Returns the list of scores for x_test.
+
+    Args:
+        ...
+
+    Returns:
+        A tensor of 0/1 scores, one for each test example, only considering exact match.
+    """
+    x_mean = x_train.mean(axis=0, keepdims=True)
+
+    x_train = x_train - x_mean
+    x_train = l2_normalize(x_train)
+
+    x_test = x_test - x_mean
+    x_test = l2_normalize(x_test)
+
+    clf = sklearn.neighbors.NearestCentroid()
+    clf.fit(x_train, y_train)
+
+    # Do this next step on the GPU to make it fast.
+    # Goes from 1 batch/sec to 77 batch/sec
+    centroids = torch.from_numpy(clf.centroids_).to(device)
+    x_test = x_test.to(device)
+    y_test = y_test.to(device)
+
+    scores = []
+    for start, stop in batched_idx(len(x_test), batch_size):
+        x_batch = x_test[start:stop]
+        y_batch = y_test[start:stop]
+        distances = torch.linalg.vector_norm(x_batch[:, None] - centroids, axis=2)
+        preds = torch.argmin(distances, dim=1)
+
+        scores.append((preds == y_batch).type(torch.float32))
+
+    return torch.cat(scores, axis=0)
+
+```
+
 # biobench/third_party_models.py
 
 ```python
@@ -147,336 +504,12 @@ class TorchvisionModel(cvml.VisionBackbone):
 # biobench/__init__.py
 
 ```python
-"""
-Package for organizing all the code to run benchmarks.
-
-Submodules are either tasks or helpers for organizing code.
-
-The most important modules to understand are:
-
-* `benchmark` because it is the launch script that runs all the tasks.
-* `interfaces` because it defines how everything hooks together.
-* Any of the task modules--`newt` is well documented.
-* Any of the vision modules--`third_party_models.OpenClip` is highly relevant to anyone using the [open_clip](https://github.com/mlfoundations/open_clip) codebase to train models.
-
-# Task Modules
-
-* `ages`: Classify images of juvenile birds using only adult birds for training.
-* `beluga`: Re-identification of Beluga whales using nearest neighbors.
-* `birds525`: 1-shot classification with nearest-neighbor of the Kaggle Birds dataset.
-* `fishnet`: Predict presense/absence of 9 different traits in images of fish.
-* `iwildcam`: Species classification from camera trap imagery using multiclass ridge regression.
-* `kabr`: Behavior classification of single-subject animals using simpleshot of mean frame representations.
-* `newt`: 164 binary classification tasks using an binary SVM trained on image features.
-* `plantnet`: long-tail classification of plant species.
-* `plankton`: classification of microscopic images of phytoplankton.
-# Helper Modules
-
-* `interfaces`: All the interfaces that describe how the different modules communicate.
-* `registry`: How to add/load vision models to BioBench.
-* `simpleshot`: An implementation of nearest-centroid classification from [Simpleshot](https://arxiv.org/abs/1911.04623).
-* `third_party_models`: Some pre-written vision backbones that load checkpoints from [open_clip](https://github.com/mlfoundations/open_clip) and [timm](https://github.com/huggingface/pytorch-image-models). You can use these as inspiration for writing your own vision backbones or check out `biobench.registry` for a tutorial.
-
-# Future Tasks
-
-These are tasks that I plan on adding but are not yet done.
-
-* `rarespecies`: Waiting on a [bug](https://huggingface.co/datasets/imageomics/rare-species/discussions/8) in Huggingface's datasets library.
-* [FishVista](https://github.com/Imageomics/Fish-Vista): I want to add trait classification: given patch-level features, can we train a linear probe to predict the presence/absense of a feature?
-
-# Discussion of Task Importance
-
-(TODO)
-
-Main points:
-
-* Some tasks are real tasks (KABR, Beluga).
-* Others are made up (Birds525, RareSpecies).
-* Some are in-between (NeWT, FishNet).
-* Some are made up and we hypothesize that they predict performance on real tasks (ImageNet-1K, iNat2021).
-* Likely, the real tasks are most important, but they are also the most specialized (and thus least likely to predict performance on other tasks).
-* We don't know if ImageNet-1K or iNat2021 still predict performance on real, specialized tasks. They definitely did 2-5 years ago---is that still true with new models?
-
-We can also compare tasks by the fundamental task and the types of images used.
-
-| Name | Fundamental Task | Image Distribution |
-|---|---|---|
-| `ages` | Classification | object-centric in-situ RGB photos |
-| `beluga` | Re-identification (via KNN) | top-down cropped RGB photos |
-| `birds525` | Classification | object-centric in-situ RGB photos |
-| `fishnet` | Functional trait prediction | lab specimen RGB photos |
-| `imagenet` | Classification | object-centric in-situ RGB photos |
-| `inat21` | Classification | object-centric in-situ RGB photos |
-| `iwildcam` | Classification | camera-trap images, black-and-white |
-| `kabr` | Classification (Behavior) | |
-| `leopard` | Re-identification (via SVM) |
-| `newt` | | object-centric in-situ RGB photos |
-| `plantnet` | Classification | object-centric in-situ RGB photos |
-| `plankton` | Classification | microscopic black-and-white slides |
-| `rarespecies` | Classification | object-centric in-situ RGB photos |
-
-Most of our tasks are species classification.
-The only non-species classification tasks are Belgua whale and leopard re-identification, FishNet's functional trait prediction, and KABR's *behavior* classification.
-The age task includes a train/test mismatch and iWildCam and the plankton task are different image distributions.
-
-But Birds525, ImageNet, iNat21, Pl@ntNet, and RareSpecies all fill the same role.
-I would expect performance on these tasks to be extremely correlated.
-
-This raises the question: why do we have multiple tasks that fill the same role?
-
-.. include:: ./confidence-intervals.md
-"""
+""" """
 
 from . import cvml, third_party_models
 
 cvml.register_vision_backbone("timm-vit", third_party_models.TimmVit)
 cvml.register_vision_backbone("open-clip", third_party_models.OpenClip)
-
-```
-
-# biobench/config.py
-
-```python
-import dataclasses
-import os.path
-import tomllib
-import typing
-
-
-@dataclasses.dataclass(frozen=True)
-class Model:
-    method: typing.Literal["cvml", "mllm"]
-    org: str
-    ckpt: str
-
-
-@dataclasses.dataclass(frozen=True)
-class Newt:
-    """Configuration options specific to the NeWT benchmark."""
-
-    # Filter options - can specify task names, clusters, sub-clusters, or combinations
-    tasks: list[str] | None = None
-    """List of specific NeWT task names to run. If None, all tasks are included unless filtered by other criteria."""
-
-    include_clusters: list[str] | None = None
-    """List of NeWT task clusters to run (e.g., "appearance", "behavior", "context"). If None, all clusters are included."""
-
-    include_subclusters: list[str] | None = None
-    """List of NeWT task sub-clusters to run (e.g., "species", "age", "health"). If None, all sub-clusters are included."""
-
-    exclude_tasks: list[str] | None = None
-    """List of task names to exclude even if they match other criteria."""
-
-    exclude_clusters: list[str] | None = None
-    """List of cluster names to exclude even if they contain tasks that match other criteria."""
-
-    exclude_subclusters: list[str] | None = None
-    """List of sub-cluster names to exclude even if they contain tasks that match other criteria."""
-
-
-@dataclasses.dataclass(frozen=True)
-class Experiment:
-    model: Model
-
-    n_train: int = -1
-    """Number of maximum training samples. Negative number means use all of them."""
-    n_test: int = -1
-    """Number of test samples. Negative number means use all of them."""
-    sampling: typing.Literal["uniform", "balanced"] = "uniform"
-
-    device: typing.Literal["cpu", "mps", "cuda"] = "cuda"
-    """which kind of accelerator to use."""
-    debug: bool = False
-    """whether to run in debug mode."""
-
-    ssl: bool = True
-    """Use SSL when connecting to remote servers to download checkpoints; use --no-ssl if your machine has certificate issues. See `biobench.third_party_models.get_ssl()` for a discussion of how this works."""
-    # Reporting and graphing.
-    report_to: str = os.path.join(".", "results")
-    """where to save reports to."""
-    graph: bool = True
-    """whether to make graphs."""
-    graph_to: str = os.path.join(".", "graphs")
-    """where to save graphs to."""
-    log_to: str = os.path.join(".", "logs")
-    """where to save logs to."""
-
-    # MLLM only
-    temp: float = 0.0
-    prompting: typing.Literal["single", "multi"] = "single"
-    cot_enabled: bool = False
-    parallel: int = 1
-    """Number of parallel requests per second to MLLM service providers."""
-
-    # CVML only
-    slurm: bool = False
-    """whether to use submitit to run jobs on a slurm cluster."""
-    slurm_acct: str = ""
-    """slurm account string."""
-    batch_size: int = 256
-    """Batch size for computer vision model."""
-    n_workers: int = 8
-    """Number of dataloader worker processes."""
-    seed: int = 17
-    """Radnom seed."""
-
-    newt_data: str = ""
-    newt: Newt = dataclasses.field(default_factory=Newt)
-
-    def to_dict(self) -> dict[str, object]:
-        return dataclasses.asdict(self)
-
-
-def load(path: str) -> list[Experiment]:
-    """
-    Load experiments from a TOML file.
-
-    None of the fields in Experiment are lists, so anytime we find a list in the TOML, we add another dimension to our grid search over all possible experiments.
-    """
-    with open(path, "rb") as f:
-        data = tomllib.load(f)
-
-    if not isinstance(data, dict):
-        raise ValueError(
-            f"TOML file {path} must contain a dictionary at the root level"
-        )
-
-    # Extract models list
-    models = data.pop("models", [])
-    if not isinstance(models, list):
-        raise ValueError("models must be a list of tables in TOML")
-
-    # Start with models as base experiments
-    experiments = [{"model": Model(**model)} for model in models]
-
-    # Handle NeWT config specially
-    newt = data.pop("newt", {})
-
-    # For each remaining field in the TOML
-    for key, value in data.items():
-        new_experiments = []
-
-        # Convert single values to lists
-        if not isinstance(value, list):
-            value = [value]
-
-        # For each existing partial experiment
-        for exp in experiments:
-            # Add every value for this field
-            for v in value:
-                new_exp = exp.copy()
-                new_exp[key] = v
-                new_experiments.append(new_exp)
-
-        experiments = new_experiments
-
-    # Now add the NeWT config to all experiments
-    for exp in experiments:
-        exp["newt"] = Newt(**newt)
-
-    # Convert dictionaries to Experiment objects
-    return [Experiment(**exp) for exp in experiments]
-
-```
-
-# biobench/cvml.py
-
-```python
-"""
-Stores all vision backbones.
-Users can register new custom backbones from their code to evaluate on biobench using `register_vision_backbone`.
-As long as it satisfies the `biobench.cvml.VisionBackbone` interface, it will work will all tasks.
-
-.. include:: ./tutorial.md
-"""
-
-import dataclasses
-import logging
-
-import beartype
-import torch
-from jaxtyping import Float, jaxtyped
-from torch import Tensor
-
-from . import config
-
-logger = logging.getLogger(__name__)
-
-
-@jaxtyped(typechecker=beartype.beartype)
-@dataclasses.dataclass(frozen=True)
-class EncodedImgBatch:
-    """The output of a `VisionBackbone`'s `VisionBackbone.img_encode()` method."""
-
-    img_features: Float[Tensor, "batch img_dim"]
-    """Image-level features. Each image is represented by a single vector."""
-    patch_features: Float[Tensor, "batch n_patches patch_dim"] | None
-    """Patch-level features. Only ViTs have patch-level features. These features might be a different dimension that the image features because of projection heads or such."""
-
-
-@jaxtyped(typechecker=beartype.beartype)
-class VisionBackbone(torch.nn.Module):
-    """
-    A frozen vision model that embeds batches of images into batches of vectors.
-
-    To add new models to the benchmark, you can simply create a new class that satisfies this interface and register it.
-    See `biobench.registry` for a tutorial on adding new vision backbones.
-    """
-
-    def img_encode(
-        self, batch: Float[Tensor, "batch 3 width height"]
-    ) -> EncodedImgBatch:
-        """Encode a batch of images."""
-        err_msg = f"{self.__class__.__name__} must implemented img_encode()."
-        raise NotImplementedError(err_msg)
-
-    def make_img_transform(self):
-        """
-        Return whatever function the backbone wants for image preprocessing.
-        This should be an evaluation transform, not a training transform, because we are using the output features of this backbone as data and not updating this backbone.
-        """
-        err_msg = f"{self.__class__.__name__} must implemented make_img_transform()."
-        raise NotImplementedError(err_msg)
-
-
-############
-# REGISTRY #
-############
-
-
-_global_backbone_registry: dict[str, type[VisionBackbone]] = {}
-
-
-@beartype.beartype
-def load_vision_backbone(
-    model_cfg: config.Model,
-) -> VisionBackbone:
-    """
-    Load a pretrained vision backbone.
-    """
-    if model_cfg.org not in _global_backbone_registry:
-        raise ValueError(f"Org '{model_cfg.org}' not found.")
-
-    cls = _global_backbone_registry[model_cfg.org]
-    return cls(model_cfg.ckpt)
-
-
-@beartype.beartype
-def register_vision_backbone(model_org: str, cls: type[VisionBackbone]):
-    """
-    Register a new vision backbone class.
-    """
-    if model_org in _global_backbone_registry:
-        logger.warning("Overwriting key '%s' in registry.", model_org)
-    _global_backbone_registry[model_org] = cls
-
-
-@beartype.beartype
-def list_vision_backbones() -> list[str]:
-    """
-    List all vision backbone model orgs.
-    """
-    return list(_global_backbone_registry.keys())
 
 ```
 
@@ -970,117 +1003,6 @@ def as_completed(
 
 ```
 
-# biobench/simpleshot.py
-
-```python
-"""
-Implements normalized nearest-centroid classifiers, as described in [this paper](https://arxiv.org/abs/1911.04623).
-
-If you use this work, be sure to cite the original work:
-
-```
-@article{wang2019simpleshot,
-  title={Simpleshot: Revisiting nearest-neighbor classification for few-shot learning},
-  author={Wang, Yan and Chao, Wei-Lun and Weinberger, Kilian Q and Van Der Maaten, Laurens},
-  journal={arXiv preprint arXiv:1911.04623},
-  year={2019}
-}
-```
-"""
-
-import collections.abc
-
-import beartype
-import numpy as np
-import sklearn.neighbors
-import torch
-from jaxtyping import Float, Int, jaxtyped
-from torch import Tensor
-
-
-@jaxtyped(typechecker=beartype.beartype)
-def l2_normalize(
-    features: Float[Tensor, "n_examples dim"],
-) -> Float[Tensor, "n_examples dim"]:
-    """L2-normalize a batch of features.
-
-    Args:
-        features: batch of $d$-dimensional vectors.
-
-    Returns:
-        batch of $d$-dimensional vectors with unit L2 norm.
-    """
-    norms = np.linalg.norm(features, ord=2, axis=1, keepdims=True)
-    return features / norms
-
-
-@beartype.beartype
-def batched_idx(
-    total_size: int, batch_size: int
-) -> collections.abc.Iterator[tuple[int, int]]:
-    """
-    Iterate over (start, end) indices for total_size examples, where end - start is at most batch_size.
-
-    Args:
-        total_size: total number of examples
-        batch_size: maximum distance between the generated indices.
-
-    Returns:
-        A generator of (int, int) tuples that can slice up a list or a tensor.
-    """
-    for start in range(0, total_size, batch_size):
-        stop = min(start + batch_size, total_size)
-        yield start, stop
-
-
-@jaxtyped(typechecker=beartype.beartype)
-def simpleshot(
-    x_train: Float[Tensor, "n_train dim"],
-    y_train: Int[Tensor, " n_train"],
-    x_test: Float[Tensor, "n_test dim"],
-    y_test: Int[Tensor, " n_test"],
-    batch_size: int,
-    device: str,
-) -> Float[Tensor, " n_test"]:
-    """
-    Applies simpleshot to features. Returns the list of scores for x_test.
-
-    Args:
-        ...
-
-    Returns:
-        A tensor of 0/1 scores, one for each test example, only considering exact match.
-    """
-    x_mean = x_train.mean(axis=0, keepdims=True)
-
-    x_train = x_train - x_mean
-    x_train = l2_normalize(x_train)
-
-    x_test = x_test - x_mean
-    x_test = l2_normalize(x_test)
-
-    clf = sklearn.neighbors.NearestCentroid()
-    clf.fit(x_train, y_train)
-
-    # Do this next step on the GPU to make it fast.
-    # Goes from 1 batch/sec to 77 batch/sec
-    centroids = torch.from_numpy(clf.centroids_).to(device)
-    x_test = x_test.to(device)
-    y_test = y_test.to(device)
-
-    scores = []
-    for start, stop in batched_idx(len(x_test), batch_size):
-        x_batch = x_test[start:stop]
-        y_batch = y_test[start:stop]
-        distances = torch.linalg.vector_norm(x_batch[:, None] - centroids, axis=2)
-        preds = torch.argmin(distances, dim=1)
-
-        scores.append((preds == y_batch).type(torch.float32))
-
-    return torch.cat(scores, axis=0)
-
-```
-
 # biobench/reporting.py
 
 ```python
@@ -1157,6 +1079,11 @@ class Report:
 
     _: dataclasses.KW_ONLY
 
+    task_cluster: str | None = None
+    """The cluster this task belongs to (e.g., 'birds', 'plants')."""
+    task_subcluster: str | None = None
+    """The subcluster this task belongs to (e.g., 'songbirds', 'trees')."""
+
     # MLLM-specific
     parse_success_rate: float | None = None
     usd_per_answer: float | None = None
@@ -1187,7 +1114,7 @@ class Report:
         )
         with open(schema_fpath) as fd:
             schema = fd.read()
-        conn.execute(schema)
+        conn.executescript(schema)
         return conn
 
     def to_dict(self) -> dict[str, object]:
@@ -1225,6 +1152,8 @@ class Report:
         # Prepare values for results table
         results_values = {
             "task_name": self.task_name,
+            "task_cluster": self.task_cluster,
+            "task_subcluster": self.task_subcluster,
             "n_train": self.n_train,
             "n_test": len(self.predictions),
             "sampling": self.exp_cfg.sampling,
@@ -1245,7 +1174,7 @@ class Report:
             # Configuration and metadata
             "exp_cfg": json.dumps(self.exp_cfg.to_dict()),
             "argv": json.dumps(self.argv),
-            "commit": self.commit,
+            "git_commit": self.commit,
             "posix": int(self.posix_time),
             "gpu_name": self.gpu_name,
             "hostname": self.hostname,
@@ -1279,6 +1208,188 @@ class Report:
 
         # Commit the transaction
         conn.commit()
+
+
+##########
+# COLORS #
+##########
+
+
+# https://coolors.co/palette/001219-005f73-0a9396-94d2bd-e9d8a6-ee9b00-ca6702-bb3e03-ae2012-9b2226
+
+BLACK_HEX = "001219"
+BLACK_RGB = (0, 18, 25)
+BLACK_RGB01 = tuple(c / 256 for c in BLACK_RGB)
+
+BLUE_HEX = "005f73"
+BLUE_RGB = (0, 95, 115)
+BLUE_RGB01 = tuple(c / 256 for c in BLUE_RGB)
+
+CYAN_HEX = "0a9396"
+CYAN_RGB = (10, 147, 150)
+CYAN_RGB01 = tuple(c / 256 for c in CYAN_RGB)
+
+SEA_HEX = "94d2bd"
+SEA_RGB = (148, 210, 189)
+SEA_RGB01 = tuple(c / 256 for c in SEA_RGB)
+
+CREAM_HEX = "e9d8a6"
+CREAM_RGB = (233, 216, 166)
+CREAM_RGB01 = tuple(c / 256 for c in CREAM_RGB)
+
+GOLD_HEX = "ee9b00"
+GOLD_RGB = (238, 155, 0)
+GOLD_RGB01 = tuple(c / 256 for c in GOLD_RGB)
+
+ORANGE_HEX = "ca6702"
+ORANGE_RGB = (202, 103, 2)
+ORANGE_RGB01 = tuple(c / 256 for c in ORANGE_RGB)
+
+RUST_HEX = "bb3e03"
+RUST_RGB = (187, 62, 3)
+RUST_RGB01 = tuple(c / 256 for c in RUST_RGB)
+
+SCARLET_HEX = "ae2012"
+SCARLET_RGB = (174, 32, 18)
+SCARLET_RGB01 = tuple(c / 256 for c in SCARLET_RGB)
+
+RED_HEX = "9b2226"
+RED_RGB = (155, 34, 38)
+RED_RGB01 = tuple(c / 256 for c in RED_RGB)
+
+ALL_HEX = [
+    BLACK_HEX,
+    BLUE_HEX,
+    CYAN_HEX,
+    SEA_HEX,
+    CREAM_HEX,
+    GOLD_HEX,
+    ORANGE_HEX,
+    RUST_HEX,
+    SCARLET_HEX,
+    RED_HEX,
+]
+
+ALL_RGB01 = [
+    BLACK_RGB01,
+    BLUE_RGB01,
+    CYAN_RGB01,
+    SEA_RGB01,
+    CREAM_RGB01,
+    GOLD_RGB01,
+    ORANGE_RGB01,
+    RUST_RGB01,
+    SCARLET_RGB01,
+    RED_RGB01,
+]
+
+```
+
+# biobench/newt/download.py
+
+```python
+# /// script
+# requires-python = ">=3.12"
+# dependencies = [
+#     "requests",
+#     "tqdm",
+#     "tyro",
+# ]
+# ///
+"""
+A script to download the NeWT dataset.
+
+Run with:
+
+1. `python biobench/newt/download.py --help` if `biobench/` is in your $PWD.
+2. `python -m biobench.newt.download --help` if you have installed `biobench` as a package.
+"""
+
+import dataclasses
+import os.path
+import tarfile
+
+import requests
+import tqdm
+import tyro
+
+images_url = (
+    "https://ml-inat-competition-datasets.s3.amazonaws.com/newt/newt2021_images.tar.gz"
+)
+labels_url = "https://ml-inat-competition-datasets.s3.amazonaws.com/newt/newt2021_labels.csv.tar.gz"
+
+
+@dataclasses.dataclass(frozen=True)
+class Args:
+    """Configure download options."""
+
+    dir: str = "."
+    """Where to save data."""
+
+    chunk_size_kb: int = 1
+    """How many KB to download at a time before writing to file."""
+
+    images: bool = True
+    """Whether to download images [4.1GB]."""
+    labels: bool = True
+    """Whether to download labels."""
+
+
+def main(args: Args):
+    """Download NeWT."""
+    os.makedirs(args.dir, exist_ok=True)
+    chunk_size = int(args.chunk_size_kb * 1024)
+    labels_tar_path = os.path.join(args.dir, "labels.tar")
+    images_tar_path = os.path.join(args.dir, "images.tar")
+    labels_csv_name = "newt2021_labels.csv"
+    labels_csv_path = os.path.join(args.dir, labels_csv_name)
+    images_dir_name = "newt2021_images"
+    images_dir_path = os.path.join(args.dir, images_dir_name)
+
+    if args.labels:
+        # Download labels
+        r = requests.get(labels_url, stream=True)
+        r.raise_for_status()
+
+        with open(labels_tar_path, "wb") as fd:
+            for chunk in r.iter_content(chunk_size=chunk_size):
+                fd.write(chunk)
+        print(f"Downloaded labels: {labels_tar_path}.")
+
+    if args.images:
+        # Download images.
+        r = requests.get(images_url, stream=True)
+        r.raise_for_status()
+
+        n_bytes = int(r.headers["content-length"])
+
+        with open(images_tar_path, "wb") as fd:
+            for chunk in tqdm.tqdm(
+                r.iter_content(chunk_size=chunk_size),
+                total=n_bytes / chunk_size,
+                unit="b",
+                unit_scale=1,
+                unit_divisor=1024,
+                desc="Downloading images",
+            ):
+                fd.write(chunk)
+        print(f"Downloaded images: {images_tar_path}.")
+
+    with tarfile.open(labels_tar_path, "r") as tar:
+        tar.extract(labels_csv_name, path=args.dir, filter="data")
+    print(f"Extracted labels: {labels_csv_path}.")
+
+    with open(labels_csv_path) as fd:
+        n_images = len(fd.read().split("\n")) - 1
+
+    with tarfile.open(images_tar_path, "r") as tar:
+        for member in tqdm.tqdm(tar, desc="Extracting images", total=n_images):
+            tar.extract(member, path=args.dir, filter="data")
+    print(f"Extracted images: {images_dir_path}.")
+
+
+if __name__ == "__main__":
+    main(tyro.cli(Args))
 
 ```
 
@@ -1674,7 +1785,12 @@ def benchmark_mllm(cfg: config.Experiment) -> list[reporting.Report]:
 
             preds = loop.run(run_all())
             report = reporting.Report(
-                f"NeWT::{train_dataset.task}", preds, preds[0].n_train, cfg
+                "newt",
+                preds,
+                preds[0].n_train,
+                cfg,
+                task_cluster=test_dataset.cluster,
+                task_subcluster=test_dataset.subcluster,
             )
             reports.append(report)
 
@@ -2595,114 +2711,6 @@ def include_task(
     # If no inclusion filters were specified, include by default
     # Otherwise, exclude because it didn't match any inclusion filter
     return not has_inclusion_filter
-
-```
-
-# biobench/newt/download.py
-
-```python
-# /// script
-# requires-python = ">=3.12"
-# dependencies = [
-#     "requests",
-#     "tqdm",
-#     "tyro",
-# ]
-# ///
-"""
-A script to download the NeWT dataset.
-
-Run with:
-
-1. `python biobench/newt/download.py --help` if `biobench/` is in your $PWD.
-2. `python -m biobench.newt.download --help` if you have installed `biobench` as a package.
-"""
-
-import dataclasses
-import os.path
-import tarfile
-
-import requests
-import tqdm
-import tyro
-
-images_url = (
-    "https://ml-inat-competition-datasets.s3.amazonaws.com/newt/newt2021_images.tar.gz"
-)
-labels_url = "https://ml-inat-competition-datasets.s3.amazonaws.com/newt/newt2021_labels.csv.tar.gz"
-
-
-@dataclasses.dataclass(frozen=True)
-class Args:
-    """Configure download options."""
-
-    dir: str = "."
-    """Where to save data."""
-
-    chunk_size_kb: int = 1
-    """How many KB to download at a time before writing to file."""
-
-    images: bool = True
-    """Whether to download images [4.1GB]."""
-    labels: bool = True
-    """Whether to download labels."""
-
-
-def main(args: Args):
-    """Download NeWT."""
-    os.makedirs(args.dir, exist_ok=True)
-    chunk_size = int(args.chunk_size_kb * 1024)
-    labels_tar_path = os.path.join(args.dir, "labels.tar")
-    images_tar_path = os.path.join(args.dir, "images.tar")
-    labels_csv_name = "newt2021_labels.csv"
-    labels_csv_path = os.path.join(args.dir, labels_csv_name)
-    images_dir_name = "newt2021_images"
-    images_dir_path = os.path.join(args.dir, images_dir_name)
-
-    if args.labels:
-        # Download labels
-        r = requests.get(labels_url, stream=True)
-        r.raise_for_status()
-
-        with open(labels_tar_path, "wb") as fd:
-            for chunk in r.iter_content(chunk_size=chunk_size):
-                fd.write(chunk)
-        print(f"Downloaded labels: {labels_tar_path}.")
-
-    if args.images:
-        # Download images.
-        r = requests.get(images_url, stream=True)
-        r.raise_for_status()
-
-        n_bytes = int(r.headers["content-length"])
-
-        with open(images_tar_path, "wb") as fd:
-            for chunk in tqdm.tqdm(
-                r.iter_content(chunk_size=chunk_size),
-                total=n_bytes / chunk_size,
-                unit="b",
-                unit_scale=1,
-                unit_divisor=1024,
-                desc="Downloading images",
-            ):
-                fd.write(chunk)
-        print(f"Downloaded images: {images_tar_path}.")
-
-    with tarfile.open(labels_tar_path, "r") as tar:
-        tar.extract(labels_csv_name, path=args.dir, filter="data")
-    print(f"Extracted labels: {labels_csv_path}.")
-
-    with open(labels_csv_path) as fd:
-        n_images = len(fd.read().split("\n")) - 1
-
-    with tarfile.open(images_tar_path, "r") as tar:
-        for member in tqdm.tqdm(tar, desc="Extracting images", total=n_images):
-            tar.extract(member, path=args.dir, filter="data")
-    print(f"Extracted images: {images_dir_path}.")
-
-
-if __name__ == "__main__":
-    main(tyro.cli(Args))
 
 ```
 

@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS results (
     
     -- Metadata fields
     argv TEXT NOT NULL,  -- Command used to get this report (JSON array)
-    commit TEXT NOT NULL,  -- Git commit hash
+    git_commit TEXT NOT NULL,  -- Git commit hash
     posix INTEGER NOT NULL,  -- POSIX timestamp
     gpu_name TEXT,  -- Name of the GPU that ran this experiment
     hostname TEXT NOT NULL  -- Machine hostname that ran this experiment
