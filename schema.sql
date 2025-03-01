@@ -29,17 +29,19 @@ CREATE TABLE IF NOT EXISTS results (
 
     -- Flexible storage for complete configurations and detailed results
     exp_cfg TEXT NOT NULL,  -- JSON blob with full experiment configuration
+
+    -- Change the report JSON blob to just rows for each additional metadata (gpu_name, hostname, etc). AI!
     report TEXT NOT NULL  -- JSON blob with detailed results
 );
 
 CREATE TABLE IF NOT EXISTS predictions (
-    id TEXT NOT NULL,  -- ID used to find the original image/example
+    img_id TEXT NOT NULL,  -- ID used to find the original image/example
     score REAL NOT NULL,  -- Test score; typically 0 or 1 for classification tasks
     n_train INTEGER NOT NULL,  -- Number of training examples used in this prediction
     info TEXT NOT NULL,  -- JSON blob with additional information (original class, true label, etc.)
     
     -- Foreign key to link to the results table
-    result_id INTEGER,
+    result_id INTEGER NOT NULL,
     
     PRIMARY KEY (id, result_id),
     FOREIGN KEY (result_id) REFERENCES results(rowid)
