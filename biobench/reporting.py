@@ -1,11 +1,4 @@
-"""
-Common interfaces for models and tasks so that it's easy to add new models (which will work right away with all tasks) and easy to add new tasks (which will work right away with all models).
-
-The model interface is `VisionBackbone`.
-See `biobench.third_party_models` for examples of how to subclass it, and note that you have to call `biobench.register_vision_backbone` for it to show up.
-
-The benchmark interface is informal.
-"""
+""" """
 
 import dataclasses
 import json
@@ -144,6 +137,7 @@ class Report:
         )
 
         # Prepare values for results table
+        # Update this dictionary with cluster and subcluster. AI!
         results_values = {
             "task_name": self.task_name,
             "n_train": self.n_train,
