@@ -29,9 +29,12 @@ CREATE TABLE IF NOT EXISTS results (
 
     -- Flexible storage for complete configurations and detailed results
     exp_cfg TEXT NOT NULL,  -- JSON blob with full experiment configuration
-
-    -- Change the report JSON blob to just rows for each additional metadata (gpu_name, hostname, etc). AI!
-    report TEXT NOT NULL  -- JSON blob with detailed results
+    
+    -- Metadata fields (previously stored in report JSON blob)
+    argv TEXT NOT NULL,  -- Command used to get this report (JSON array)
+    commit TEXT NOT NULL,  -- Git commit hash
+    gpu_name TEXT,  -- Name of the GPU that ran this experiment
+    hostname TEXT NOT NULL  -- Machine hostname that ran this experiment
 );
 
 CREATE TABLE IF NOT EXISTS predictions (
@@ -43,6 +46,6 @@ CREATE TABLE IF NOT EXISTS predictions (
     -- Foreign key to link to the results table
     result_id INTEGER NOT NULL,
     
-    PRIMARY KEY (id, result_id),
+    PRIMARY KEY (img_id, result_id),
     FOREIGN KEY (result_id) REFERENCES results(rowid)
 );
