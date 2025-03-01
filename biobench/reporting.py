@@ -66,7 +66,7 @@ class Report:
     predictions: list[Prediction]
     n_train: int
     """Number of training samples *actually* used."""
-    
+
     task_cluster: str | None = None
     """The cluster this task belongs to (e.g., 'birds', 'plants')."""
     task_subcluster: str | None = None
@@ -144,8 +144,8 @@ class Report:
         # Prepare values for results table
         results_values = {
             "task_name": self.task_name,
-            "task_cluster": self.task_cluster if hasattr(self, "task_cluster") else None,
-            "task_subcluster": self.task_subcluster if hasattr(self, "task_subcluster") else None,
+            "task_cluster": self.task_cluster,
+            "task_subcluster": self.task_subcluster,
             "n_train": self.n_train,
             "n_test": len(self.predictions),
             "sampling": self.exp_cfg.sampling,

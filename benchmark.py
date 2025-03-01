@@ -1,11 +1,5 @@
 """
-Entrypoint for running all tasks in `biobench`.
-
-Most of this script is self documenting.
-Run `python benchmark.py --help` to see all the options.
-
-Note that you will have to download all the datasets, but each dataset includes its own download script with instructions.
-For example, see `biobench.newt.download` for an example.
+Entrypoint for running benchmarking.
 """
 
 import logging

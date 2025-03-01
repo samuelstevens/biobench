@@ -1084,14 +1084,7 @@ def simpleshot(
 # biobench/reporting.py
 
 ```python
-"""
-Common interfaces for models and tasks so that it's easy to add new models (which will work right away with all tasks) and easy to add new tasks (which will work right away with all models).
-
-The model interface is `VisionBackbone`.
-See `biobench.third_party_models` for examples of how to subclass it, and note that you have to call `biobench.register_vision_backbone` for it to show up.
-
-The benchmark interface is informal.
-"""
+""" """
 
 import dataclasses
 import json
@@ -2717,13 +2710,7 @@ if __name__ == "__main__":
 
 ```python
 """
-Entrypoint for running all tasks in `biobench`.
-
-Most of this script is self documenting.
-Run `python benchmark.py --help` to see all the options.
-
-Note that you will have to download all the datasets, but each dataset includes its own download script with instructions.
-For example, see `biobench.newt.download` for an example.
+Entrypoint for running benchmarking.
 """
 
 import logging

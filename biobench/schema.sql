@@ -1,6 +1,8 @@
 CREATE TABLE IF NOT EXISTS results (
     -- Task information
     task_name TEXT NOT NULL,  -- "newt", "iwildcam", etc.
+    task_cluster TEXT,
+    task_subcluster TEXT,
     n_train INTEGER NOT NULL,  -- Number of train samples *actually* used (1, 3, 10, 30, etc.)
     n_test INTEGER NOT NULL, -- Number of test samples actually used
     sampling TEXT NOT NULL,  -- "uniform" or "class_balanced"
