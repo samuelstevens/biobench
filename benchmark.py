@@ -6,86 +6,22 @@ Run `python benchmark.py --help` to see all the options.
 
 Note that you will have to download all the datasets, but each dataset includes its own download script with instructions.
 For example, see `biobench.newt.download` for an example.
-
-.. include:: ./examples.md
-
-.. include:: ./design.md
 """
 
-import json
 import logging
 import os
 import resource
-import sqlite3
-import time
 import typing
 
 import beartype
 import submitit
 import tyro
 
-from biobench import config, interfaces, newt
+from biobench import config, newt, reporting
 
 log_format = "[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s"
 logging.basicConfig(level=logging.INFO, format=log_format)
 logger = logging.getLogger("benchmark.py")
-
-
-@beartype.beartype
-def save(report: interfaces.Report) -> None:
-    """
-    Saves the report to disk in a machine-readable SQLite format.
-
-    Args:
-        args: launch script arguments.
-        model_args: a pair of model_org, model_ckpt strings.
-        report: the task report from the model_args.
-    """
-    os.makedirs(report.exp_cfg.report_to, exist_ok=True)
-    conn = sqlite3.connect(os.path.join(report.exp_cfg.report_to, "results.sqlite"))
-    with open("schema.sql") as fd:
-        schema = fd.read()
-    conn.execute(schema)
-
-    lower, upper = report.get_confidence_interval()
-
-    values = (
-        int(time.time()),
-        report.task_name,
-        report.n_train,
-        len(report.predictions),
-        report.exp_cfg.sampling,
-        report.exp_cfg.model.method,
-        report.exp_cfg.model.org,
-        report.exp_cfg.model.ckpt,
-        report.get_mean_score(),
-        lower,
-        upper,
-        # MLLM
-        report.exp_cfg.prompting,
-        report.exp_cfg.cot_enabled,
-        report.parse_success_rate,
-        report.usd_per_answer,
-        # CVML
-        report.classifier,
-        # JSON blobs
-        json.dumps(report.exp_cfg.to_dict()),
-        json.dumps(report.to_dict()),
-    )
-    conn.execute(
-        "INSERT INTO results VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        values,
-    )
-    conn.commit()
-
-    logger.info(
-        "%s with %d (%d actual) examples on %s: %.3f",
-        report.exp_cfg.model.ckpt,
-        report.exp_cfg.n_train,
-        report.n_train,
-        report.task_name,
-        report.get_mean_score(),
-    )
 
 
 @beartype.beartype
@@ -138,19 +74,11 @@ def benchmark(cfg: str):
     jobs = []
     for cfg in cfgs:
         if cfg.model.method == "cvml":
-            # if cfg.fishnet_data:
-            #     job = executor.submit(fishnet.benchmark_cvml, cfg)
-            #     jobs.append(job)
-            if cfg.newt_data:
-                job = executor.submit(newt.benchmark_cvml, cfg)
-                jobs.append(job)
+            job = executor.submit(newt.benchmark_cvml, cfg)
+            jobs.append(job)
         elif cfg.model.method == "mllm":
-            # if cfg.fishnet_data:
-            #     job = executor.submit(fishnet.benchmark_mllm, cfg)
-            #     jobs.append(job)
-            if cfg.newt_data:
-                job = executor.submit(newt.benchmark_mllm, cfg)
-                jobs.append(job)
+            job = executor.submit(newt.benchmark_mllm, cfg)
+            jobs.append(job)
         else:
             typing.assert_never(cfg.model.method)
 
@@ -163,9 +91,9 @@ def benchmark(cfg: str):
             logger.warning("Error running job: %s: %s", err, err.__cause__)
             continue
 
-        reports: list[interfaces.Report] = future.result()
+        reports: list[reporting.Report] = future.result()
         for report in reports:
-            save(report)
+            report.write()
         logger.info("Finished %d/%d jobs.", i + 1, len(jobs))
 
     logger.info("Finished.")

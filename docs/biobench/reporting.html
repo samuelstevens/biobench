@@ -1,0 +1,408 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+<meta name="generator" content="pdoc3 0.11.1">
+<title>biobench.reporting API documentation</title>
+<meta name="description" content="Common interfaces for models and tasks so that it&#39;s easy to add new models (which will work right away with all tasks) and easy to add new tasks …">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin-bottom:1em}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script type="text/x-mathjax-config">MathJax.Hub.Config({ tex2jax: { inlineMath: [ ['$','$'], ["\\(","\\)"] ], processEscapes: true } });</script>
+<script async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS_CHTML" integrity="sha256-kZafAc6mZvK3W3v1pHOcUix30OHQN6pU/NO2oFkqZVw=" crossorigin></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => {
+hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+hljs.highlightAll();
+})</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>biobench.reporting</code></h1>
+</header>
+<section id="section-intro">
+<p>Common interfaces for models and tasks so that it's easy to add new models (which will work right away with all tasks) and easy to add new tasks (which will work right away with all models).</p>
+<p>The model interface is <code>VisionBackbone</code>.
+See <code><a title="biobench.third_party_models" href="third_party_models.html">biobench.third_party_models</a></code> for examples of how to subclass it, and note that you have to call <code>biobench.register_vision_backbone</code> for it to show up.</p>
+<p>The benchmark interface is informal.</p>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-functions">Functions</h2>
+<dl>
+<dt id="biobench.reporting.get_git_hash"><code class="name flex">
+<span>def <span class="ident">get_git_hash</span></span>(<span>) ‑> str</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Returns the hash of the current git commit, assuming we are in a git repo.</p></div>
+</dd>
+<dt id="biobench.reporting.get_gpu_name"><code class="name flex">
+<span>def <span class="ident">get_gpu_name</span></span>(<span>) ‑> str</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="biobench.reporting.Prediction"><code class="flex name class">
+<span>class <span class="ident">Prediction</span></span>
+<span>(</span><span>img_id: str, score: float, n_train: int, info: dict[str, object])</span>
+</code></dt>
+<dd>
+<div class="desc"><p>An individual test prediction.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
+@dataclasses.dataclass(frozen=True)
+class Prediction:
+    &#34;&#34;&#34;An individual test prediction.&#34;&#34;&#34;
+
+    img_id: str
+    &#34;&#34;&#34;Whatever kind of ID; used to find the original image/example.&#34;&#34;&#34;
+    score: float
+    &#34;&#34;&#34;Test score; typically 0 or 1 for classification tasks.&#34;&#34;&#34;
+    n_train: int
+    &#34;&#34;&#34;Number of training examples used in this prection.&#34;&#34;&#34;
+    info: dict[str, object]
+    &#34;&#34;&#34;Any additional information included. This might be the original class, the true label, etc.&#34;&#34;&#34;
+
+    def to_dict(self) -&gt; dict[str, object]:
+        &#34;&#34;&#34;Convert prediction to a JSON-compatible dictionary.&#34;&#34;&#34;
+        return dataclasses.asdict(self)</code></pre>
+</details>
+<h3>Class variables</h3>
+<dl>
+<dt id="biobench.reporting.Prediction.img_id"><code class="name">var <span class="ident">img_id</span> : str</code></dt>
+<dd>
+<div class="desc"><p>Whatever kind of ID; used to find the original image/example.</p></div>
+</dd>
+<dt id="biobench.reporting.Prediction.info"><code class="name">var <span class="ident">info</span> : dict[str, object]</code></dt>
+<dd>
+<div class="desc"><p>Any additional information included. This might be the original class, the true label, etc.</p></div>
+</dd>
+<dt id="biobench.reporting.Prediction.n_train"><code class="name">var <span class="ident">n_train</span> : int</code></dt>
+<dd>
+<div class="desc"><p>Number of training examples used in this prection.</p></div>
+</dd>
+<dt id="biobench.reporting.Prediction.score"><code class="name">var <span class="ident">score</span> : float</code></dt>
+<dd>
+<div class="desc"><p>Test score; typically 0 or 1 for classification tasks.</p></div>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="biobench.reporting.Prediction.to_dict"><code class="name flex">
+<span>def <span class="ident">to_dict</span></span>(<span>self) ‑> dict[str, object]</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Convert prediction to a JSON-compatible dictionary.</p></div>
+</dd>
+</dl>
+</dd>
+<dt id="biobench.reporting.Report"><code class="flex name class">
+<span>class <span class="ident">Report</span></span>
+<span>(</span><span>task_name: str, predictions: list[<a title="biobench.reporting.Prediction" href="#biobench.reporting.Prediction">Prediction</a>], n_train: int, exp_cfg: <a title="biobench.config.Experiment" href="config.html#biobench.config.Experiment">Experiment</a>, *, parse_success_rate: float | None = None, usd_per_answer: float | None = None, classifier: Optional[Literal['knn', 'svm', 'ridge']] = None, argv: list[str] = &lt;factory&gt;, commit: str = 'cb4f7fb4482ed9144fea5f288aa91ba8d8491f60', posix_time: float = &lt;factory&gt;, gpu_name: str = &lt;factory&gt;, hostname: str = &lt;factory&gt;)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>The result of running a benchmark task.</p>
+<p>This class is designed to store results and metadata, with experiment configuration
+stored in the exp_cfg field to avoid duplication.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@dataclasses.dataclass
+class Report:
+    &#34;&#34;&#34;
+    The result of running a benchmark task.
+
+    This class is designed to store results and metadata, with experiment configuration
+    stored in the exp_cfg field to avoid duplication.
+    &#34;&#34;&#34;
+
+    task_name: str
+    predictions: list[Prediction]
+    n_train: int
+    &#34;&#34;&#34;Number of training samples *actually* used.&#34;&#34;&#34;
+
+    exp_cfg: config.Experiment
+
+    _: dataclasses.KW_ONLY
+
+    # MLLM-specific
+    parse_success_rate: float | None = None
+    usd_per_answer: float | None = None
+
+    # CVML-specific
+    classifier: typing.Literal[&#34;knn&#34;, &#34;svm&#34;, &#34;ridge&#34;] | None = None
+
+    # Stuff for trying to reproduce this result. These are filled in by default.
+    argv: list[str] = dataclasses.field(default_factory=lambda: sys.argv)
+    &#34;&#34;&#34;Command used to get this report.&#34;&#34;&#34;
+    commit: str = get_git_hash()
+    &#34;&#34;&#34;Git commit for this current report.&#34;&#34;&#34;
+    posix_time: float = dataclasses.field(default_factory=time.time)
+    &#34;&#34;&#34;Time when this report was constructed.&#34;&#34;&#34;
+    gpu_name: str = dataclasses.field(default_factory=get_gpu_name)
+    &#34;&#34;&#34;Name of the GPU that ran this experiment.&#34;&#34;&#34;
+    hostname: str = dataclasses.field(default_factory=socket.gethostname)
+    &#34;&#34;&#34;Machine hostname that ran this experiment.&#34;&#34;&#34;
+
+    def __repr__(self):
+        model_name = self.exp_cfg.model.ckpt
+        return f&#34;Report({self.task_name}, {model_name}, {len(self.predictions)} predictions)&#34;
+
+    def get_conn(self) -&gt; sqlite3.Connection:
+        os.makedirs(self.exp_cfg.report_to, exist_ok=True)
+        conn = sqlite3.connect(
+            os.path.join(self.exp_cfg.report_to, &#34;results.sqlite&#34;), autocommit=False
+        )
+        with open(schema_fpath) as fd:
+            schema = fd.read()
+        conn.execute(schema)
+        return conn
+
+    def to_dict(self) -&gt; dict[str, object]:
+        &#34;&#34;&#34;
+        Convert the report to a JSON-compatible dictionary.
+        Uses dataclasses.asdict() with custom handling for special types.
+        &#34;&#34;&#34;
+
+        dct = dataclasses.asdict(self)
+
+        # Handle special cases
+        dct[&#34;exp_cfg&#34;] = self.exp_cfg.to_dict()
+        dct[&#34;predictions&#34;] = [p.to_dict() for p in self.predictions]
+
+        return dct
+
+    def write(self, conn: sqlite3.Connection | None = None):
+        &#34;&#34;&#34;
+        Write this report to a SQLite database.
+
+        Args:
+            conn: SQLite connection to write to
+        &#34;&#34;&#34;
+        if not conn:
+            conn = self.get_conn()
+
+        # Insert into results table
+        cursor = conn.cursor()
+
+        # Determine method-specific fields
+        model_method = (
+            &#34;mllm&#34; if self.exp_cfg.model.org in [&#34;anthropic&#34;, &#34;openai&#34;] else &#34;cvml&#34;
+        )
+
+        # Prepare values for results table
+        results_values = {
+            &#34;task_name&#34;: self.task_name,
+            &#34;n_train&#34;: self.n_train,
+            &#34;n_test&#34;: len(self.predictions),
+            &#34;sampling&#34;: self.exp_cfg.sampling,
+            &#34;model_method&#34;: model_method,
+            &#34;model_org&#34;: self.exp_cfg.model.org,
+            &#34;model_ckpt&#34;: self.exp_cfg.model.ckpt,
+            # MLLM-specific fields
+            &#34;prompting&#34;: self.exp_cfg.prompting
+            if hasattr(self.exp_cfg, &#34;prompting&#34;)
+            else None,
+            &#34;cot_enabled&#34;: 1
+            if hasattr(self.exp_cfg, &#34;cot&#34;) and self.exp_cfg.cot
+            else 0,
+            &#34;parse_success_rate&#34;: self.parse_success_rate,
+            &#34;usd_per_answer&#34;: self.usd_per_answer,
+            # CVML-specific fields
+            &#34;classifier_type&#34;: self.classifier,
+            # Configuration and metadata
+            &#34;exp_cfg&#34;: json.dumps(self.exp_cfg.to_dict()),
+            &#34;argv&#34;: json.dumps(self.argv),
+            &#34;commit&#34;: self.commit,
+            &#34;posix&#34;: int(self.posix_time),
+            &#34;gpu_name&#34;: self.gpu_name,
+            &#34;hostname&#34;: self.hostname,
+        }
+
+        # Build the SQL query
+        columns = &#34;, &#34;.join(results_values.keys())
+        placeholders = &#34;, &#34;.join([&#34;?&#34;] * len(results_values))
+
+        # Insert into results table
+        cursor.execute(
+            f&#34;INSERT INTO results ({columns}) VALUES ({placeholders})&#34;,
+            list(results_values.values()),
+        )
+
+        # Get the rowid of the inserted result
+        result_id = cursor.lastrowid
+
+        # Insert predictions
+        for pred in self.predictions:
+            cursor.execute(
+                &#34;INSERT INTO predictions (img_id, score, n_train, info, result_id) VALUES (?, ?, ?, ?, ?)&#34;,
+                (
+                    pred.img_id,
+                    pred.score,
+                    pred.n_train,
+                    json.dumps(pred.info),
+                    result_id,
+                ),
+            )
+
+        # Commit the transaction
+        conn.commit()</code></pre>
+</details>
+<h3>Class variables</h3>
+<dl>
+<dt id="biobench.reporting.Report.argv"><code class="name">var <span class="ident">argv</span> : list[str]</code></dt>
+<dd>
+<div class="desc"><p>Command used to get this report.</p></div>
+</dd>
+<dt id="biobench.reporting.Report.classifier"><code class="name">var <span class="ident">classifier</span> : Optional[Literal['knn', 'svm', 'ridge']]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.reporting.Report.commit"><code class="name">var <span class="ident">commit</span> : str</code></dt>
+<dd>
+<div class="desc"><p>Git commit for this current report.</p></div>
+</dd>
+<dt id="biobench.reporting.Report.exp_cfg"><code class="name">var <span class="ident">exp_cfg</span> : <a title="biobench.config.Experiment" href="config.html#biobench.config.Experiment">Experiment</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.reporting.Report.gpu_name"><code class="name">var <span class="ident">gpu_name</span> : str</code></dt>
+<dd>
+<div class="desc"><p>Name of the GPU that ran this experiment.</p></div>
+</dd>
+<dt id="biobench.reporting.Report.hostname"><code class="name">var <span class="ident">hostname</span> : str</code></dt>
+<dd>
+<div class="desc"><p>Machine hostname that ran this experiment.</p></div>
+</dd>
+<dt id="biobench.reporting.Report.n_train"><code class="name">var <span class="ident">n_train</span> : int</code></dt>
+<dd>
+<div class="desc"><p>Number of training samples <em>actually</em> used.</p></div>
+</dd>
+<dt id="biobench.reporting.Report.parse_success_rate"><code class="name">var <span class="ident">parse_success_rate</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.reporting.Report.posix_time"><code class="name">var <span class="ident">posix_time</span> : float</code></dt>
+<dd>
+<div class="desc"><p>Time when this report was constructed.</p></div>
+</dd>
+<dt id="biobench.reporting.Report.predictions"><code class="name">var <span class="ident">predictions</span> : list[<a title="biobench.reporting.Prediction" href="#biobench.reporting.Prediction">Prediction</a>]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.reporting.Report.task_name"><code class="name">var <span class="ident">task_name</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.reporting.Report.usd_per_answer"><code class="name">var <span class="ident">usd_per_answer</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="biobench.reporting.Report.get_conn"><code class="name flex">
+<span>def <span class="ident">get_conn</span></span>(<span>self) ‑> sqlite3.Connection</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.reporting.Report.to_dict"><code class="name flex">
+<span>def <span class="ident">to_dict</span></span>(<span>self) ‑> dict[str, object]</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Convert the report to a JSON-compatible dictionary.
+Uses dataclasses.asdict() with custom handling for special types.</p></div>
+</dd>
+<dt id="biobench.reporting.Report.write"><code class="name flex">
+<span>def <span class="ident">write</span></span>(<span>self, conn: sqlite3.Connection | None = None)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Write this report to a SQLite database.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>conn</code></strong></dt>
+<dd>SQLite connection to write to</dd>
+</dl></div>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="biobench" href="index.html">biobench</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-functions">Functions</a></h3>
+<ul class="">
+<li><code><a title="biobench.reporting.get_git_hash" href="#biobench.reporting.get_git_hash">get_git_hash</a></code></li>
+<li><code><a title="biobench.reporting.get_gpu_name" href="#biobench.reporting.get_gpu_name">get_gpu_name</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="biobench.reporting.Prediction" href="#biobench.reporting.Prediction">Prediction</a></code></h4>
+<ul class="">
+<li><code><a title="biobench.reporting.Prediction.img_id" href="#biobench.reporting.Prediction.img_id">img_id</a></code></li>
+<li><code><a title="biobench.reporting.Prediction.info" href="#biobench.reporting.Prediction.info">info</a></code></li>
+<li><code><a title="biobench.reporting.Prediction.n_train" href="#biobench.reporting.Prediction.n_train">n_train</a></code></li>
+<li><code><a title="biobench.reporting.Prediction.score" href="#biobench.reporting.Prediction.score">score</a></code></li>
+<li><code><a title="biobench.reporting.Prediction.to_dict" href="#biobench.reporting.Prediction.to_dict">to_dict</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="biobench.reporting.Report" href="#biobench.reporting.Report">Report</a></code></h4>
+<ul class="two-column">
+<li><code><a title="biobench.reporting.Report.argv" href="#biobench.reporting.Report.argv">argv</a></code></li>
+<li><code><a title="biobench.reporting.Report.classifier" href="#biobench.reporting.Report.classifier">classifier</a></code></li>
+<li><code><a title="biobench.reporting.Report.commit" href="#biobench.reporting.Report.commit">commit</a></code></li>
+<li><code><a title="biobench.reporting.Report.exp_cfg" href="#biobench.reporting.Report.exp_cfg">exp_cfg</a></code></li>
+<li><code><a title="biobench.reporting.Report.get_conn" href="#biobench.reporting.Report.get_conn">get_conn</a></code></li>
+<li><code><a title="biobench.reporting.Report.gpu_name" href="#biobench.reporting.Report.gpu_name">gpu_name</a></code></li>
+<li><code><a title="biobench.reporting.Report.hostname" href="#biobench.reporting.Report.hostname">hostname</a></code></li>
+<li><code><a title="biobench.reporting.Report.n_train" href="#biobench.reporting.Report.n_train">n_train</a></code></li>
+<li><code><a title="biobench.reporting.Report.parse_success_rate" href="#biobench.reporting.Report.parse_success_rate">parse_success_rate</a></code></li>
+<li><code><a title="biobench.reporting.Report.posix_time" href="#biobench.reporting.Report.posix_time">posix_time</a></code></li>
+<li><code><a title="biobench.reporting.Report.predictions" href="#biobench.reporting.Report.predictions">predictions</a></code></li>
+<li><code><a title="biobench.reporting.Report.task_name" href="#biobench.reporting.Report.task_name">task_name</a></code></li>
+<li><code><a title="biobench.reporting.Report.to_dict" href="#biobench.reporting.Report.to_dict">to_dict</a></code></li>
+<li><code><a title="biobench.reporting.Report.usd_per_answer" href="#biobench.reporting.Report.usd_per_answer">usd_per_answer</a></code></li>
+<li><code><a title="biobench.reporting.Report.write" href="#biobench.reporting.Report.write">write</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.1</a>.</p>
+</footer>
+</body>
+</html>

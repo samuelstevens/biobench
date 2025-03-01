@@ -32,58 +32,6 @@ hljs.highlightAll();
 Run <code>python benchmark.py --help</code> to see all the options.</p>
 <p>Note that you will have to download all the datasets, but each dataset includes its own download script with instructions.
 For example, see <code><a title="biobench.newt.download" href="biobench/newt/download.html">biobench.newt.download</a></code> for an example.</p>
-<h1 id="examples">Examples</h1>
-<h2 id="run-everything">Run Everything</h2>
-<p>Suppose you want to run all the tasks for all the default models to get started using a local GPU (device 4, for example).
-You need to specify all the <code>--TASK-run</code> flags and <code>--TASK-args.datadir</code> so that each task knows where to load data from.</p>
-<pre><code class="language-sh">CUDA_VISIBLE_DEVICES=4 python benchmark.py \
-  --kabr-run --kabr-args.datadir /local/scratch/stevens.994/datasets/kabr \
-  --iwildcam-run --iwildcam-args.datadir /local/scratch/stevens.994/datasets/iwildcam \
-  --plantnet-run --plantnet-args.datadir /local/scratch/stevens.994/datasets/plantnet \
-  --birds525-run --birds525-args.datadir /local/scratch/stevens.994/datasets/birds525 \
-  --newt-run --newt-args.datadir /local/scratch/stevens.994/datasets/newt \
-  --beluga-run --beluga-args.datadir /local/scratch/stevens.994/datasets/beluga \
-  --ages-run --ages-args.datadir /local/scratch/stevens.994/datasets/newt \
-  --fishnet-run --fishnet-args.datadir /local/scratch/stevens.994/datasets/fishnet
-</code></pre>
-<p>More generally, you can configure options for individual tasks using <code>--TASK-args.&lt;OPTION&gt;</code>, which are all documented <code>python benchmark.py --help</code>.</p>
-<h2 id="just-one-task">Just One Task</h2>
-<p>Suppose you just want to run one task (NeWT).</p>
-<pre><code class="language-sh">CUDA_VISIBLE_DEVICES=4 python benchmark.py \
-  --newt-run --newt-args.datadir /local/scratch/stevens.994/datasets/newt
-</code></pre>
-<h2 id="just-one-model">Just One Model</h2>
-<p>Suppose you only want to run the SigLIP SO400M ViT from Open CLIP, but you want to run it on all tasks.
-Since that model is a checkpoint in Open CLIP, we can use the <code><a title="biobench.third_party_models.OpenClip" href="biobench/third_party_models.html#biobench.third_party_models.OpenClip">OpenClip</a></code> class to load the checkpoint.</p>
-<pre><code class="language-sh">CUDA_VISIBLE_DEVICES=4 python benchmark.py \
-  --kabr-run --kabr-args.datadir /local/scratch/stevens.994/datasets/kabr \
-  --iwildcam-run --iwildcam-args.datadir /local/scratch/stevens.994/datasets/iwildcam \
-  --plantnet-run --plantnet-args.datadir /local/scratch/stevens.994/datasets/plantnet \
-  --birds525-run --birds525-args.datadir /local/scratch/stevens.994/datasets/birds525 \
-  --newt-run --newt-args.datadir /local/scratch/stevens.994/datasets/newt \
-  --beluga-run --beluga-args.datadir /local/scratch/stevens.994/datasets/beluga \
-  --ages-run --ages-args.datadir /local/scratch/stevens.994/datasets/newt \
-  --fishnet-run --fishnet-args.datadir /local/scratch/stevens.994/datasets/fishnet \
-  --model open-clip ViT-SO400M-14-SigLIP/webli  # &lt;- This is the new line!
-</code></pre>
-<h2 id="use-slurm">Use Slurm</h2>
-<p>Slurm clusters with lots of GPUs can be used to run lots of tasks in parallel.
-It's really easy with <code><a title="biobench" href="biobench/index.html">biobench</a></code>.</p>
-<pre><code class="language-sh">python benchmark.py \
-  --kabr-run --kabr-args.datadir /local/scratch/stevens.994/datasets/kabr \
-  --iwildcam-run --iwildcam-args.datadir /local/scratch/stevens.994/datasets/iwildcam \
-  --plantnet-run --plantnet-args.datadir /local/scratch/stevens.994/datasets/plantnet \
-  --birds525-run --birds525-args.datadir /local/scratch/stevens.994/datasets/birds525 \
-  --newt-run --newt-args.datadir /local/scratch/stevens.994/datasets/newt \
-  --beluga-run --beluga-args.datadir /local/scratch/stevens.994/datasets/beluga \
-  --ages-run --ages-args.datadir /local/scratch/stevens.994/datasets/newt \
-  --fishnet-run --fishnet-args.datadir /local/scratch/stevens.994/datasets/fishnet \
-  --slurm  # &lt;- Just add --slurm to use slurm!
-</code></pre>
-<p>Note that you don't need to specify <code>CUDA_VISIBLE_DEVICES</code> anymore because you're not running on the local machine anymore.</p>
-<h1 id="design">Design</h1>
-<p>biobench is designed to make it easy to add both models and tasks that work with other models and tasks.</p>
-<p>To add a new model, look at <code>biobench.registry</code>'s documentation, which includes a tutorial for adding a new model.</p>
 </section>
 <section>
 </section>
@@ -99,21 +47,6 @@ It's really easy with <code><a title="biobench" href="biobench/index.html">biobe
 <div class="desc"><p>Launch all jobs, using either a local GPU or a Slurm cluster.
 Then report results and save to disk.</p></div>
 </dd>
-<dt id="benchmark.save"><code class="name flex">
-<span>def <span class="ident">save</span></span>(<span>report: <a title="biobench.interfaces.Report" href="biobench/interfaces.html#biobench.interfaces.Report">Report</a>) ‑> None</span>
-</code></dt>
-<dd>
-<div class="desc"><p>Saves the report to disk in a machine-readable SQLite format.</p>
-<h2 id="args">Args</h2>
-<dl>
-<dt><strong><code>args</code></strong></dt>
-<dd>launch script arguments.</dd>
-<dt><strong><code>model_args</code></strong></dt>
-<dd>a pair of model_org, model_ckpt strings.</dd>
-<dt><strong><code>report</code></strong></dt>
-<dd>the task report from the model_args.</dd>
-</dl></div>
-</dd>
 </dl>
 </section>
 <section>
@@ -121,22 +54,12 @@ Then report results and save to disk.</p></div>
 </article>
 <nav id="sidebar">
 <div class="toc">
-<ul>
-<li><a href="#examples">Examples</a><ul>
-<li><a href="#run-everything">Run Everything</a></li>
-<li><a href="#just-one-task">Just One Task</a></li>
-<li><a href="#just-one-model">Just One Model</a></li>
-<li><a href="#use-slurm">Use Slurm</a></li>
-</ul>
-</li>
-<li><a href="#design">Design</a></li>
-</ul>
+<ul></ul>
 </div>
 <ul id="index">
 <li><h3><a href="#header-functions">Functions</a></h3>
 <ul class="">
 <li><code><a title="benchmark.benchmark" href="#benchmark.benchmark">benchmark</a></code></li>
-<li><code><a title="benchmark.save" href="#benchmark.save">save</a></code></li>
 </ul>
 </li>
 </ul>

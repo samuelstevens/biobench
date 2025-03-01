@@ -41,7 +41,7 @@ from jaxtyping import Float, Int, Integer, jaxtyped
 from PIL import Image
 from torch import Tensor
 
-from .. import config, cvml, helpers, interfaces, mllms
+from .. import config, cvml, helpers, mllms, reporting
 
 logger = logging.getLogger("newt")
 
@@ -52,7 +52,7 @@ logger = logging.getLogger("newt")
 
 
 @beartype.beartype
-def benchmark_cvml(cfg: config.Experiment) -> list[interfaces.Report]:
+def benchmark_cvml(cfg: config.Experiment) -> list[reporting.Report]:
     rng = random.Random(cfg.seed)
 
     backbone = cvml.load_vision_backbone(cfg.model)
@@ -89,10 +89,10 @@ def benchmark_cvml(cfg: config.Experiment) -> list[interfaces.Report]:
         }
 
         preds = [
-            interfaces.Prediction(str(id), float(pred == true), n_train, info)
+            reporting.Prediction(str(id), float(pred == true), n_train, info)
             for id, pred, true in zip(test_dataset.img_ids, y_pred, y_test)
         ]
-        report = interfaces.Report(
+        report = reporting.Report(
             f"NeWT::{test_dataset.task}", preds, preds[0].n_train, cfg
         )
         reports.append(report)
@@ -302,7 +302,7 @@ def init_svc(n_train: int):
 
 
 @beartype.beartype
-def benchmark_mllm(cfg: config.Experiment) -> list[interfaces.Report]:
+def benchmark_mllm(cfg: config.Experiment) -> list[reporting.Report]:
     rng = random.Random(cfg.seed)
 
     reports = []
@@ -321,7 +321,7 @@ def benchmark_mllm(cfg: config.Experiment) -> list[interfaces.Report]:
                 logger.info("Loaded %d training examples.", len(train_examples))
 
             @beartype.beartype
-            async def run_one(i: int) -> interfaces.Prediction:
+            async def run_one(i: int) -> reporting.Prediction:
                 async with semaphore:
                     example = test_dataset[i]
 
@@ -346,7 +346,7 @@ def benchmark_mllm(cfg: config.Experiment) -> list[interfaces.Report]:
                     )
                     pred_y, parsed = example.parse_assistant(assistant)
 
-                    return interfaces.Prediction(
+                    return reporting.Prediction(
                         example.img_id,
                         float(pred_y == example.label),
                         len(fewshot),
@@ -359,7 +359,7 @@ def benchmark_mllm(cfg: config.Experiment) -> list[interfaces.Report]:
                     )
 
             @beartype.beartype
-            async def run_all() -> list[interfaces.Prediction]:
+            async def run_all() -> list[reporting.Prediction]:
                 if cfg.debug:
                     logger.info(
                         "Using the first 10 examples out of %d.", len(test_dataset)
@@ -381,12 +381,12 @@ def benchmark_mllm(cfg: config.Experiment) -> list[interfaces.Report]:
                 jobs = [asyncio.create_task(run_one(i)) for i in test_i]
                 preds = []
                 for job in helpers.progress(jobs, desc=train_dataset.task):
-                    pred: interfaces.Prediction = await job
+                    pred: reporting.Prediction = await job
                     preds.append(pred)
                 return preds
 
             preds = loop.run(run_all())
-            report = interfaces.Report(
+            report = reporting.Report(
                 f"NeWT::{train_dataset.task}", preds, preds[0].n_train, cfg
             )
             reports.append(report)

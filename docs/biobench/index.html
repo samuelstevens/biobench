@@ -32,7 +32,7 @@ hljs.highlightAll();
 <p>The most important modules to understand are:</p>
 <ul>
 <li><code><a title="benchmark" href="../benchmark.html">benchmark</a></code> because it is the launch script that runs all the tasks.</li>
-<li><code><a title="biobench.interfaces" href="interfaces.html">biobench.interfaces</a></code> because it defines how everything hooks together.</li>
+<li><code>interfaces</code> because it defines how everything hooks together.</li>
 <li>Any of the task modules&ndash;<code><a title="biobench.newt" href="newt/index.html">biobench.newt</a></code> is well documented.</li>
 <li>Any of the vision modules&ndash;<code><a title="biobench.third_party_models.OpenClip" href="third_party_models.html#biobench.third_party_models.OpenClip">OpenClip</a></code> is highly relevant to anyone using the <a href="https://github.com/mlfoundations/open_clip">open_clip</a> codebase to train models.</li>
 </ul>
@@ -50,7 +50,7 @@ hljs.highlightAll();
 </ul>
 <h1 id="helper-modules">Helper Modules</h1>
 <ul>
-<li><code><a title="biobench.interfaces" href="interfaces.html">biobench.interfaces</a></code>: All the interfaces that describe how the different modules communicate.</li>
+<li><code>interfaces</code>: All the interfaces that describe how the different modules communicate.</li>
 <li><code>registry</code>: How to add/load vision models to BioBench.</li>
 <li><code><a title="biobench.simpleshot" href="simpleshot.html">biobench.simpleshot</a></code>: An implementation of nearest-centroid classification from <a href="https://arxiv.org/abs/1911.04623">Simpleshot</a>.</li>
 <li><code><a title="biobench.third_party_models" href="third_party_models.html">biobench.third_party_models</a></code>: Some pre-written vision backbones that load checkpoints from <a href="https://github.com/mlfoundations/open_clip">open_clip</a> and <a href="https://github.com/huggingface/pytorch-image-models">timm</a>. You can use these as inspiration for writing your own vision backbones or check out <code>biobench.registry</code> for a tutorial.</li>
@@ -202,10 +202,6 @@ As long …</p></div>
 <dd>
 <div class="desc"><p>Useful helpers for more than two tasks that don't fit anywhere else.</p></div>
 </dd>
-<dt><code class="name"><a title="biobench.interfaces" href="interfaces.html">biobench.interfaces</a></code></dt>
-<dd>
-<div class="desc"><p>Common interfaces for models and tasks so that it's easy to add new models (which will work right away with all tasks) and easy to add new tasks …</p></div>
-</dd>
 <dt><code class="name"><a title="biobench.mllms" href="mllms.html">biobench.mllms</a></code></dt>
 <dd>
 <div class="desc"></div>
@@ -213,6 +209,10 @@ As long …</p></div>
 <dt><code class="name"><a title="biobench.newt" href="newt/index.html">biobench.newt</a></code></dt>
 <dd>
 <div class="desc"><p>NeWT: Natural World Tasks …</p></div>
+</dd>
+<dt><code class="name"><a title="biobench.reporting" href="reporting.html">biobench.reporting</a></code></dt>
+<dd>
+<div class="desc"><p>Common interfaces for models and tasks so that it's easy to add new models (which will work right away with all tasks) and easy to add new tasks …</p></div>
 </dd>
 <dt><code class="name"><a title="biobench.simpleshot" href="simpleshot.html">biobench.simpleshot</a></code></dt>
 <dd>
@@ -251,9 +251,9 @@ As long …</p></div>
 <li><code><a title="biobench.config" href="config.html">biobench.config</a></code></li>
 <li><code><a title="biobench.cvml" href="cvml.html">biobench.cvml</a></code></li>
 <li><code><a title="biobench.helpers" href="helpers.html">biobench.helpers</a></code></li>
-<li><code><a title="biobench.interfaces" href="interfaces.html">biobench.interfaces</a></code></li>
 <li><code><a title="biobench.mllms" href="mllms.html">biobench.mllms</a></code></li>
 <li><code><a title="biobench.newt" href="newt/index.html">biobench.newt</a></code></li>
+<li><code><a title="biobench.reporting" href="reporting.html">biobench.reporting</a></code></li>
 <li><code><a title="biobench.simpleshot" href="simpleshot.html">biobench.simpleshot</a></code></li>
 <li><code><a title="biobench.third_party_models" href="third_party_models.html">biobench.third_party_models</a></code></li>
 </ul>

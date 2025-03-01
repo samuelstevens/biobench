@@ -1,7 +1,4 @@
 CREATE TABLE IF NOT EXISTS results (
-    -- Experiment metadata
-    posix INTEGER NOT NULL,  -- POSIX timestamp
-
     -- Task information
     task_name TEXT NOT NULL,  -- "newt", "iwildcam", etc.
     n_train INTEGER NOT NULL,  -- Number of train samples *actually* used (1, 3, 10, 30, etc.)
@@ -13,11 +10,6 @@ CREATE TABLE IF NOT EXISTS results (
     model_org TEXT NOT NULL,
     model_ckpt TEXT NOT NULL,
 
-    -- Common metrics
-    mean_score REAL NOT NULL,  -- Primary metric
-    confidence_lower REAL NOT NULL,
-    confidence_upper REAL NOT NULL,
-
     -- MLLM-specific fields
     prompting TEXT,  -- "single" or "multi"
     cot_enabled INTEGER,  -- Boolean as 0 or 1
@@ -27,12 +19,12 @@ CREATE TABLE IF NOT EXISTS results (
     -- CVML-specific fields
     classifier_type TEXT,  -- "knn", "svm", or "ridge"
 
-    -- Flexible storage for complete configurations and detailed results
     exp_cfg TEXT NOT NULL,  -- JSON blob with full experiment configuration
     
-    -- Metadata fields (previously stored in report JSON blob)
+    -- Metadata fields
     argv TEXT NOT NULL,  -- Command used to get this report (JSON array)
     commit TEXT NOT NULL,  -- Git commit hash
+    posix INTEGER NOT NULL,  -- POSIX timestamp
     gpu_name TEXT,  -- Name of the GPU that ran this experiment
     hostname TEXT NOT NULL  -- Machine hostname that ran this experiment
 );

@@ -320,21 +320,7 @@ class Experiment:
     seed: int = 17
     """Radnom seed."""
 
-    # Task-specific args
-    ages_data: str = ""
-    beluga_data: str = ""
-    birds525_data: str = ""
-    fishnet_data: str = ""
-    imagenet_data: str = ""
-    inat21_data: str = ""
-    iwildcam_data: str = ""
-    kabr_data: str = ""
-    leopard_data: str = ""
     newt_data: str = ""
-    plankton_data: str = ""
-    plantnet_data: str = ""
-    rarespecies_data: str = ""
-
     newt: Newt = dataclasses.field(default_factory=Newt)
 
     def to_dict(self) -> dict[str, object]:
@@ -1095,7 +1081,7 @@ def simpleshot(
 
 ```
 
-# biobench/interfaces.py
+# biobench/reporting.py
 
 ```python
 """
@@ -1108,18 +1094,23 @@ The benchmark interface is informal.
 """
 
 import dataclasses
+import json
+import os
+import pathlib
 import socket
+import sqlite3
 import subprocess
 import sys
 import time
 import typing
 
 import beartype
-import numpy as np
 import torch
 from jaxtyping import jaxtyped
 
-from . import config, helpers
+from . import config
+
+schema_fpath = pathlib.Path(__file__).parent / "schema.sql"
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -1127,7 +1118,7 @@ from . import config, helpers
 class Prediction:
     """An individual test prediction."""
 
-    id: str
+    img_id: str
     """Whatever kind of ID; used to find the original image/example."""
     score: float
     """Test score; typically 0 or 1 for classification tasks."""
@@ -1146,10 +1137,6 @@ def get_git_hash() -> str:
     Returns the hash of the current git commit, assuming we are in a git repo.
     """
     return subprocess.check_output(["git", "rev-parse", "HEAD"]).decode("ascii").strip()
-
-
-def default_calc_mean_score(predictions: list[Prediction]) -> float:
-    return np.mean([prediction.score for prediction in predictions]).item()
 
 
 def get_gpu_name() -> str:
@@ -1177,10 +1164,6 @@ class Report:
 
     _: dataclasses.KW_ONLY
 
-    calc_mean_score: typing.Callable[[list[Prediction]], float] = (
-        default_calc_mean_score
-    )
-
     # MLLM-specific
     parse_success_rate: float | None = None
     usd_per_answer: float | None = None
@@ -1204,6 +1187,16 @@ class Report:
         model_name = self.exp_cfg.model.ckpt
         return f"Report({self.task_name}, {model_name}, {len(self.predictions)} predictions)"
 
+    def get_conn(self) -> sqlite3.Connection:
+        os.makedirs(self.exp_cfg.report_to, exist_ok=True)
+        conn = sqlite3.connect(
+            os.path.join(self.exp_cfg.report_to, "results.sqlite"), autocommit=False
+        )
+        with open(schema_fpath) as fd:
+            schema = fd.read()
+        conn.execute(schema)
+        return conn
+
     def to_dict(self) -> dict[str, object]:
         """
         Convert the report to a JSON-compatible dictionary.
@@ -1214,47 +1207,85 @@ class Report:
 
         # Handle special cases
         dct["exp_cfg"] = self.exp_cfg.to_dict()
-        dct["calc_mean_score"] = self.calc_mean_score.__name__
         dct["predictions"] = [p.to_dict() for p in self.predictions]
 
         return dct
 
-    def get_mean_score(self) -> float:
+    def write(self, conn: sqlite3.Connection | None = None):
         """
-        Get the mean score of all predictions.
-        """
-        return self.calc_mean_score(self.predictions)
+        Write this report to a SQLite database.
 
-    def get_confidence_interval(
-        self,
-        statistic="mean",
-        confidence: float = 95,
-        n_resamples: int = 500,
-        seed: int = 42,
-    ) -> tuple[float, float]:
+        Args:
+            conn: SQLite connection to write to
         """
-        Get the confidence interval for the statistics (mean) by bootstrapping individual scores of the predictions.
+        if not conn:
+            conn = self.get_conn()
 
-        NOTE: it's crazy how much easier this would be in Jax. PyTrees of Predictions would simply contains batch dimensions, and then I would `jax.vmap(get_mean_score)(batched_predictions)`.
-        """
+        # Insert into results table
+        cursor = conn.cursor()
 
-        rng = np.random.default_rng(seed=seed)
-        choices = rng.choice(
-            len(self.predictions),
-            size=(n_resamples, len(self.predictions)),
-            replace=True,
+        # Determine method-specific fields
+        model_method = (
+            "mllm" if self.exp_cfg.model.org in ["anthropic", "openai"] else "cvml"
         )
 
-        scores = []
-        for choice in helpers.progress(
-            choices, desc=f"CI for {self.task_name}", every=100
-        ):
-            scores.append(self.calc_mean_score([self.predictions[i] for i in choice]))
+        # Prepare values for results table
+        results_values = {
+            "task_name": self.task_name,
+            "n_train": self.n_train,
+            "n_test": len(self.predictions),
+            "sampling": self.exp_cfg.sampling,
+            "model_method": model_method,
+            "model_org": self.exp_cfg.model.org,
+            "model_ckpt": self.exp_cfg.model.ckpt,
+            # MLLM-specific fields
+            "prompting": self.exp_cfg.prompting
+            if hasattr(self.exp_cfg, "prompting")
+            else None,
+            "cot_enabled": 1
+            if hasattr(self.exp_cfg, "cot") and self.exp_cfg.cot
+            else 0,
+            "parse_success_rate": self.parse_success_rate,
+            "usd_per_answer": self.usd_per_answer,
+            # CVML-specific fields
+            "classifier_type": self.classifier,
+            # Configuration and metadata
+            "exp_cfg": json.dumps(self.exp_cfg.to_dict()),
+            "argv": json.dumps(self.argv),
+            "commit": self.commit,
+            "posix": int(self.posix_time),
+            "gpu_name": self.gpu_name,
+            "hostname": self.hostname,
+        }
 
-        percentiles = (100 - confidence) / 2, (100 - confidence) / 2 + confidence
-        lower, upper = np.percentile(scores, percentiles).tolist()
+        # Build the SQL query
+        columns = ", ".join(results_values.keys())
+        placeholders = ", ".join(["?"] * len(results_values))
 
-        return lower, upper
+        # Insert into results table
+        cursor.execute(
+            f"INSERT INTO results ({columns}) VALUES ({placeholders})",
+            list(results_values.values()),
+        )
+
+        # Get the rowid of the inserted result
+        result_id = cursor.lastrowid
+
+        # Insert predictions
+        for pred in self.predictions:
+            cursor.execute(
+                "INSERT INTO predictions (img_id, score, n_train, info, result_id) VALUES (?, ?, ?, ?, ?)",
+                (
+                    pred.img_id,
+                    pred.score,
+                    pred.n_train,
+                    json.dumps(pred.info),
+                    result_id,
+                ),
+            )
+
+        # Commit the transaction
+        conn.commit()
 
 ```
 
@@ -1304,7 +1335,7 @@ from jaxtyping import Float, Int, Integer, jaxtyped
 from PIL import Image
 from torch import Tensor
 
-from .. import config, cvml, helpers, interfaces, mllms
+from .. import config, cvml, helpers, mllms, reporting
 
 logger = logging.getLogger("newt")
 
@@ -1315,7 +1346,7 @@ logger = logging.getLogger("newt")
 
 
 @beartype.beartype
-def benchmark_cvml(cfg: config.Experiment) -> list[interfaces.Report]:
+def benchmark_cvml(cfg: config.Experiment) -> list[reporting.Report]:
     rng = random.Random(cfg.seed)
 
     backbone = cvml.load_vision_backbone(cfg.model)
@@ -1352,10 +1383,10 @@ def benchmark_cvml(cfg: config.Experiment) -> list[interfaces.Report]:
         }
 
         preds = [
-            interfaces.Prediction(str(id), float(pred == true), n_train, info)
+            reporting.Prediction(str(id), float(pred == true), n_train, info)
             for id, pred, true in zip(test_dataset.img_ids, y_pred, y_test)
         ]
-        report = interfaces.Report(
+        report = reporting.Report(
             f"NeWT::{test_dataset.task}", preds, preds[0].n_train, cfg
         )
         reports.append(report)
@@ -1565,7 +1596,7 @@ def init_svc(n_train: int):
 
 
 @beartype.beartype
-def benchmark_mllm(cfg: config.Experiment) -> list[interfaces.Report]:
+def benchmark_mllm(cfg: config.Experiment) -> list[reporting.Report]:
     rng = random.Random(cfg.seed)
 
     reports = []
@@ -1584,7 +1615,7 @@ def benchmark_mllm(cfg: config.Experiment) -> list[interfaces.Report]:
                 logger.info("Loaded %d training examples.", len(train_examples))
 
             @beartype.beartype
-            async def run_one(i: int) -> interfaces.Prediction:
+            async def run_one(i: int) -> reporting.Prediction:
                 async with semaphore:
                     example = test_dataset[i]
 
@@ -1609,7 +1640,7 @@ def benchmark_mllm(cfg: config.Experiment) -> list[interfaces.Report]:
                     )
                     pred_y, parsed = example.parse_assistant(assistant)
 
-                    return interfaces.Prediction(
+                    return reporting.Prediction(
                         example.img_id,
                         float(pred_y == example.label),
                         len(fewshot),
@@ -1622,7 +1653,7 @@ def benchmark_mllm(cfg: config.Experiment) -> list[interfaces.Report]:
                     )
 
             @beartype.beartype
-            async def run_all() -> list[interfaces.Prediction]:
+            async def run_all() -> list[reporting.Prediction]:
                 if cfg.debug:
                     logger.info(
                         "Using the first 10 examples out of %d.", len(test_dataset)
@@ -1644,12 +1675,12 @@ def benchmark_mllm(cfg: config.Experiment) -> list[interfaces.Report]:
                 jobs = [asyncio.create_task(run_one(i)) for i in test_i]
                 preds = []
                 for job in helpers.progress(jobs, desc=train_dataset.task):
-                    pred: interfaces.Prediction = await job
+                    pred: reporting.Prediction = await job
                     preds.append(pred)
                 return preds
 
             preds = loop.run(run_all())
-            report = interfaces.Report(
+            report = reporting.Report(
                 f"NeWT::{train_dataset.task}", preds, preds[0].n_train, cfg
             )
             reports.append(report)
@@ -2693,86 +2724,22 @@ Run `python benchmark.py --help` to see all the options.
 
 Note that you will have to download all the datasets, but each dataset includes its own download script with instructions.
 For example, see `biobench.newt.download` for an example.
-
-.. include:: ./examples.md
-
-.. include:: ./design.md
 """
 
-import json
 import logging
 import os
 import resource
-import sqlite3
-import time
 import typing
 
 import beartype
 import submitit
 import tyro
 
-from biobench import config, interfaces, newt
+from biobench import config, newt, reporting
 
 log_format = "[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s"
 logging.basicConfig(level=logging.INFO, format=log_format)
 logger = logging.getLogger("benchmark.py")
-
-
-@beartype.beartype
-def save(report: interfaces.Report) -> None:
-    """
-    Saves the report to disk in a machine-readable SQLite format.
-
-    Args:
-        args: launch script arguments.
-        model_args: a pair of model_org, model_ckpt strings.
-        report: the task report from the model_args.
-    """
-    os.makedirs(report.exp_cfg.report_to, exist_ok=True)
-    conn = sqlite3.connect(os.path.join(report.exp_cfg.report_to, "results.sqlite"))
-    with open("schema.sql") as fd:
-        schema = fd.read()
-    conn.execute(schema)
-
-    lower, upper = report.get_confidence_interval()
-
-    values = (
-        int(time.time()),
-        report.task_name,
-        report.n_train,
-        len(report.predictions),
-        report.exp_cfg.sampling,
-        report.exp_cfg.model.method,
-        report.exp_cfg.model.org,
-        report.exp_cfg.model.ckpt,
-        report.get_mean_score(),
-        lower,
-        upper,
-        # MLLM
-        report.exp_cfg.prompting,
-        report.exp_cfg.cot_enabled,
-        report.parse_success_rate,
-        report.usd_per_answer,
-        # CVML
-        report.classifier,
-        # JSON blobs
-        json.dumps(report.exp_cfg.to_dict()),
-        json.dumps(report.to_dict()),
-    )
-    conn.execute(
-        "INSERT INTO results VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        values,
-    )
-    conn.commit()
-
-    logger.info(
-        "%s with %d (%d actual) examples on %s: %.3f",
-        report.exp_cfg.model.ckpt,
-        report.exp_cfg.n_train,
-        report.n_train,
-        report.task_name,
-        report.get_mean_score(),
-    )
 
 
 @beartype.beartype
@@ -2825,19 +2792,11 @@ def benchmark(cfg: str):
     jobs = []
     for cfg in cfgs:
         if cfg.model.method == "cvml":
-            # if cfg.fishnet_data:
-            #     job = executor.submit(fishnet.benchmark_cvml, cfg)
-            #     jobs.append(job)
-            if cfg.newt_data:
-                job = executor.submit(newt.benchmark_cvml, cfg)
-                jobs.append(job)
+            job = executor.submit(newt.benchmark_cvml, cfg)
+            jobs.append(job)
         elif cfg.model.method == "mllm":
-            # if cfg.fishnet_data:
-            #     job = executor.submit(fishnet.benchmark_mllm, cfg)
-            #     jobs.append(job)
-            if cfg.newt_data:
-                job = executor.submit(newt.benchmark_mllm, cfg)
-                jobs.append(job)
+            job = executor.submit(newt.benchmark_mllm, cfg)
+            jobs.append(job)
         else:
             typing.assert_never(cfg.model.method)
 
@@ -2850,9 +2809,9 @@ def benchmark(cfg: str):
             logger.warning("Error running job: %s: %s", err, err.__cause__)
             continue
 
-        reports: list[interfaces.Report] = future.result()
+        reports: list[reporting.Report] = future.result()
         for report in reports:
-            save(report)
+            report.write()
         logger.info("Finished %d/%d jobs.", i + 1, len(jobs))
 
     logger.info("Finished.")

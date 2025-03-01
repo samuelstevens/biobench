@@ -9,6 +9,8 @@ The benchmark interface is informal.
 
 import dataclasses
 import json
+import os
+import pathlib
 import socket
 import sqlite3
 import subprocess
@@ -21,6 +23,8 @@ import torch
 from jaxtyping import jaxtyped
 
 from . import config
+
+schema_fpath = pathlib.Path(__file__).parent / "schema.sql"
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -97,6 +101,16 @@ class Report:
         model_name = self.exp_cfg.model.ckpt
         return f"Report({self.task_name}, {model_name}, {len(self.predictions)} predictions)"
 
+    def get_conn(self) -> sqlite3.Connection:
+        os.makedirs(self.exp_cfg.report_to, exist_ok=True)
+        conn = sqlite3.connect(
+            os.path.join(self.exp_cfg.report_to, "results.sqlite"), autocommit=False
+        )
+        with open(schema_fpath) as fd:
+            schema = fd.read()
+        conn.execute(schema)
+        return conn
+
     def to_dict(self) -> dict[str, object]:
         """
         Convert the report to a JSON-compatible dictionary.
@@ -111,61 +125,66 @@ class Report:
 
         return dct
 
-    def write(self, conn: sqlite3.Connection):
+    def write(self, conn: sqlite3.Connection | None = None):
         """
         Write this report to a SQLite database.
-        
+
         Args:
             conn: SQLite connection to write to
         """
+        if not conn:
+            conn = self.get_conn()
+
         # Insert into results table
         cursor = conn.cursor()
-        
+
         # Determine method-specific fields
-        model_method = "mllm" if self.exp_cfg.model.org in ["anthropic", "openai"] else "cvml"
-        
+        model_method = (
+            "mllm" if self.exp_cfg.model.org in ["anthropic", "openai"] else "cvml"
+        )
+
         # Prepare values for results table
         results_values = {
             "task_name": self.task_name,
             "n_train": self.n_train,
             "n_test": len(self.predictions),
             "sampling": self.exp_cfg.sampling,
-            
             "model_method": model_method,
             "model_org": self.exp_cfg.model.org,
             "model_ckpt": self.exp_cfg.model.ckpt,
-            
             # MLLM-specific fields
-            "prompting": self.exp_cfg.prompting if hasattr(self.exp_cfg, "prompting") else None,
-            "cot_enabled": 1 if hasattr(self.exp_cfg, "cot") and self.exp_cfg.cot else 0,
+            "prompting": self.exp_cfg.prompting
+            if hasattr(self.exp_cfg, "prompting")
+            else None,
+            "cot_enabled": 1
+            if hasattr(self.exp_cfg, "cot") and self.exp_cfg.cot
+            else 0,
             "parse_success_rate": self.parse_success_rate,
             "usd_per_answer": self.usd_per_answer,
-            
             # CVML-specific fields
             "classifier_type": self.classifier,
-            
             # Configuration and metadata
             "exp_cfg": json.dumps(self.exp_cfg.to_dict()),
             "argv": json.dumps(self.argv),
             "commit": self.commit,
             "posix": int(self.posix_time),
             "gpu_name": self.gpu_name,
-            "hostname": self.hostname
+            "hostname": self.hostname,
         }
-        
+
         # Build the SQL query
         columns = ", ".join(results_values.keys())
         placeholders = ", ".join(["?"] * len(results_values))
-        
+
         # Insert into results table
         cursor.execute(
             f"INSERT INTO results ({columns}) VALUES ({placeholders})",
-            list(results_values.values())
+            list(results_values.values()),
         )
-        
+
         # Get the rowid of the inserted result
         result_id = cursor.lastrowid
-        
+
         # Insert predictions
         for pred in self.predictions:
             cursor.execute(
@@ -175,9 +194,9 @@ class Report:
                     pred.score,
                     pred.n_train,
                     json.dumps(pred.info),
-                    result_id
-                )
+                    result_id,
+                ),
             )
-        
+
         # Commit the transaction
         conn.commit()

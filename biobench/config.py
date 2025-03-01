@@ -81,21 +81,7 @@ class Experiment:
     seed: int = 17
     """Radnom seed."""
 
-    # Task-specific args
-    ages_data: str = ""
-    beluga_data: str = ""
-    birds525_data: str = ""
-    fishnet_data: str = ""
-    imagenet_data: str = ""
-    inat21_data: str = ""
-    iwildcam_data: str = ""
-    kabr_data: str = ""
-    leopard_data: str = ""
     newt_data: str = ""
-    plankton_data: str = ""
-    plantnet_data: str = ""
-    rarespecies_data: str = ""
-
     newt: Newt = dataclasses.field(default_factory=Newt)
 
     def to_dict(self) -> dict[str, object]:

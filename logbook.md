@@ -432,3 +432,18 @@ What needs to be done for this benchmark such that I can chill out and work on m
 3. Try different ML models? I think Tanya made the point that if your data is separable, it doesn't matter if you use SVMs, kNNs, linear probing, etc.
 
 Also I would like docs so that others can contribute technical work to this project if they want.
+
+Ok, I got lots of results for two CLIP-trained models (ViT-B/16 and ResNet50) on all NeWT tasks.
+Here's what I need to do:
+
+1. Include cluster and subcluster in the schema.sql.
+2. Figure out what the deal with the number of test samples in appearance/species.
+3. Calculate error bars using means across all tasks in a subcluster, rather than averaging. This means that I probably want to expand the data into a wide list of predictions, then filter and use Polars to efficient processing.
+4. Run more CV models, of different sizes and different training procedures.
+
+Questions that I want to understand:
+
+* What do error cases look like? Sample 10-20 images that are incorrectly classified from each task in a subcluster and try to notice any trends.
+* Are there obvious trends between model size, model architecture, pretraining type with respect to tasks, sample efficiency and optimal SVM parameters?
+
+These are good questions for Rayeed to dig into, but I shouldn't put him on the critical path for this paper.

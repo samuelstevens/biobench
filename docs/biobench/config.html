@@ -49,10 +49,10 @@ hljs.highlightAll();
 <dl>
 <dt id="biobench.config.Experiment"><code class="flex name class">
 <span>class <span class="ident">Experiment</span></span>
-<span>(</span><span>model: <a title="biobench.config.Model" href="#biobench.config.Model">Model</a>, n_train: int = -1, n_test: int = -1, sampling: Literal['uniform', 'balanced'] = 'uniform', device: Literal['cpu', 'mps', 'cuda'] = 'cuda', debug: bool = False, ssl: bool = True, report_to: str = './results', graph: bool = True, graph_to: str = './graphs', log_to: str = './logs', temp: float = 0.0, prompting: Literal['single', 'multi'] = 'single', cot_enabled: bool = False, parallel: int = 1, slurm: bool = False, slurm_acct: str = '', batch_size: int = 256, n_workers: int = 8, seed: int = 17, ages_data: str = '', beluga_data: str = '', birds525_data: str = '', fishnet_data: str = '', imagenet_data: str = '', inat21_data: str = '', iwildcam_data: str = '', kabr_data: str = '', leopard_data: str = '', newt_data: str = '', plankton_data: str = '', plantnet_data: str = '', rarespecies_data: str = '', newt: <a title="biobench.config.Newt" href="#biobench.config.Newt">Newt</a> = &lt;factory&gt;)</span>
+<span>(</span><span>model: <a title="biobench.config.Model" href="#biobench.config.Model">Model</a>, n_train: int = -1, n_test: int = -1, sampling: Literal['uniform', 'balanced'] = 'uniform', device: Literal['cpu', 'mps', 'cuda'] = 'cuda', debug: bool = False, ssl: bool = True, report_to: str = './results', graph: bool = True, graph_to: str = './graphs', log_to: str = './logs', temp: float = 0.0, prompting: Literal['single', 'multi'] = 'single', cot_enabled: bool = False, parallel: int = 1, slurm: bool = False, slurm_acct: str = '', batch_size: int = 256, n_workers: int = 8, seed: int = 17, newt_data: str = '', newt: <a title="biobench.config.Newt" href="#biobench.config.Newt">Newt</a> = &lt;factory&gt;)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Experiment(model: biobench.config.Model, n_train: int = -1, n_test: int = -1, sampling: Literal['uniform', 'balanced'] = 'uniform', device: Literal['cpu', 'mps', 'cuda'] = 'cuda', debug: bool = False, ssl: bool = True, report_to: str = './results', graph: bool = True, graph_to: str = './graphs', log_to: str = './logs', temp: float = 0.0, prompting: Literal['single', 'multi'] = 'single', cot_enabled: bool = False, parallel: int = 1, slurm: bool = False, slurm_acct: str = '', batch_size: int = 256, n_workers: int = 8, seed: int = 17, ages_data: str = '', beluga_data: str = '', birds525_data: str = '', fishnet_data: str = '', imagenet_data: str = '', inat21_data: str = '', iwildcam_data: str = '', kabr_data: str = '', leopard_data: str = '', newt_data: str = '', plankton_data: str = '', plantnet_data: str = '', rarespecies_data: str = '', newt: biobench.config.Newt = <factory>)</p></div>
+<div class="desc"><p>Experiment(model: biobench.config.Model, n_train: int = -1, n_test: int = -1, sampling: Literal['uniform', 'balanced'] = 'uniform', device: Literal['cpu', 'mps', 'cuda'] = 'cuda', debug: bool = False, ssl: bool = True, report_to: str = './results', graph: bool = True, graph_to: str = './graphs', log_to: str = './logs', temp: float = 0.0, prompting: Literal['single', 'multi'] = 'single', cot_enabled: bool = False, parallel: int = 1, slurm: bool = False, slurm_acct: str = '', batch_size: int = 256, n_workers: int = 8, seed: int = 17, newt_data: str = '', newt: biobench.config.Newt = <factory>)</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -103,21 +103,7 @@ class Experiment:
     seed: int = 17
     &#34;&#34;&#34;Radnom seed.&#34;&#34;&#34;
 
-    # Task-specific args
-    ages_data: str = &#34;&#34;
-    beluga_data: str = &#34;&#34;
-    birds525_data: str = &#34;&#34;
-    fishnet_data: str = &#34;&#34;
-    imagenet_data: str = &#34;&#34;
-    inat21_data: str = &#34;&#34;
-    iwildcam_data: str = &#34;&#34;
-    kabr_data: str = &#34;&#34;
-    leopard_data: str = &#34;&#34;
     newt_data: str = &#34;&#34;
-    plankton_data: str = &#34;&#34;
-    plantnet_data: str = &#34;&#34;
-    rarespecies_data: str = &#34;&#34;
-
     newt: Newt = dataclasses.field(default_factory=Newt)
 
     def to_dict(self) -&gt; dict[str, object]:
@@ -125,21 +111,9 @@ class Experiment:
 </details>
 <h3>Class variables</h3>
 <dl>
-<dt id="biobench.config.Experiment.ages_data"><code class="name">var <span class="ident">ages_data</span> : str</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
 <dt id="biobench.config.Experiment.batch_size"><code class="name">var <span class="ident">batch_size</span> : int</code></dt>
 <dd>
 <div class="desc"><p>Batch size for computer vision model.</p></div>
-</dd>
-<dt id="biobench.config.Experiment.beluga_data"><code class="name">var <span class="ident">beluga_data</span> : str</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="biobench.config.Experiment.birds525_data"><code class="name">var <span class="ident">birds525_data</span> : str</code></dt>
-<dd>
-<div class="desc"></div>
 </dd>
 <dt id="biobench.config.Experiment.cot_enabled"><code class="name">var <span class="ident">cot_enabled</span> : bool</code></dt>
 <dd>
@@ -153,10 +127,6 @@ class Experiment:
 <dd>
 <div class="desc"><p>which kind of accelerator to use.</p></div>
 </dd>
-<dt id="biobench.config.Experiment.fishnet_data"><code class="name">var <span class="ident">fishnet_data</span> : str</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
 <dt id="biobench.config.Experiment.graph"><code class="name">var <span class="ident">graph</span> : bool</code></dt>
 <dd>
 <div class="desc"><p>whether to make graphs.</p></div>
@@ -164,26 +134,6 @@ class Experiment:
 <dt id="biobench.config.Experiment.graph_to"><code class="name">var <span class="ident">graph_to</span> : str</code></dt>
 <dd>
 <div class="desc"><p>where to save graphs to.</p></div>
-</dd>
-<dt id="biobench.config.Experiment.imagenet_data"><code class="name">var <span class="ident">imagenet_data</span> : str</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="biobench.config.Experiment.inat21_data"><code class="name">var <span class="ident">inat21_data</span> : str</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="biobench.config.Experiment.iwildcam_data"><code class="name">var <span class="ident">iwildcam_data</span> : str</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="biobench.config.Experiment.kabr_data"><code class="name">var <span class="ident">kabr_data</span> : str</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="biobench.config.Experiment.leopard_data"><code class="name">var <span class="ident">leopard_data</span> : str</code></dt>
-<dd>
-<div class="desc"></div>
 </dd>
 <dt id="biobench.config.Experiment.log_to"><code class="name">var <span class="ident">log_to</span> : str</code></dt>
 <dd>
@@ -217,19 +167,7 @@ class Experiment:
 <dd>
 <div class="desc"><p>Number of parallel requests per second to MLLM service providers.</p></div>
 </dd>
-<dt id="biobench.config.Experiment.plankton_data"><code class="name">var <span class="ident">plankton_data</span> : str</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="biobench.config.Experiment.plantnet_data"><code class="name">var <span class="ident">plantnet_data</span> : str</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
 <dt id="biobench.config.Experiment.prompting"><code class="name">var <span class="ident">prompting</span> : Literal['single', 'multi']</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="biobench.config.Experiment.rarespecies_data"><code class="name">var <span class="ident">rarespecies_data</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -388,21 +326,12 @@ class Newt:
 <li>
 <h4><code><a title="biobench.config.Experiment" href="#biobench.config.Experiment">Experiment</a></code></h4>
 <ul class="two-column">
-<li><code><a title="biobench.config.Experiment.ages_data" href="#biobench.config.Experiment.ages_data">ages_data</a></code></li>
 <li><code><a title="biobench.config.Experiment.batch_size" href="#biobench.config.Experiment.batch_size">batch_size</a></code></li>
-<li><code><a title="biobench.config.Experiment.beluga_data" href="#biobench.config.Experiment.beluga_data">beluga_data</a></code></li>
-<li><code><a title="biobench.config.Experiment.birds525_data" href="#biobench.config.Experiment.birds525_data">birds525_data</a></code></li>
 <li><code><a title="biobench.config.Experiment.cot_enabled" href="#biobench.config.Experiment.cot_enabled">cot_enabled</a></code></li>
 <li><code><a title="biobench.config.Experiment.debug" href="#biobench.config.Experiment.debug">debug</a></code></li>
 <li><code><a title="biobench.config.Experiment.device" href="#biobench.config.Experiment.device">device</a></code></li>
-<li><code><a title="biobench.config.Experiment.fishnet_data" href="#biobench.config.Experiment.fishnet_data">fishnet_data</a></code></li>
 <li><code><a title="biobench.config.Experiment.graph" href="#biobench.config.Experiment.graph">graph</a></code></li>
 <li><code><a title="biobench.config.Experiment.graph_to" href="#biobench.config.Experiment.graph_to">graph_to</a></code></li>
-<li><code><a title="biobench.config.Experiment.imagenet_data" href="#biobench.config.Experiment.imagenet_data">imagenet_data</a></code></li>
-<li><code><a title="biobench.config.Experiment.inat21_data" href="#biobench.config.Experiment.inat21_data">inat21_data</a></code></li>
-<li><code><a title="biobench.config.Experiment.iwildcam_data" href="#biobench.config.Experiment.iwildcam_data">iwildcam_data</a></code></li>
-<li><code><a title="biobench.config.Experiment.kabr_data" href="#biobench.config.Experiment.kabr_data">kabr_data</a></code></li>
-<li><code><a title="biobench.config.Experiment.leopard_data" href="#biobench.config.Experiment.leopard_data">leopard_data</a></code></li>
 <li><code><a title="biobench.config.Experiment.log_to" href="#biobench.config.Experiment.log_to">log_to</a></code></li>
 <li><code><a title="biobench.config.Experiment.model" href="#biobench.config.Experiment.model">model</a></code></li>
 <li><code><a title="biobench.config.Experiment.n_test" href="#biobench.config.Experiment.n_test">n_test</a></code></li>
@@ -411,10 +340,7 @@ class Newt:
 <li><code><a title="biobench.config.Experiment.newt" href="#biobench.config.Experiment.newt">newt</a></code></li>
 <li><code><a title="biobench.config.Experiment.newt_data" href="#biobench.config.Experiment.newt_data">newt_data</a></code></li>
 <li><code><a title="biobench.config.Experiment.parallel" href="#biobench.config.Experiment.parallel">parallel</a></code></li>
-<li><code><a title="biobench.config.Experiment.plankton_data" href="#biobench.config.Experiment.plankton_data">plankton_data</a></code></li>
-<li><code><a title="biobench.config.Experiment.plantnet_data" href="#biobench.config.Experiment.plantnet_data">plantnet_data</a></code></li>
 <li><code><a title="biobench.config.Experiment.prompting" href="#biobench.config.Experiment.prompting">prompting</a></code></li>
-<li><code><a title="biobench.config.Experiment.rarespecies_data" href="#biobench.config.Experiment.rarespecies_data">rarespecies_data</a></code></li>
 <li><code><a title="biobench.config.Experiment.report_to" href="#biobench.config.Experiment.report_to">report_to</a></code></li>
 <li><code><a title="biobench.config.Experiment.sampling" href="#biobench.config.Experiment.sampling">sampling</a></code></li>
 <li><code><a title="biobench.config.Experiment.seed" href="#biobench.config.Experiment.seed">seed</a></code></li>
