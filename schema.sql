@@ -31,3 +31,8 @@ CREATE TABLE IF NOT EXISTS results (
     exp_cfg TEXT NOT NULL,  -- JSON blob with full experiment configuration
     report TEXT NOT NULL  -- JSON blob with detailed results
 );
+
+CREATE TABLE IF NOT EXISTS predictions (
+
+
+);
