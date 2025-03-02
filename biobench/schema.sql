@@ -1,4 +1,5 @@
 CREATE TABLE IF NOT EXISTS results (
+    rowid INTEGER PRIMARY KEY AUTOINCREMENT,
     -- Task information
     task_name TEXT NOT NULL,  -- "newt", "iwildcam", etc.
     task_cluster TEXT,

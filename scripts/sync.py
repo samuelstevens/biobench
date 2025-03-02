@@ -157,7 +157,6 @@ def merge_local(
 
             # Try to insert, but handle potential primary key conflicts
             try:
-                breakpoint()
                 output_db.execute(
                     "INSERT INTO predictions (img_id, score, n_train, info, result_id) VALUES (?, ?, ?, ?, ?)",
                     (img_id, score, n_train, info, new_result_id),
