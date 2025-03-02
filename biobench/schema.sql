@@ -1,5 +1,5 @@
 CREATE TABLE IF NOT EXISTS results (
-    rowid INTEGER PRIMARY KEY AUTOINCREMENT,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
     -- Task information
     task_name TEXT NOT NULL,  -- "newt", "iwildcam", etc.
     task_cluster TEXT,
@@ -42,5 +42,5 @@ CREATE TABLE IF NOT EXISTS predictions (
     result_id INTEGER NOT NULL,
     
     PRIMARY KEY (img_id, result_id),
-    FOREIGN KEY (result_id) REFERENCES results(rowid)
+    FOREIGN KEY (result_id) REFERENCES results(id)
 );
