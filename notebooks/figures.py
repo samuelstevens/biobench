@@ -11,6 +11,7 @@ def _():
     import sqlite3
     import numpy as np
 
+
     import polars as pl
     import matplotlib.pyplot as plt
     import matplotlib as mpl
@@ -20,19 +21,20 @@ def _():
     if "." not in sys.path:
         sys.path.append(".")
     import biobench.reporting
-
     return biobench, math, mo, mpl, np, pl, plt, sqlite3, sys
 
 
 @app.cell
 def _(pl, sqlite3):
-    conn = sqlite3.connect("results/results.sqlite")
+    cluster = "gestalt"
+
+    conn = sqlite3.connect("results/all-results.sqlite")
 
     preds_df = pl.read_database(
-        "SELECT results.task_name, results.task_cluster, results.task_subcluster, results.model_ckpt, predictions.score, predictions.n_train FROM results JOIN predictions ON results.rowid = predictions.result_id",
+        f"SELECT results.task_name, results.task_cluster, results.task_subcluster, results.model_ckpt, predictions.score, predictions.n_train FROM results JOIN predictions ON results.rowid = predictions.result_id WHERE results.task_cluster = '{cluster}'",
         conn,
     )
-    return conn, preds_df
+    return cluster, conn, preds_df
 
 
 @app.cell
@@ -54,14 +56,14 @@ def _(np, pl, preds_df):
         ci_upper = np.percentile(boot_means, 97.5)
         return np.mean(scores), ci_lower, ci_upper
 
+
     def boot_func(scores):
         mean, ci_lower, ci_upper = bootstrap_ci(scores, 1000)
         return {"mean": mean, "ci_lower": ci_lower, "ci_upper": ci_upper}
 
+
     df = (
-        preds_df.group_by(
-            "task_name", "task_cluster", "task_subcluster", "n_train", "model_ckpt"
-        )
+        preds_df.group_by("task_name", "task_cluster", "n_train", "model_ckpt")
         .all()
         .with_columns(pl.col("score").map_elements(boot_func).alias("boot"))
         .with_columns(
@@ -71,12 +73,12 @@ def _(np, pl, preds_df):
         )
     )
 
-    df
+    df.sort(by=("model_ckpt", "task_name"))
     return boot_func, bootstrap_ci, df
 
 
 @app.cell
-def _(biobench, df, pl, plt):
+def _(biobench, cluster, df, pl, plt):
     fig, ax = plt.subplots()
     for model, color in zip(
         sorted(df.get_column("model_ckpt").unique().to_list()),
@@ -94,9 +96,9 @@ def _(biobench, df, pl, plt):
         ax.set_xlabel("Number of Training Samples")
         ax.set_ylabel("Mean Accuracy")
         ax.set_ylim(0, 1.05)
-        ax.set_title("Counting")
+        ax.set_title(cluster.capitalize())
         ax.set_xscale("symlog", linthresh=2)
-        ax.set_xlim(-0.15, 130)
+        ax.set_xlim(-0.15, 500)
 
         ax.legend(loc="best")
 

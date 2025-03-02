@@ -83,7 +83,6 @@ def merge_local(
         schema_sql = schema_file.read()
         output_db.executescript(schema_sql)
 
-    # Get mappings for rowid/result_id from old to new database
     result_id_mapping = {}
 
     # Define fixed columns for results table
@@ -117,19 +116,19 @@ def merge_local(
     # Helper function to insert results and track IDs
     @beartype.beartype
     def insert_results_from_db(source_db: sqlite3.Connection, db_name: str):
-        query = f"SELECT rowid, {columns_str} FROM results"
+        query = f"SELECT id, {columns_str} FROM results"
         for row in source_db.execute(query).fetchall():
-            old_rowid, *values = row
+            old_id, *values = row
 
             placeholders = ", ".join(["?"] * len(values))
             output_cursor = output_db.cursor()
             output_cursor.execute(
                 f"INSERT INTO results ({columns_str}) VALUES ({placeholders})", values
             )
-            new_rowid = output_cursor.lastrowid
+            new_id = output_cursor.lastrowid
 
-            # Store mapping from old rowid to new rowid
-            result_id_mapping[(db_name, old_rowid)] = new_rowid
+            # Store mapping from old id to new id
+            result_id_mapping[(db_name, old_id)] = new_id
 
     # Insert from both databases
     insert_results_from_db(db1, "db1")
@@ -181,7 +180,7 @@ def merge_local(
     output_db.close()
 
     print(f"Merge completed successfully. Output saved to {output_path}")
-    print(f"Merged {len(result_id_mapping) // 2} results from each database.")
+    print(f"Merged {len(result_id_mapping)} results from the databases.")
 
 
 if __name__ == "__main__":
