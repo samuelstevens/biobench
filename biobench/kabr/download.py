@@ -43,15 +43,12 @@ def concatenate_files(out: str, animal: str):
 
     part_files = sorted(glob.glob(os.path.join(out, f"{animal}_part_*")))
     assert part_files
-    breakpoint()
+    # Concatenate all part files into a single zip file
+    CHUNK_SIZE = 8 * 1024 * 1024  # 8MB
     with open(os.path.join(out, f"{animal}.zip"), "wb") as f_out:
         for fpath in part_files:
-            # Simplify this copy-paste code that concats multiple binary files together. AI!
             with open(fpath, "rb") as f_in:
-                # Read and write in chunks
-                CHUNK_SIZE = 8 * 1024 * 1024  # 8MB
-                for chunk in iter(lambda: f_in.read(CHUNK_SIZE), b""):
-                    f_out.write(chunk)
+                f_out.write(f_in.read())
             # Delete part files as they are concatenated
             os.remove(fpath)
     logger.info("Archive for '%s' concatenated.", animal)
