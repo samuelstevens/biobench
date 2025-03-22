@@ -31,7 +31,7 @@ import torchvision.datasets
 from jaxtyping import Float, Shaped, jaxtyped
 from torch import Tensor
 
-from biobench import helpers, interfaces, registry
+from .. import config, helpers, registry, reporting
 
 logger = logging.getLogger("leopard")
 
@@ -56,29 +56,23 @@ class Args:
     """(computed at runtime) whether to run in debug mode."""
     n_train: int = -1
     """(computed at runtime) number of maximum training samples. Negative number means use all of them."""
-    n_test: int = -1
-    """(computed at runtime) number of test samples. Negative number means use all of them."""
-    parallel: int = 1
-    """(computed at runtime) number of parallel requests per second to MLLM service providers."""
 
 
 @beartype.beartype
-def benchmark(
-    args: Args, model_args: interfaces.ModelArgsCvml
-) -> tuple[interfaces.ModelArgsCvml, interfaces.TaskReport]:
+def benchmark(cfg: config.Experiment) -> tuple[config.Model, reporting.Report]:
     """
     Run the leopard re-ID benchmark. See this module's documentation for more details.
     """
-    backbone = registry.load_vision_backbone(*model_args)
+    backbone = registry.load_vision_backbone(cfg.model)
 
     # Embed all images.
-    features = get_features(args, backbone)
+    features = get_features(cfg, backbone)
     # Convert string names into integer labels.
     encoder = sklearn.preprocessing.OrdinalEncoder(dtype=int)
     y = encoder.fit_transform(features.labels.reshape(-1, 1)).reshape(-1)
 
     @beartype.beartype
-    def predict(i: int, image_id) -> interfaces.Prediction:
+    def predict(i: int, image_id) -> reporting.Prediction:
         clf = sklearn.svm.LinearSVC(
             class_weight="balanced", verbose=False, max_iter=10000, tol=1e-6, C=0.1
         )
@@ -92,17 +86,15 @@ def benchmark(
         # Something like:
         #   pred_i = scipy.stats.mode(np.argsort(sims)[1:args.k+1]).mode
 
-        example = interfaces.Prediction(str(image_id), float(y[pred_i] == y[i]), {})
+        example = reporting.Prediction(str(image_id), float(y[pred_i] == y[i]), {})
         return example
 
-    examples = joblib.Parallel(n_jobs=args.n_jobs)(
+    examples = joblib.Parallel(n_jobs=cfg.n_jobs)(
         joblib.delayed(predict)(i, image_id)
-        for i, image_id in enumerate(
-            helpers.progress(features.ids, every=args.log_every)
-        )
+        for i, image_id in enumerate(helpers.progress(features.ids, every=10))
     )
 
-    return model_args, interfaces.TaskReport("LeopardID", examples)
+    return cfg.model, reporting.Report("LeopardID", examples)
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -115,7 +107,7 @@ class Features:
     """
 
     x: Float[Tensor, "n dim"]
-    """Input features; from a `biobench.interfaces.VisionBackbone`."""
+    """Input features; from a `biobench.registry.VisionBackbone`."""
     labels: Shaped[np.ndarray, " n"]
     """Individual name."""
     ids: Shaped[np.ndarray, " n"]
@@ -128,7 +120,7 @@ class Features:
 
 @beartype.beartype
 @torch.no_grad
-def get_features(args: Args, backbone: interfaces.VisionBackbone) -> Features:
+def get_features(args: Args, backbone: registry.VisionBackbone) -> Features:
     """
     Get a block of features from a vision backbone.
 

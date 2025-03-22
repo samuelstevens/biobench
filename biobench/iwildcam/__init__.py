@@ -18,7 +18,7 @@ import wilds
 import wilds.common.data_loaders
 from jaxtyping import Float, Int, Shaped, jaxtyped
 
-from biobench import helpers, interfaces, registry
+from biobench import config, helpers, registry, reporting
 
 logger = logging.getLogger("iwildcam")
 
@@ -43,10 +43,6 @@ class Args:
     """(computed at runtime) whether to run in debug mode."""
     n_train: int = -1
     """(computed at runtime) number of maximum training samples. Negative number means use all of them."""
-    n_test: int = -1
-    """(computed at runtime) number of test samples. Negative number means use all of them."""
-    parallel: int = 1
-    """(computed at runtime) number of parallel requests per second to MLLM service providers."""
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -59,7 +55,7 @@ class Features:
 
 @beartype.beartype
 class MeanScoreCalculator:
-    def __call__(self, examples: list[interfaces.Prediction]) -> float:
+    def __call__(self, examples: list[reporting.Prediction]) -> float:
         y_pred = np.array([example.info["y_pred"] for example in examples])
         y_true = np.array([example.info["y_true"] for example in examples])
         score = sklearn.metrics.f1_score(
@@ -69,14 +65,12 @@ class MeanScoreCalculator:
 
 
 @beartype.beartype
-def benchmark_cvml(
-    args: Args, model_args: interfaces.ModelArgsCvml
-) -> tuple[interfaces.ModelArgsCvml, interfaces.TaskReport]:
-    backbone = registry.load_vision_backbone(model_args)
+def benchmark(cfg: config.Experiment) -> tuple[config.Model, reporting.Report]:
+    backbone = registry.load_vision_backbone(cfg.model)
 
     # 1. Load dataloaders.
     transform = backbone.make_img_transform()
-    if not os.path.exists(args.data) or not os.path.isdir(args.data):
+    if not os.path.exists(cfg.data.iwildcam) or not os.path.isdir(cfg.data.iwildcam):
         msg = f"Path '{args.data}' doesn't exist. Did you download the iWildCam dataset? See the docstring at the top of this file for instructions. If you did download it, pass the path as --iwildcam-args.data PATH"
         raise RuntimeError(msg)
     dataset = wilds.get_dataset(dataset="iwildcam", download=False, root_dir=args.data)
@@ -114,7 +108,7 @@ def benchmark_cvml(
     pred_labels = clf.predict(test_features.x)
 
     examples = [
-        interfaces.Prediction(
+        reporting.Prediction(
             str(image_id),
             float(pred == true),
             {"y_pred": pred.item(), "y_true": true.item()},
@@ -126,16 +120,14 @@ def benchmark_cvml(
         )
     ]
 
-    return model_args, interfaces.TaskReport(
+    return cfg.model, reporting.Report(
         "iWildCam", examples, calc_mean_score=MeanScoreCalculator()
     )
 
 
 @jaxtyped(typechecker=beartype.beartype)
 @torch.no_grad()
-def get_features(
-    args: Args, backbone: interfaces.VisionBackbone, dataloader
-) -> Features:
+def get_features(args: Args, backbone: registry.VisionBackbone, dataloader) -> Features:
     backbone = torch.compile(backbone.to(args.device))
 
     all_features, all_labels, all_ids = [], [], []

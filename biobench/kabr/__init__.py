@@ -29,7 +29,7 @@ from jaxtyping import Float, Int, jaxtyped
 from PIL import Image
 from torch import Tensor
 
-from biobench import interfaces, registry, simpleshot
+from biobench import config, registry, reporting, simpleshot
 
 logger = logging.getLogger("kabr")
 
@@ -57,10 +57,6 @@ class Args:
     """(computed at runtime) whether to run in debug mode."""
     n_train: int = -1
     """Number of maximum training samples. Negative number means use all of them."""
-    n_test: int = -1
-    """Number of test samples. Negative number means use all of them."""
-    parallel: int = 1
-    """Number of parallel requests per second to MLLM service providers."""
 
 
 @beartype.beartype
@@ -103,7 +99,7 @@ class Dataset(torch.utils.data.Dataset):
         labels: dict[int, list[int]] = {}
 
         if not os.path.exists(self.path) or not os.path.isdir(self.path):
-            msg = f"Path '{self.path}' doesn't exist. Did you download the KABR dataset? See the docstring at the top of this file for instructions. If you did download it, pass the path as --dataset-dir PATH"
+            msg = f"Path '{self.path}' doesn't exist. Did you download the KABR dataset? See the docstring at the top of this file for instructions."
             raise RuntimeError(msg)
 
         with open(os.path.join(self.path, "annotation", f"{split}.csv")) as fd:
@@ -169,17 +165,66 @@ class Dataset(torch.utils.data.Dataset):
         return len(self.videos)
 
 
+@beartype.beartype
+def benchmark(cfg: config.Experiment) -> tuple[config.Model, reporting.Report]:
+    """Runs KABR benchmark."""
+    # 1. Load model
+    backbone = registry.load_vision_backbone(cfg.model)
+    img_transform = backbone.make_img_transform()
+    backbone = backbone.to(cfg.device)
+
+    # 2. Load data.
+    train_dataset = Dataset(cfg.data.kabr, "train", transform=img_transform)
+    val_dataset = Dataset(cfg.data.kabr, "val", transform=img_transform)
+
+    train_dataloader = torch.utils.data.DataLoader(
+        train_dataset,
+        batch_size=cfg.batch_size,
+        num_workers=cfg.n_workers,
+        drop_last=False,
+    )
+    val_dataloader = torch.utils.data.DataLoader(
+        val_dataset,
+        batch_size=cfg.batch_size,
+        num_workers=cfg.n_workers,
+        drop_last=False,
+    )
+
+    # 3. Get features
+    val_features, val_labels = get_features(cfg, backbone, val_dataloader)
+    val_features = aggregate_frames(cfg, val_features)
+    val_labels = aggregate_labels(cfg, val_labels)
+
+    train_features, train_labels = get_features(cfg, backbone, train_dataloader)
+    train_features = aggregate_frames(cfg, train_features)
+    train_labels = aggregate_labels(cfg, train_labels)
+
+    # 4. Do simpleshot.
+    scores = simpleshot.simpleshot(
+        cfg, train_features, train_labels, val_features, val_labels
+    )
+
+    # Return benchmark report.
+    video_ids = [video.video_id for video in val_dataset.videos]
+    examples = [
+        reporting.Prediction(str(id), float(score), {})
+        for id, score in zip(video_ids, scores.tolist())
+    ]
+    # TODO: include example-specific info (class? something else)
+    return cfg.model, reporting.Report("KABR", examples)
+
+
 @torch.no_grad()
 @jaxtyped(typechecker=beartype.beartype)
 def get_features(
-    args: Args, backbone: interfaces.VisionBackbone, dataloader
+    cfg: config.Experiment, backbone: registry.VisionBackbone, dataloader
 ) -> tuple[
     Float[Tensor, "n_frames n_examples dim"], Int[Tensor, "n_frames n_examples"]
 ]:
     """
     Gets all model features and true labels for all frames and all examples in the dataloader.
 
-    Returns it as a pair of big tensors; other tasks like `biobench.birds525` use a dedicated class for this, but here it's just a tuple.
+    Returns it as a pair of big tensors; other tasks use a dedicated class for this, but here it's just a tuple.
 
     Args:
         args: KABR task arguments.
@@ -236,54 +281,3 @@ def aggregate_frames(
         return torch.max(features, dim=0).values
     else:
         typing.assert_never(args.frame_agg)
-
-
-@beartype.beartype
-def benchmark_cvml(
-    args: Args, model_args: interfaces.ModelArgsCvml
-) -> tuple[interfaces.ModelArgsCvml, interfaces.TaskReport]:
-    """Runs KABR benchmark."""
-    # 1. Load model
-    backbone = registry.load_vision_backbone(*model_args)
-    img_transform = backbone.make_img_transform()
-    backbone = backbone.to(args.device)
-
-    # 2. Load data.
-    train_dataset = Dataset(args.datadir, "train", transform=img_transform)
-    val_dataset = Dataset(args.datadir, "val", transform=img_transform)
-
-    train_dataloader = torch.utils.data.DataLoader(
-        train_dataset,
-        batch_size=args.batch_size,
-        num_workers=args.n_workers,
-        drop_last=False,
-    )
-    val_dataloader = torch.utils.data.DataLoader(
-        val_dataset,
-        batch_size=args.batch_size,
-        num_workers=args.n_workers,
-        drop_last=False,
-    )
-
-    # 3. Get features
-    val_features, val_labels = get_features(args, backbone, val_dataloader)
-    val_features = aggregate_frames(args, val_features)
-    val_labels = aggregate_labels(args, val_labels)
-
-    train_features, train_labels = get_features(args, backbone, train_dataloader)
-    train_features = aggregate_frames(args, train_features)
-    train_labels = aggregate_labels(args, train_labels)
-
-    # 4. Do simpleshot.
-    scores = simpleshot.simpleshot(
-        args, train_features, train_labels, val_features, val_labels
-    )
-
-    # Return benchmark report.
-    video_ids = [video.video_id for video in val_dataset.videos]
-    examples = [
-        interfaces.Prediction(str(id), float(score), {})
-        for id, score in zip(video_ids, scores.tolist())
-    ]
-    # TODO: include example-specific info (class? something else)
-    return model_args, interfaces.TaskReport("KABR", examples)

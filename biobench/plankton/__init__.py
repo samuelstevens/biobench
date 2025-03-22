@@ -68,7 +68,7 @@ from jaxtyping import Float, Shaped, jaxtyped
 from PIL import Image
 from torch import Tensor
 
-from biobench import helpers, interfaces, registry
+from .. import config, helpers, registry, reporting
 
 logger = logging.getLogger("plankton")
 
@@ -91,10 +91,6 @@ class Args:
     """(computed at runtime) whether to run in debug mode."""
     n_train: int = -1
     """(computed at runtime) number of maximum training samples. Negative number means use all of them."""
-    n_test: int = -1
-    """(computed at runtime) number of test samples. Negative number means use all of them."""
-    parallel: int = 1
-    """(computed at runtime) number of parallel requests per second to MLLM service providers."""
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -109,20 +105,18 @@ class Features:
 
 
 @beartype.beartype
-def benchmark(
-    args: Args, model_args: interfaces.ModelArgsCvml
-) -> tuple[interfaces.ModelArgsCvml, interfaces.TaskReport]:
+def benchmark(cfg: config.Experiment) -> tuple[config.Model, reporting.Report]:
     """
     Steps:
     1. Get features for all images.
     2. Select lambda using cross validation splits.
     3. Report score on test data.
     """
-    backbone = registry.load_vision_backbone(*model_args)
+    backbone = registry.load_vision_backbone(cfg.model)
 
     # 1. Get features
-    train_features = get_features(args, backbone, split="train")
-    val_features = get_features(args, backbone, split="val")
+    train_features = get_features(cfg, backbone, split="train")
+    val_features = get_features(cfg, backbone, split="val")
 
     encoder = sklearn.preprocessing.OrdinalEncoder()
     all_labels = np.concatenate((val_features.labels, train_features.labels))
@@ -142,7 +136,7 @@ def benchmark(
     true_labels = val_features.y(encoder)
 
     examples = [
-        interfaces.Prediction(
+        reporting.Prediction(
             str(image_id),
             float(pred == true),
             {"y_pred": pred.item(), "y_true": true.item()},
@@ -154,7 +148,7 @@ def benchmark(
         )
     ]
 
-    return model_args, interfaces.TaskReport("Plankton", examples)
+    return cfg.model, reporting.Report("Plankton", examples)
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -196,7 +190,7 @@ class Dataset(torch.utils.data.Dataset):
 @jaxtyped(typechecker=beartype.beartype)
 @torch.no_grad()
 def get_features(
-    args: Args, backbone: interfaces.VisionBackbone, *, split: str
+    args: Args, backbone: registry.VisionBackbone, *, split: str
 ) -> Features:
     images_dir_path = os.path.join(args.datadir, split)
 

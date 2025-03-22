@@ -1,0 +1,52 @@
+n_train = [3, 10, 30, 100, 300, 1000, -1]
+
+[data]
+newt = "/research/nfs_su_809/workspace/stevens.994/datasets/newt"
+# herbarium19 = "/research/nfs_su_809/workspace/stevens.994/datasets/herbarium19"
+# inat21 = "/research/nfs_su_809/workspace/stevens.994/datasets/inat21"
+# kabr = "/research/nfs_su_809/workspace/stevens.994/datasets/kabr"
+# iwildcam = "/research/nfs_su_809/workspace/stevens.994/datasets/iwildcam"
+# plantnet = "/research/nfs_su_809/workspace/stevens.994/datasets/plantnet"
+# fishnet = "/research/nfs_su_809/workspace/stevens.994/datasets/fishnet"
+# imagenet1k = "/research/nfs_su_809/workspace/stevens.994/datasets/imagenet1k"
+
+[[models]]
+org = "open-clip"
+ckpt = "ViT-B-16/openai"
+
+[[models]]
+org = "open-clip"
+ckpt = "ViT-L-14/openai"
+
+[[models]]
+org = "open-clip"
+ckpt = "ViT-B-16-SigLIP-384/webli"
+
+[[models]]
+org = "open-clip"
+ckpt = "ViT-L-16-SigLIP-384/webli"
+
+[[models]]
+org = "open-clip"
+ckpt = "ViT-SO400M-14-SigLIP-384/webli"
+
+[[models]]
+org = "timm-vit"
+ckpt = "vit_small_patch14_reg4_dinov2.lvd142m"
+
+[[models]]
+org = "timm-vit"
+ckpt = "vit_base_patch14_reg4_dinov2.lvd142m"
+
+[[models]]
+org = "timm-vit"
+ckpt = "vit_large_patch14_reg4_dinov2.lvd142m"
+
+[[models]]
+org = "timm-vit"
+ckpt = "vit_giant_patch14_reg4_dinov2.lvd142m"
+
+[[models]]
+org = "open-clip"
+ckpt = "hf-hub:imageomics/bioclip"
+

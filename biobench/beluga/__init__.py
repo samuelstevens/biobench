@@ -42,7 +42,7 @@ import torchvision.datasets
 from jaxtyping import Float, Shaped, jaxtyped
 from torch import Tensor
 
-from biobench import helpers, interfaces, registry
+from biobench import config, helpers, registry, reporting
 
 logger = logging.getLogger("beluga")
 
@@ -70,23 +70,17 @@ class Args:
     """(computed at runtime) whether to run in debug mode."""
     n_train: int = -1
     """Number of maximum training samples. Negative number means use all of them."""
-    n_test: int = -1
-    """Number of test samples. Negative number means use all of them."""
-    parallel: int = 1
-    """Number of parallel requests per second to MLLM service providers."""
 
 
 @beartype.beartype
-def benchmark_cvml(
-    args: Args, model_args: interfaces.ModelArgsCvml
-) -> tuple[interfaces.ModelArgsCvml, interfaces.TaskReport]:
+def benchmark(cfg: config.Experiment) -> tuple[config.Model, reporting.Report]:
     """
     Run the BelugaID benchmark. See this module's documentation for more details.
     """
-    backbone = registry.load_vision_backbone(*model_args)
+    backbone = registry.load_vision_backbone(cfg.model)
 
     # Embed all images.
-    features = get_features(args, backbone)
+    features = get_features(cfg, backbone)
     # Convert string names into integer labels.
     encoder = sklearn.preprocessing.OrdinalEncoder(dtype=int)
     y = encoder.fit_transform(features.labels.reshape(-1, 1)).reshape(-1)
@@ -97,7 +91,7 @@ def benchmark_cvml(
 
     logger.info("Constructing examples.")
     examples = [
-        interfaces.Example(
+        reporting.Prediction(
             str(image_id),
             float(pred == true),
             {"y_pred": pred.item(), "y_true": true.item()},
@@ -108,7 +102,7 @@ def benchmark_cvml(
     ]
     logger.info("%d examples done.", len(examples))
 
-    return model_args, interfaces.TaskReport("BelugaID", examples)
+    return cfg.model, reporting.Report("BelugaID", examples)
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -121,7 +115,7 @@ class Features:
     """
 
     x: Float[Tensor, "n dim"]
-    """Input features; from a `biobench.interfaces.VisionBackbone`."""
+    """Input features; from a `biobench.registry.VisionBackbone`."""
     labels: Shaped[np.ndarray, " n"]
     """Individual name."""
     ids: Shaped[np.ndarray, " n"]
@@ -137,7 +131,7 @@ class Features:
 
 @beartype.beartype
 @torch.no_grad
-def get_features(args: Args, backbone: interfaces.VisionBackbone) -> Features:
+def get_features(args: Args, backbone: registry.VisionBackbone) -> Features:
     """
     Get a block of features from a vision backbone.
 

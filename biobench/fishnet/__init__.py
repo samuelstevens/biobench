@@ -23,12 +23,9 @@ If you use this evaluation, be sure to cite the original work:
 This task was contributed by [Jianyang Gu](https://vimar-gu.github.io/).
 """
 
-import asyncio
 import dataclasses
 import logging
 import os.path
-import random
-import typing
 
 import beartype
 import numpy as np
@@ -39,7 +36,7 @@ from jaxtyping import Float, Int, jaxtyped
 from PIL import Image
 from torch import Tensor
 
-from .. import helpers, interfaces, mllms, registry
+from .. import config, helpers, registry, reporting
 
 logger = logging.getLogger("fishnet")
 
@@ -73,14 +70,10 @@ class Args:
     """(computed at runtime) whether to run in debug mode."""
     n_train: int = -1
     """Number of maximum training samples. Negative number means use all of them."""
-    n_test: int = -1
-    """Number of test samples. Negative number means use all of them."""
-    parallel: int = 1
-    """Number of parallel requests per second to MLLM service providers."""
 
 
 @jaxtyped(typechecker=beartype.beartype)
-class FeaturesCvml(torch.utils.data.Dataset):
+class Features(torch.utils.data.Dataset):
     """
     A dataset of learned features (dense vectors).
     """
@@ -128,7 +121,7 @@ def init_classifier(input_dim: int) -> torch.nn.Module:
 
 
 @beartype.beartype
-def calc_macro_f1(preds: list[interfaces.Prediction]) -> float:
+def calc_macro_f1(preds: list[reporting.Prediction]) -> float:
     """
     Calculate the macro-averaged F1 score across all fish trait predictions.
 
@@ -167,14 +160,12 @@ def calc_macro_f1(preds: list[interfaces.Prediction]) -> float:
 
 
 @beartype.beartype
-def benchmark_cvml(
-    args: Args, model_args: interfaces.ModelArgsCvml
-) -> tuple[interfaces.ModelArgsCvml, interfaces.TaskReport]:
+def benchmark(cfg: config.Experiment) -> tuple[config.Model, reporting.Report]:
     """
     The FishNet benchmark.
     """
     # 1. Load model.
-    backbone = registry.load_vision_backbone(model_args)
+    backbone = registry.load_vision_backbone(cfg.model)
 
     # 2. Get features.
     train_dataset = get_features(args, backbone, is_train=True)
@@ -217,7 +208,7 @@ def benchmark_cvml(
             score = calc_macro_f1(examples)
             logger.info("Epoch %d/%d: %.3f", epoch + 1, args.n_epochs, score)
 
-    return model_args, interfaces.TaskReport(
+    return cfg.model, reporting.Report(
         "FishNet", examples, calc_mean_score=calc_macro_f1
     )
 
@@ -225,7 +216,7 @@ def benchmark_cvml(
 @beartype.beartype
 def evaluate(
     args: Args, classifier: torch.nn.Module, dataloader
-) -> list[interfaces.Prediction]:
+) -> list[reporting.Prediction]:
     """
     Evaluates the trained classifier on a test split.
 
@@ -243,7 +234,7 @@ def evaluate(
             pred_logits = classifier(features)
         pred_logits = (pred_logits > args.threshold).cpu().numpy()
         for id, pred, true in zip(ids, pred_logits, labels):
-            example = interfaces.Prediction(
+            example = reporting.Prediction(
                 id,
                 float((pred == true).all()),
                 {"y_pred": pred.tolist(), "y_true": true.tolist()},
@@ -256,8 +247,8 @@ def evaluate(
 @jaxtyped(typechecker=beartype.beartype)
 @torch.no_grad()
 def get_features(
-    args: Args, backbone: interfaces.VisionBackbone, *, is_train: bool
-) -> FeaturesCvml:
+    args: Args, backbone: registry.VisionBackbone, *, is_train: bool
+) -> Features:
     """Extract visual features."""
     if not os.path.isdir(args.data):
         msg = f"Path '{args.data}' doesn't exist. Did you download the FishNet dataset? See the docstring at the top of this file for instructions. If you did download it, pass the path with '--fishnet-args.data'; see --help for more."
@@ -267,7 +258,7 @@ def get_features(
     backbone = torch.compile(backbone.to(args.device))
 
     file = "train.csv" if is_train else "test.csv"
-    dataset = ImageDatasetCvml(args.data, file, transform=img_transform)
+    dataset = ImageDataset(args.data, file, transform=img_transform)
     dataloader = torch.utils.data.DataLoader(
         dataset,
         batch_size=args.batch_size,
@@ -282,9 +273,6 @@ def get_features(
         total = 2  # 2 batches
     elif is_train and args.n_train >= 0:
         n = args.n_train
-        total = n // args.batch_size + 1
-    elif not is_train and args.n_test > 0:
-        n = args.n_test
         total = n // args.batch_size + 1
     else:
         n = len(dataset)
@@ -306,11 +294,11 @@ def get_features(
     all_labels = torch.cat(all_labels, dim=0)[:n]
     all_ids = all_ids[:n]
 
-    return FeaturesCvml(all_features, all_labels, all_ids)
+    return Features(all_features, all_labels, all_ids)
 
 
 @jaxtyped(typechecker=beartype.beartype)
-class ImageDatasetCvml(torch.utils.data.Dataset):
+class ImageDataset(torch.utils.data.Dataset):
     """
     A dataset for CV+ML that loads the required attribute labels.
     """
@@ -368,301 +356,6 @@ class ImageDatasetCvml(torch.utils.data.Dataset):
             image = self.transform(image)
 
         return image, label, image_path
-
-    def __len__(self) -> int:
-        return len(self.df)
-
-
-def benchmark_mllm(
-    args: Args, model_args: interfaces.ModelArgsMllm
-) -> tuple[interfaces.ModelArgsMllm, interfaces.TaskReport]:
-    if not os.path.isdir(args.data):
-        msg = f"Path '{args.data}' doesn't exist. Did you download the FishNet dataset? See the docstring at the top of this file for instructions. If you did download it, pass the path with '--fishnet-args.data'; see --help for more."
-        raise ValueError(msg)
-
-    train_dataset = DatasetMllm(args.data, "train.csv")
-    test_dataset = DatasetMllm(args.data, "test.csv")
-    rng = random.Random(args.seed)
-
-    with asyncio.Runner() as loop:
-        limiter = mllms.RateLimiter(args.parallel)
-        semaphore = asyncio.Semaphore(args.parallel)
-
-        # We load all the training samples into memory right away because they will be re-used over and over again.
-        # Test samples are loaded one by one on demand.
-        i_train = rng.sample(range(len(train_dataset)), k=args.n_train)
-        train_examples = [
-            train_dataset[i].to_example()
-            for i in helpers.progress(i_train, desc="load train samples")
-        ]
-
-        @beartype.beartype
-        async def run_one(i: int) -> interfaces.Prediction:
-            async with semaphore:
-                test_example = test_dataset[i]
-                # Try to fit them into a prompt.
-                n_examples = 0
-                fewshot_examples = []
-                while mllms.fits(
-                    model_args,
-                    fewshot_examples,
-                    test_example.image_b64,
-                    test_example.user,
-                ) and (args.n_train < 0 or n_examples < args.n_train):
-                    # Add another example.
-                    n_examples += 1
-                    fewshot_examples = train_examples[:n_examples]
-
-                # Only shuffle once.
-                rng.shuffle(fewshot_examples)
-
-                await limiter.acquire()
-                assistant = await mllms.send(
-                    model_args,
-                    fewshot_examples,
-                    test_example.image_b64,
-                    test_example.user,
-                )
-                preds = test_example.parse_assistant(assistant)
-                # Convert feeding path to bool and combine with other binary values
-                preds = [preds[1] == "pelagic"] + list(preds[2:])
-
-                return interfaces.Prediction(
-                    test_example.image_id,
-                    float(preds == test_example.true),
-                    info={
-                        "y_true": test_example.true,
-                        "y_pred": preds,
-                        "assistant": assistant,
-                    },
-                )
-
-        @beartype.beartype
-        async def run_all() -> list[interfaces.Prediction]:
-            if args.debug:
-                logger.info("Using the first 10 samples out of %d.", len(test_dataset))
-                test_i = list(range(10))
-            elif args.n_test >= 0:
-                logger.info(
-                    "Using %d random samples out of %d.", args.n_test, len(test_dataset)
-                )
-                test_i = rng.sample(range(len(test_dataset)), k=args.n_test)
-
-            jobs = [asyncio.create_task(run_one(i)) for i in test_i]
-
-            preds = []
-            for job in helpers.progress(jobs):
-                pred: interfaces.Prediction = await job
-                preds.append(pred)
-            return preds
-
-        preds = loop.run(run_all())
-
-    return model_args, interfaces.TaskReport(
-        "FishNet", args.n_train, preds, calc_mean_score=calc_macro_f1
-    )
-
-
-@dataclasses.dataclass(frozen=True)
-class SampleMllm:
-    image_id: str
-    image_b64: str
-    trophic_level: float
-    """The position in the food chain or food web."""
-    feeding_path: typing.Literal["benthic", "pelagic"]
-    """Which trophic pathway the species feeds from."""
-    tropical: bool
-    """Whether the fish can live in tropical areas."""
-    temperate: bool
-    """Whether the fish can live in temperate areas."""
-    subtropical: bool
-    """Whether the fish can live in subtropical areas."""
-    boreal: bool
-    """Whether the fish can live in boral areas."""
-    polar: bool
-    """Whether the fish can live in polar areas."""
-    freshwater: bool
-    """Whether the fish can live in freshwater."""
-    saltwater: bool
-    """Whether the fish can live in saltwater."""
-    brackish: bool
-    """Whether the fish can live in brackish water."""
-
-    @property
-    def user(self) -> str:
-        return """
-What functional traits does this fish have? For each of these ten traits, respond using the specified format:
-* **trophic level**: What is the real-valued position of this fish in the food chain or food web?
-* **feeding path**: What trophic pathway does this fish feed from? Choose between benthic or pelagic.
-* **tropical**: Can this fish live in tropical areas? Respond with yes or no.
-* **temperate**: Can this fish live in temperate areas? Respond with yes or no.
-* **subtropical**: Can this fish live in subtropical areas? Respond with yes or no.
-* **boreal**: Can this fish live in boreal areas? Respond with yes or no.
-* **polar**: Can this fish live in polar areas? Respond with yes or no.
-* **freshwater**: Can this fish live in freshwater? Respond with yes or no.
-* **saltwater**: Can this fish live in saltwater? Respond with yes or no.
-* **brackish water**: Can this fish live in brackish water? Respond with yes or no.
-""".strip()
-
-    @property
-    def assistant(self) -> str:
-        return f"""
-* **trophic level**: {self.trophic_level:.2f}
-* **feeding path**: {self.feeding_path}
-* **tropical**: {"yes" if self.tropical else "no"}
-* **subtropical**: {"yes" if self.subtropical else "no"}
-* **subtropical**: {"yes" if self.subtropical else "no"}
-* **boreal**: {"yes" if self.boreal else "no"}
-* **polar**: {"yes" if self.polar else "no"}
-* **freshwater**: {"yes" if self.freshwater else "no"}
-* **saltwater**: {"yes" if self.saltwater else "no"}
-* **brackish water**: {"yes" if self.brackish else "no"}""".strip()
-
-    def parse_assistant(
-        self, assistant: str
-    ) -> tuple[float, str, bool, bool, bool, bool, bool, bool, bool, bool]:
-        """Parse the MLLM response into structured data.
-
-        Returns:
-            Tuple of (trophic_level, feeding_path, tropical, temperate, subtropical, boreal, polar, freshwater, saltwater, brackish)
-        """
-        # Default values
-        trophic_level = 0.0
-        feeding_path = "benthic"  # Default to benthic if not found
-        tropical = temperate = subtropical = boreal = polar = False
-        freshwater = saltwater = brackish = False
-
-        # Parse each line
-        for line in assistant.split("\n"):
-            line = line.strip()
-            if not line.startswith("*"):
-                continue
-
-            # Extract the trait name and value
-            parts = line.split(":")
-            if len(parts) != 2:
-                continue
-
-            trait = parts[0].strip("* ").lower()
-            value = parts[1].strip().lower()
-
-            if trait == "trophic level":
-                try:
-                    trophic_level = float(value)
-                except ValueError:
-                    pass
-            elif trait == "feeding path":
-                if value in ("benthic", "pelagic"):
-                    feeding_path = value
-            elif trait == "tropical":
-                tropical = value == "yes"
-            elif trait == "temperate":
-                temperate = value == "yes"
-            elif trait == "subtropical":
-                subtropical = value == "yes"
-            elif trait == "boreal":
-                boreal = value == "yes"
-            elif trait == "polar":
-                polar = value == "yes"
-            elif trait == "freshwater":
-                freshwater = value == "yes"
-            elif trait == "saltwater":
-                saltwater = value == "yes"
-            elif trait == "brackish water":
-                brackish = value == "yes"
-
-        return (
-            trophic_level,
-            feeding_path,
-            tropical,
-            temperate,
-            subtropical,
-            boreal,
-            polar,
-            freshwater,
-            saltwater,
-            brackish,
-        )
-
-    @property
-    def true(self) -> list[bool]:
-        """Get the ground truth binary values for all traits except trophic level.
-
-        Returns:
-            List of boolean values for [feeding_path=='pelagic', tropical, temperate,
-            subtropical, boreal, polar, freshwater, saltwater, brackish]
-        """
-        return [
-            self.feeding_path == "pelagic",
-            self.tropical,
-            self.temperate,
-            self.subtropical,
-            self.boreal,
-            self.polar,
-            self.freshwater,
-            self.saltwater,
-            self.brackish,
-        ]
-
-    def to_example(self) -> mllms.Example:
-        return mllms.Example(
-            image_b64=self.image_b64,
-            user=self.user,
-            assistant=self.assistant,
-        )
-
-
-@jaxtyped(typechecker=beartype.beartype)
-class DatasetMllm(torch.utils.data.Dataset):
-    """
-    A dataset for MLLMs that loads the required attribute labels.
-    """
-
-    def __init__(self, root_dir: str, csv_file: str):
-        self.root_dir = root_dir
-        self.csv_file = os.path.join(self.root_dir, csv_file)
-        self.df = pl.read_csv(self.csv_file).with_row_index()
-        self.all_columns = [
-            "FeedingPath",
-            "Tropical",
-            "Temperate",
-            "Subtropical",
-            "Boreal",
-            "Polar",
-            "freshwater",
-            "saltwater",
-            "brackish",
-        ]
-        for col in self.all_columns:
-            self.df = self.df.filter(self.df[col].is_not_null())
-
-        # Corresponding column indices
-        self.img_col = 4
-        self.folder_col = 13
-        logger.info("csv file: %s has %d items.", csv_file, len(self.df))
-
-    def __getitem__(self, index: int) -> SampleMllm:
-        row_data = self.df.row(index)
-        img_name = row_data[self.img_col]
-        img_name = img_name.split("/")[-1]
-        folder = row_data[self.folder_col]
-        img_path = os.path.join(self.root_dir, "Image_Library", folder, img_name)
-        img_b64 = helpers.load_img_b64(img_path)
-
-        return SampleMllm(
-            img_path,
-            img_b64,
-            row_data[14],
-            row_data[15],
-            bool(row_data[16]),
-            bool(row_data[17]),
-            bool(row_data[18]),
-            bool(row_data[19]),
-            bool(row_data[20]),
-            bool(row_data[21]),
-            bool(row_data[22]),
-            bool(row_data[23]),
-        )
 
     def __len__(self) -> int:
         return len(self.df)

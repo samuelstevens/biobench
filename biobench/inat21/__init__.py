@@ -32,7 +32,7 @@ import torch
 import torchvision.datasets
 from jaxtyping import Float, Int, Shaped, jaxtyped
 
-from biobench import helpers, interfaces, registry
+from biobench import config, helpers, registry, reporting
 
 logger = logging.getLogger("inat21")
 
@@ -56,10 +56,6 @@ class Args:
     """(computed at runtime) whether to run in debug mode."""
     n_train: int = -1
     """(computed at runtime) number of maximum training samples. Negative number means use all of them."""
-    n_test: int = -1
-    """(computed at runtime) number of test samples. Negative number means use all of them."""
-    parallel: int = 1
-    """(computed at runtime) number of parallel requests per second to MLLM service providers."""
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -71,26 +67,24 @@ class Features:
 
 
 @beartype.beartype
-def benchmark(
-    args: Args, model_args: interfaces.ModelArgsCvml
-) -> tuple[interfaces.ModelArgsCvml, interfaces.TaskReport]:
+def benchmark(cfg: config.Experiment) -> tuple[config.Model, reporting.Report]:
     """
     Steps:
     1. Get features for all images.
     2. Select lambda using validation data.
     3. Report score on test data.
     """
-    backbone = registry.load_vision_backbone(*model_args)
+    backbone = registry.load_vision_backbone(cfg.model)
 
     # 1. Get features
-    val_features = get_features(args, backbone, is_train=False)
-    train_features = get_features(args, backbone, is_train=True)
+    val_features = get_features(cfg, backbone, is_train=False)
+    train_features = get_features(cfg, backbone, is_train=True)
 
     # 2. Fit model.
     clf = init_clf()
     clf.fit(train_features.x, train_features.y)
 
-    helpers.write_hparam_sweep_plot("inat21", model_args.ckpt, clf)
+    helpers.write_hparam_sweep_plot("inat21", cfg.model.ckpt, clf)
     alpha = clf.best_params_["ridgeclassifier__alpha"].item()
     logger.info("alpha=%.2g scored %.3f.", alpha, clf.best_score_.item())
 
@@ -98,7 +92,7 @@ def benchmark(
     pred_labels = clf.predict(val_features.x)
 
     examples = [
-        interfaces.Example(
+        reporting.Prediction(
             str(image_id),
             float(pred == true),
             {"y_pred": pred.item(), "y_true": true.item()},
@@ -110,7 +104,7 @@ def benchmark(
         )
     ]
 
-    return model_args, interfaces.TaskReport("iNat21", examples)
+    return cfg.model, reporting.Report("iNat21", examples)
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -140,7 +134,7 @@ class Dataset(torchvision.datasets.ImageFolder):
 @jaxtyped(typechecker=beartype.beartype)
 @torch.no_grad()
 def get_features(
-    args: Args, backbone: interfaces.VisionBackbone, *, is_train: bool
+    args: Args, backbone: registry.VisionBackbone, *, is_train: bool
 ) -> Features:
     img_transform = backbone.make_img_transform()
     backbone = torch.compile(backbone.to(args.device))

@@ -16,7 +16,7 @@ dependencies = [
     "requests>=2.32.3",
     "tqdm>=4.66.5",
     "polars>=1.6.0",
-    "marimo>=0.8.7",
+    "marimo>=0.11.25",
     "matplotlib>=3.9.2",
     "pdoc3>=0.11.1",
     "wilds>=2.0.0",
@@ -34,9 +34,6 @@ dependencies = [
 [tool.ruff.lint]
 select = ["E", "F", "I"]
 ignore = ["F722", "E402", "E501"]
-
-[tool.isort]
-profile = "black"
 
 [dependency-groups]
 dev = [

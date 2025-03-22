@@ -4,14 +4,14 @@ import logging
 import math
 
 import beartype
+import datasets
 import numpy as np
 import sklearn.neighbors
 import torch
 from jaxtyping import Float, Int, Shaped, jaxtyped
 from torch import Tensor
 
-import datasets
-from biobench import helpers, interfaces, registry
+from biobench import config, helpers, registry, reporting
 
 logger = logging.getLogger("rare-species")
 
@@ -32,33 +32,27 @@ class Args:
     """(computed at runtime) whether to run in debug mode."""
     n_train: int = -1
     """(computed at runtime) number of maximum training samples. Negative number means use all of them."""
-    n_test: int = -1
-    """(computed at runtime) number of test samples. Negative number means use all of them."""
-    parallel: int = 1
-    """(computed at runtime) number of parallel requests per second to MLLM service providers."""
 
 
 @beartype.beartype
-def benchmark(
-    args: Args, model_args: interfaces.ModelArgsCvml
-) -> tuple[interfaces.ModelArgsCvml, interfaces.TaskReport]:
-    backbone = registry.load_vision_backbone(*model_args)
-    features = get_features(args, backbone)
+def benchmark(cfg: config.Experiment) -> tuple[config.Model, reporting.Report]:
+    backbone = registry.load_vision_backbone(cfg.model)
+    features = get_features(cfg, backbone)
 
     train_i, test_i = make_split(features.y, k=1)
 
     scores = simpleshot(
-        args,
+        cfg,
         features.x[train_i],
         features.y[train_i],
         features.x[test_i],
         features.y[test_i],
     )
     examples = [
-        interfaces.Prediction(str(id), float(score), {})
+        reporting.Prediction(str(id), float(score), {})
         for id, score in zip(features.ids[test_i], scores.tolist())
     ]
-    return model_args, interfaces.TaskReport("RareSpecies", examples)
+    return cfg.model, reporting.Report("RareSpecies", examples)
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -93,7 +87,7 @@ class Preprocess:
 
 @beartype.beartype
 @torch.no_grad
-def get_features(args: Args, backbone: interfaces.VisionBackbone) -> Features:
+def get_features(args: Args, backbone: registry.VisionBackbone) -> Features:
     img_transform = backbone.make_img_transform()
     backbone = torch.compile(backbone.to(args.device))
 

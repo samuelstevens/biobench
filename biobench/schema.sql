@@ -13,7 +13,11 @@ CREATE TABLE IF NOT EXISTS experiments (
     task_name TEXT NOT NULL,
 
     -- Model information
-    model_cfg TEXT NOT NULL, -- JSON blob
+    model_org TEXT NOT NULL,
+    model_ckpt TEXT NOT NULL,
+
+    -- Number of requested training samples.
+    n_train INTEGER NOT NULL,
 
     exp_cfg TEXT NOT NULL,  -- JSON blob with full experiment configuration
 
@@ -31,9 +35,9 @@ CREATE TABLE IF NOT EXISTS predictions (
     n_train INTEGER NOT NULL,  -- Number of training examples used in this prediction
     info TEXT NOT NULL,  -- JSON blob with additional information (original class, true label, etc.)
 
-    -- Foreign key to link to the results table
-    result_id INTEGER NOT NULL,
+    -- Foreign key to link to the experiments table
+    experiment_id INTEGER NOT NULL,
 
-    PRIMARY KEY (img_id, result_id),
-    FOREIGN KEY (result_id) REFERENCES results(id)  ON DELETE CASCADE
+    PRIMARY KEY (img_id, experiment_id),
+    FOREIGN KEY (experiment_id) REFERENCES experiments(id)  ON DELETE CASCADE
 );
