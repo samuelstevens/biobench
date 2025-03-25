@@ -48,6 +48,8 @@ class Data:
     """Data path for the MammalNet benchmark."""
     plantnet: str = ""
     """Data path for the Pl@ntNet benchmark."""
+    plankton: str = ""
+    """Data path for the planktok classification benchmark."""
     iwildcam: str = ""
     """Data path for the iWildCam benchmark."""
 

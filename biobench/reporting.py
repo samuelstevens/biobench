@@ -1,4 +1,6 @@
 import dataclasses
+import json
+import logging
 import os.path
 import pathlib
 import socket
@@ -12,6 +14,9 @@ from jaxtyping import jaxtyped
 
 from . import config
 
+log_format = "[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s"
+logging.basicConfig(level=logging.INFO, format=log_format)
+logger = logging.getLogger("biobench")
 schema_fpath = pathlib.Path(__file__).parent / "schema.sql"
 
 
@@ -22,11 +27,12 @@ def get_db(cfg: config.Experiment) -> sqlite3.Connection:
         a connection to a sqlite3 database.
     """
     os.makedirs(cfg.report_to, exist_ok=True)
-    db = sqlite3.connect(os.path.join(cfg.report_to, "reports.sqlite"))
+    db = sqlite3.connect(os.path.join(cfg.report_to, "reports.sqlite"), autocommit=True)
 
     with open(schema_fpath) as fd:
         schema = fd.read()
     db.executescript(schema)
+    db.autocommit = False
 
     return db
 
@@ -84,10 +90,12 @@ class Report:
     """
 
     # Actual details of the report
-    name: str
+    task_name: str
     """The benchmark name."""
     predictions: list[Prediction]
     """A list of (example_id, score, info) objects"""
+    cfg: config.Experiment
+    """Experimental config."""
     _: dataclasses.KW_ONLY
     splits: dict[str, float] = dataclasses.field(default_factory=dict)
     """Other scores that you would like to report. These do not have confidence intervals."""
@@ -95,9 +103,9 @@ class Report:
     # Stuff for trying to reproduce this result. These are filled in by default.
     argv: list[str] = dataclasses.field(default_factory=lambda: sys.argv)
     """Command used to get this report."""
-    commit: str = get_git_hash()
+    git_commit: str = get_git_hash()
     """Git commit for this current report."""
-    posix_time: float = dataclasses.field(default_factory=time.time)
+    posix: float = dataclasses.field(default_factory=time.time)
     """Time when this report was constructed."""
     gpu_name: str = dataclasses.field(default_factory=get_gpu_name)
     """Name of the GPU that ran this experiment."""
@@ -105,29 +113,47 @@ class Report:
     """Machine hostname that ran this experiment."""
 
     def __repr__(self):
-        return f"Report({self.name} with {len(self.predictions)} predictions)"
+        return f"Report({self.task_name} with {len(self.predictions)} predictions)"
 
     def __str__(self):
         return repr(self)
 
-    def get_mean_score(self) -> float:
+    @beartype.beartype
+    def write(self, db: sqlite3.Connection) -> None:
         """
-        Get the mean score of all predictions.
-        """
-        return self.calc_mean_score(self.predictions)
+        Saves the report to disk in a machine-readable SQLite format.
 
-    def to_dict(self) -> dict[str, object]:
+        Args:
         """
-        Returns a json-encodable dictionary representation of self.
-        """
-        return {
-            "name": self.name,
-            "predictions": [
-                dataclasses.asdict(prediction) for prediction in self.predictions
-            ],
-            "argv": self.argv,
-            "commit": self.commit,
-            "posix_time": self.posix_time,
-            "gpu_name": self.gpu_name,
-            "hostname": self.hostname,
-        }
+        preds_stmt = "INSERT INTO predictions(img_id, score, info, experiment_id) VALUES(?, ?, ?, ?)"
+        exp_stmt = "INSERT INTO experiments(task_name, model_org, model_ckpt, n_train, exp_cfg, argv, git_commit, posix, gpu_name, hostname) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        try:
+            cursor = db.cursor()
+
+            exp_values = (
+                self.task_name.lower(),
+                self.cfg.model.org,
+                self.cfg.model.ckpt,
+                self.cfg.n_train,
+                json.dumps(self.cfg.to_dict()),
+                json.dumps(self.argv),
+                self.git_commit,
+                self.posix,
+                self.gpu_name,
+                self.hostname,
+            )
+            cursor.execute(exp_stmt, exp_values)
+            exp_id = cursor.lastrowid
+            preds_values = [
+                (pred.id, pred.score, json.dumps(pred.info), exp_id)
+                for pred in self.predictions
+            ]
+            cursor.executemany(preds_stmt, preds_values)
+
+            # Commit the transaction if all statements succeed
+            db.commit()
+        except sqlite3.Error as err:
+            # Roll back the transaction in case of error
+            db.rollback()
+            logger.critical("Error writing report for '%s': %s", self.task_name, err)
+            raise

@@ -20,7 +20,6 @@ If you use this evaluation, be sure to cite the original work:
 
 import collections.abc
 import dataclasses
-import itertools
 import logging
 import os
 
@@ -43,7 +42,7 @@ logger = logging.getLogger("newt")
 
 
 @beartype.beartype
-def benchmark(cfg: config.Experiment) -> tuple[config.Model, reporting.Report]:
+def benchmark(cfg: config.Experiment) -> reporting.Report:
     """
     The NeWT benchmark.
     First, get features for all images.
@@ -57,7 +56,7 @@ def benchmark(cfg: config.Experiment) -> tuple[config.Model, reporting.Report]:
     all_task_features = get_all_tasks(cfg, backbone)
 
     # Fit SVMs.
-    results = []
+    all_preds = []
     for task in all_task_features:
         (x_train, y_train), (x_test, y_test) = task.splits
 
@@ -73,7 +72,7 @@ def benchmark(cfg: config.Experiment) -> tuple[config.Model, reporting.Report]:
 
         svc.fit(x_train, y_train)
         y_pred = svc.predict(x_test)
-        examples = [
+        preds = [
             reporting.Prediction(
                 str(id),
                 float(pred == true),
@@ -81,21 +80,10 @@ def benchmark(cfg: config.Experiment) -> tuple[config.Model, reporting.Report]:
             )
             for id, pred, true in zip(task.example_ids, y_pred, y_test)
         ]
-        test_acc = np.mean(y_pred == y_test)
 
-        results.append({
-            "task": task.name,
-            "cluster": task.cluster,
-            "examples": examples,
-            "test_acc": test_acc,
-        })
+        all_preds.extend(preds)
 
-    # Removes 'examples' from each dict in results
-    examples = list(
-        itertools.chain.from_iterable((result.pop("examples") for result in results))
-    )
-
-    return cfg.model, reporting.Report("NeWT", examples)
+    return reporting.Report("newt", all_preds, cfg)
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -163,6 +151,7 @@ def get_all_tasks(
     cfg: config.Experiment, backbone: registry.VisionBackbone
 ) -> collections.abc.Iterator[Task]:
     """ """
+    raise NotImplementedError("YOU HAVE TO IMPLEMENT n_train!")
     labels_csv_name = "newt2021_labels.csv"
     labels_csv_path = os.path.join(cfg.data.newt, labels_csv_name)
     images_dir_name = "newt2021_images"

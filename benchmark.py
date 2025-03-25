@@ -12,11 +12,9 @@ For example, see `biobench.newt.download` for an example.
 
 import collections
 import importlib
-import json
 import logging
 import os
 import resource
-import time
 
 import beartype
 import submitit
@@ -27,42 +25,6 @@ from biobench import config, helpers, reporting
 log_format = "[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s"
 logging.basicConfig(level=logging.INFO, format=log_format)
 logger = logging.getLogger("biobench")
-
-
-@beartype.beartype
-def save(cfg: config.Experiment, report: reporting.Report) -> None:
-    """
-    Saves the report to disk in a machine-readable SQLite format.
-
-    Args:
-        args: launch script arguments.
-        model_args: a pair of model_org, model_ckpt strings.
-        report: the task report from the model_args.
-    """
-    db = cfg.get_sqlite_connection()
-    with open("schema.sql") as fd:
-        schema = fd.read()
-    db.execute(schema)
-
-    lower, upper = report.get_confidence_interval()
-    values = (
-        json.dumps(model_args.to_dict()),
-        report.name,
-        int(time.time()),
-        report.get_mean_score(),
-        lower,
-        upper,
-        json.dumps(args.to_dict()),
-        json.dumps(report.to_dict()),
-    )
-    db.execute("INSERT INTO reports VALUES(?, ?, ?, ?, ?, ?, ?, ?)", values)
-    db.commit()
-
-    logger.info(
-        "%s on %s: %.1f%%", model_args.ckpt, report.name, report.get_mean_score() * 100
-    )
-    for name, score in report.splits.items():
-        logger.info("%s on %s (%s): %.3f", model_args.ckpt, report.name, name, score)
 
 
 @beartype.beartype

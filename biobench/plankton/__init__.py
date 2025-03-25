@@ -59,7 +59,7 @@ import typing
 
 import beartype
 import numpy as np
-import sklearn.model_selection
+import sklearn.naive_bayes
 import sklearn.pipeline
 import sklearn.preprocessing
 import sklearn.svm
@@ -71,26 +71,6 @@ from torch import Tensor
 from .. import config, helpers, registry, reporting
 
 logger = logging.getLogger("plankton")
-
-
-@beartype.beartype
-@dataclasses.dataclass(frozen=True)
-class Args:
-    """Plankton task arguments."""
-
-    batch_size: int = 256
-    """batch size for deep model."""
-    n_workers: int = 4
-    """number of dataloader worker processes."""
-    log_every: int = 10
-    """how often (number of batches) to log progress."""
-    # Computed at runtime.
-    device: str = "cuda"
-    """(computed at runtime) which kind of accelerator to use."""
-    debug: bool = False
-    """(computed at runtime) whether to run in debug mode."""
-    n_train: int = -1
-    """(computed at runtime) number of maximum training samples. Negative number means use all of them."""
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -105,7 +85,7 @@ class Features:
 
 
 @beartype.beartype
-def benchmark(cfg: config.Experiment) -> tuple[config.Model, reporting.Report]:
+def benchmark(cfg: config.Experiment) -> reporting.Report:
     """
     Steps:
     1. Get features for all images.
@@ -123,19 +103,15 @@ def benchmark(cfg: config.Experiment) -> tuple[config.Model, reporting.Report]:
     encoder.fit(all_labels.reshape(-1, 1))
 
     # 2. Fit model.
-    clf = init_clf(args)
+    clf = init_clf(cfg)
     clf.fit(train_features.x, train_features.y(encoder))
-
-    helpers.write_hparam_sweep_plot("plankton", model_args.ckpt, clf)
-    alpha = clf.best_params_["ridgeclassifier__alpha"].item()
-    logger.info("alpha=%.2g scored %.3f.", alpha, clf.best_score_.item())
 
     # 3. Predict.
     pred_labels = clf.predict(val_features.x)
     logger.info("Predicted classes for %d examples.", len(val_features.x))
     true_labels = val_features.y(encoder)
 
-    examples = [
+    preds = [
         reporting.Prediction(
             str(image_id),
             float(pred == true),
@@ -148,7 +124,7 @@ def benchmark(cfg: config.Experiment) -> tuple[config.Model, reporting.Report]:
         )
     ]
 
-    return cfg.model, reporting.Report("Plankton", examples)
+    return reporting.Report("plankton", preds, cfg)
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -190,18 +166,18 @@ class Dataset(torch.utils.data.Dataset):
 @jaxtyped(typechecker=beartype.beartype)
 @torch.no_grad()
 def get_features(
-    args: Args, backbone: registry.VisionBackbone, *, split: str
+    cfg: config.Experiment, backbone: registry.VisionBackbone, *, split: str
 ) -> Features:
-    images_dir_path = os.path.join(args.datadir, split)
+    images_dir_path = os.path.join(cfg.data.plankton, split)
 
     img_transform = backbone.make_img_transform()
-    backbone = torch.compile(backbone.to(args.device))
+    backbone = torch.compile(backbone.to(cfg.device))
 
     dataset = Dataset(images_dir_path, img_transform)
     dataloader = torch.utils.data.DataLoader(
         dataset,
-        batch_size=args.batch_size,
-        num_workers=args.n_workers,
+        batch_size=cfg.batch_size,
+        num_workers=cfg.n_workers,
         drop_last=False,
         shuffle=False,
         pin_memory=False,
@@ -210,13 +186,11 @@ def get_features(
 
     all_ids, all_features, all_labels = [], [], []
 
-    total = len(dataloader) if not args.debug else 2
+    total = len(dataloader) if not cfg.debug else 2
     it = iter(dataloader)
-    for b in helpers.progress(
-        range(total), every=args.log_every, desc=f"Embed {split}"
-    ):
+    for b in helpers.progress(range(total), every=10, desc=f"Embed {split}"):
         ids, images, labels = next(it)
-        images = images.to(args.device)
+        images = images.to(cfg.device)
 
         with torch.amp.autocast("cuda"):
             features = backbone.img_encode(images).img_features
@@ -234,20 +208,10 @@ def get_features(
 
 
 @beartype.beartype
-def init_clf(args: Args):
-    """
-    Make a grid search cross-validation version of a RidgeClassifier.
-    """
-    alpha = np.pow(2.0, np.arange(-15, 11))
-    if args.debug:
-        alpha = np.pow(2.0, np.arange(-2, 2))
+def init_clf(cfg: config.Experiment):
+    """Make a GaussianNB."""
 
-    return sklearn.model_selection.GridSearchCV(
-        sklearn.pipeline.make_pipeline(
-            sklearn.preprocessing.StandardScaler(),
-            sklearn.linear_model.RidgeClassifier(1.0, class_weight="balanced"),
-        ),
-        {"ridgeclassifier__alpha": alpha},
-        n_jobs=16,
-        verbose=2,
+    return sklearn.pipeline.make_pipeline(
+        sklearn.preprocessing.StandardScaler(),
+        sklearn.naive_bayes.GaussianNB(),
     )

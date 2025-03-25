@@ -32,7 +32,6 @@ CREATE TABLE IF NOT EXISTS experiments (
 CREATE TABLE IF NOT EXISTS predictions (
     img_id TEXT NOT NULL,  -- ID used to find the original image/example
     score REAL NOT NULL,  -- Test score; typically 0 or 1 for classification tasks
-    n_train INTEGER NOT NULL,  -- Number of training examples used in this prediction
     info TEXT NOT NULL,  -- JSON blob with additional information (original class, true label, etc.)
 
     -- Foreign key to link to the experiments table
