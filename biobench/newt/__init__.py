@@ -203,39 +203,23 @@ def get_all_tasks(cfg: config.Experiment) -> collections.abc.Iterator[Task]:
         msg = f"Path '{labels_csv_path}' doesn't exist. Did you download the Newt dataset? See the docstring at the top of this file for instructions. If you did download it, pass the path with '--data'; see --help for more."
         raise RuntimeError(msg)
 
+    # Read the CSV and add row indices
     df = pl.read_csv(labels_csv_path).with_row_index()
+    
+    # Sample balanced training data for each task
     df = sample(rng, df, cfg.n_train)
-
-    # Split indices based on train/test split in the dataset using native Polars methods.
-    train_rows = (
-        df.filter(pl.col("split") == "train")
-        .select("id", "label")
-        .to_numpy(structured=True)
-    )
-    test_rows = (
-        df.filter(pl.col("split") != "train")
-        .select("id", "label")
-        .to_numpy(structured=True)
-    )
-
-    # Apply n_train and n_test limits if specified
-    if cfg.n_train > 0 and len(train_rows) > cfg.n_train:
-        train_ids, train_labels = sample(
-            rng, train_rows["id"], train_rows["label"], cfg.n_train
-        )
-    else:
-        train_ids, train_labels = train_rows["id"], train_rows["label"]
-
-    test_ids, test_labels = test_rows["id"], test_rows["label"]
-
+    
+    # Get all image IDs and labels
+    all_data = df.select("id", "label").to_numpy(structured=True)
+    all_ids, all_labels = all_data["id"], all_data["label"]
+    
+    # Create dataset with all samples
     dataset = Dataset(
         images_dir_path,
-        np.concatenate([train_ids, test_ids]),
-        np.concatenate([train_labels, test_labels]),
+        all_ids,
+        all_labels,
         img_transform,
     )
-
-    raise NotImplementedError("YOU HAVE TO IMPLEMENT n_train!")
 
     dataloader = torch.utils.data.DataLoader(
         dataset,
@@ -310,34 +294,59 @@ def init_svc():
 
 @jaxtyped(typechecker=beartype.beartype)
 def sample(
-    rng: np.random.Generator, df: pl.DataFrame, n: int
-) -> tuple[Shaped[np.ndarray, " n"], Int[np.ndarray, " n"]]:
-    """Sample a balanced subset of data points.
+    rng: np.random.Generator, df: pl.DataFrame, n_train: int
+) -> pl.DataFrame:
+    """Sample a balanced subset of training data points for each task.
 
     Args:
         rng: Random number generator.
         df: NeWT dataframe.
-        n: Number of samples per task to return.
+        n_train: Number of training samples per task to return.
 
     Returns:
-        A tuple of (sampled_img_ids, sampled_labels).
+        A DataFrame with balanced training samples and all test samples.
     """
-    n0 = n // 2
-    n1 = n - n0
+    if n_train <= 0:
+        return df  # Return all data if n_train is not positive
 
-    # Get indices for each class
-    i0 = np.where(labels == 0)[0]
-    i1 = np.where(labels == 1)[0]
-
-    # Randomly select the required number of samples from each class
-    i0 = rng.choice(i0, size=n0, replace=False)
-    i1 = rng.choice(i1, size=n1, replace=False)
-
-    # Combine the indices
-    i = np.concatenate([i0, i1])
-
-    # Shuffle the combined indices to avoid having all class 0 samples followed by all class 1 samples
-    np.random.shuffle(i)
-
-    # Return the balanced subset
-    return img_ids[i], labels[i]
+    # Create a new dataframe to store the results
+    result_dfs = []
+    
+    # Keep all test samples
+    test_df = df.filter(pl.col("split") != "train")
+    result_dfs.append(test_df)
+    
+    # Process each task separately
+    for task in df.get_column("task").unique():
+        task_df = df.filter((pl.col("task") == task) & (pl.col("split") == "train"))
+        
+        # Skip if the task has no training samples
+        if task_df.height == 0:
+            continue
+            
+        # Get samples for each class
+        class0_df = task_df.filter(pl.col("label") == 0)
+        class1_df = task_df.filter(pl.col("label") == 1)
+        
+        n0 = min(n_train // 2, class0_df.height)
+        n1 = min(n_train - n0, class1_df.height)
+        
+        # If one class has fewer samples than needed, take more from the other class
+        if n0 < n_train // 2 and class1_df.height > n1:
+            n1 = min(n_train - n0, class1_df.height)
+        elif n1 < (n_train - n_train // 2) and class0_df.height > n0:
+            n0 = min(n_train - n1, class0_df.height)
+        
+        # Sample from each class
+        if n0 > 0:
+            indices0 = rng.choice(class0_df.height, size=n0, replace=False)
+            sampled0 = class0_df.slice(indices0)
+            result_dfs.append(sampled0)
+            
+        if n1 > 0:
+            indices1 = rng.choice(class1_df.height, size=n1, replace=False)
+            sampled1 = class1_df.slice(indices1)
+            result_dfs.append(sampled1)
+    
+    # Combine all dataframes
+    return pl.concat(result_dfs)
