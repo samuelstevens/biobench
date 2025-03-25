@@ -22,6 +22,7 @@ import collections.abc
 import dataclasses
 import logging
 import os
+import typing
 
 import beartype
 import numpy as np
@@ -49,15 +50,10 @@ def benchmark(cfg: config.Experiment) -> reporting.Report:
     Second, select the subsets of features that correspond to different tasks and train an SVM.
     Third, evaluate the SVM and report results.
     """
-    # 1. Load model
-    backbone = registry.load_vision_backbone(cfg.model)
-
-    # 2. Get features.
-    all_task_features = get_all_tasks(cfg, backbone)
 
     # Fit SVMs.
     all_preds = []
-    for task in all_task_features:
+    for task in get_all_tasks(cfg):
         (x_train, y_train), (x_test, y_test) = task.splits
 
         x_mean = x_train.mean(axis=0, keepdims=True)
@@ -87,25 +83,67 @@ def benchmark(cfg: config.Experiment) -> reporting.Report:
 
 
 @jaxtyped(typechecker=beartype.beartype)
+class Sample(typing.TypedDict):
+    """A dictionary representing a single image sample with its metadata.
+
+    Attributes:
+        img_id: Unique identifier for the image.
+        img: The image tensor with shape [3, width, height] (RGB channels first).
+        label: Binary class label (0 or 1) for the image.
+    """
+
+    img_id: str
+    img: Float[Tensor, "3 width height"]
+    label: Int[Tensor, ""]
+
+
+@jaxtyped(typechecker=beartype.beartype)
 class Dataset(torch.utils.data.Dataset):
-    """
-    A dataset that returns `(example id, image tensor)` tuples.
-    """
+    """A dataset that returns ImageSample dictionaries."""
 
-    def __init__(self, dir: str, df, transform=None):
+    def __init__(
+        self,
+        root: str,
+        img_ids: Shaped[np.ndarray, " n"],
+        labels: Int[np.ndarray, " n"],
+        transform=None,
+    ):
+        """Initialize the dataset with image paths and labels.
+
+        Args:
+            root: Root directory containing the images.
+            img_ids: Array of image IDs.
+            labels: Array of binary labels corresponding to the images.
+            transform: Optional transform to apply to the images.
+        """
         self.transform = transform
-        self.image_ids = df.get_column("id").to_list()
-        self.dir = dir
+        self.root = root
+        self.img_ids = img_ids
+        self.labels = labels
 
-    def __getitem__(self, i: int) -> tuple[str, Float[Tensor, "3 width height"]]:
-        image_id = self.image_ids[i]
-        image = Image.open(os.path.join(self.dir, f"{image_id}.jpg"))
+    def __getitem__(self, i: int) -> Sample:
+        """Get a sample by its index.
+
+        Args:
+            i: Index of the sample to retrieve.
+
+        Returns:
+            A dictionary containing the image ID, image tensor, and label.
+        """
+        img_id = self.img_ids[i]
+        img = Image.open(os.path.join(self.root, f"{img_id}.jpg"))
         if self.transform is not None:
-            image = self.transform(image)
-        return image_id, image
+            img = self.transform(img)
+        label = self.labels[i]
+        return {"img_id": img_id, "img": img, "label": label}
 
     def __len__(self) -> int:
-        return len(self.image_ids)
+        """Return the number of samples in the dataset.
+
+        Returns:
+            The number of samples.
+        """
+        return len(self.img_ids)
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -147,11 +185,15 @@ class Task:
 
 @jaxtyped(typechecker=beartype.beartype)
 @torch.no_grad()
-def get_all_tasks(
-    cfg: config.Experiment, backbone: registry.VisionBackbone
-) -> collections.abc.Iterator[Task]:
+def get_all_tasks(cfg: config.Experiment) -> collections.abc.Iterator[Task]:
     """ """
-    raise NotImplementedError("YOU HAVE TO IMPLEMENT n_train!")
+    rng = np.random.default_rng(seed=cfg.seed)
+
+    # Load model
+    backbone = registry.load_vision_backbone(cfg.model)
+    img_transform = backbone.make_img_transform()
+    backbone = torch.compile(backbone.to(cfg.device))
+
     labels_csv_name = "newt2021_labels.csv"
     labels_csv_path = os.path.join(cfg.data.newt, labels_csv_name)
     images_dir_name = "newt2021_images"
@@ -162,11 +204,39 @@ def get_all_tasks(
         raise RuntimeError(msg)
 
     df = pl.read_csv(labels_csv_path).with_row_index()
+    df = sample(rng, df, cfg.n_train)
 
-    img_transform = backbone.make_img_transform()
-    backbone = torch.compile(backbone.to(cfg.device))
+    # Split indices based on train/test split in the dataset using native Polars methods.
+    train_rows = (
+        df.filter(pl.col("split") == "train")
+        .select("id", "label")
+        .to_numpy(structured=True)
+    )
+    test_rows = (
+        df.filter(pl.col("split") != "train")
+        .select("id", "label")
+        .to_numpy(structured=True)
+    )
 
-    dataset = Dataset(images_dir_path, df, img_transform)
+    # Apply n_train and n_test limits if specified
+    if cfg.n_train > 0 and len(train_rows) > cfg.n_train:
+        train_ids, train_labels = sample(
+            rng, train_rows["id"], train_rows["label"], cfg.n_train
+        )
+    else:
+        train_ids, train_labels = train_rows["id"], train_rows["label"]
+
+    test_ids, test_labels = test_rows["id"], test_rows["label"]
+
+    dataset = Dataset(
+        images_dir_path,
+        np.concatenate([train_ids, test_ids]),
+        np.concatenate([train_labels, test_labels]),
+        img_transform,
+    )
+
+    raise NotImplementedError("YOU HAVE TO IMPLEMENT n_train!")
+
     dataloader = torch.utils.data.DataLoader(
         dataset,
         batch_size=cfg.batch_size,
@@ -178,6 +248,8 @@ def get_all_tasks(
     )
 
     all_features, all_ids = [], []
+
+    # Need to select just a subset of rows based on cfg.n_train.
 
     total = len(dataloader) if not cfg.debug else 2
     it = iter(dataloader)
@@ -234,3 +306,38 @@ def init_svc():
         n_jobs=16,
         random_state=42,
     )
+
+
+@jaxtyped(typechecker=beartype.beartype)
+def sample(
+    rng: np.random.Generator, df: pl.DataFrame, n: int
+) -> tuple[Shaped[np.ndarray, " n"], Int[np.ndarray, " n"]]:
+    """Sample a balanced subset of data points.
+
+    Args:
+        rng: Random number generator.
+        df: NeWT dataframe.
+        n: Number of samples per task to return.
+
+    Returns:
+        A tuple of (sampled_img_ids, sampled_labels).
+    """
+    n0 = n // 2
+    n1 = n - n0
+
+    # Get indices for each class
+    i0 = np.where(labels == 0)[0]
+    i1 = np.where(labels == 1)[0]
+
+    # Randomly select the required number of samples from each class
+    i0 = rng.choice(i0, size=n0, replace=False)
+    i1 = rng.choice(i1, size=n1, replace=False)
+
+    # Combine the indices
+    i = np.concatenate([i0, i1])
+
+    # Shuffle the combined indices to avoid having all class 0 samples followed by all class 1 samples
+    np.random.shuffle(i)
+
+    # Return the balanced subset
+    return img_ids[i], labels[i]
