@@ -102,42 +102,47 @@ def test_class_balance(labels, n):
     )
 
 
-# Test case 3: Edge cases
-def test_edge_cases():
-    """Test the function with various edge cases"""
-
-    # Case 1: All samples from the same class
+def test_single_class_sampling():
+    """Test sampling when all samples are from the same class"""
     labels = np.array([1, 1, 1, 1, 1])
     indices = helpers.balanced_random_sample(labels, 3)
     assert len(indices) == 3
     assert len(np.unique(indices)) == 3
 
-    # Case 2: Very imbalanced dataset
+
+def test_highly_imbalanced_dataset():
+    """Test sampling from a highly imbalanced dataset"""
     labels = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 1])
     indices = helpers.balanced_random_sample(labels, 4)
     distribution = get_class_distribution(labels, indices)
     # Should have at least one of each class if possible
     assert 0 in distribution and 1 in distribution
 
-    # Case 3: Very small n
+
+def test_small_sample_size():
+    """Test sampling with a very small n"""
     labels = np.array([0, 0, 1, 1, 2, 2, 3, 3])
     indices = helpers.balanced_random_sample(labels, 2)
     assert len(indices) == 2
 
-    # Case 4: n larger than dataset
+
+def test_sample_size_larger_than_dataset():
+    """Test when requested sample size exceeds dataset size"""
     labels = np.array([0, 1, 2])
     indices = helpers.balanced_random_sample(labels, 10)
     assert len(indices) == 3  # Should return all samples
     assert set(indices) == {0, 1, 2}
 
-    # Case 5: Empty array
+
+def test_empty_dataset():
+    """Test sampling from an empty dataset"""
     labels = np.array([])
     indices = helpers.balanced_random_sample(labels, 5)
     assert len(indices) == 0
 
-    # Case 6: Request 0 samples
+
+def test_zero_samples_requested():
+    """Test when zero samples are requested"""
     labels = np.array([0, 1, 2, 3])
     indices = helpers.balanced_random_sample(labels, 0)
     assert len(indices) == 0
-
-    # Separate this into separate, well-named test functions. AI!
