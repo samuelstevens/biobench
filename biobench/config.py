@@ -34,8 +34,8 @@ class Data:
     """Data pathfor the Beluga whale re-ID benchmark."""
     fishnet: str = ""
     """Data path for the FishNet benchmark."""
-    imagenet1k: str = ""
-    """Data path for the ImageNet-1K benchmark."""
+    imagenet1k: str = "huggingface"
+    """Data path for the ImageNet-1K benchmark. 'huggingface' because it is downloaded from HF."""
     newt: str = ""
     """Data path for the NeWT benchmark."""
     herbarium19: str = ""
@@ -88,6 +88,8 @@ class Experiment:
     """where to save reports to."""
     log_to: str = os.path.join(".", "logs")
     """where to save logs to."""
+    seed: int = 17
+    """Random seed."""
 
     def to_dict(self) -> dict[str, object]:
         return dataclasses.asdict(self)

@@ -5,12 +5,15 @@ import hypothesis.extra.numpy as npst
 import numpy as np
 from hypothesis import assume, given
 from hypothesis import strategies as st
+from jaxtyping import Int, jaxtyped
 
 from . import helpers
 
 
-@beartype.beartype
-def measure_balance(labels, indices) -> float:
+@jaxtyped(typechecker=beartype.beartype)
+def measure_balance(
+    labels: Int[np.ndarray, " n_labels"], indices: Int[np.ndarray, " n"]
+) -> float:
     """
     Calculate a balance metric (coefficient of variation, lower is better) for the selected samples (labels[indices]).
 
@@ -22,20 +25,20 @@ def measure_balance(labels, indices) -> float:
     # Get the distribution of classes in the selected samples
     selected_labels = labels[indices]
     class_counts = collections.Counter(selected_labels)
-    
+
     # Get all unique classes in the original dataset
     all_classes = set(labels)
-    
+
     # Check if it was possible to include at least one of each class but didn't
     if len(indices) >= len(all_classes) and len(class_counts) < len(all_classes):
-        return 1.0
+        return float("inf")
 
     # Calculate coefficient of variation (standard deviation / mean)
     counts = np.array(list(class_counts.values()))
 
     # If only one class is present, return a high value to indicate imbalance
     if len(counts) == 1:
-        return 1.0
+        return float("inf")
 
     mean = np.mean(counts)
     std = np.std(counts, ddof=1)  # Using sample standard deviation

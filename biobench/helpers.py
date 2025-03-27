@@ -2,15 +2,15 @@
 Useful helpers for more than two tasks that don't fit anywhere else.
 """
 
+import collections
 import collections.abc
-import io
 import logging
 import os.path
 import time
 
 import beartype
-import pybase64
-from PIL import Image
+import numpy as np
+from jaxtyping import Int, jaxtyped
 
 
 @beartype.beartype
@@ -98,11 +98,66 @@ def write_hparam_sweep_plot(
     return filepath
 
 
-@beartype.beartype
-def load_img_b64(path: str) -> str:
-    img = Image.open(path)
-    buf = io.BytesIO()
-    img.save(buf, format="webp")
-    b64 = pybase64.b64encode(buf.getvalue())
-    s64 = b64.decode("utf8")
-    return "data:image/webp;base64," + s64
+@jaxtyped(typechecker=beartype.beartype)
+def balanced_random_sample(
+    labels: Int[np.ndarray, " n_labels"], n: int
+) -> Int[np.ndarray, " n"]:
+    """
+    Select n random examples while balancing the number of examples per class.
+    """
+    # Count the occurrences of each class
+    class_counts = collections.Counter(labels)
+    unique_classes = list(class_counts.keys())
+    n_classes = len(unique_classes)
+
+    if not n_classes:
+        return np.array([], dtype=int)
+
+    # Calculate ideal number of samples per class
+    samples_per_class = n // n_classes
+
+    # Handle remainder by allocating extra samples to random classes
+    remainder = n % n_classes
+    extra_samples = np.zeros(n_classes, dtype=int)
+    if remainder > 0:
+        extra_indices = np.random.choice(n_classes, remainder, replace=False)
+        extra_samples[extra_indices] = 1
+
+    # Calculate final samples per class
+    final_samples = np.array([samples_per_class] * n_classes) + extra_samples
+
+    # Initialize result array
+    selected_indices = []
+
+    # For each class, select random samples
+    for i, class_label in enumerate(unique_classes):
+        # Get all indices for this class
+        class_indices = np.where(labels == class_label)[0]
+
+        # Calculate how many to take (minimum of available samples and desired samples)
+        n_to_take = min(len(class_indices), final_samples[i])
+
+        # Randomly sample without replacement
+        if n_to_take > 0:
+            sampled_indices = np.random.choice(class_indices, n_to_take, replace=False)
+            selected_indices.extend(sampled_indices)
+
+    # If we still don't have enough samples (due to some classes having too few examples),
+    # sample from the remaining examples across all classes
+    if len(selected_indices) < n:
+        # Create a mask of already selected indices
+        mask = np.ones(len(labels), dtype=bool)
+        mask[selected_indices] = False
+        remaining_indices = np.where(mask)[0]
+
+        # How many more do we need?
+        needed = n - len(selected_indices)
+
+        # Sample without replacement from remaining indices
+        if needed > 0 and len(remaining_indices) > 0:
+            additional_indices = np.random.choice(
+                remaining_indices, min(needed, len(remaining_indices)), replace=False
+            )
+            selected_indices.extend(additional_indices)
+
+    return np.array(selected_indices, dtype=int)

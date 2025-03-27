@@ -17,27 +17,7 @@ from jaxtyping import Float, Int, Shaped, jaxtyped
 
 from biobench import config, helpers, registry, reporting
 
-logger = logging.getLogger("imagenet")
-
-
-@beartype.beartype
-@dataclasses.dataclass(frozen=True)
-class Args:
-    data: str = ""
-    """dataset directory; where you downloaded this task's data to."""
-    batch_size_cv: int = 256
-    """batch size for computer vision model."""
-    n_workers: int = 8
-    """number of dataloader worker processes."""
-    log_every: int = 10
-    """how often (number of batches) to log progress."""
-    # Computed at runtime.
-    device: str = "cuda"
-    """(computed at runtime) which kind of accelerator to use."""
-    debug: bool = False
-    """(computed at runtime) whether to run in debug mode."""
-    n_train: int = -1
-    """(computed at runtime) number of maximum training samples. Negative number means use all of them."""
+logger = logging.getLogger("imagenet1k")
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -49,7 +29,7 @@ class Features:
 
 
 @beartype.beartype
-def benchmark(cfg: config.Experiment) -> tuple[config.Model, reporting.Report]:
+def benchmark(cfg: config.Experiment) -> reporting.Report:
     backbone = registry.load_vision_backbone(cfg.model)
     test_features = get_features(cfg, backbone, is_train=False)
     train_features = get_features(cfg, backbone, is_train=True)
@@ -57,14 +37,14 @@ def benchmark(cfg: config.Experiment) -> tuple[config.Model, reporting.Report]:
     clf = init_clf(cfg)
     clf.fit(train_features.x, train_features.y)
 
-    helpers.write_hparam_sweep_plot("imagenet", cfg.model.ckpt, clf)
+    helpers.write_hparam_sweep_plot("imagenet1k", cfg.model.ckpt, clf)
     alpha = clf.best_params_["ridgeclassifier__alpha"].item()
     logger.info("alpha=%.2g scored %.3f.", alpha, clf.best_score_.item())
 
     true_labels = test_features.y
     pred_labels = clf.predict(test_features.x)
 
-    examples = [
+    preds = [
         reporting.Prediction(
             str(image_id),
             float(pred == true),
@@ -77,7 +57,7 @@ def benchmark(cfg: config.Experiment) -> tuple[config.Model, reporting.Report]:
         )
     ]
 
-    return cfg.model, reporting.Report("ImageNet-1K", examples)
+    return reporting.Report("imagenet1k", preds)
 
 
 class Transform:
@@ -94,42 +74,46 @@ class Transform:
 @beartype.beartype
 @torch.no_grad
 def get_features(
-    args: Args, backbone: registry.VisionBackbone, *, is_train: bool
+    cfg: config.Experiment, backbone: registry.VisionBackbone, *, is_train: bool
 ) -> Features:
     img_transform = backbone.make_img_transform()
-    backbone = torch.compile(backbone.to(args.device))
+    backbone = torch.compile(backbone.to(cfg.device))
     split = "train" if is_train else "validation"
 
     dataset = datasets.load_dataset("ILSVRC/imagenet-1k", split=split)
     n_examples = dataset.num_rows
 
+    if is_train:
+        i = helpers.balanced_random_sample(np.array(dataset["label"]), cfg.n_train)
+    else:
+        i = np.arange(n_examples)
+
     # Map
     dataset = (
-        dataset.to_iterable_dataset(num_shards=args.n_workers)
+        dataset.select(i)
+        .to_iterable_dataset(num_shards=min(len(i), cfg.n_workers))
         .map(Transform(img_transform), with_indices=True)
-        .shuffle(seed=args.seed)
+        .shuffle(seed=cfg.seed)
         .with_format("torch")
     )
 
     dataloader = torch.utils.data.DataLoader(
         dataset=dataset,
-        batch_size=args.batch_size,
-        num_workers=args.n_workers,
+        batch_size=cfg.batch_size,
+        num_workers=cfg.n_workers,
         drop_last=False,
         shuffle=False,
     )
 
     all_features, all_labels, all_ids = [], [], []
 
-    total = math.ceil(n_examples / args.batch_size) if not args.debug else 20
+    total = math.ceil(n_examples / cfg.batch_size) if not cfg.debug else 20
     it = iter(dataloader)
-    logger.debug("Need to embed %d batches of %d images.", total, args.batch_size)
-    for b in helpers.progress(
-        range(total), every=args.log_every, desc=f"Embedding {split}"
-    ):
+    logger.debug("Need to embed %d batches of %d images.", total, cfg.batch_size)
+    for b in helpers.progress(range(total), every=10, desc=f"Embedding {split}"):
         batch = next(it)
 
-        images = batch["image"].to(args.device)
+        images = batch["image"].to(cfg.device)
 
         with torch.amp.autocast("cuda"):
             features = backbone.img_encode(images).img_features
@@ -147,9 +131,9 @@ def get_features(
 
 
 @beartype.beartype
-def init_clf(args: Args):
+def init_clf(cfg: config.Experiment):
     alpha = np.pow(2.0, np.arange(-15, 5))
-    if args.debug:
+    if cfg.debug:
         alpha = np.pow(2.0, np.arange(-2, 2))
 
     return sklearn.model_selection.HalvingGridSearchCV(
