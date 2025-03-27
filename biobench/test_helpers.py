@@ -1,41 +1,24 @@
-from collections import Counter
+import collections
 
+import beartype
 import hypothesis.extra.numpy as npst
 import numpy as np
-from hypothesis import assume, given, settings
+from hypothesis import assume, given
 from hypothesis import strategies as st
 
 from . import helpers
 
 
-# Helper functions for testing
-def get_class_distribution(labels, indices):
-    """Get distribution of classes in the selected samples"""
-    if len(indices) == 0:
-        return {}
-    selected_labels = labels[indices]
-    return Counter(selected_labels)
-
-
-def get_balance_metric(distribution):
+@beartype.beartype
+def measure_balance(labels, indices) -> float:
     """
-    Calculate a balance metric: coefficient of variation (lower is better)
+    Calculate a balance metric (coefficient of variation, lower is better) for the selected samples (labels[indices]).
+
     Returns 0 for perfect balance, higher for more imbalance
     """
-    if not distribution:
-        return 0
-    values = list(distribution.values())
-    if len(values) <= 1:
-        return 0
-    mean = sum(values) / len(values)
-    if mean == 0:
-        return 0
-    variance = sum((x - mean) ** 2 for x in values) / len(values)
-    std_dev = variance**0.5
-    return std_dev / mean
+    # Fill this function in. AI!
 
 
-# Test case 1: Correct number of samples
 @given(
     labels=npst.arrays(
         dtype=np.int32,
@@ -44,7 +27,6 @@ def get_balance_metric(distribution):
     ),
     n=st.integers(min_value=10, max_value=1000),
 )
-@settings(max_examples=20)
 def test_correct_sample_size(labels, n):
     """Test that the function returns exactly n samples (or all if n > len(labels))"""
     assume(len(np.unique(labels)) > 1)  # Ensure we have at least 2 classes
@@ -52,10 +34,8 @@ def test_correct_sample_size(labels, n):
     indices = helpers.balanced_random_sample(labels, n)
 
     # Check that the number of samples is correct
-    expected_samples = min(n, len(labels))
-    assert len(indices) == expected_samples, (
-        f"Expected {expected_samples} samples, got {len(indices)}"
-    )
+    n_expected = min(n, len(labels))
+    assert len(indices) == n_expected
 
     # Check that all indices are valid
     assert np.all(indices < len(labels)), "Some indices are out of bounds"
@@ -73,11 +53,9 @@ def test_correct_sample_size(labels, n):
     ),
     n=st.integers(min_value=100, max_value=1000),
 )
-@settings(max_examples=20)
 def test_class_balance(labels, n):
     """
-    Test that the class distribution in the sample is more balanced
-    than random sampling would be
+    Test that the class distribution in the sample is more balanced than random sampling would be.
     """
     unique_classes = np.unique(labels)
     assume(len(unique_classes) > 1)  # Ensure we have at least 2 classes
@@ -89,7 +67,7 @@ def test_class_balance(labels, n):
 
     # Get a normal random sample for comparison
     random_indices = np.random.choice(len(labels), min(n, len(labels)), replace=False)
-    random_dist = get_class_distribution(labels, random_indices)
+    random_balance = measure_balance(labels, random_indices)
 
     # Calculate balance metrics (lower is better)
     balanced_balance = get_balance_metric(balanced_dist)
@@ -104,7 +82,7 @@ def test_class_balance(labels, n):
 
 def test_single_class_sampling():
     """Test sampling when all samples are from the same class"""
-    labels = np.array([1, 1, 1, 1, 1])
+    labels = np.array([1, 1, 1, 1, 1], dtype=int)
     indices = helpers.balanced_random_sample(labels, 3)
     assert len(indices) == 3
     assert len(np.unique(indices)) == 3
@@ -112,7 +90,7 @@ def test_single_class_sampling():
 
 def test_highly_imbalanced_dataset():
     """Test sampling from a highly imbalanced dataset"""
-    labels = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 1])
+    labels = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 1], dtype=int)
     indices = helpers.balanced_random_sample(labels, 4)
     distribution = get_class_distribution(labels, indices)
     # Should have at least one of each class if possible
@@ -121,14 +99,14 @@ def test_highly_imbalanced_dataset():
 
 def test_small_sample_size():
     """Test sampling with a very small n"""
-    labels = np.array([0, 0, 1, 1, 2, 2, 3, 3])
+    labels = np.array([0, 0, 1, 1, 2, 2, 3, 3], dtype=int)
     indices = helpers.balanced_random_sample(labels, 2)
     assert len(indices) == 2
 
 
 def test_sample_size_larger_than_dataset():
     """Test when requested sample size exceeds dataset size"""
-    labels = np.array([0, 1, 2])
+    labels = np.array([0, 1, 2], dtype=int)
     indices = helpers.balanced_random_sample(labels, 10)
     assert len(indices) == 3  # Should return all samples
     assert set(indices) == {0, 1, 2}
@@ -136,13 +114,13 @@ def test_sample_size_larger_than_dataset():
 
 def test_empty_dataset():
     """Test sampling from an empty dataset"""
-    labels = np.array([])
+    labels = np.array([], dtype=int)
     indices = helpers.balanced_random_sample(labels, 5)
     assert len(indices) == 0
 
 
 def test_zero_samples_requested():
     """Test when zero samples are requested"""
-    labels = np.array([0, 1, 2, 3])
+    labels = np.array([0, 1, 2, 3], dtype=int)
     indices = helpers.balanced_random_sample(labels, 0)
     assert len(indices) == 0
