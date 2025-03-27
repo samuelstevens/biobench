@@ -16,13 +16,19 @@ def measure_balance(labels, indices) -> float:
 
     Returns 0 for perfect balance, higher for more imbalance.
     """
-    #  It should return 1.0 if it was possible to include at least one of each class but does not. AI!
     if len(indices) == 0:
         return 0.0
 
     # Get the distribution of classes in the selected samples
     selected_labels = labels[indices]
     class_counts = collections.Counter(selected_labels)
+    
+    # Get all unique classes in the original dataset
+    all_classes = set(labels)
+    
+    # Check if it was possible to include at least one of each class but didn't
+    if len(indices) >= len(all_classes) and len(class_counts) < len(all_classes):
+        return 1.0
 
     # Calculate coefficient of variation (standard deviation / mean)
     counts = np.array(list(class_counts.values()))
