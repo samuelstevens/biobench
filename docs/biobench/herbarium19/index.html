@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
 <meta name="generator" content="pdoc3 0.11.6">
-<title>biobench.simpleshot API documentation</title>
-<meta name="description" content="Implements normalized nearest-centroid classifiers, as described in [this paper](https://arxiv.org/abs/1911.04623) …">
+<title>biobench.herbarium19 API documentation</title>
+<meta name="description" content="">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
@@ -35,18 +35,9 @@ el.replaceWith(d);
 <main>
 <article id="content">
 <header>
-<h1 class="title">Module <code>biobench.simpleshot</code></h1>
+<h1 class="title">Module <code>biobench.herbarium19</code></h1>
 </header>
 <section id="section-intro">
-<p>Implements normalized nearest-centroid classifiers, as described in <a href="https://arxiv.org/abs/1911.04623">this paper</a>.</p>
-<p>If you use this work, be sure to cite the original work:</p>
-<pre><code>@article{wang2019simpleshot,
-  title={Simpleshot: Revisiting nearest-neighbor classification for few-shot learning},
-  author={Wang, Yan and Chao, Wei-Lun and Weinberger, Kilian Q and Van Der Maaten, Laurens},
-  journal={arXiv preprint arXiv:1911.04623},
-  year={2019}
-}
-</code></pre>
 </section>
 <section>
 </section>
@@ -55,131 +46,18 @@ el.replaceWith(d);
 <section>
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
-<dt id="biobench.simpleshot.batched_idx"><code class="name flex">
-<span>def <span class="ident">batched_idx</span></span>(<span>total_size: int, batch_size: int) ‑> Iterator[tuple[int, int]]</span>
+<dt id="biobench.herbarium19.benchmark"><code class="name flex">
+<span>def <span class="ident">benchmark</span></span>(<span>cfg: <a title="biobench.config.Experiment" href="../config.html#biobench.config.Experiment">Experiment</a>) ‑> tuple[<a title="biobench.config.Model" href="../config.html#biobench.config.Model">Model</a>, <a title="biobench.reporting.Report" href="../reporting.html#biobench.reporting.Report">Report</a>]</span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def batched_idx(
-    total_size: int, batch_size: int
-) -&gt; collections.abc.Iterator[tuple[int, int]]:
-    &#34;&#34;&#34;
-    Iterate over (start, end) indices for total_size examples, where end - start is at most batch_size.
-
-    Args:
-        total_size: total number of examples
-        batch_size: maximum distance between the generated indices.
-
-    Returns:
-        A generator of (int, int) tuples that can slice up a list or a tensor.
-    &#34;&#34;&#34;
-    for start in range(0, total_size, batch_size):
-        stop = min(start + batch_size, total_size)
-        yield start, stop</code></pre>
+<pre><code class="python">def benchmark(cfg: config.Experiment) -&gt; tuple[config.Model, reporting.Report]:
+    raise NotImplementedError()</code></pre>
 </details>
-<div class="desc"><p>Iterate over (start, end) indices for total_size examples, where end - start is at most batch_size.</p>
-<h2 id="args">Args</h2>
-<dl>
-<dt><strong><code>total_size</code></strong></dt>
-<dd>total number of examples</dd>
-<dt><strong><code>batch_size</code></strong></dt>
-<dd>maximum distance between the generated indices.</dd>
-</dl>
-<h2 id="returns">Returns</h2>
-<p>A generator of (int, int) tuples that can slice up a list or a tensor.</p></div>
-</dd>
-<dt id="biobench.simpleshot.l2_normalize"><code class="name flex">
-<span>def <span class="ident">l2_normalize</span></span>(<span>features: jaxtyping.Float[Tensor, 'n_examples dim']) ‑> jaxtyping.Float[Tensor, 'n_examples dim']</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def l2_normalize(
-    features: Float[Tensor, &#34;n_examples dim&#34;],
-) -&gt; Float[Tensor, &#34;n_examples dim&#34;]:
-    &#34;&#34;&#34;L2-normalize a batch of features.
-
-    Args:
-        features: batch of $d$-dimensional vectors.
-
-    Returns:
-        batch of $d$-dimensional vectors with unit L2 norm.
-    &#34;&#34;&#34;
-    norms = np.linalg.norm(features, ord=2, axis=1, keepdims=True)
-    return features / norms</code></pre>
-</details>
-<div class="desc"><p>L2-normalize a batch of features.</p>
-<h2 id="args">Args</h2>
-<dl>
-<dt><strong><code>features</code></strong></dt>
-<dd>batch of $d$-dimensional vectors.</dd>
-</dl>
-<h2 id="returns">Returns</h2>
-<p>batch of $d$-dimensional vectors with unit L2 norm.</p></div>
-</dd>
-<dt id="biobench.simpleshot.simpleshot"><code class="name flex">
-<span>def <span class="ident">simpleshot</span></span>(<span>x_train: jaxtyping.Float[Tensor, 'n_train dim'],<br>y_train: jaxtyping.Int[Tensor, 'n_train'],<br>x_test: jaxtyping.Float[Tensor, 'n_test dim'],<br>y_test: jaxtyping.Int[Tensor, 'n_test'],<br>batch_size: int,<br>device: str) ‑> jaxtyping.Float[Tensor, 'n_test']</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def simpleshot(
-    x_train: Float[Tensor, &#34;n_train dim&#34;],
-    y_train: Int[Tensor, &#34; n_train&#34;],
-    x_test: Float[Tensor, &#34;n_test dim&#34;],
-    y_test: Int[Tensor, &#34; n_test&#34;],
-    batch_size: int,
-    device: str,
-) -&gt; Float[Tensor, &#34; n_test&#34;]:
-    &#34;&#34;&#34;
-    Applies simpleshot to features. Returns the list of scores for x_test.
-
-    Args:
-        ...
-
-    Returns:
-        A tensor of 0/1 scores, one for each test example, only considering exact match.
-    &#34;&#34;&#34;
-    x_mean = x_train.mean(axis=0, keepdims=True)
-
-    x_train = x_train - x_mean
-    x_train = l2_normalize(x_train)
-
-    x_test = x_test - x_mean
-    x_test = l2_normalize(x_test)
-
-    clf = sklearn.neighbors.NearestCentroid()
-    clf.fit(x_train, y_train)
-
-    # Do this next step on the GPU to make it fast.
-    # Goes from 1 batch/sec to 77 batch/sec
-    centroids = torch.from_numpy(clf.centroids_).to(device)
-    x_test = x_test.to(device)
-    y_test = y_test.to(device)
-
-    scores = []
-    for start, stop in batched_idx(len(x_test), batch_size):
-        x_batch = x_test[start:stop]
-        y_batch = y_test[start:stop]
-        distances = torch.linalg.vector_norm(x_batch[:, None] - centroids, axis=2)
-        preds = torch.argmin(distances, dim=1)
-
-        scores.append((preds == y_batch).type(torch.float32))
-
-    return torch.cat(scores, axis=0)</code></pre>
-</details>
-<div class="desc"><p>Applies simpleshot to features. Returns the list of scores for x_test.</p>
-<h2 id="args">Args</h2>
-<p>&hellip;</p>
-<h2 id="returns">Returns</h2>
-<p>A tensor of 0/1 scores, one for each test example, only considering exact match.</p></div>
+<div class="desc"></div>
 </dd>
 </dl>
 </section>
@@ -193,14 +71,12 @@ el.replaceWith(d);
 <ul id="index">
 <li><h3>Super-module</h3>
 <ul>
-<li><code><a title="biobench" href="index.html">biobench</a></code></li>
+<li><code><a title="biobench" href="../index.html">biobench</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-functions">Functions</a></h3>
 <ul class="">
-<li><code><a title="biobench.simpleshot.batched_idx" href="#biobench.simpleshot.batched_idx">batched_idx</a></code></li>
-<li><code><a title="biobench.simpleshot.l2_normalize" href="#biobench.simpleshot.l2_normalize">l2_normalize</a></code></li>
-<li><code><a title="biobench.simpleshot.simpleshot" href="#biobench.simpleshot.simpleshot">simpleshot</a></code></li>
+<li><code><a title="biobench.herbarium19.benchmark" href="#biobench.herbarium19.benchmark">benchmark</a></code></li>
 </ul>
 </li>
 </ul>

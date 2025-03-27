@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
-<meta name="generator" content="pdoc3 0.11.5">
+<meta name="generator" content="pdoc3 0.11.6">
 <title>biobench API documentation</title>
-<meta name="description" content="Package for organizing all the code to run benchmarks …">
+<meta name="description" content="">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
@@ -38,163 +38,6 @@ el.replaceWith(d);
 <h1 class="title">Package <code>biobench</code></h1>
 </header>
 <section id="section-intro">
-<p>Package for organizing all the code to run benchmarks.</p>
-<p>Submodules are either tasks or helpers for organizing code.</p>
-<p>The most important modules to understand are:</p>
-<ul>
-<li><code><a title="benchmark" href="../benchmark.html">benchmark</a></code> because it is the launch script that runs all the tasks.</li>
-<li><code><a title="biobench.interfaces" href="interfaces.html">biobench.interfaces</a></code> because it defines how everything hooks together.</li>
-<li>Any of the task modules&ndash;<code><a title="biobench.newt" href="newt/index.html">biobench.newt</a></code> is well documented.</li>
-<li>Any of the vision modules&ndash;<code><a title="biobench.third_party_models.OpenClip" href="third_party_models.html#biobench.third_party_models.OpenClip">OpenClip</a></code> is highly relevant to anyone using the <a href="https://github.com/mlfoundations/open_clip">open_clip</a> codebase to train models.</li>
-</ul>
-<h1 id="task-modules">Task Modules</h1>
-<ul>
-<li><code><a title="biobench.ages" href="ages/index.html">biobench.ages</a></code>: Classify images of juvenile birds using only adult birds for training.</li>
-<li><code><a title="biobench.beluga" href="beluga/index.html">biobench.beluga</a></code>: Re-identification of Beluga whales using nearest neighbors.</li>
-<li><code><a title="biobench.birds525" href="birds525/index.html">biobench.birds525</a></code>: 1-shot classification with nearest-neighbor of the Kaggle Birds dataset.</li>
-<li><code><a title="biobench.fishnet" href="fishnet/index.html">biobench.fishnet</a></code>: Predict presense/absence of 9 different traits in images of fish.</li>
-<li><code><a title="biobench.iwildcam" href="iwildcam/index.html">biobench.iwildcam</a></code>: Species classification from camera trap imagery using multiclass ridge regression.</li>
-<li><code><a title="biobench.kabr" href="kabr/index.html">biobench.kabr</a></code>: Behavior classification of single-subject animals using simpleshot of mean frame representations.</li>
-<li><code><a title="biobench.newt" href="newt/index.html">biobench.newt</a></code>: 164 binary classification tasks using an binary SVM trained on image features.</li>
-<li><code><a title="biobench.plantnet" href="plantnet/index.html">biobench.plantnet</a></code>: long-tail classification of plant species.</li>
-<li><code><a title="biobench.plankton" href="plankton/index.html">biobench.plankton</a></code>: classification of microscopic images of phytoplankton.</li>
-</ul>
-<h1 id="helper-modules">Helper Modules</h1>
-<ul>
-<li><code><a title="biobench.interfaces" href="interfaces.html">biobench.interfaces</a></code>: All the interfaces that describe how the different modules communicate.</li>
-<li><code><a title="biobench.registry" href="registry.html">biobench.registry</a></code>: How to add/load vision models to BioBench.</li>
-<li><code><a title="biobench.simpleshot" href="simpleshot.html">biobench.simpleshot</a></code>: An implementation of nearest-centroid classification from <a href="https://arxiv.org/abs/1911.04623">Simpleshot</a>.</li>
-<li><code><a title="biobench.third_party_models" href="third_party_models.html">biobench.third_party_models</a></code>: Some pre-written vision backbones that load checkpoints from <a href="https://github.com/mlfoundations/open_clip">open_clip</a> and <a href="https://github.com/huggingface/pytorch-image-models">timm</a>. You can use these as inspiration for writing your own vision backbones or check out <code><a title="biobench.registry" href="registry.html">biobench.registry</a></code> for a tutorial.</li>
-</ul>
-<h1 id="future-tasks">Future Tasks</h1>
-<p>These are tasks that I plan on adding but are not yet done.</p>
-<ul>
-<li><code><a title="biobench.rarespecies" href="rarespecies/index.html">biobench.rarespecies</a></code>: Waiting on a <a href="https://huggingface.co/datasets/imageomics/rare-species/discussions/8">bug</a> in Huggingface's datasets library.</li>
-<li><a href="https://github.com/Imageomics/Fish-Vista">FishVista</a>: I want to add trait classification: given patch-level features, can we train a linear probe to predict the presence/absense of a feature?</li>
-</ul>
-<h1 id="discussion-of-task-importance">Discussion of Task Importance</h1>
-<p>(TODO)</p>
-<p>Main points:</p>
-<ul>
-<li>Some tasks are real tasks (KABR, Beluga).</li>
-<li>Others are made up (Birds525, RareSpecies).</li>
-<li>Some are in-between (NeWT, FishNet).</li>
-<li>Some are made up and we hypothesize that they predict performance on real tasks (ImageNet-1K, iNat2021).</li>
-<li>Likely, the real tasks are most important, but they are also the most specialized (and thus least likely to predict performance on other tasks).</li>
-<li>We don't know if ImageNet-1K or iNat2021 still predict performance on real, specialized tasks. They definitely did 2-5 years ago&mdash;is that still true with new models?</li>
-</ul>
-<p>We can also compare tasks by the fundamental task and the types of images used.</p>
-<table>
-<thead>
-<tr>
-<th>Name</th>
-<th>Fundamental Task</th>
-<th>Image Distribution</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code><a title="biobench.ages" href="ages/index.html">biobench.ages</a></code></td>
-<td>Classification</td>
-<td>object-centric in-situ RGB photos</td>
-</tr>
-<tr>
-<td><code><a title="biobench.beluga" href="beluga/index.html">biobench.beluga</a></code></td>
-<td>Re-identification (via KNN)</td>
-<td>top-down cropped RGB photos</td>
-</tr>
-<tr>
-<td><code><a title="biobench.birds525" href="birds525/index.html">biobench.birds525</a></code></td>
-<td>Classification</td>
-<td>object-centric in-situ RGB photos</td>
-</tr>
-<tr>
-<td><code><a title="biobench.fishnet" href="fishnet/index.html">biobench.fishnet</a></code></td>
-<td>Functional trait prediction</td>
-<td>lab specimen RGB photos</td>
-</tr>
-<tr>
-<td><code><a title="biobench.imagenet" href="imagenet/index.html">biobench.imagenet</a></code></td>
-<td>Classification</td>
-<td>object-centric in-situ RGB photos</td>
-</tr>
-<tr>
-<td><code><a title="biobench.inat21" href="inat21/index.html">biobench.inat21</a></code></td>
-<td>Classification</td>
-<td>object-centric in-situ RGB photos</td>
-</tr>
-<tr>
-<td><code><a title="biobench.iwildcam" href="iwildcam/index.html">biobench.iwildcam</a></code></td>
-<td>Classification</td>
-<td>camera-trap images, black-and-white</td>
-</tr>
-<tr>
-<td><code><a title="biobench.kabr" href="kabr/index.html">biobench.kabr</a></code></td>
-<td>Classification (Behavior)</td>
-<td></td>
-</tr>
-<tr>
-<td><code><a title="biobench.leopard" href="leopard/index.html">biobench.leopard</a></code></td>
-<td>Re-identification (via SVM)</td>
-<td></td>
-</tr>
-<tr>
-<td><code><a title="biobench.newt" href="newt/index.html">biobench.newt</a></code></td>
-<td></td>
-<td>object-centric in-situ RGB photos</td>
-</tr>
-<tr>
-<td><code><a title="biobench.plantnet" href="plantnet/index.html">biobench.plantnet</a></code></td>
-<td>Classification</td>
-<td>object-centric in-situ RGB photos</td>
-</tr>
-<tr>
-<td><code><a title="biobench.plankton" href="plankton/index.html">biobench.plankton</a></code></td>
-<td>Classification</td>
-<td>microscopic black-and-white slides</td>
-</tr>
-<tr>
-<td><code><a title="biobench.rarespecies" href="rarespecies/index.html">biobench.rarespecies</a></code></td>
-<td>Classification</td>
-<td>object-centric in-situ RGB photos</td>
-</tr>
-</tbody>
-</table>
-<p>Most of our tasks are species classification.
-The only non-species classification tasks are Belgua whale and leopard re-identification, FishNet's functional trait prediction, and KABR's <em>behavior</em> classification.
-The age task includes a train/test mismatch and iWildCam and the plankton task are different image distributions.</p>
-<p>But Birds525, ImageNet, iNat21, Pl@ntNet, and RareSpecies all fill the same role.
-I would expect performance on these tasks to be extremely correlated.</p>
-<p>This raises the question: why do we have multiple tasks that fill the same role?</p>
-<h1 id="confidence-intervals">Confidence Intervals</h1>
-<p>Recommended Reading:</p>
-<ul>
-<li><a href="https://sebastianraschka.com/blog/2022/confidence-intervals-for-ml.html">Sebastian Raschka's blogpost on confidence intervals for ML</a></li>
-</ul>
-<h2 id="biobench-confidence-intervals">BioBench Confidence Intervals</h2>
-<p>We resample from the test predictions $N$ times.
-Then we re-calculate the statistic of interest (typically just mean accuracy) for each resampling.
-Over $N$ re-samples, we collect a distribution of possible mean accuracies.
-Then, if we repeated this process 100 times, we could assume that in 95 of the cases, the true mean accuracy is in the sampled confidence interval.</p>
-<blockquote>
-<p>For me personally, this is pretty convoluted logic.
-I just assume that my true mean is 95% likely to be in my confidence interval.<sup id="fnref:wrong"><a class="footnote-ref" href="#fn:wrong">1</a></sup></p>
-</blockquote>
-<p>In practice, we use $N = 500$.</p>
-<h2 id="note-on-confidence-interval-types">Note on Confidence Interval Types</h2>
-<p>For different tasks, we <em>could</em> use different kinds of bootstrapping.
-Non-parametric methods like nearest centroid classifiers or KNN are particularly easy to re-evaluate and so we could bootstrap the entire process.
-Parametric methods like linear classifiers or SVMs are slow to train, so we don't want to repeat the training step 200+ times.</p>
-<p>In practice, however, we simply bootstrap test set predictions because it can be cheaply applied to all benchmarks regardless of training or inference cost.
-It requires only that we have a $N$-dimensional vector of scores, where $N$ is the number of test examples, which is always under 10M, so at most a 40MB vector.</p>
-<div class="footnote">
-<hr>
-<ol>
-<li id="fn:wrong">
-<p>I know this is wrong. I know. You don't need to tell me. I know it's wrong. But it's way freakin' easier to reason about and it's only subtley wrong and it's still better than just a mean. I know it's wrong. I know.&#160;<a class="footnote-backref" href="#fnref:wrong" title="Jump back to footnote 1 in the text">&#8617;</a></p>
-</li>
-</ol>
-</div>
 </section>
 <section>
 <h2 class="section-title" id="header-submodules">Sub-modules</h2>
@@ -208,9 +51,9 @@ Specifically, we measure classification accuracy among 11 …</p></div>
 <dd>
 <div class="desc"><p>Individual re-identification of Beluga whales (<em>Delphinapterus leucas</em>) using <a href="https://lila.science/datasets/beluga-id-2022/">this LILA BC dataset</a> …</p></div>
 </dd>
-<dt><code class="name"><a title="biobench.birds525" href="birds525/index.html">biobench.birds525</a></code></dt>
+<dt><code class="name"><a title="biobench.config" href="config.html">biobench.config</a></code></dt>
 <dd>
-<div class="desc"><p>Species classification of 525 different bird species; this dataset is from <a href="https://www.kaggle.com/datasets/gpiosenka/100-bird-species">Kaggle</a> …</p></div>
+<div class="desc"></div>
 </dd>
 <dt><code class="name"><a title="biobench.fishnet" href="fishnet/index.html">biobench.fishnet</a></code></dt>
 <dd>
@@ -220,7 +63,11 @@ Specifically, we measure classification accuracy among 11 …</p></div>
 <dd>
 <div class="desc"><p>Useful helpers for more than two tasks that don't fit anywhere else.</p></div>
 </dd>
-<dt><code class="name"><a title="biobench.imagenet" href="imagenet/index.html">biobench.imagenet</a></code></dt>
+<dt><code class="name"><a title="biobench.herbarium19" href="herbarium19/index.html">biobench.herbarium19</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt><code class="name"><a title="biobench.imagenet1k" href="imagenet1k/index.html">biobench.imagenet1k</a></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -228,10 +75,6 @@ Specifically, we measure classification accuracy among 11 …</p></div>
 <dd>
 <div class="desc"><p>Trains a simple ridge regression classifier on visual representations for the iNat21 challenge.
 In the challenge, there are 10K different species …</p></div>
-</dd>
-<dt><code class="name"><a title="biobench.interfaces" href="interfaces.html">biobench.interfaces</a></code></dt>
-<dd>
-<div class="desc"><p>Common interfaces for models and tasks so that it's easy to add new models (which will work right away with all tasks) and easy to add new tasks …</p></div>
 </dd>
 <dt><code class="name"><a title="biobench.iwildcam" href="iwildcam/index.html">biobench.iwildcam</a></code></dt>
 <dd>
@@ -245,7 +88,7 @@ In the challenge, there are 10K different species …</p></div>
 <dd>
 <div class="desc"><p>Individual re-identification of African leopards (<em>Panthera pardus</em>) using <a href="https://lila.science/datasets/leopard-id-2022/">this LILA BC dataset</a> …</p></div>
 </dd>
-<dt><code class="name"><a title="biobench.mllms" href="mllms.html">biobench.mllms</a></code></dt>
+<dt><code class="name"><a title="biobench.mammalnet" href="mammalnet/index.html">biobench.mammalnet</a></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -270,12 +113,20 @@ We fit a ridge classifier from scikit-learn to a …</p></div>
 <dt><code class="name"><a title="biobench.registry" href="registry.html">biobench.registry</a></code></dt>
 <dd>
 <div class="desc"><p>Stores all vision backbones.
-Users can register new custom backbones from their code to evaluate on biobench using <code><a title="biobench.register_vision_backbone" href="#biobench.register_vision_backbone">register_vision_backbone()</a></code>.
+Users can register new custom backbones from their code to evaluate on biobench using <code>register_vision_backbone</code>.
 As long …</p></div>
+</dd>
+<dt><code class="name"><a title="biobench.reporting" href="reporting.html">biobench.reporting</a></code></dt>
+<dd>
+<div class="desc"></div>
 </dd>
 <dt><code class="name"><a title="biobench.simpleshot" href="simpleshot.html">biobench.simpleshot</a></code></dt>
 <dd>
 <div class="desc"><p>Implements normalized nearest-centroid classifiers, as described in <a href="https://arxiv.org/abs/1911.04623">this paper</a> …</p></div>
+</dd>
+<dt><code class="name"><a title="biobench.test_helpers" href="test_helpers.html">biobench.test_helpers</a></code></dt>
+<dd>
+<div class="desc"></div>
 </dd>
 <dt><code class="name"><a title="biobench.third_party_models" href="third_party_models.html">biobench.third_party_models</a></code></dt>
 <dd>
@@ -286,120 +137,45 @@ As long …</p></div>
 <section>
 </section>
 <section>
-<h2 class="section-title" id="header-functions">Functions</h2>
-<dl>
-<dt id="biobench.list_vision_backbones"><code class="name flex">
-<span>def <span class="ident">list_vision_backbones</span></span>(<span>) ‑> list[str]</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def list_vision_backbones() -&gt; list[str]:
-    &#34;&#34;&#34;
-    List all vision backbone model orgs.
-    &#34;&#34;&#34;
-    return list(_global_backbone_registry.keys())</code></pre>
-</details>
-<div class="desc"><p>List all vision backbone model orgs.</p></div>
-</dd>
-<dt id="biobench.load_vision_backbone"><code class="name flex">
-<span>def <span class="ident">load_vision_backbone</span></span>(<span>model_args: <a title="biobench.interfaces.ModelArgsCvml" href="interfaces.html#biobench.interfaces.ModelArgsCvml">ModelArgsCvml</a>) ‑> <a title="biobench.interfaces.VisionBackbone" href="interfaces.html#biobench.interfaces.VisionBackbone">VisionBackbone</a></span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">@beartype.beartype
-def load_vision_backbone(
-    model_args: interfaces.ModelArgsCvml,
-) -&gt; interfaces.VisionBackbone:
-    &#34;&#34;&#34;
-    Load a pretrained vision backbone.
-    &#34;&#34;&#34;
-    if model_args.org not in _global_backbone_registry:
-        raise ValueError(f&#34;Org &#39;{model_args.org}&#39; not found.&#34;)
-
-    cls = _global_backbone_registry[model_args.org]
-    return cls(model_args.ckpt)</code></pre>
-</details>
-<div class="desc"><p>Load a pretrained vision backbone.</p></div>
-</dd>
-<dt id="biobench.register_vision_backbone"><code class="name flex">
-<span>def <span class="ident">register_vision_backbone</span></span>(<span>model_org: str,<br>cls: type[<a title="biobench.interfaces.VisionBackbone" href="interfaces.html#biobench.interfaces.VisionBackbone">VisionBackbone</a>])</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def register_vision_backbone(model_org: str, cls: type[interfaces.VisionBackbone]):
-    &#34;&#34;&#34;
-    Register a new vision backbone class.
-    &#34;&#34;&#34;
-    if model_org in _global_backbone_registry:
-        logger.warning(&#34;Overwriting key &#39;%s&#39; in registry.&#34;, model_org)
-    _global_backbone_registry[model_org] = cls</code></pre>
-</details>
-<div class="desc"><p>Register a new vision backbone class.</p></div>
-</dd>
-</dl>
 </section>
 <section>
 </section>
 </article>
 <nav id="sidebar">
 <div class="toc">
-<ul>
-<li><a href="#task-modules">Task Modules</a></li>
-<li><a href="#helper-modules">Helper Modules</a></li>
-<li><a href="#future-tasks">Future Tasks</a></li>
-<li><a href="#discussion-of-task-importance">Discussion of Task Importance</a></li>
-<li><a href="#confidence-intervals">Confidence Intervals</a><ul>
-<li><a href="#biobench-confidence-intervals">BioBench Confidence Intervals</a></li>
-<li><a href="#note-on-confidence-interval-types">Note on Confidence Interval Types</a></li>
-</ul>
-</li>
-</ul>
+<ul></ul>
 </div>
 <ul id="index">
 <li><h3><a href="#header-submodules">Sub-modules</a></h3>
 <ul>
 <li><code><a title="biobench.ages" href="ages/index.html">biobench.ages</a></code></li>
 <li><code><a title="biobench.beluga" href="beluga/index.html">biobench.beluga</a></code></li>
-<li><code><a title="biobench.birds525" href="birds525/index.html">biobench.birds525</a></code></li>
+<li><code><a title="biobench.config" href="config.html">biobench.config</a></code></li>
 <li><code><a title="biobench.fishnet" href="fishnet/index.html">biobench.fishnet</a></code></li>
 <li><code><a title="biobench.helpers" href="helpers.html">biobench.helpers</a></code></li>
-<li><code><a title="biobench.imagenet" href="imagenet/index.html">biobench.imagenet</a></code></li>
+<li><code><a title="biobench.herbarium19" href="herbarium19/index.html">biobench.herbarium19</a></code></li>
+<li><code><a title="biobench.imagenet1k" href="imagenet1k/index.html">biobench.imagenet1k</a></code></li>
 <li><code><a title="biobench.inat21" href="inat21/index.html">biobench.inat21</a></code></li>
-<li><code><a title="biobench.interfaces" href="interfaces.html">biobench.interfaces</a></code></li>
 <li><code><a title="biobench.iwildcam" href="iwildcam/index.html">biobench.iwildcam</a></code></li>
 <li><code><a title="biobench.kabr" href="kabr/index.html">biobench.kabr</a></code></li>
 <li><code><a title="biobench.leopard" href="leopard/index.html">biobench.leopard</a></code></li>
-<li><code><a title="biobench.mllms" href="mllms.html">biobench.mllms</a></code></li>
+<li><code><a title="biobench.mammalnet" href="mammalnet/index.html">biobench.mammalnet</a></code></li>
 <li><code><a title="biobench.newt" href="newt/index.html">biobench.newt</a></code></li>
 <li><code><a title="biobench.plankton" href="plankton/index.html">biobench.plankton</a></code></li>
 <li><code><a title="biobench.plantnet" href="plantnet/index.html">biobench.plantnet</a></code></li>
 <li><code><a title="biobench.rarespecies" href="rarespecies/index.html">biobench.rarespecies</a></code></li>
 <li><code><a title="biobench.registry" href="registry.html">biobench.registry</a></code></li>
+<li><code><a title="biobench.reporting" href="reporting.html">biobench.reporting</a></code></li>
 <li><code><a title="biobench.simpleshot" href="simpleshot.html">biobench.simpleshot</a></code></li>
+<li><code><a title="biobench.test_helpers" href="test_helpers.html">biobench.test_helpers</a></code></li>
 <li><code><a title="biobench.third_party_models" href="third_party_models.html">biobench.third_party_models</a></code></li>
-</ul>
-</li>
-<li><h3><a href="#header-functions">Functions</a></h3>
-<ul class="">
-<li><code><a title="biobench.list_vision_backbones" href="#biobench.list_vision_backbones">list_vision_backbones</a></code></li>
-<li><code><a title="biobench.load_vision_backbone" href="#biobench.load_vision_backbone">load_vision_backbone</a></code></li>
-<li><code><a title="biobench.register_vision_backbone" href="#biobench.register_vision_backbone">register_vision_backbone</a></code></li>
 </ul>
 </li>
 </ul>
 </nav>
 </main>
 <footer id="footer">
-<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.5</a>.</p>
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
 </footer>
 </body>
 </html>

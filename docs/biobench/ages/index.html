@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
-<meta name="generator" content="pdoc3 0.11.5">
+<meta name="generator" content="pdoc3 0.11.6">
 <title>biobench.ages API documentation</title>
 <meta name="description" content="This task measures changes in performance with respect to the stage of life of a bird.
 Specifically, we measure classification accuracy among 11 …">
@@ -64,17 +64,15 @@ We use a multiclass SVM from scikit learn.</p>
 <section>
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
-<dt id="biobench.ages.benchmark_cvml"><code class="name flex">
-<span>def <span class="ident">benchmark_cvml</span></span>(<span>args: <a title="biobench.ages.Args" href="#biobench.ages.Args">Args</a>,<br>model_args: <a title="biobench.interfaces.ModelArgsCvml" href="../interfaces.html#biobench.interfaces.ModelArgsCvml">ModelArgsCvml</a>) ‑> tuple[<a title="biobench.interfaces.ModelArgsCvml" href="../interfaces.html#biobench.interfaces.ModelArgsCvml">ModelArgsCvml</a>, <a title="biobench.interfaces.TaskReport" href="../interfaces.html#biobench.interfaces.TaskReport">TaskReport</a>]</span>
+<dt id="biobench.ages.benchmark"><code class="name flex">
+<span>def <span class="ident">benchmark</span></span>(<span>cfg: <a title="biobench.config.Experiment" href="../config.html#biobench.config.Experiment">Experiment</a>) ‑> tuple[<a title="biobench.config.Model" href="../config.html#biobench.config.Model">Model</a>, <a title="biobench.reporting.Report" href="../reporting.html#biobench.reporting.Report">Report</a>]</span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def benchmark_cvml(
-    args: Args, model_args: interfaces.ModelArgsCvml
-) -&gt; tuple[interfaces.ModelArgsCvml, interfaces.TaskReport]:
+<pre><code class="python">def benchmark(cfg: config.Experiment) -&gt; tuple[config.Model, reporting.Report]:
     &#34;&#34;&#34;
     Run benchmark.
 
@@ -85,11 +83,13 @@ We use a multiclass SVM from scikit learn.</p>
     Returns:
         A tuple of model_args and the report describing the results.
     &#34;&#34;&#34;
+    raise NotImplementedError()
+
     # 1. Load model
-    backbone = registry.load_vision_backbone(*model_args)
+    backbone = registry.load_vision_backbone(cfg.model)
 
     # 2. Get features.
-    tasks = get_all_tasks_cvml(args, backbone)
+    tasks = get_all_tasks(cfg, backbone)
 
     # 3. For each task outlined above, evaluate representation quality.
     splits = {}
@@ -99,13 +99,13 @@ We use a multiclass SVM from scikit learn.</p>
         clf.fit(train.x, train.y)
         y_pred = clf.predict(test.x)
         examples = [
-            interfaces.Example(str(id), float(pred == true), {})
+            reporting.Prediction(str(id), float(pred == true), {})
             for id, pred, true in zip(test.ids, y_pred, test.y)
         ]
         test_acc = np.mean(y_pred == test.y)
         splits[name] = test_acc.item()
 
-    return model_args, interfaces.TaskReport(&#34;Ages&#34;, examples, splits=splits)</code></pre>
+    return cfg.model, reporting.Report(&#34;Ages&#34;, examples, splits=splits)</code></pre>
 </details>
 <div class="desc"><p>Run benchmark.</p>
 <h2 id="args">Args</h2>
@@ -118,119 +118,16 @@ We use a multiclass SVM from scikit learn.</p>
 <h2 id="returns">Returns</h2>
 <p>A tuple of model_args and the report describing the results.</p></div>
 </dd>
-<dt id="biobench.ages.benchmark_mllm"><code class="name flex">
-<span>def <span class="ident">benchmark_mllm</span></span>(<span>args: <a title="biobench.ages.Args" href="#biobench.ages.Args">Args</a>,<br>model_args: <a title="biobench.interfaces.ModelArgsMllm" href="../interfaces.html#biobench.interfaces.ModelArgsMllm">ModelArgsMllm</a>) ‑> tuple[<a title="biobench.interfaces.ModelArgsMllm" href="../interfaces.html#biobench.interfaces.ModelArgsMllm">ModelArgsMllm</a>, <a title="biobench.interfaces.TaskReport" href="../interfaces.html#biobench.interfaces.TaskReport">TaskReport</a>]</span>
+<dt id="biobench.ages.get_all_tasks"><code class="name flex">
+<span>def <span class="ident">get_all_tasks</span></span>(<span>cfg: <a title="biobench.config.Experiment" href="../config.html#biobench.config.Experiment">Experiment</a>,<br>backbone: <a title="biobench.registry.VisionBackbone" href="../registry.html#biobench.registry.VisionBackbone">VisionBackbone</a>) ‑> Iterator[tuple[str, <a title="biobench.ages.Features" href="#biobench.ages.Features">Features</a>, <a title="biobench.ages.Features" href="#biobench.ages.Features">Features</a>]]</span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def benchmark_mllm(
-    args: Args, model_args: interfaces.ModelArgsMllm
-) -&gt; tuple[interfaces.ModelArgsMllm, interfaces.TaskReport]:
-    rng = random.Random(args.seed)
-
-    splits = {}
-
-    if args.n_train &gt; 0:
-        system = &#34;You will be shown several example bird classifications followed by a test image to classify. For each image, respond only with the classification of the current image. Do not reclassify previous images.&#34;
-    else:
-        system = &#34;&#34;
-
-    with asyncio.Runner() as loop:
-        for task, dataset in get_all_tasks_mllm(args):
-            limiter = mllms.RateLimiter(args.parallel)
-            semaphore = asyncio.Semaphore(args.parallel)
-
-            # We load all the training samples into memory right away because they will be re-used over and over again.
-            # Test samples are loaded one by one on demand.
-            i_train = rng.choices(task.train, k=args.n_train)
-            train_examples = [
-                dataset[i.item()].to_example(rng)
-                for i in helpers.progress(i_train, desc=&#34;load train samples&#34;)
-            ]
-
-            @beartype.beartype
-            async def run_one(i: int) -&gt; interfaces.Prediction:
-                async with semaphore:
-                    # This is slow. If I could make this async/await, it would be faster.
-                    test_example = dataset[i]
-                    # Try to fit them into a prompt.
-                    n_examples = 0
-                    fewshot_examples = []
-                    while mllms.fits(
-                        model_args,
-                        fewshot_examples,
-                        test_example.image_b64,
-                        test_example.make_user(rng),
-                    ) and (args.n_train &lt; 0 or n_examples &lt; args.n_train):
-                        # Add another example.
-                        n_examples += 1
-                        fewshot_examples = train_examples[:n_examples]
-
-                    # Only shuffle once.
-                    rng.shuffle(fewshot_examples)
-
-                    await limiter.acquire()
-                    assistant = await mllms.send(
-                        model_args,
-                        fewshot_examples,
-                        test_example.image_b64,
-                        test_example.make_user(rng),
-                        system=system,
-                    )
-                    pred = test_example.parse_assistant(assistant)
-                    return interfaces.Prediction(
-                        test_example.image_id,
-                        float(pred == test_example.classname),
-                        info={
-                            &#34;task&#34;: task.name,
-                            &#34;gold&#34;: test_example.classname,
-                            &#34;pred&#34;: pred,
-                            &#34;assistant&#34;: assistant,
-                        },
-                    )
-
-            @beartype.beartype
-            async def run_all() -&gt; list[interfaces.Prediction]:
-                test_i = task.test
-                if args.debug:
-                    test_i = test_i[:10]
-                    logger.info(&#34;Using the first 10 samples out of %d.&#34;, len(test_i))
-                elif args.n_test &gt;= 0:
-                    logger.info(
-                        &#34;Using %d random samples out of %d.&#34;, args.n_test, len(test_i)
-                    )
-                    rng.shuffle(test_i)
-                    test_i = test_i[: args.n_test]
-
-                jobs = [asyncio.create_task(run_one(i.item())) for i in test_i]
-
-                preds = []
-                for job in helpers.progress(jobs):
-                    pred: interfaces.Prediction = await job
-                    preds.append(pred)
-                return preds
-
-            preds = loop.run(run_all())
-            test_acc = np.mean([pred.score for pred in preds]).item()
-            splits[task.name] = test_acc
-
-    return model_args, interfaces.TaskReport(&#34;Ages&#34;, args.n_train, preds, splits=splits)</code></pre>
-</details>
-<div class="desc"></div>
-</dd>
-<dt id="biobench.ages.get_all_tasks_cvml"><code class="name flex">
-<span>def <span class="ident">get_all_tasks_cvml</span></span>(<span>args: <a title="biobench.ages.Args" href="#biobench.ages.Args">Args</a>,<br>backbone: <a title="biobench.interfaces.VisionBackbone" href="../interfaces.html#biobench.interfaces.VisionBackbone">VisionBackbone</a>) ‑> Iterator[tuple[str, <a title="biobench.ages.Features" href="#biobench.ages.Features">Features</a>, <a title="biobench.ages.Features" href="#biobench.ages.Features">Features</a>]]</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def get_all_tasks_cvml(
-    args: Args, backbone: interfaces.VisionBackbone
+<pre><code class="python">def get_all_tasks(
+    cfg: config.Experiment, backbone: registry.VisionBackbone
 ) -&gt; collections.abc.Iterator[tuple[str, Features, Features]]:
     &#34;&#34;&#34;
     Gets train and test features for all the different tasks being evaluated.
@@ -243,9 +140,9 @@ We use a multiclass SVM from scikit learn.</p>
         An iterator of (taskname, train features, test features) tuples, one for each task (described in this module&#39;s docstring).
     &#34;&#34;&#34;
     labels_csv_name = &#34;newt2021_labels.csv&#34;
-    labels_csv_path = os.path.join(args.data, labels_csv_name)
+    labels_csv_path = os.path.join(cfg.data.ages, labels_csv_name)
     images_dir_name = &#34;newt2021_images&#34;
-    images_dir_path = os.path.join(args.data, images_dir_name)
+    images_dir_path = os.path.join(cfg.data.ages, images_dir_name)
 
     if not os.path.isfile(labels_csv_path):
         msg = f&#34;Path &#39;{labels_csv_path}&#39; doesn&#39;t exist. Did you download the Newt dataset? See the docstring at the top of this file for instructions. If you did download it, pass the path with &#39;--ages-args.data&#39;; see --help for more.&#34;
@@ -260,7 +157,7 @@ We use a multiclass SVM from scikit learn.</p>
     img_transform = backbone.make_img_transform()
     backbone = torch.compile(backbone.to(args.device))
 
-    dataset = DatasetCvml(images_dir_path, df, img_transform)
+    dataset = Dataset(images_dir_path, df, img_transform)
     dataloader = torch.utils.data.DataLoader(
         dataset,
         batch_size=args.batch_size,
@@ -321,71 +218,6 @@ We use a multiclass SVM from scikit learn.</p>
 <h2 id="returns">Returns</h2>
 <p>An iterator of (taskname, train features, test features) tuples, one for each task (described in this module's docstring).</p></div>
 </dd>
-<dt id="biobench.ages.get_all_tasks_mllm"><code class="name flex">
-<span>def <span class="ident">get_all_tasks_mllm</span></span>(<span>args: <a title="biobench.ages.Args" href="#biobench.ages.Args">Args</a>) ‑> Iterator[tuple[<a title="biobench.ages.TaskMllm" href="#biobench.ages.TaskMllm">TaskMllm</a>, <a title="biobench.ages.DatasetMllm" href="#biobench.ages.DatasetMllm">DatasetMllm</a>]]</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def get_all_tasks_mllm(
-    args: Args,
-) -&gt; collections.abc.Iterator[tuple[TaskMllm, DatasetMllm]]:
-    &#34;&#34;&#34;
-    Gets train and test features for all the different tasks being evaluated.
-
-    Args:
-        args: configuration for the ages task.
-        backbone: the particular vision backbone being evaluated.
-
-    Returns:
-        An iterator of (taskname, train features, test features) tuples, one for each task (described in this module&#39;s docstring).
-    &#34;&#34;&#34;
-    labels_csv_name = &#34;newt2021_labels.csv&#34;
-    labels_csv_path = os.path.join(args.data, labels_csv_name)
-    images_dir_name = &#34;newt2021_images&#34;
-    images_dir_path = os.path.join(args.data, images_dir_name)
-
-    if not os.path.isfile(labels_csv_path):
-        msg = f&#34;Path &#39;{labels_csv_path}&#39; doesn&#39;t exist. Did you download the Newt dataset? See the docstring at the top of this file for instructions. If you did download it, pass the path with &#39;--ages-args.data&#39;; see --help for more.&#34;
-        raise RuntimeError(msg)
-
-    df = pl.read_csv(labels_csv_path).with_row_index()
-    # Only get tasks about age.
-    df = df.filter(pl.col(&#34;task&#34;).str.contains(&#34;ml_age&#34;))
-    # Add integer label for species (0-indexed).
-
-    dataset = DatasetMllm(images_dir_path, df)
-
-    tasks = ((&#34;adult&#34;, &#34;adult&#34;), (&#34;not_adult&#34;, &#34;not_adult&#34;), (&#34;adult&#34;, &#34;not_adult&#34;))
-    for train, test in tasks:
-        train_i = (
-            df.select((pl.col(&#34;split&#34;) == &#34;train&#34;) &amp; (pl.col(&#34;text_label&#34;) == train))
-            .to_numpy()
-            .squeeze()
-            .nonzero()[0]
-        )
-        test_i = (
-            df.select((pl.col(&#34;split&#34;) == &#34;test&#34;) &amp; (pl.col(&#34;text_label&#34;) == test))
-            .to_numpy()
-            .squeeze()
-            .nonzero()[0]
-        )
-
-        yield TaskMllm(f&#34;{train}/{test}&#34;, train_i, test_i), dataset</code></pre>
-</details>
-<div class="desc"><p>Gets train and test features for all the different tasks being evaluated.</p>
-<h2 id="args">Args</h2>
-<dl>
-<dt><strong><code>args</code></strong></dt>
-<dd>configuration for the ages task.</dd>
-<dt><strong><code>backbone</code></strong></dt>
-<dd>the particular vision backbone being evaluated.</dd>
-</dl>
-<h2 id="returns">Returns</h2>
-<p>An iterator of (taskname, train features, test features) tuples, one for each task (described in this module's docstring).</p></div>
-</dd>
 <dt id="biobench.ages.init_clf"><code class="name flex">
 <span>def <span class="ident">init_clf</span></span>(<span>)</span>
 </code></dt>
@@ -420,9 +252,9 @@ We use a multiclass SVM from scikit learn.</p>
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
-<dt id="biobench.ages.Args"><code class="flex name class">
-<span>class <span class="ident">Args</span></span>
-<span>(</span><span>data: str = '',<br>batch_size_cv: int = 256,<br>n_workers: int = 4,<br>log_every: int = 10,<br>seed: int = 42,<br>device: str = 'cuda',<br>debug: bool = False,<br>n_train: int = -1,<br>n_test: int = -1,<br>parallel: int = 1)</span>
+<dt id="biobench.ages.ArgsOld"><code class="flex name class">
+<span>class <span class="ident">ArgsOld</span></span>
+<span>(</span><span>data: str = '',<br>batch_size_cv: int = 256,<br>n_workers: int = 4,<br>log_every: int = 10,<br>seed: int = 42,<br>device: str = 'cuda',<br>debug: bool = False,<br>n_train: int = -1)</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -430,7 +262,7 @@ We use a multiclass SVM from scikit learn.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">@dataclasses.dataclass(frozen=True)
-class Args:
+class ArgsOld:
     &#34;&#34;&#34;Ages task arguments.&#34;&#34;&#34;
 
     data: str = &#34;&#34;
@@ -450,59 +282,47 @@ class Args:
     debug: bool = False
     &#34;&#34;&#34;(computed at runtime) whether to run in debug mode.&#34;&#34;&#34;
     n_train: int = -1
-    &#34;&#34;&#34;Number of maximum training samples. Negative number means use all of them.&#34;&#34;&#34;
-    n_test: int = -1
-    &#34;&#34;&#34;Number of test samples. Negative number means use all of them.&#34;&#34;&#34;
-    parallel: int = 1
-    &#34;&#34;&#34;Number of parallel requests per second to MLLM service providers.&#34;&#34;&#34;</code></pre>
+    &#34;&#34;&#34;Number of maximum training samples. Negative number means use all of them.&#34;&#34;&#34;</code></pre>
 </details>
 <div class="desc"><p>Ages task arguments.</p></div>
-<h3>Class variables</h3>
+<h3>Instance variables</h3>
 <dl>
-<dt id="biobench.ages.Args.batch_size_cv"><code class="name">var <span class="ident">batch_size_cv</span> : int</code></dt>
+<dt id="biobench.ages.ArgsOld.batch_size_cv"><code class="name">var <span class="ident">batch_size_cv</span> : int</code></dt>
 <dd>
 <div class="desc"><p>batch size for computer vision model.</p></div>
 </dd>
-<dt id="biobench.ages.Args.data"><code class="name">var <span class="ident">data</span> : str</code></dt>
+<dt id="biobench.ages.ArgsOld.data"><code class="name">var <span class="ident">data</span> : str</code></dt>
 <dd>
 <div class="desc"><p>dataset directory; where you downloaded this task's data to.</p></div>
 </dd>
-<dt id="biobench.ages.Args.debug"><code class="name">var <span class="ident">debug</span> : bool</code></dt>
+<dt id="biobench.ages.ArgsOld.debug"><code class="name">var <span class="ident">debug</span> : bool</code></dt>
 <dd>
 <div class="desc"><p>(computed at runtime) whether to run in debug mode.</p></div>
 </dd>
-<dt id="biobench.ages.Args.device"><code class="name">var <span class="ident">device</span> : str</code></dt>
+<dt id="biobench.ages.ArgsOld.device"><code class="name">var <span class="ident">device</span> : str</code></dt>
 <dd>
 <div class="desc"><p>(computed at runtime) which kind of accelerator to use.</p></div>
 </dd>
-<dt id="biobench.ages.Args.log_every"><code class="name">var <span class="ident">log_every</span> : int</code></dt>
+<dt id="biobench.ages.ArgsOld.log_every"><code class="name">var <span class="ident">log_every</span> : int</code></dt>
 <dd>
 <div class="desc"><p>how often (number of batches) to log progress.</p></div>
 </dd>
-<dt id="biobench.ages.Args.n_test"><code class="name">var <span class="ident">n_test</span> : int</code></dt>
-<dd>
-<div class="desc"><p>Number of test samples. Negative number means use all of them.</p></div>
-</dd>
-<dt id="biobench.ages.Args.n_train"><code class="name">var <span class="ident">n_train</span> : int</code></dt>
+<dt id="biobench.ages.ArgsOld.n_train"><code class="name">var <span class="ident">n_train</span> : int</code></dt>
 <dd>
 <div class="desc"><p>Number of maximum training samples. Negative number means use all of them.</p></div>
 </dd>
-<dt id="biobench.ages.Args.n_workers"><code class="name">var <span class="ident">n_workers</span> : int</code></dt>
+<dt id="biobench.ages.ArgsOld.n_workers"><code class="name">var <span class="ident">n_workers</span> : int</code></dt>
 <dd>
 <div class="desc"><p>number of dataloader worker processes.</p></div>
 </dd>
-<dt id="biobench.ages.Args.parallel"><code class="name">var <span class="ident">parallel</span> : int</code></dt>
-<dd>
-<div class="desc"><p>Number of parallel requests per second to MLLM service providers.</p></div>
-</dd>
-<dt id="biobench.ages.Args.seed"><code class="name">var <span class="ident">seed</span> : int</code></dt>
+<dt id="biobench.ages.ArgsOld.seed"><code class="name">var <span class="ident">seed</span> : int</code></dt>
 <dd>
 <div class="desc"><p>random seed.</p></div>
 </dd>
 </dl>
 </dd>
-<dt id="biobench.ages.DatasetCvml"><code class="flex name class">
-<span>class <span class="ident">DatasetCvml</span></span>
+<dt id="biobench.ages.Dataset"><code class="flex name class">
+<span>class <span class="ident">Dataset</span></span>
 <span>(</span><span>dir: str, df, transform)</span>
 </code></dt>
 <dd>
@@ -511,7 +331,7 @@ class Args:
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
-class DatasetCvml(torch.utils.data.Dataset):
+class Dataset(torch.utils.data.Dataset):
     &#34;&#34;&#34;
     A dataset that returns `(example id, image tensor, integer label)` tuples.
     &#34;&#34;&#34;
@@ -539,45 +359,6 @@ class DatasetCvml(torch.utils.data.Dataset):
 <li>typing.Generic</li>
 </ul>
 </dd>
-<dt id="biobench.ages.DatasetMllm"><code class="flex name class">
-<span>class <span class="ident">DatasetMllm</span></span>
-<span>(</span><span>root: str, df)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
-class DatasetMllm(torch.utils.data.Dataset):
-    &#34;&#34;&#34;
-    A dataset that returns SampleMllms.
-    &#34;&#34;&#34;
-
-    def __init__(self, root: str, df):
-        self.root = root
-
-        self.image_ids = df.get_column(&#34;id&#34;).to_list()
-        self.text_labels = df.get_column(&#34;task&#34;).to_list()
-
-    def __getitem__(self, i: int) -&gt; SampleMllm:
-        image_id = self.image_ids[i]
-        classname = RAW_TO_CLASSNAME[self.text_labels[i]]
-
-        image_b64 = helpers.load_image_b64(os.path.join(self.root, f&#34;{image_id}.jpg&#34;))
-
-        return SampleMllm(image_id, image_b64, classname)
-
-    def __len__(self) -&gt; int:
-        return len(self.image_ids)</code></pre>
-</details>
-<div class="desc"><p>A dataset that returns SampleMllms.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li>torch.utils.data.dataset.Dataset</li>
-<li>typing.Generic</li>
-</ul>
-</dd>
 <dt id="biobench.ages.Features"><code class="flex name class">
 <span>class <span class="ident">Features</span></span>
 <span>(</span><span>x: jaxtyping.Float[ndarray, 'n dim'],<br>y: jaxtyping.Int[ndarray, 'n'],<br>ids: jaxtyping.Shaped[ndarray, 'n'])</span>
@@ -593,14 +374,14 @@ class Features:
     &#34;&#34;&#34;Inputs and outputs for a given task.&#34;&#34;&#34;
 
     x: Float[np.ndarray, &#34; n dim&#34;]
-    &#34;&#34;&#34;Input features; from a `biobench.interfaces.VisionBackbone`.&#34;&#34;&#34;
+    &#34;&#34;&#34;Input features; from a `biobench.registry.VisionBackbone`.&#34;&#34;&#34;
     y: Int[np.ndarray, &#34; n&#34;]
     &#34;&#34;&#34;Class label.&#34;&#34;&#34;
     ids: Shaped[np.ndarray, &#34; n&#34;]
     &#34;&#34;&#34;Array of ids; could be strings, could be ints, etc.&#34;&#34;&#34;</code></pre>
 </details>
 <div class="desc"><p>Inputs and outputs for a given task.</p></div>
-<h3>Class variables</h3>
+<h3>Instance variables</h3>
 <dl>
 <dt id="biobench.ages.Features.ids"><code class="name">var <span class="ident">ids</span> : jaxtyping.Shaped[ndarray, 'n']</code></dt>
 <dd>
@@ -608,181 +389,11 @@ class Features:
 </dd>
 <dt id="biobench.ages.Features.x"><code class="name">var <span class="ident">x</span> : jaxtyping.Float[ndarray, 'n dim']</code></dt>
 <dd>
-<div class="desc"><p>Input features; from a <code><a title="biobench.interfaces.VisionBackbone" href="../interfaces.html#biobench.interfaces.VisionBackbone">VisionBackbone</a></code>.</p></div>
+<div class="desc"><p>Input features; from a <code><a title="biobench.registry.VisionBackbone" href="../registry.html#biobench.registry.VisionBackbone">VisionBackbone</a></code>.</p></div>
 </dd>
 <dt id="biobench.ages.Features.y"><code class="name">var <span class="ident">y</span> : jaxtyping.Int[ndarray, 'n']</code></dt>
 <dd>
 <div class="desc"><p>Class label.</p></div>
-</dd>
-</dl>
-</dd>
-<dt id="biobench.ages.SampleMllm"><code class="flex name class">
-<span>class <span class="ident">SampleMllm</span></span>
-<span>(</span><span>image_id: str, image_b64: str, classname: str)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">@dataclasses.dataclass(frozen=True)
-class SampleMllm:
-    image_id: str
-    image_b64: str
-    classname: str
-
-    def make_user(self, rng: random.Random) -&gt; str:
-        classnames = rng.sample(CLASSNAMES, k=len(CLASSNAMES))
-        return f&#34;What is this a picture of: {&#39;, &#39;.join(classnames[:-1])} or {classnames[-1]}? Respond with your answer in bold.&#34;
-
-    @property
-    def assistant(self) -&gt; str:
-        return f&#34;**{self.classname}**&#34;
-
-    def parse_assistant(self, assistant: str) -&gt; str:
-        pattern = re.compile(r&#34;\*\*(.*)\*\*&#34;)
-        match = pattern.match(assistant)
-        if match:
-            # Return the closest classname in bold.
-            pred = difflib.get_close_matches(match.group(1), CLASSNAMES, cutoff=0.0)[0]
-        else:
-            # Get the closest classname.
-            pred = difflib.get_close_matches(assistant, CLASSNAMES, cutoff=0.0)[0]
-
-        return pred
-
-    def to_example(self, rng: random.Random) -&gt; mllms.Example:
-        return mllms.Example(
-            image_b64=self.image_b64,
-            user=self.make_user(rng),
-            assistant=self.assistant,
-        )</code></pre>
-</details>
-<div class="desc"><p>SampleMllm(image_id: str, image_b64: str, classname: str)</p></div>
-<h3>Class variables</h3>
-<dl>
-<dt id="biobench.ages.SampleMllm.classname"><code class="name">var <span class="ident">classname</span> : str</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="biobench.ages.SampleMllm.image_b64"><code class="name">var <span class="ident">image_b64</span> : str</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="biobench.ages.SampleMllm.image_id"><code class="name">var <span class="ident">image_id</span> : str</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-<h3>Instance variables</h3>
-<dl>
-<dt id="biobench.ages.SampleMllm.assistant"><code class="name">prop <span class="ident">assistant</span> : str</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">@property
-def assistant(self) -&gt; str:
-    return f&#34;**{self.classname}**&#34;</code></pre>
-</details>
-<div class="desc"></div>
-</dd>
-</dl>
-<h3>Methods</h3>
-<dl>
-<dt id="biobench.ages.SampleMllm.make_user"><code class="name flex">
-<span>def <span class="ident">make_user</span></span>(<span>self, rng: random.Random) ‑> str</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def make_user(self, rng: random.Random) -&gt; str:
-    classnames = rng.sample(CLASSNAMES, k=len(CLASSNAMES))
-    return f&#34;What is this a picture of: {&#39;, &#39;.join(classnames[:-1])} or {classnames[-1]}? Respond with your answer in bold.&#34;</code></pre>
-</details>
-<div class="desc"></div>
-</dd>
-<dt id="biobench.ages.SampleMllm.parse_assistant"><code class="name flex">
-<span>def <span class="ident">parse_assistant</span></span>(<span>self, assistant: str) ‑> str</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def parse_assistant(self, assistant: str) -&gt; str:
-    pattern = re.compile(r&#34;\*\*(.*)\*\*&#34;)
-    match = pattern.match(assistant)
-    if match:
-        # Return the closest classname in bold.
-        pred = difflib.get_close_matches(match.group(1), CLASSNAMES, cutoff=0.0)[0]
-    else:
-        # Get the closest classname.
-        pred = difflib.get_close_matches(assistant, CLASSNAMES, cutoff=0.0)[0]
-
-    return pred</code></pre>
-</details>
-<div class="desc"></div>
-</dd>
-<dt id="biobench.ages.SampleMllm.to_example"><code class="name flex">
-<span>def <span class="ident">to_example</span></span>(<span>self, rng: random.Random) ‑> <a title="biobench.mllms.Example" href="../mllms.html#biobench.mllms.Example">Example</a></span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def to_example(self, rng: random.Random) -&gt; mllms.Example:
-    return mllms.Example(
-        image_b64=self.image_b64,
-        user=self.make_user(rng),
-        assistant=self.assistant,
-    )</code></pre>
-</details>
-<div class="desc"></div>
-</dd>
-</dl>
-</dd>
-<dt id="biobench.ages.TaskMllm"><code class="flex name class">
-<span>class <span class="ident">TaskMllm</span></span>
-<span>(</span><span>name: str,<br>train: jaxtyping.Integer[ndarray, 'n_train'],<br>test: jaxtyping.Integer[ndarray, 'n_test'])</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
-@dataclasses.dataclass(frozen=True)
-class TaskMllm:
-    &#34;&#34;&#34;
-    Task is a group of indices for a MLLM with a train/test split.
-    &#34;&#34;&#34;
-
-    name: str
-    train: Integer[np.ndarray, &#34; n_train&#34;]
-    test: Integer[np.ndarray, &#34; n_test&#34;]
-
-    def __repr__(self) -&gt; str:
-        return f&#34;Task(name={self.name}, n_train={len(self.train)}, n_test={len(self.test)})&#34;</code></pre>
-</details>
-<div class="desc"><p>Task is a group of indices for a MLLM with a train/test split.</p></div>
-<h3>Class variables</h3>
-<dl>
-<dt id="biobench.ages.TaskMllm.name"><code class="name">var <span class="ident">name</span> : str</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="biobench.ages.TaskMllm.test"><code class="name">var <span class="ident">test</span> : jaxtyping.Integer[ndarray, 'n_test']</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="biobench.ages.TaskMllm.train"><code class="name">var <span class="ident">train</span> : jaxtyping.Integer[ndarray, 'n_train']</code></dt>
-<dd>
-<div class="desc"></div>
 </dd>
 </dl>
 </dd>
@@ -801,35 +412,28 @@ class TaskMllm:
 </li>
 <li><h3><a href="#header-functions">Functions</a></h3>
 <ul class="">
-<li><code><a title="biobench.ages.benchmark_cvml" href="#biobench.ages.benchmark_cvml">benchmark_cvml</a></code></li>
-<li><code><a title="biobench.ages.benchmark_mllm" href="#biobench.ages.benchmark_mllm">benchmark_mllm</a></code></li>
-<li><code><a title="biobench.ages.get_all_tasks_cvml" href="#biobench.ages.get_all_tasks_cvml">get_all_tasks_cvml</a></code></li>
-<li><code><a title="biobench.ages.get_all_tasks_mllm" href="#biobench.ages.get_all_tasks_mllm">get_all_tasks_mllm</a></code></li>
+<li><code><a title="biobench.ages.benchmark" href="#biobench.ages.benchmark">benchmark</a></code></li>
+<li><code><a title="biobench.ages.get_all_tasks" href="#biobench.ages.get_all_tasks">get_all_tasks</a></code></li>
 <li><code><a title="biobench.ages.init_clf" href="#biobench.ages.init_clf">init_clf</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
 <li>
-<h4><code><a title="biobench.ages.Args" href="#biobench.ages.Args">Args</a></code></h4>
+<h4><code><a title="biobench.ages.ArgsOld" href="#biobench.ages.ArgsOld">ArgsOld</a></code></h4>
 <ul class="two-column">
-<li><code><a title="biobench.ages.Args.batch_size_cv" href="#biobench.ages.Args.batch_size_cv">batch_size_cv</a></code></li>
-<li><code><a title="biobench.ages.Args.data" href="#biobench.ages.Args.data">data</a></code></li>
-<li><code><a title="biobench.ages.Args.debug" href="#biobench.ages.Args.debug">debug</a></code></li>
-<li><code><a title="biobench.ages.Args.device" href="#biobench.ages.Args.device">device</a></code></li>
-<li><code><a title="biobench.ages.Args.log_every" href="#biobench.ages.Args.log_every">log_every</a></code></li>
-<li><code><a title="biobench.ages.Args.n_test" href="#biobench.ages.Args.n_test">n_test</a></code></li>
-<li><code><a title="biobench.ages.Args.n_train" href="#biobench.ages.Args.n_train">n_train</a></code></li>
-<li><code><a title="biobench.ages.Args.n_workers" href="#biobench.ages.Args.n_workers">n_workers</a></code></li>
-<li><code><a title="biobench.ages.Args.parallel" href="#biobench.ages.Args.parallel">parallel</a></code></li>
-<li><code><a title="biobench.ages.Args.seed" href="#biobench.ages.Args.seed">seed</a></code></li>
+<li><code><a title="biobench.ages.ArgsOld.batch_size_cv" href="#biobench.ages.ArgsOld.batch_size_cv">batch_size_cv</a></code></li>
+<li><code><a title="biobench.ages.ArgsOld.data" href="#biobench.ages.ArgsOld.data">data</a></code></li>
+<li><code><a title="biobench.ages.ArgsOld.debug" href="#biobench.ages.ArgsOld.debug">debug</a></code></li>
+<li><code><a title="biobench.ages.ArgsOld.device" href="#biobench.ages.ArgsOld.device">device</a></code></li>
+<li><code><a title="biobench.ages.ArgsOld.log_every" href="#biobench.ages.ArgsOld.log_every">log_every</a></code></li>
+<li><code><a title="biobench.ages.ArgsOld.n_train" href="#biobench.ages.ArgsOld.n_train">n_train</a></code></li>
+<li><code><a title="biobench.ages.ArgsOld.n_workers" href="#biobench.ages.ArgsOld.n_workers">n_workers</a></code></li>
+<li><code><a title="biobench.ages.ArgsOld.seed" href="#biobench.ages.ArgsOld.seed">seed</a></code></li>
 </ul>
 </li>
 <li>
-<h4><code><a title="biobench.ages.DatasetCvml" href="#biobench.ages.DatasetCvml">DatasetCvml</a></code></h4>
-</li>
-<li>
-<h4><code><a title="biobench.ages.DatasetMllm" href="#biobench.ages.DatasetMllm">DatasetMllm</a></code></h4>
+<h4><code><a title="biobench.ages.Dataset" href="#biobench.ages.Dataset">Dataset</a></code></h4>
 </li>
 <li>
 <h4><code><a title="biobench.ages.Features" href="#biobench.ages.Features">Features</a></code></h4>
@@ -839,33 +443,13 @@ class TaskMllm:
 <li><code><a title="biobench.ages.Features.y" href="#biobench.ages.Features.y">y</a></code></li>
 </ul>
 </li>
-<li>
-<h4><code><a title="biobench.ages.SampleMllm" href="#biobench.ages.SampleMllm">SampleMllm</a></code></h4>
-<ul class="two-column">
-<li><code><a title="biobench.ages.SampleMllm.assistant" href="#biobench.ages.SampleMllm.assistant">assistant</a></code></li>
-<li><code><a title="biobench.ages.SampleMllm.classname" href="#biobench.ages.SampleMllm.classname">classname</a></code></li>
-<li><code><a title="biobench.ages.SampleMllm.image_b64" href="#biobench.ages.SampleMllm.image_b64">image_b64</a></code></li>
-<li><code><a title="biobench.ages.SampleMllm.image_id" href="#biobench.ages.SampleMllm.image_id">image_id</a></code></li>
-<li><code><a title="biobench.ages.SampleMllm.make_user" href="#biobench.ages.SampleMllm.make_user">make_user</a></code></li>
-<li><code><a title="biobench.ages.SampleMllm.parse_assistant" href="#biobench.ages.SampleMllm.parse_assistant">parse_assistant</a></code></li>
-<li><code><a title="biobench.ages.SampleMllm.to_example" href="#biobench.ages.SampleMllm.to_example">to_example</a></code></li>
-</ul>
-</li>
-<li>
-<h4><code><a title="biobench.ages.TaskMllm" href="#biobench.ages.TaskMllm">TaskMllm</a></code></h4>
-<ul class="">
-<li><code><a title="biobench.ages.TaskMllm.name" href="#biobench.ages.TaskMllm.name">name</a></code></li>
-<li><code><a title="biobench.ages.TaskMllm.test" href="#biobench.ages.TaskMllm.test">test</a></code></li>
-<li><code><a title="biobench.ages.TaskMllm.train" href="#biobench.ages.TaskMllm.train">train</a></code></li>
-</ul>
-</li>
 </ul>
 </li>
 </ul>
 </nav>
 </main>
 <footer id="footer">
-<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.5</a>.</p>
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
 </footer>
 </body>
 </html>

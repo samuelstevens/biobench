@@ -1,0 +1,509 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+<meta name="generator" content="pdoc3 0.11.6">
+<title>biobench.config API documentation</title>
+<meta name="description" content="">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script type="text/x-mathjax-config">MathJax.Hub.Config({ tex2jax: { inlineMath: [ ['$','$'], ["\\(","\\)"] ], processEscapes: true } });</script>
+<script async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS_CHTML" integrity="sha256-kZafAc6mZvK3W3v1pHOcUix30OHQN6pU/NO2oFkqZVw=" crossorigin></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => {
+hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+hljs.highlightAll();
+/* Collapse source docstrings */
+setTimeout(() => {
+[...document.querySelectorAll('.hljs.language-python > .hljs-string')]
+.filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
+.forEach(el => {
+let d = document.createElement('details');
+d.classList.add('hljs-string');
+d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
+el.replaceWith(d);
+});
+}, 100);
+})</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>biobench.config</code></h1>
+</header>
+<section id="section-intro">
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-functions">Functions</h2>
+<dl>
+<dt id="biobench.config.load"><code class="name flex">
+<span>def <span class="ident">load</span></span>(<span>path: str) ‑> list[<a title="biobench.config.Experiment" href="#biobench.config.Experiment">Experiment</a>]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def load(path: str) -&gt; list[Experiment]:
+    &#34;&#34;&#34;Load experiments from a TOML file.
+
+    None of the fields in Experiment are lists, so anytime we find a list in the TOML, we add another dimension to our grid search over all possible experiments.
+    &#34;&#34;&#34;
+    with open(path, &#34;rb&#34;) as f:
+        raw = tomllib.load(f)
+
+    if not isinstance(raw, dict):
+        raise ValueError(
+            f&#34;TOML file {path} must contain a dictionary at the root level&#34;
+        )
+
+    # Extract models list
+    models = raw.pop(&#34;models&#34;, [])
+    if not isinstance(models, list):
+        raise ValueError(&#34;models must be a list of tables in TOML&#34;)
+
+    # Start with models as base experiments
+    experiments = [{&#34;model&#34;: Model(**model)} for model in models]
+
+    # Handle data config specially
+    data = raw.pop(&#34;data&#34;, {})
+
+    # For each remaining field in the TOML
+    for key, value in raw.items():
+        new_experiments = []
+
+        # Convert single values to lists
+        if not isinstance(value, list):
+            value = [value]
+
+        # For each existing partial experiment
+        for exp in experiments:
+            # Add every value for this field
+            for v in value:
+                new_exp = exp.copy()
+                new_exp[key] = v
+                new_experiments.append(new_exp)
+
+        experiments = new_experiments
+
+    # Now add the NeWT config to all experiments
+    for exp in experiments:
+        exp[&#34;data&#34;] = Data(**data)
+
+    # Convert dictionaries to Experiment objects
+    return [Experiment(**exp) for exp in experiments]</code></pre>
+</details>
+<div class="desc"><p>Load experiments from a TOML file.</p>
+<p>None of the fields in Experiment are lists, so anytime we find a list in the TOML, we add another dimension to our grid search over all possible experiments.</p></div>
+</dd>
+</dl>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="biobench.config.Data"><code class="flex name class">
+<span>class <span class="ident">Data</span></span>
+<span>(</span><span>ages: str = '',<br>beluga: str = '',<br>fishnet: str = '',<br>imagenet1k: str = 'huggingface',<br>newt: str = '',<br>herbarium19: str = '',<br>inat21: str = '',<br>kabr: str = '',<br>mammalnet: str = '',<br>plantnet: str = '',<br>plankton: str = '',<br>iwildcam: str = '')</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@beartype.beartype
+@dataclasses.dataclass(frozen=True)
+class Data:
+    ages: str = &#34;&#34;
+    &#34;&#34;&#34;Data path for the bird age benchmark.&#34;&#34;&#34;
+    beluga: str = &#34;&#34;
+    &#34;&#34;&#34;Data pathfor the Beluga whale re-ID benchmark.&#34;&#34;&#34;
+    fishnet: str = &#34;&#34;
+    &#34;&#34;&#34;Data path for the FishNet benchmark.&#34;&#34;&#34;
+    imagenet1k: str = &#34;huggingface&#34;
+    &#34;&#34;&#34;Data path for the ImageNet-1K benchmark. &#39;huggingface&#39; because it is downloaded from HF.&#34;&#34;&#34;
+    newt: str = &#34;&#34;
+    &#34;&#34;&#34;Data path for the NeWT benchmark.&#34;&#34;&#34;
+    herbarium19: str = &#34;&#34;
+    &#34;&#34;&#34;Data path for the Herbarium19 benchmark.&#34;&#34;&#34;
+    inat21: str = &#34;&#34;
+    &#34;&#34;&#34;Data path for the iNat2021 benchmark.&#34;&#34;&#34;
+    kabr: str = &#34;&#34;
+    &#34;&#34;&#34;Data path for the KABR benchmark.&#34;&#34;&#34;
+    mammalnet: str = &#34;&#34;
+    &#34;&#34;&#34;Data path for the MammalNet benchmark.&#34;&#34;&#34;
+    plantnet: str = &#34;&#34;
+    &#34;&#34;&#34;Data path for the Pl@ntNet benchmark.&#34;&#34;&#34;
+    plankton: str = &#34;&#34;
+    &#34;&#34;&#34;Data path for the planktok classification benchmark.&#34;&#34;&#34;
+    iwildcam: str = &#34;&#34;
+    &#34;&#34;&#34;Data path for the iWildCam benchmark.&#34;&#34;&#34;
+
+    def to_dict(self) -&gt; dict[str, str]:
+        return dataclasses.asdict(self)</code></pre>
+</details>
+<div class="desc"><p>Data(ages: str = '', beluga: str = '', fishnet: str = '', imagenet1k: str = 'huggingface', newt: str = '', herbarium19: str = '', inat21: str = '', kabr: str = '', mammalnet: str = '', plantnet: str = '', plankton: str = '', iwildcam: str = '')</p></div>
+<h3>Instance variables</h3>
+<dl>
+<dt id="biobench.config.Data.ages"><code class="name">var <span class="ident">ages</span> : str</code></dt>
+<dd>
+<div class="desc"><p>Data path for the bird age benchmark.</p></div>
+</dd>
+<dt id="biobench.config.Data.beluga"><code class="name">var <span class="ident">beluga</span> : str</code></dt>
+<dd>
+<div class="desc"><p>Data pathfor the Beluga whale re-ID benchmark.</p></div>
+</dd>
+<dt id="biobench.config.Data.fishnet"><code class="name">var <span class="ident">fishnet</span> : str</code></dt>
+<dd>
+<div class="desc"><p>Data path for the FishNet benchmark.</p></div>
+</dd>
+<dt id="biobench.config.Data.herbarium19"><code class="name">var <span class="ident">herbarium19</span> : str</code></dt>
+<dd>
+<div class="desc"><p>Data path for the Herbarium19 benchmark.</p></div>
+</dd>
+<dt id="biobench.config.Data.imagenet1k"><code class="name">var <span class="ident">imagenet1k</span> : str</code></dt>
+<dd>
+<div class="desc"><p>Data path for the ImageNet-1K benchmark. 'huggingface' because it is downloaded from HF.</p></div>
+</dd>
+<dt id="biobench.config.Data.inat21"><code class="name">var <span class="ident">inat21</span> : str</code></dt>
+<dd>
+<div class="desc"><p>Data path for the iNat2021 benchmark.</p></div>
+</dd>
+<dt id="biobench.config.Data.iwildcam"><code class="name">var <span class="ident">iwildcam</span> : str</code></dt>
+<dd>
+<div class="desc"><p>Data path for the iWildCam benchmark.</p></div>
+</dd>
+<dt id="biobench.config.Data.kabr"><code class="name">var <span class="ident">kabr</span> : str</code></dt>
+<dd>
+<div class="desc"><p>Data path for the KABR benchmark.</p></div>
+</dd>
+<dt id="biobench.config.Data.mammalnet"><code class="name">var <span class="ident">mammalnet</span> : str</code></dt>
+<dd>
+<div class="desc"><p>Data path for the MammalNet benchmark.</p></div>
+</dd>
+<dt id="biobench.config.Data.newt"><code class="name">var <span class="ident">newt</span> : str</code></dt>
+<dd>
+<div class="desc"><p>Data path for the NeWT benchmark.</p></div>
+</dd>
+<dt id="biobench.config.Data.plankton"><code class="name">var <span class="ident">plankton</span> : str</code></dt>
+<dd>
+<div class="desc"><p>Data path for the planktok classification benchmark.</p></div>
+</dd>
+<dt id="biobench.config.Data.plantnet"><code class="name">var <span class="ident">plantnet</span> : str</code></dt>
+<dd>
+<div class="desc"><p>Data path for the Pl@ntNet benchmark.</p></div>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="biobench.config.Data.to_dict"><code class="name flex">
+<span>def <span class="ident">to_dict</span></span>(<span>self) ‑> dict[str, str]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def to_dict(self) -&gt; dict[str, str]:
+    return dataclasses.asdict(self)</code></pre>
+</details>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="biobench.config.Experiment"><code class="flex name class">
+<span>class <span class="ident">Experiment</span></span>
+<span>(</span><span>model: <a title="biobench.config.Model" href="#biobench.config.Model">Model</a>,<br>slurm_acct: str = '',<br>cfg: str = 'configs/neurips.toml',<br>device: Literal['cpu', 'mps', 'cuda'] = 'cuda',<br>debug: bool = False,<br>n_train: int = -1,<br>ssl: bool = True,<br>n_workers: int = 4,<br>batch_size: int = 256,<br>data: <a title="biobench.config.Data" href="#biobench.config.Data">Data</a> = &lt;factory&gt;,<br>report_to: str = './results',<br>log_to: str = './logs',<br>seed: int = 17)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@beartype.beartype
+@dataclasses.dataclass(frozen=True)
+class Experiment:
+    &#34;&#34;&#34;Configuration to run one or more benchmarks in a parallel setting.&#34;&#34;&#34;
+
+    model: Model
+
+    slurm_acct: str = &#34;&#34;
+    &#34;&#34;&#34;Slurm account. A non-empty string means using Slurm.&#34;&#34;&#34;
+    cfg: str = os.path.join(&#34;configs&#34;, &#34;neurips.toml&#34;)
+    &#34;&#34;&#34;Path to TOML config file.&#34;&#34;&#34;
+    device: typing.Literal[&#34;cpu&#34;, &#34;mps&#34;, &#34;cuda&#34;] = &#34;cuda&#34;
+    &#34;&#34;&#34;which kind of accelerator to use.&#34;&#34;&#34;
+    debug: bool = False
+    &#34;&#34;&#34;whether to run in debug mode.&#34;&#34;&#34;
+    n_train: int = -1
+    &#34;&#34;&#34;Number of maximum training samples. Negative number means use all of them.&#34;&#34;&#34;
+    ssl: bool = True
+    &#34;&#34;&#34;Use SSL when connecting to remote servers to download checkpoints; use --no-ssl if your machine has certificate issues. See `biobench.third_party_models.get_ssl()` for a discussion of how this works.&#34;&#34;&#34;
+
+    n_workers: int = 4
+    &#34;&#34;&#34;Number of dataloader workers.&#34;&#34;&#34;
+    batch_size: int = 256
+    &#34;&#34;&#34;Batch size.&#34;&#34;&#34;
+
+    data: Data = dataclasses.field(default_factory=Data)
+
+    report_to: str = os.path.join(&#34;.&#34;, &#34;results&#34;)
+    &#34;&#34;&#34;where to save reports to.&#34;&#34;&#34;
+    log_to: str = os.path.join(&#34;.&#34;, &#34;logs&#34;)
+    &#34;&#34;&#34;where to save logs to.&#34;&#34;&#34;
+    seed: int = 17
+    &#34;&#34;&#34;Random seed.&#34;&#34;&#34;
+
+    def to_dict(self) -&gt; dict[str, object]:
+        return dataclasses.asdict(self)
+
+    def update(self, other):
+        return dataclasses.replace(
+            other,
+            device=self.device,
+            debug=self.debug,
+            n_train=self.n_train,
+            parallel=self.parallel,
+        )</code></pre>
+</details>
+<div class="desc"><p>Configuration to run one or more benchmarks in a parallel setting.</p></div>
+<h3>Instance variables</h3>
+<dl>
+<dt id="biobench.config.Experiment.batch_size"><code class="name">var <span class="ident">batch_size</span> : int</code></dt>
+<dd>
+<div class="desc"><p>Batch size.</p></div>
+</dd>
+<dt id="biobench.config.Experiment.cfg"><code class="name">var <span class="ident">cfg</span> : str</code></dt>
+<dd>
+<div class="desc"><p>Path to TOML config file.</p></div>
+</dd>
+<dt id="biobench.config.Experiment.data"><code class="name">var <span class="ident">data</span> : <a title="biobench.config.Data" href="#biobench.config.Data">Data</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.config.Experiment.debug"><code class="name">var <span class="ident">debug</span> : bool</code></dt>
+<dd>
+<div class="desc"><p>whether to run in debug mode.</p></div>
+</dd>
+<dt id="biobench.config.Experiment.device"><code class="name">var <span class="ident">device</span> : Literal['cpu', 'mps', 'cuda']</code></dt>
+<dd>
+<div class="desc"><p>which kind of accelerator to use.</p></div>
+</dd>
+<dt id="biobench.config.Experiment.log_to"><code class="name">var <span class="ident">log_to</span> : str</code></dt>
+<dd>
+<div class="desc"><p>where to save logs to.</p></div>
+</dd>
+<dt id="biobench.config.Experiment.model"><code class="name">var <span class="ident">model</span> : <a title="biobench.config.Model" href="#biobench.config.Model">Model</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.config.Experiment.n_train"><code class="name">var <span class="ident">n_train</span> : int</code></dt>
+<dd>
+<div class="desc"><p>Number of maximum training samples. Negative number means use all of them.</p></div>
+</dd>
+<dt id="biobench.config.Experiment.n_workers"><code class="name">var <span class="ident">n_workers</span> : int</code></dt>
+<dd>
+<div class="desc"><p>Number of dataloader workers.</p></div>
+</dd>
+<dt id="biobench.config.Experiment.report_to"><code class="name">var <span class="ident">report_to</span> : str</code></dt>
+<dd>
+<div class="desc"><p>where to save reports to.</p></div>
+</dd>
+<dt id="biobench.config.Experiment.seed"><code class="name">var <span class="ident">seed</span> : int</code></dt>
+<dd>
+<div class="desc"><p>Random seed.</p></div>
+</dd>
+<dt id="biobench.config.Experiment.slurm_acct"><code class="name">var <span class="ident">slurm_acct</span> : str</code></dt>
+<dd>
+<div class="desc"><p>Slurm account. A non-empty string means using Slurm.</p></div>
+</dd>
+<dt id="biobench.config.Experiment.ssl"><code class="name">var <span class="ident">ssl</span> : bool</code></dt>
+<dd>
+<div class="desc"><p>Use SSL when connecting to remote servers to download checkpoints; use &ndash;no-ssl if your machine has certificate issues. See <code><a title="biobench.third_party_models.get_ssl" href="third_party_models.html#biobench.third_party_models.get_ssl">get_ssl()</a></code> for a discussion of how this works.</p></div>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="biobench.config.Experiment.to_dict"><code class="name flex">
+<span>def <span class="ident">to_dict</span></span>(<span>self) ‑> dict[str, object]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def to_dict(self) -&gt; dict[str, object]:
+    return dataclasses.asdict(self)</code></pre>
+</details>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.config.Experiment.update"><code class="name flex">
+<span>def <span class="ident">update</span></span>(<span>self, other)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def update(self, other):
+    return dataclasses.replace(
+        other,
+        device=self.device,
+        debug=self.debug,
+        n_train=self.n_train,
+        parallel=self.parallel,
+    )</code></pre>
+</details>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="biobench.config.Model"><code class="flex name class">
+<span>class <span class="ident">Model</span></span>
+<span>(</span><span>org: str, ckpt: str)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@beartype.beartype
+@dataclasses.dataclass(frozen=True)
+class Model:
+    &#34;&#34;&#34;Configuration for a model to be evaluated.
+
+    This class defines the essential parameters needed to identify and load a specific model for evaluation in the benchmark.
+
+    Attributes:
+        org: Organization or source of the model (e.g., &#34;open-clip&#34;).
+        ckpt: Checkpoint or specific model identifier (e.g., &#34;ViT-B-16/openai&#34;).
+    &#34;&#34;&#34;
+
+    org: str
+    ckpt: str
+
+    def to_dict(self) -&gt; dict[str, object]:
+        return dataclasses.asdict(self)</code></pre>
+</details>
+<div class="desc"><p>Configuration for a model to be evaluated.</p>
+<p>This class defines the essential parameters needed to identify and load a specific model for evaluation in the benchmark.</p>
+<h2 id="attributes">Attributes</h2>
+<dl>
+<dt><strong><code>org</code></strong></dt>
+<dd>Organization or source of the model (e.g., "open-clip").</dd>
+<dt><strong><code>ckpt</code></strong></dt>
+<dd>Checkpoint or specific model identifier (e.g., "ViT-B-16/openai").</dd>
+</dl></div>
+<h3>Instance variables</h3>
+<dl>
+<dt id="biobench.config.Model.ckpt"><code class="name">var <span class="ident">ckpt</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.config.Model.org"><code class="name">var <span class="ident">org</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="biobench.config.Model.to_dict"><code class="name flex">
+<span>def <span class="ident">to_dict</span></span>(<span>self) ‑> dict[str, object]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def to_dict(self) -&gt; dict[str, object]:
+    return dataclasses.asdict(self)</code></pre>
+</details>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="biobench" href="index.html">biobench</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-functions">Functions</a></h3>
+<ul class="">
+<li><code><a title="biobench.config.load" href="#biobench.config.load">load</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="biobench.config.Data" href="#biobench.config.Data">Data</a></code></h4>
+<ul class="two-column">
+<li><code><a title="biobench.config.Data.ages" href="#biobench.config.Data.ages">ages</a></code></li>
+<li><code><a title="biobench.config.Data.beluga" href="#biobench.config.Data.beluga">beluga</a></code></li>
+<li><code><a title="biobench.config.Data.fishnet" href="#biobench.config.Data.fishnet">fishnet</a></code></li>
+<li><code><a title="biobench.config.Data.herbarium19" href="#biobench.config.Data.herbarium19">herbarium19</a></code></li>
+<li><code><a title="biobench.config.Data.imagenet1k" href="#biobench.config.Data.imagenet1k">imagenet1k</a></code></li>
+<li><code><a title="biobench.config.Data.inat21" href="#biobench.config.Data.inat21">inat21</a></code></li>
+<li><code><a title="biobench.config.Data.iwildcam" href="#biobench.config.Data.iwildcam">iwildcam</a></code></li>
+<li><code><a title="biobench.config.Data.kabr" href="#biobench.config.Data.kabr">kabr</a></code></li>
+<li><code><a title="biobench.config.Data.mammalnet" href="#biobench.config.Data.mammalnet">mammalnet</a></code></li>
+<li><code><a title="biobench.config.Data.newt" href="#biobench.config.Data.newt">newt</a></code></li>
+<li><code><a title="biobench.config.Data.plankton" href="#biobench.config.Data.plankton">plankton</a></code></li>
+<li><code><a title="biobench.config.Data.plantnet" href="#biobench.config.Data.plantnet">plantnet</a></code></li>
+<li><code><a title="biobench.config.Data.to_dict" href="#biobench.config.Data.to_dict">to_dict</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="biobench.config.Experiment" href="#biobench.config.Experiment">Experiment</a></code></h4>
+<ul class="two-column">
+<li><code><a title="biobench.config.Experiment.batch_size" href="#biobench.config.Experiment.batch_size">batch_size</a></code></li>
+<li><code><a title="biobench.config.Experiment.cfg" href="#biobench.config.Experiment.cfg">cfg</a></code></li>
+<li><code><a title="biobench.config.Experiment.data" href="#biobench.config.Experiment.data">data</a></code></li>
+<li><code><a title="biobench.config.Experiment.debug" href="#biobench.config.Experiment.debug">debug</a></code></li>
+<li><code><a title="biobench.config.Experiment.device" href="#biobench.config.Experiment.device">device</a></code></li>
+<li><code><a title="biobench.config.Experiment.log_to" href="#biobench.config.Experiment.log_to">log_to</a></code></li>
+<li><code><a title="biobench.config.Experiment.model" href="#biobench.config.Experiment.model">model</a></code></li>
+<li><code><a title="biobench.config.Experiment.n_train" href="#biobench.config.Experiment.n_train">n_train</a></code></li>
+<li><code><a title="biobench.config.Experiment.n_workers" href="#biobench.config.Experiment.n_workers">n_workers</a></code></li>
+<li><code><a title="biobench.config.Experiment.report_to" href="#biobench.config.Experiment.report_to">report_to</a></code></li>
+<li><code><a title="biobench.config.Experiment.seed" href="#biobench.config.Experiment.seed">seed</a></code></li>
+<li><code><a title="biobench.config.Experiment.slurm_acct" href="#biobench.config.Experiment.slurm_acct">slurm_acct</a></code></li>
+<li><code><a title="biobench.config.Experiment.ssl" href="#biobench.config.Experiment.ssl">ssl</a></code></li>
+<li><code><a title="biobench.config.Experiment.to_dict" href="#biobench.config.Experiment.to_dict">to_dict</a></code></li>
+<li><code><a title="biobench.config.Experiment.update" href="#biobench.config.Experiment.update">update</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="biobench.config.Model" href="#biobench.config.Model">Model</a></code></h4>
+<ul class="">
+<li><code><a title="biobench.config.Model.ckpt" href="#biobench.config.Model.ckpt">ckpt</a></code></li>
+<li><code><a title="biobench.config.Model.org" href="#biobench.config.Model.org">org</a></code></li>
+<li><code><a title="biobench.config.Model.to_dict" href="#biobench.config.Model.to_dict">to_dict</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
+</footer>
+</body>
+</html>

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
-<meta name="generator" content="pdoc3 0.11.5">
+<meta name="generator" content="pdoc3 0.11.6">
 <title>biobench.beluga API documentation</title>
 <meta name="description" content="Individual re-identification of Beluga whales (*Delphinapterus leucas*) using [this LILA BC dataset](https://lila.science/datasets/beluga-id-2022/) …">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
@@ -78,24 +78,22 @@ But we are simply interested in seeing if models embed images of the same indivi
 <section>
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
-<dt id="biobench.beluga.benchmark_cvml"><code class="name flex">
-<span>def <span class="ident">benchmark_cvml</span></span>(<span>args: <a title="biobench.beluga.Args" href="#biobench.beluga.Args">Args</a>,<br>model_args: <a title="biobench.interfaces.ModelArgsCvml" href="../interfaces.html#biobench.interfaces.ModelArgsCvml">ModelArgsCvml</a>) ‑> tuple[<a title="biobench.interfaces.ModelArgsCvml" href="../interfaces.html#biobench.interfaces.ModelArgsCvml">ModelArgsCvml</a>, <a title="biobench.interfaces.TaskReport" href="../interfaces.html#biobench.interfaces.TaskReport">TaskReport</a>]</span>
+<dt id="biobench.beluga.benchmark"><code class="name flex">
+<span>def <span class="ident">benchmark</span></span>(<span>cfg: <a title="biobench.config.Experiment" href="../config.html#biobench.config.Experiment">Experiment</a>) ‑> tuple[<a title="biobench.config.Model" href="../config.html#biobench.config.Model">Model</a>, <a title="biobench.reporting.Report" href="../reporting.html#biobench.reporting.Report">Report</a>]</span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def benchmark_cvml(
-    args: Args, model_args: interfaces.ModelArgsCvml
-) -&gt; tuple[interfaces.ModelArgsCvml, interfaces.TaskReport]:
+<pre><code class="python">def benchmark(cfg: config.Experiment) -&gt; tuple[config.Model, reporting.Report]:
     &#34;&#34;&#34;
     Run the BelugaID benchmark. See this module&#39;s documentation for more details.
     &#34;&#34;&#34;
-    backbone = registry.load_vision_backbone(*model_args)
+    backbone = registry.load_vision_backbone(cfg.model)
 
     # Embed all images.
-    features = get_features(args, backbone)
+    features = get_features(cfg, backbone)
     # Convert string names into integer labels.
     encoder = sklearn.preprocessing.OrdinalEncoder(dtype=int)
     y = encoder.fit_transform(features.labels.reshape(-1, 1)).reshape(-1)
@@ -106,7 +104,7 @@ But we are simply interested in seeing if models embed images of the same indivi
 
     logger.info(&#34;Constructing examples.&#34;)
     examples = [
-        interfaces.Example(
+        reporting.Prediction(
             str(image_id),
             float(pred == true),
             {&#34;y_pred&#34;: pred.item(), &#34;y_true&#34;: true.item()},
@@ -117,19 +115,19 @@ But we are simply interested in seeing if models embed images of the same indivi
     ]
     logger.info(&#34;%d examples done.&#34;, len(examples))
 
-    return model_args, interfaces.TaskReport(&#34;BelugaID&#34;, examples)</code></pre>
+    return cfg.model, reporting.Report(&#34;BelugaID&#34;, examples)</code></pre>
 </details>
 <div class="desc"><p>Run the BelugaID benchmark. See this module's documentation for more details.</p></div>
 </dd>
 <dt id="biobench.beluga.get_features"><code class="name flex">
-<span>def <span class="ident">get_features</span></span>(<span>args: <a title="biobench.beluga.Args" href="#biobench.beluga.Args">Args</a>,<br>backbone: <a title="biobench.interfaces.VisionBackbone" href="../interfaces.html#biobench.interfaces.VisionBackbone">VisionBackbone</a>) ‑> <a title="biobench.beluga.Features" href="#biobench.beluga.Features">Features</a></span>
+<span>def <span class="ident">get_features</span></span>(<span>args: <a title="biobench.beluga.Args" href="#biobench.beluga.Args">Args</a>,<br>backbone: <a title="biobench.registry.VisionBackbone" href="../registry.html#biobench.registry.VisionBackbone">VisionBackbone</a>) ‑> <a title="biobench.beluga.Features" href="#biobench.beluga.Features">Features</a></span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def get_features(args: Args, backbone: interfaces.VisionBackbone) -&gt; Features:
+<pre><code class="python">def get_features(args: Args, backbone: registry.VisionBackbone) -&gt; Features:
     &#34;&#34;&#34;
     Get a block of features from a vision backbone.
 
@@ -201,7 +199,7 @@ But we are simply interested in seeing if models embed images of the same indivi
 <dl>
 <dt id="biobench.beluga.Args"><code class="flex name class">
 <span>class <span class="ident">Args</span></span>
-<span>(</span><span>data: str = '',<br>batch_size_cv: int = 256,<br>n_workers: int = 8,<br>log_every: int = 10,<br>seed: int = 42,<br>device: str = 'cuda',<br>debug: bool = False,<br>n_train: int = -1,<br>n_test: int = -1,<br>parallel: int = 1)</span>
+<span>(</span><span>data: str = '',<br>batch_size_cv: int = 256,<br>n_workers: int = 8,<br>log_every: int = 10,<br>seed: int = 42,<br>device: str = 'cuda',<br>debug: bool = False,<br>n_train: int = -1)</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -230,14 +228,10 @@ class Args:
     debug: bool = False
     &#34;&#34;&#34;(computed at runtime) whether to run in debug mode.&#34;&#34;&#34;
     n_train: int = -1
-    &#34;&#34;&#34;Number of maximum training samples. Negative number means use all of them.&#34;&#34;&#34;
-    n_test: int = -1
-    &#34;&#34;&#34;Number of test samples. Negative number means use all of them.&#34;&#34;&#34;
-    parallel: int = 1
-    &#34;&#34;&#34;Number of parallel requests per second to MLLM service providers.&#34;&#34;&#34;</code></pre>
+    &#34;&#34;&#34;Number of maximum training samples. Negative number means use all of them.&#34;&#34;&#34;</code></pre>
 </details>
 <div class="desc"><p>Configuration for BelugaID task.</p></div>
-<h3>Class variables</h3>
+<h3>Instance variables</h3>
 <dl>
 <dt id="biobench.beluga.Args.batch_size_cv"><code class="name">var <span class="ident">batch_size_cv</span> : int</code></dt>
 <dd>
@@ -259,10 +253,6 @@ class Args:
 <dd>
 <div class="desc"><p>How often to log while getting features.</p></div>
 </dd>
-<dt id="biobench.beluga.Args.n_test"><code class="name">var <span class="ident">n_test</span> : int</code></dt>
-<dd>
-<div class="desc"><p>Number of test samples. Negative number means use all of them.</p></div>
-</dd>
 <dt id="biobench.beluga.Args.n_train"><code class="name">var <span class="ident">n_train</span> : int</code></dt>
 <dd>
 <div class="desc"><p>Number of maximum training samples. Negative number means use all of them.</p></div>
@@ -270,10 +260,6 @@ class Args:
 <dt id="biobench.beluga.Args.n_workers"><code class="name">var <span class="ident">n_workers</span> : int</code></dt>
 <dd>
 <div class="desc"><p>Number of dataloader workers.</p></div>
-</dd>
-<dt id="biobench.beluga.Args.parallel"><code class="name">var <span class="ident">parallel</span> : int</code></dt>
-<dd>
-<div class="desc"><p>Number of parallel requests per second to MLLM service providers.</p></div>
 </dd>
 <dt id="biobench.beluga.Args.seed"><code class="name">var <span class="ident">seed</span> : int</code></dt>
 <dd>
@@ -300,7 +286,7 @@ class Features:
     &#34;&#34;&#34;
 
     x: Float[Tensor, &#34;n dim&#34;]
-    &#34;&#34;&#34;Input features; from a `biobench.interfaces.VisionBackbone`.&#34;&#34;&#34;
+    &#34;&#34;&#34;Input features; from a `biobench.registry.VisionBackbone`.&#34;&#34;&#34;
     labels: Shaped[np.ndarray, &#34; n&#34;]
     &#34;&#34;&#34;Individual name.&#34;&#34;&#34;
     ids: Shaped[np.ndarray, &#34; n&#34;]
@@ -315,7 +301,7 @@ class Features:
 </details>
 <div class="desc"><p>A block of features.</p>
 <p>Note: In Jax, this could be a tuple of arrays, all with a leading dimension of <code>n</code>. Instead, in PyTorch, it's easier to make it its own class. Oh well.</p></div>
-<h3>Class variables</h3>
+<h3>Instance variables</h3>
 <dl>
 <dt id="biobench.beluga.Features.ids"><code class="name">var <span class="ident">ids</span> : jaxtyping.Shaped[ndarray, 'n']</code></dt>
 <dd>
@@ -325,13 +311,6 @@ class Features:
 <dd>
 <div class="desc"><p>Individual name.</p></div>
 </dd>
-<dt id="biobench.beluga.Features.x"><code class="name">var <span class="ident">x</span> : jaxtyping.Float[Tensor, 'n dim']</code></dt>
-<dd>
-<div class="desc"><p>Input features; from a <code><a title="biobench.interfaces.VisionBackbone" href="../interfaces.html#biobench.interfaces.VisionBackbone">VisionBackbone</a></code>.</p></div>
-</dd>
-</dl>
-<h3>Instance variables</h3>
-<dl>
 <dt id="biobench.beluga.Features.n"><code class="name">prop <span class="ident">n</span> : int</code></dt>
 <dd>
 <details class="source">
@@ -343,6 +322,10 @@ def n(self) -&gt; int:
     return len(self.ids)</code></pre>
 </details>
 <div class="desc"></div>
+</dd>
+<dt id="biobench.beluga.Features.x"><code class="name">var <span class="ident">x</span> : jaxtyping.Float[Tensor, 'n dim']</code></dt>
+<dd>
+<div class="desc"><p>Input features; from a <code><a title="biobench.registry.VisionBackbone" href="../registry.html#biobench.registry.VisionBackbone">VisionBackbone</a></code>.</p></div>
 </dd>
 </dl>
 <h3>Methods</h3>
@@ -382,7 +365,7 @@ def n(self) -&gt; int:
 </li>
 <li><h3><a href="#header-functions">Functions</a></h3>
 <ul class="">
-<li><code><a title="biobench.beluga.benchmark_cvml" href="#biobench.beluga.benchmark_cvml">benchmark_cvml</a></code></li>
+<li><code><a title="biobench.beluga.benchmark" href="#biobench.beluga.benchmark">benchmark</a></code></li>
 <li><code><a title="biobench.beluga.get_features" href="#biobench.beluga.get_features">get_features</a></code></li>
 </ul>
 </li>
@@ -396,10 +379,8 @@ def n(self) -&gt; int:
 <li><code><a title="biobench.beluga.Args.debug" href="#biobench.beluga.Args.debug">debug</a></code></li>
 <li><code><a title="biobench.beluga.Args.device" href="#biobench.beluga.Args.device">device</a></code></li>
 <li><code><a title="biobench.beluga.Args.log_every" href="#biobench.beluga.Args.log_every">log_every</a></code></li>
-<li><code><a title="biobench.beluga.Args.n_test" href="#biobench.beluga.Args.n_test">n_test</a></code></li>
 <li><code><a title="biobench.beluga.Args.n_train" href="#biobench.beluga.Args.n_train">n_train</a></code></li>
 <li><code><a title="biobench.beluga.Args.n_workers" href="#biobench.beluga.Args.n_workers">n_workers</a></code></li>
-<li><code><a title="biobench.beluga.Args.parallel" href="#biobench.beluga.Args.parallel">parallel</a></code></li>
 <li><code><a title="biobench.beluga.Args.seed" href="#biobench.beluga.Args.seed">seed</a></code></li>
 </ul>
 </li>
@@ -419,7 +400,7 @@ def n(self) -&gt; int:
 </nav>
 </main>
 <footer id="footer">
-<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.5</a>.</p>
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
 </footer>
 </body>
 </html>

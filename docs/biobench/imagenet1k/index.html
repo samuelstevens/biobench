@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
-<meta name="generator" content="pdoc3 0.11.5">
-<title>biobench.imagenet API documentation</title>
+<meta name="generator" content="pdoc3 0.11.6">
+<title>biobench.imagenet1k API documentation</title>
 <meta name="description" content="">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
@@ -35,7 +35,7 @@ el.replaceWith(d);
 <main>
 <article id="content">
 <header>
-<h1 class="title">Module <code>biobench.imagenet</code></h1>
+<h1 class="title">Module <code>biobench.imagenet1k</code></h1>
 </header>
 <section id="section-intro">
 </section>
@@ -46,33 +46,31 @@ el.replaceWith(d);
 <section>
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
-<dt id="biobench.imagenet.benchmark"><code class="name flex">
-<span>def <span class="ident">benchmark</span></span>(<span>args: <a title="biobench.imagenet.Args" href="#biobench.imagenet.Args">Args</a>,<br>model_args: <a title="biobench.interfaces.ModelArgs" href="../interfaces.html#biobench.interfaces.ModelArgs">ModelArgs</a>) ‑> tuple[<a title="biobench.interfaces.ModelArgs" href="../interfaces.html#biobench.interfaces.ModelArgs">ModelArgs</a>, <a title="biobench.interfaces.TaskReport" href="../interfaces.html#biobench.interfaces.TaskReport">TaskReport</a>]</span>
+<dt id="biobench.imagenet1k.benchmark"><code class="name flex">
+<span>def <span class="ident">benchmark</span></span>(<span>cfg: <a title="biobench.config.Experiment" href="../config.html#biobench.config.Experiment">Experiment</a>) ‑> <a title="biobench.reporting.Report" href="../reporting.html#biobench.reporting.Report">Report</a></span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def benchmark(
-    args: Args, model_args: interfaces.ModelArgs
-) -&gt; tuple[interfaces.ModelArgs, interfaces.TaskReport]:
-    backbone = registry.load_vision_backbone(*model_args)
-    test_features = get_features(args, backbone, is_train=False)
-    train_features = get_features(args, backbone, is_train=True)
+<pre><code class="python">def benchmark(cfg: config.Experiment) -&gt; reporting.Report:
+    backbone = registry.load_vision_backbone(cfg.model)
+    test_features = get_features(cfg, backbone, is_train=False)
+    train_features = get_features(cfg, backbone, is_train=True)
 
-    clf = init_clf(args)
+    clf = init_clf(cfg)
     clf.fit(train_features.x, train_features.y)
 
-    helpers.write_hparam_sweep_plot(&#34;imagenet&#34;, model_args.ckpt, clf)
+    helpers.write_hparam_sweep_plot(&#34;imagenet1k&#34;, cfg.model.ckpt, clf)
     alpha = clf.best_params_[&#34;ridgeclassifier__alpha&#34;].item()
     logger.info(&#34;alpha=%.2g scored %.3f.&#34;, alpha, clf.best_score_.item())
 
     true_labels = test_features.y
     pred_labels = clf.predict(test_features.x)
 
-    examples = [
-        interfaces.Prediction(
+    preds = [
+        reporting.Prediction(
             str(image_id),
             float(pred == true),
             {&#34;y_pred&#34;: pred.item(), &#34;y_true&#34;: true.item()},
@@ -84,12 +82,12 @@ el.replaceWith(d);
         )
     ]
 
-    return model_args, interfaces.TaskReport(&#34;ImageNet-1K&#34;, examples)</code></pre>
+    return reporting.Report(&#34;imagenet1k&#34;, preds)</code></pre>
 </details>
 <div class="desc"></div>
 </dd>
-<dt id="biobench.imagenet.get_features"><code class="name flex">
-<span>def <span class="ident">get_features</span></span>(<span>args: <a title="biobench.imagenet.Args" href="#biobench.imagenet.Args">Args</a>,<br>backbone: <a title="biobench.interfaces.VisionBackbone" href="../interfaces.html#biobench.interfaces.VisionBackbone">VisionBackbone</a>,<br>*,<br>is_train: bool) ‑> <a title="biobench.imagenet.Features" href="#biobench.imagenet.Features">Features</a></span>
+<dt id="biobench.imagenet1k.get_features"><code class="name flex">
+<span>def <span class="ident">get_features</span></span>(<span>cfg: <a title="biobench.config.Experiment" href="../config.html#biobench.config.Experiment">Experiment</a>,<br>backbone: <a title="biobench.registry.VisionBackbone" href="../registry.html#biobench.registry.VisionBackbone">VisionBackbone</a>,<br>*,<br>is_train: bool) ‑> <a title="biobench.imagenet1k.Features" href="#biobench.imagenet1k.Features">Features</a></span>
 </code></dt>
 <dd>
 <details class="source">
@@ -97,42 +95,46 @@ el.replaceWith(d);
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def get_features(
-    args: Args, backbone: interfaces.VisionBackbone, *, is_train: bool
+    cfg: config.Experiment, backbone: registry.VisionBackbone, *, is_train: bool
 ) -&gt; Features:
     img_transform = backbone.make_img_transform()
-    backbone = torch.compile(backbone.to(args.device))
+    backbone = torch.compile(backbone.to(cfg.device))
     split = &#34;train&#34; if is_train else &#34;validation&#34;
 
     dataset = datasets.load_dataset(&#34;ILSVRC/imagenet-1k&#34;, split=split)
     n_examples = dataset.num_rows
 
+    if is_train:
+        i = helpers.balanced_random_sample(np.array(dataset[&#34;label&#34;]), cfg.n_train)
+    else:
+        i = np.arange(n_examples)
+
     # Map
     dataset = (
-        dataset.to_iterable_dataset(num_shards=args.n_workers)
+        dataset.select(i)
+        .to_iterable_dataset(num_shards=min(len(i), cfg.n_workers))
         .map(Transform(img_transform), with_indices=True)
-        .shuffle(seed=args.seed)
+        .shuffle(seed=cfg.seed)
         .with_format(&#34;torch&#34;)
     )
 
     dataloader = torch.utils.data.DataLoader(
         dataset=dataset,
-        batch_size=args.batch_size,
-        num_workers=args.n_workers,
+        batch_size=cfg.batch_size,
+        num_workers=cfg.n_workers,
         drop_last=False,
         shuffle=False,
     )
 
     all_features, all_labels, all_ids = [], [], []
 
-    total = math.ceil(n_examples / args.batch_size) if not args.debug else 20
+    total = math.ceil(n_examples / cfg.batch_size) if not cfg.debug else 20
     it = iter(dataloader)
-    logger.debug(&#34;Need to embed %d batches of %d images.&#34;, total, args.batch_size)
-    for b in helpers.progress(
-        range(total), every=args.log_every, desc=f&#34;Embedding {split}&#34;
-    ):
+    logger.debug(&#34;Need to embed %d batches of %d images.&#34;, total, cfg.batch_size)
+    for b in helpers.progress(range(total), every=10, desc=f&#34;Embedding {split}&#34;):
         batch = next(it)
 
-        images = batch[&#34;image&#34;].to(args.device)
+        images = batch[&#34;image&#34;].to(cfg.device)
 
         with torch.amp.autocast(&#34;cuda&#34;):
             features = backbone.img_encode(images).img_features
@@ -150,17 +152,17 @@ el.replaceWith(d);
 </details>
 <div class="desc"></div>
 </dd>
-<dt id="biobench.imagenet.init_clf"><code class="name flex">
-<span>def <span class="ident">init_clf</span></span>(<span>args: <a title="biobench.imagenet.Args" href="#biobench.imagenet.Args">Args</a>)</span>
+<dt id="biobench.imagenet1k.init_clf"><code class="name flex">
+<span>def <span class="ident">init_clf</span></span>(<span>cfg: <a title="biobench.config.Experiment" href="../config.html#biobench.config.Experiment">Experiment</a>)</span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def init_clf(args: Args):
+<pre><code class="python">def init_clf(cfg: config.Experiment):
     alpha = np.pow(2.0, np.arange(-15, 5))
-    if args.debug:
+    if cfg.debug:
         alpha = np.pow(2.0, np.arange(-2, 2))
 
     return sklearn.model_selection.HalvingGridSearchCV(
@@ -181,74 +183,7 @@ el.replaceWith(d);
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
-<dt id="biobench.imagenet.Args"><code class="flex name class">
-<span>class <span class="ident">Args</span></span>
-<span>(</span><span>data: str = '',<br>batch_size_cv: int = 256,<br>n_workers: int = 8,<br>log_every: int = 10,<br>device: str = 'cuda',<br>debug: bool = False,<br>n_train: int = -1,<br>n_test: int = -1)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">@beartype.beartype
-@dataclasses.dataclass(frozen=True)
-class Args:
-    data: str = &#34;&#34;
-    &#34;&#34;&#34;dataset directory; where you downloaded this task&#39;s data to.&#34;&#34;&#34;
-    batch_size_cv: int = 256
-    &#34;&#34;&#34;batch size for computer vision model.&#34;&#34;&#34;
-    n_workers: int = 8
-    &#34;&#34;&#34;number of dataloader worker processes.&#34;&#34;&#34;
-    log_every: int = 10
-    &#34;&#34;&#34;how often (number of batches) to log progress.&#34;&#34;&#34;
-    # Computed at runtime.
-    device: str = &#34;cuda&#34;
-    &#34;&#34;&#34;(computed at runtime) which kind of accelerator to use.&#34;&#34;&#34;
-    debug: bool = False
-    &#34;&#34;&#34;(computed at runtime) whether to run in debug mode.&#34;&#34;&#34;
-    n_train: int = -1
-    &#34;&#34;&#34;(computed at runtime) number of maximum training samples. Negative number means use all of them.&#34;&#34;&#34;
-    n_test: int = -1
-    &#34;&#34;&#34;(computed at runtime) number of test samples. Negative number means use all of them.&#34;&#34;&#34;</code></pre>
-</details>
-<div class="desc"><p>Args(data: str = '', batch_size_cv: int = 256, n_workers: int = 8, log_every: int = 10, device: str = 'cuda', debug: bool = False, n_train: int = -1, n_test: int = -1)</p></div>
-<h3>Class variables</h3>
-<dl>
-<dt id="biobench.imagenet.Args.batch_size_cv"><code class="name">var <span class="ident">batch_size_cv</span> : int</code></dt>
-<dd>
-<div class="desc"><p>batch size for computer vision model.</p></div>
-</dd>
-<dt id="biobench.imagenet.Args.data"><code class="name">var <span class="ident">data</span> : str</code></dt>
-<dd>
-<div class="desc"><p>dataset directory; where you downloaded this task's data to.</p></div>
-</dd>
-<dt id="biobench.imagenet.Args.debug"><code class="name">var <span class="ident">debug</span> : bool</code></dt>
-<dd>
-<div class="desc"><p>(computed at runtime) whether to run in debug mode.</p></div>
-</dd>
-<dt id="biobench.imagenet.Args.device"><code class="name">var <span class="ident">device</span> : str</code></dt>
-<dd>
-<div class="desc"><p>(computed at runtime) which kind of accelerator to use.</p></div>
-</dd>
-<dt id="biobench.imagenet.Args.log_every"><code class="name">var <span class="ident">log_every</span> : int</code></dt>
-<dd>
-<div class="desc"><p>how often (number of batches) to log progress.</p></div>
-</dd>
-<dt id="biobench.imagenet.Args.n_test"><code class="name">var <span class="ident">n_test</span> : int</code></dt>
-<dd>
-<div class="desc"><p>(computed at runtime) number of test samples. Negative number means use all of them.</p></div>
-</dd>
-<dt id="biobench.imagenet.Args.n_train"><code class="name">var <span class="ident">n_train</span> : int</code></dt>
-<dd>
-<div class="desc"><p>(computed at runtime) number of maximum training samples. Negative number means use all of them.</p></div>
-</dd>
-<dt id="biobench.imagenet.Args.n_workers"><code class="name">var <span class="ident">n_workers</span> : int</code></dt>
-<dd>
-<div class="desc"><p>number of dataloader worker processes.</p></div>
-</dd>
-</dl>
-</dd>
-<dt id="biobench.imagenet.Features"><code class="flex name class">
+<dt id="biobench.imagenet1k.Features"><code class="flex name class">
 <span>class <span class="ident">Features</span></span>
 <span>(</span><span>x: jaxtyping.Float[ndarray, 'n dim'],<br>y: jaxtyping.Int[ndarray, 'n'],<br>ids: jaxtyping.Shaped[ndarray, 'n'])</span>
 </code></dt>
@@ -265,23 +200,23 @@ class Features:
     ids: Shaped[np.ndarray, &#34; n&#34;]</code></pre>
 </details>
 <div class="desc"><p>Features(x: jaxtyping.Float[ndarray, 'n dim'], y: jaxtyping.Int[ndarray, 'n'], ids: jaxtyping.Shaped[ndarray, 'n'])</p></div>
-<h3>Class variables</h3>
+<h3>Instance variables</h3>
 <dl>
-<dt id="biobench.imagenet.Features.ids"><code class="name">var <span class="ident">ids</span> : jaxtyping.Shaped[ndarray, 'n']</code></dt>
+<dt id="biobench.imagenet1k.Features.ids"><code class="name">var <span class="ident">ids</span> : jaxtyping.Shaped[ndarray, 'n']</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="biobench.imagenet.Features.x"><code class="name">var <span class="ident">x</span> : jaxtyping.Float[ndarray, 'n dim']</code></dt>
+<dt id="biobench.imagenet1k.Features.x"><code class="name">var <span class="ident">x</span> : jaxtyping.Float[ndarray, 'n dim']</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="biobench.imagenet.Features.y"><code class="name">var <span class="ident">y</span> : jaxtyping.Int[ndarray, 'n']</code></dt>
+<dt id="biobench.imagenet1k.Features.y"><code class="name">var <span class="ident">y</span> : jaxtyping.Int[ndarray, 'n']</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
 </dl>
 </dd>
-<dt id="biobench.imagenet.Transform"><code class="flex name class">
+<dt id="biobench.imagenet1k.Transform"><code class="flex name class">
 <span>class <span class="ident">Transform</span></span>
 <span>(</span><span>img_transform)</span>
 </code></dt>
@@ -317,36 +252,23 @@ class Features:
 </li>
 <li><h3><a href="#header-functions">Functions</a></h3>
 <ul class="">
-<li><code><a title="biobench.imagenet.benchmark" href="#biobench.imagenet.benchmark">benchmark</a></code></li>
-<li><code><a title="biobench.imagenet.get_features" href="#biobench.imagenet.get_features">get_features</a></code></li>
-<li><code><a title="biobench.imagenet.init_clf" href="#biobench.imagenet.init_clf">init_clf</a></code></li>
+<li><code><a title="biobench.imagenet1k.benchmark" href="#biobench.imagenet1k.benchmark">benchmark</a></code></li>
+<li><code><a title="biobench.imagenet1k.get_features" href="#biobench.imagenet1k.get_features">get_features</a></code></li>
+<li><code><a title="biobench.imagenet1k.init_clf" href="#biobench.imagenet1k.init_clf">init_clf</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
 <li>
-<h4><code><a title="biobench.imagenet.Args" href="#biobench.imagenet.Args">Args</a></code></h4>
-<ul class="two-column">
-<li><code><a title="biobench.imagenet.Args.batch_size_cv" href="#biobench.imagenet.Args.batch_size_cv">batch_size_cv</a></code></li>
-<li><code><a title="biobench.imagenet.Args.data" href="#biobench.imagenet.Args.data">data</a></code></li>
-<li><code><a title="biobench.imagenet.Args.debug" href="#biobench.imagenet.Args.debug">debug</a></code></li>
-<li><code><a title="biobench.imagenet.Args.device" href="#biobench.imagenet.Args.device">device</a></code></li>
-<li><code><a title="biobench.imagenet.Args.log_every" href="#biobench.imagenet.Args.log_every">log_every</a></code></li>
-<li><code><a title="biobench.imagenet.Args.n_test" href="#biobench.imagenet.Args.n_test">n_test</a></code></li>
-<li><code><a title="biobench.imagenet.Args.n_train" href="#biobench.imagenet.Args.n_train">n_train</a></code></li>
-<li><code><a title="biobench.imagenet.Args.n_workers" href="#biobench.imagenet.Args.n_workers">n_workers</a></code></li>
-</ul>
-</li>
-<li>
-<h4><code><a title="biobench.imagenet.Features" href="#biobench.imagenet.Features">Features</a></code></h4>
+<h4><code><a title="biobench.imagenet1k.Features" href="#biobench.imagenet1k.Features">Features</a></code></h4>
 <ul class="">
-<li><code><a title="biobench.imagenet.Features.ids" href="#biobench.imagenet.Features.ids">ids</a></code></li>
-<li><code><a title="biobench.imagenet.Features.x" href="#biobench.imagenet.Features.x">x</a></code></li>
-<li><code><a title="biobench.imagenet.Features.y" href="#biobench.imagenet.Features.y">y</a></code></li>
+<li><code><a title="biobench.imagenet1k.Features.ids" href="#biobench.imagenet1k.Features.ids">ids</a></code></li>
+<li><code><a title="biobench.imagenet1k.Features.x" href="#biobench.imagenet1k.Features.x">x</a></code></li>
+<li><code><a title="biobench.imagenet1k.Features.y" href="#biobench.imagenet1k.Features.y">y</a></code></li>
 </ul>
 </li>
 <li>
-<h4><code><a title="biobench.imagenet.Transform" href="#biobench.imagenet.Transform">Transform</a></code></h4>
+<h4><code><a title="biobench.imagenet1k.Transform" href="#biobench.imagenet1k.Transform">Transform</a></code></h4>
 </li>
 </ul>
 </li>
@@ -354,7 +276,7 @@ class Features:
 </nav>
 </main>
 <footer id="footer">
-<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.5</a>.</p>
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
 </footer>
 </body>
 </html>

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
-<meta name="generator" content="pdoc3 0.11.5">
+<meta name="generator" content="pdoc3 0.11.6">
 <title>biobench.plankton API documentation</title>
 <meta name="description" content="Classification of phytoplankton using ridge classifiers.
 This task is particularly challenging because the image distribution is very different to …">
@@ -95,47 +95,41 @@ This task is particularly challenging because the image distribution is very dif
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
 <dt id="biobench.plankton.benchmark"><code class="name flex">
-<span>def <span class="ident">benchmark</span></span>(<span>args: <a title="biobench.plankton.Args" href="#biobench.plankton.Args">Args</a>,<br>model_args: <a title="biobench.interfaces.ModelArgsCvml" href="../interfaces.html#biobench.interfaces.ModelArgsCvml">ModelArgsCvml</a>) ‑> tuple[<a title="biobench.interfaces.ModelArgsCvml" href="../interfaces.html#biobench.interfaces.ModelArgsCvml">ModelArgsCvml</a>, <a title="biobench.interfaces.TaskReport" href="../interfaces.html#biobench.interfaces.TaskReport">TaskReport</a>]</span>
+<span>def <span class="ident">benchmark</span></span>(<span>cfg: <a title="biobench.config.Experiment" href="../config.html#biobench.config.Experiment">Experiment</a>) ‑> <a title="biobench.reporting.Report" href="../reporting.html#biobench.reporting.Report">Report</a></span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def benchmark(
-    args: Args, model_args: interfaces.ModelArgsCvml
-) -&gt; tuple[interfaces.ModelArgsCvml, interfaces.TaskReport]:
+<pre><code class="python">def benchmark(cfg: config.Experiment) -&gt; reporting.Report:
     &#34;&#34;&#34;
     Steps:
     1. Get features for all images.
     2. Select lambda using cross validation splits.
     3. Report score on test data.
     &#34;&#34;&#34;
-    backbone = registry.load_vision_backbone(*model_args)
+    backbone = registry.load_vision_backbone(cfg.model)
 
     # 1. Get features
-    train_features = get_features(args, backbone, split=&#34;train&#34;)
-    val_features = get_features(args, backbone, split=&#34;val&#34;)
+    train_features = get_features(cfg, backbone, split=&#34;train&#34;)
+    val_features = get_features(cfg, backbone, split=&#34;val&#34;)
 
     encoder = sklearn.preprocessing.OrdinalEncoder()
     all_labels = np.concatenate((val_features.labels, train_features.labels))
     encoder.fit(all_labels.reshape(-1, 1))
 
     # 2. Fit model.
-    clf = init_clf(args)
+    clf = init_clf(cfg)
     clf.fit(train_features.x, train_features.y(encoder))
-
-    helpers.write_hparam_sweep_plot(&#34;plankton&#34;, model_args.ckpt, clf)
-    alpha = clf.best_params_[&#34;ridgeclassifier__alpha&#34;].item()
-    logger.info(&#34;alpha=%.2g scored %.3f.&#34;, alpha, clf.best_score_.item())
 
     # 3. Predict.
     pred_labels = clf.predict(val_features.x)
     logger.info(&#34;Predicted classes for %d examples.&#34;, len(val_features.x))
     true_labels = val_features.y(encoder)
 
-    examples = [
-        interfaces.Prediction(
+    preds = [
+        reporting.Prediction(
             str(image_id),
             float(pred == true),
             {&#34;y_pred&#34;: pred.item(), &#34;y_true&#34;: true.item()},
@@ -147,7 +141,7 @@ This task is particularly challenging because the image distribution is very dif
         )
     ]
 
-    return model_args, interfaces.TaskReport(&#34;Plankton&#34;, examples)</code></pre>
+    return reporting.Report(&#34;plankton&#34;, preds, cfg)</code></pre>
 </details>
 <div class="desc"><p>Steps:
 1. Get features for all images.
@@ -155,7 +149,7 @@ This task is particularly challenging because the image distribution is very dif
 3. Report score on test data.</p></div>
 </dd>
 <dt id="biobench.plankton.get_features"><code class="name flex">
-<span>def <span class="ident">get_features</span></span>(<span>args: <a title="biobench.plankton.Args" href="#biobench.plankton.Args">Args</a>,<br>backbone: <a title="biobench.interfaces.VisionBackbone" href="../interfaces.html#biobench.interfaces.VisionBackbone">VisionBackbone</a>,<br>*,<br>split: str) ‑> <a title="biobench.plankton.Features" href="#biobench.plankton.Features">Features</a></span>
+<span>def <span class="ident">get_features</span></span>(<span>cfg: <a title="biobench.config.Experiment" href="../config.html#biobench.config.Experiment">Experiment</a>,<br>backbone: <a title="biobench.registry.VisionBackbone" href="../registry.html#biobench.registry.VisionBackbone">VisionBackbone</a>,<br>*,<br>split: str) ‑> <a title="biobench.plankton.Features" href="#biobench.plankton.Features">Features</a></span>
 </code></dt>
 <dd>
 <details class="source">
@@ -163,18 +157,18 @@ This task is particularly challenging because the image distribution is very dif
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def get_features(
-    args: Args, backbone: interfaces.VisionBackbone, *, split: str
+    cfg: config.Experiment, backbone: registry.VisionBackbone, *, split: str
 ) -&gt; Features:
-    images_dir_path = os.path.join(args.datadir, split)
+    images_dir_path = os.path.join(cfg.data.plankton, split)
 
     img_transform = backbone.make_img_transform()
-    backbone = torch.compile(backbone.to(args.device))
+    backbone = torch.compile(backbone.to(cfg.device))
 
     dataset = Dataset(images_dir_path, img_transform)
     dataloader = torch.utils.data.DataLoader(
         dataset,
-        batch_size=args.batch_size,
-        num_workers=args.n_workers,
+        batch_size=cfg.batch_size,
+        num_workers=cfg.n_workers,
         drop_last=False,
         shuffle=False,
         pin_memory=False,
@@ -182,14 +176,14 @@ This task is particularly challenging because the image distribution is very dif
     )
 
     all_ids, all_features, all_labels = [], [], []
+    breakpoint()
 
-    total = len(dataloader) if not args.debug else 2
+    total = len(dataloader) if not cfg.debug else 2
     it = iter(dataloader)
-    for b in helpers.progress(
-        range(total), every=args.log_every, desc=f&#34;Embed {split}&#34;
-    ):
+
+    for b in helpers.progress(range(total), every=10, desc=f&#34;Embed {split}&#34;):
         ids, images, labels = next(it)
-        images = images.to(args.device)
+        images = images.to(cfg.device)
 
         with torch.amp.autocast(&#34;cuda&#34;):
             features = backbone.img_encode(images).img_features
@@ -208,107 +202,28 @@ This task is particularly challenging because the image distribution is very dif
 <div class="desc"></div>
 </dd>
 <dt id="biobench.plankton.init_clf"><code class="name flex">
-<span>def <span class="ident">init_clf</span></span>(<span>args: <a title="biobench.plankton.Args" href="#biobench.plankton.Args">Args</a>)</span>
+<span>def <span class="ident">init_clf</span></span>(<span>cfg: <a title="biobench.config.Experiment" href="../config.html#biobench.config.Experiment">Experiment</a>)</span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def init_clf(args: Args):
-    &#34;&#34;&#34;
-    Make a grid search cross-validation version of a RidgeClassifier.
-    &#34;&#34;&#34;
-    alpha = np.pow(2.0, np.arange(-15, 11))
-    if args.debug:
-        alpha = np.pow(2.0, np.arange(-2, 2))
+<pre><code class="python">def init_clf(cfg: config.Experiment):
+    &#34;&#34;&#34;Make a GaussianNB.&#34;&#34;&#34;
 
-    return sklearn.model_selection.GridSearchCV(
-        sklearn.pipeline.make_pipeline(
-            sklearn.preprocessing.StandardScaler(),
-            sklearn.linear_model.RidgeClassifier(1.0, class_weight=&#34;balanced&#34;),
-        ),
-        {&#34;ridgeclassifier__alpha&#34;: alpha},
-        n_jobs=16,
-        verbose=2,
+    return sklearn.pipeline.make_pipeline(
+        sklearn.preprocessing.StandardScaler(),
+        sklearn.naive_bayes.GaussianNB(),
     )</code></pre>
 </details>
-<div class="desc"><p>Make a grid search cross-validation version of a RidgeClassifier.</p></div>
+<div class="desc"><p>Make a GaussianNB.</p></div>
 </dd>
 </dl>
 </section>
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
-<dt id="biobench.plankton.Args"><code class="flex name class">
-<span>class <span class="ident">Args</span></span>
-<span>(</span><span>batch_size: int = 256,<br>n_workers: int = 4,<br>log_every: int = 10,<br>device: str = 'cuda',<br>debug: bool = False,<br>n_train: int = -1,<br>n_test: int = -1,<br>parallel: int = 1)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">@beartype.beartype
-@dataclasses.dataclass(frozen=True)
-class Args:
-    &#34;&#34;&#34;Plankton task arguments.&#34;&#34;&#34;
-
-    batch_size: int = 256
-    &#34;&#34;&#34;batch size for deep model.&#34;&#34;&#34;
-    n_workers: int = 4
-    &#34;&#34;&#34;number of dataloader worker processes.&#34;&#34;&#34;
-    log_every: int = 10
-    &#34;&#34;&#34;how often (number of batches) to log progress.&#34;&#34;&#34;
-    # Computed at runtime.
-    device: str = &#34;cuda&#34;
-    &#34;&#34;&#34;(computed at runtime) which kind of accelerator to use.&#34;&#34;&#34;
-    debug: bool = False
-    &#34;&#34;&#34;(computed at runtime) whether to run in debug mode.&#34;&#34;&#34;
-    n_train: int = -1
-    &#34;&#34;&#34;(computed at runtime) number of maximum training samples. Negative number means use all of them.&#34;&#34;&#34;
-    n_test: int = -1
-    &#34;&#34;&#34;(computed at runtime) number of test samples. Negative number means use all of them.&#34;&#34;&#34;
-    parallel: int = 1
-    &#34;&#34;&#34;(computed at runtime) number of parallel requests per second to MLLM service providers.&#34;&#34;&#34;</code></pre>
-</details>
-<div class="desc"><p>Plankton task arguments.</p></div>
-<h3>Class variables</h3>
-<dl>
-<dt id="biobench.plankton.Args.batch_size"><code class="name">var <span class="ident">batch_size</span> : int</code></dt>
-<dd>
-<div class="desc"><p>batch size for deep model.</p></div>
-</dd>
-<dt id="biobench.plankton.Args.debug"><code class="name">var <span class="ident">debug</span> : bool</code></dt>
-<dd>
-<div class="desc"><p>(computed at runtime) whether to run in debug mode.</p></div>
-</dd>
-<dt id="biobench.plankton.Args.device"><code class="name">var <span class="ident">device</span> : str</code></dt>
-<dd>
-<div class="desc"><p>(computed at runtime) which kind of accelerator to use.</p></div>
-</dd>
-<dt id="biobench.plankton.Args.log_every"><code class="name">var <span class="ident">log_every</span> : int</code></dt>
-<dd>
-<div class="desc"><p>how often (number of batches) to log progress.</p></div>
-</dd>
-<dt id="biobench.plankton.Args.n_test"><code class="name">var <span class="ident">n_test</span> : int</code></dt>
-<dd>
-<div class="desc"><p>(computed at runtime) number of test samples. Negative number means use all of them.</p></div>
-</dd>
-<dt id="biobench.plankton.Args.n_train"><code class="name">var <span class="ident">n_train</span> : int</code></dt>
-<dd>
-<div class="desc"><p>(computed at runtime) number of maximum training samples. Negative number means use all of them.</p></div>
-</dd>
-<dt id="biobench.plankton.Args.n_workers"><code class="name">var <span class="ident">n_workers</span> : int</code></dt>
-<dd>
-<div class="desc"><p>number of dataloader worker processes.</p></div>
-</dd>
-<dt id="biobench.plankton.Args.parallel"><code class="name">var <span class="ident">parallel</span> : int</code></dt>
-<dd>
-<div class="desc"><p>(computed at runtime) number of parallel requests per second to MLLM service providers.</p></div>
-</dd>
-</dl>
-</dd>
 <dt id="biobench.plankton.Dataset"><code class="flex name class">
 <span>class <span class="ident">Dataset</span></span>
 <span>(</span><span>root: str, transform)</span>
@@ -407,7 +322,7 @@ class Features:
         return encoder.transform(self.labels.reshape(-1, 1)).reshape(-1)</code></pre>
 </details>
 <div class="desc"><p>Features(x: jaxtyping.Float[ndarray, 'n dim'], labels: jaxtyping.Shaped[ndarray, 'n'], ids: jaxtyping.Shaped[ndarray, 'n'])</p></div>
-<h3>Class variables</h3>
+<h3>Instance variables</h3>
 <dl>
 <dt id="biobench.plankton.Features.ids"><code class="name">var <span class="ident">ids</span> : jaxtyping.Shaped[ndarray, 'n']</code></dt>
 <dd>
@@ -467,19 +382,6 @@ class Features:
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
 <li>
-<h4><code><a title="biobench.plankton.Args" href="#biobench.plankton.Args">Args</a></code></h4>
-<ul class="two-column">
-<li><code><a title="biobench.plankton.Args.batch_size" href="#biobench.plankton.Args.batch_size">batch_size</a></code></li>
-<li><code><a title="biobench.plankton.Args.debug" href="#biobench.plankton.Args.debug">debug</a></code></li>
-<li><code><a title="biobench.plankton.Args.device" href="#biobench.plankton.Args.device">device</a></code></li>
-<li><code><a title="biobench.plankton.Args.log_every" href="#biobench.plankton.Args.log_every">log_every</a></code></li>
-<li><code><a title="biobench.plankton.Args.n_test" href="#biobench.plankton.Args.n_test">n_test</a></code></li>
-<li><code><a title="biobench.plankton.Args.n_train" href="#biobench.plankton.Args.n_train">n_train</a></code></li>
-<li><code><a title="biobench.plankton.Args.n_workers" href="#biobench.plankton.Args.n_workers">n_workers</a></code></li>
-<li><code><a title="biobench.plankton.Args.parallel" href="#biobench.plankton.Args.parallel">parallel</a></code></li>
-</ul>
-</li>
-<li>
 <h4><code><a title="biobench.plankton.Dataset" href="#biobench.plankton.Dataset">Dataset</a></code></h4>
 <ul class="">
 <li><code><a title="biobench.plankton.Dataset.samples" href="#biobench.plankton.Dataset.samples">samples</a></code></li>
@@ -501,7 +403,7 @@ class Features:
 </nav>
 </main>
 <footer id="footer">
-<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.5</a>.</p>
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
 </footer>
 </body>
 </html>

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
-<meta name="generator" content="pdoc3 0.11.5">
+<meta name="generator" content="pdoc3 0.11.6">
 <title>biobench.kabr API documentation</title>
 <meta name="description" content="Kenyan Animal Behavior Recognition (KABR) …">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
@@ -51,6 +51,13 @@ We get video representations by embedding each frame of the video and taking the
 </ol>
 </section>
 <section>
+<h2 class="section-title" id="header-submodules">Sub-modules</h2>
+<dl>
+<dt><code class="name"><a title="biobench.kabr.download" href="download.html">biobench.kabr.download</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
 </section>
 <section>
 </section>
@@ -93,67 +100,65 @@ We get video representations by embedding each frame of the video and taking the
 </details>
 <div class="desc"><p>Aggregate per-frame labels to a per-video label. Uses the most common label (mode).</p></div>
 </dd>
-<dt id="biobench.kabr.benchmark_cvml"><code class="name flex">
-<span>def <span class="ident">benchmark_cvml</span></span>(<span>args: <a title="biobench.kabr.Args" href="#biobench.kabr.Args">Args</a>,<br>model_args: <a title="biobench.interfaces.ModelArgsCvml" href="../interfaces.html#biobench.interfaces.ModelArgsCvml">ModelArgsCvml</a>) ‑> tuple[<a title="biobench.interfaces.ModelArgsCvml" href="../interfaces.html#biobench.interfaces.ModelArgsCvml">ModelArgsCvml</a>, <a title="biobench.interfaces.TaskReport" href="../interfaces.html#biobench.interfaces.TaskReport">TaskReport</a>]</span>
+<dt id="biobench.kabr.benchmark"><code class="name flex">
+<span>def <span class="ident">benchmark</span></span>(<span>cfg: <a title="biobench.config.Experiment" href="../config.html#biobench.config.Experiment">Experiment</a>) ‑> tuple[<a title="biobench.config.Model" href="../config.html#biobench.config.Model">Model</a>, <a title="biobench.reporting.Report" href="../reporting.html#biobench.reporting.Report">Report</a>]</span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def benchmark_cvml(
-    args: Args, model_args: interfaces.ModelArgsCvml
-) -&gt; tuple[interfaces.ModelArgsCvml, interfaces.TaskReport]:
+<pre><code class="python">def benchmark(cfg: config.Experiment) -&gt; tuple[config.Model, reporting.Report]:
     &#34;&#34;&#34;Runs KABR benchmark.&#34;&#34;&#34;
     # 1. Load model
-    backbone = registry.load_vision_backbone(*model_args)
+    backbone = registry.load_vision_backbone(cfg.model)
     img_transform = backbone.make_img_transform()
-    backbone = backbone.to(args.device)
+    backbone = backbone.to(cfg.device)
 
     # 2. Load data.
-    train_dataset = Dataset(args.datadir, &#34;train&#34;, transform=img_transform)
-    val_dataset = Dataset(args.datadir, &#34;val&#34;, transform=img_transform)
+    train_dataset = Dataset(cfg.data.kabr, &#34;train&#34;, transform=img_transform)
+    val_dataset = Dataset(cfg.data.kabr, &#34;val&#34;, transform=img_transform)
 
     train_dataloader = torch.utils.data.DataLoader(
         train_dataset,
-        batch_size=args.batch_size,
-        num_workers=args.n_workers,
+        batch_size=cfg.batch_size,
+        num_workers=cfg.n_workers,
         drop_last=False,
     )
     val_dataloader = torch.utils.data.DataLoader(
         val_dataset,
-        batch_size=args.batch_size,
-        num_workers=args.n_workers,
+        batch_size=cfg.batch_size,
+        num_workers=cfg.n_workers,
         drop_last=False,
     )
 
     # 3. Get features
-    val_features, val_labels = get_features(args, backbone, val_dataloader)
-    val_features = aggregate_frames(args, val_features)
-    val_labels = aggregate_labels(args, val_labels)
+    val_features, val_labels = get_features(cfg, backbone, val_dataloader)
+    val_features = aggregate_frames(cfg, val_features)
+    val_labels = aggregate_labels(cfg, val_labels)
 
-    train_features, train_labels = get_features(args, backbone, train_dataloader)
-    train_features = aggregate_frames(args, train_features)
-    train_labels = aggregate_labels(args, train_labels)
+    train_features, train_labels = get_features(cfg, backbone, train_dataloader)
+    train_features = aggregate_frames(cfg, train_features)
+    train_labels = aggregate_labels(cfg, train_labels)
 
     # 4. Do simpleshot.
     scores = simpleshot.simpleshot(
-        args, train_features, train_labels, val_features, val_labels
+        cfg, train_features, train_labels, val_features, val_labels
     )
 
     # Return benchmark report.
     video_ids = [video.video_id for video in val_dataset.videos]
     examples = [
-        interfaces.Prediction(str(id), float(score), {})
+        reporting.Prediction(str(id), float(score), {})
         for id, score in zip(video_ids, scores.tolist())
     ]
     # TODO: include example-specific info (class? something else)
-    return model_args, interfaces.TaskReport(&#34;KABR&#34;, examples)</code></pre>
+    return cfg.model, reporting.Report(&#34;KABR&#34;, examples)</code></pre>
 </details>
 <div class="desc"><p>Runs KABR benchmark.</p></div>
 </dd>
 <dt id="biobench.kabr.get_features"><code class="name flex">
-<span>def <span class="ident">get_features</span></span>(<span>args: <a title="biobench.kabr.Args" href="#biobench.kabr.Args">Args</a>,<br>backbone: <a title="biobench.interfaces.VisionBackbone" href="../interfaces.html#biobench.interfaces.VisionBackbone">VisionBackbone</a>,<br>dataloader) ‑> tuple[jaxtyping.Float[Tensor, 'n_frames n_examples dim'], jaxtyping.Int[Tensor, 'n_frames n_examples']]</span>
+<span>def <span class="ident">get_features</span></span>(<span>cfg: <a title="biobench.config.Experiment" href="../config.html#biobench.config.Experiment">Experiment</a>,<br>backbone: <a title="biobench.registry.VisionBackbone" href="../registry.html#biobench.registry.VisionBackbone">VisionBackbone</a>,<br>dataloader) ‑> tuple[jaxtyping.Float[Tensor, 'n_frames n_examples dim'], jaxtyping.Int[Tensor, 'n_frames n_examples']]</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -161,14 +166,14 @@ We get video representations by embedding each frame of the video and taking the
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def get_features(
-    args: Args, backbone: interfaces.VisionBackbone, dataloader
+    cfg: config.Experiment, backbone: registry.VisionBackbone, dataloader
 ) -&gt; tuple[
     Float[Tensor, &#34;n_frames n_examples dim&#34;], Int[Tensor, &#34;n_frames n_examples&#34;]
 ]:
     &#34;&#34;&#34;
     Gets all model features and true labels for all frames and all examples in the dataloader.
 
-    Returns it as a pair of big tensors; other tasks like `biobench.birds525` use a dedicated class for this, but here it&#39;s just a tuple.
+    Returns it as a pair of big tensors; other tasks use a dedicated class for this, but here it&#39;s just a tuple.
 
     Args:
         args: KABR task arguments.
@@ -207,7 +212,7 @@ We get video representations by embedding each frame of the video and taking the
     return all_features, all_labels</code></pre>
 </details>
 <div class="desc"><p>Gets all model features and true labels for all frames and all examples in the dataloader.</p>
-<p>Returns it as a pair of big tensors; other tasks like <code><a title="biobench.birds525" href="../birds525/index.html">biobench.birds525</a></code> use a dedicated class for this, but here it's just a tuple.</p>
+<p>Returns it as a pair of big tensors; other tasks use a dedicated class for this, but here it's just a tuple.</p>
 <h2 id="args">Args</h2>
 <dl>
 <dt><strong><code>args</code></strong></dt>
@@ -227,7 +232,7 @@ We get video representations by embedding each frame of the video and taking the
 <dl>
 <dt id="biobench.kabr.Args"><code class="flex name class">
 <span>class <span class="ident">Args</span></span>
-<span>(</span><span>data: str = '',<br>batch_size_cv: int = 256,<br>n_workers: int = 4,<br>frame_agg: Literal['mean', 'max'] = 'mean',<br>seed: int = 42,<br>device: str = 'cuda',<br>debug: bool = False,<br>n_train: int = -1,<br>n_test: int = -1,<br>parallel: int = 1)</span>
+<span>(</span><span>data: str = '',<br>batch_size_cv: int = 256,<br>n_workers: int = 4,<br>frame_agg: Literal['mean', 'max'] = 'mean',<br>seed: int = 42,<br>device: str = 'cuda',<br>debug: bool = False,<br>n_train: int = -1)</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -256,14 +261,10 @@ class Args:
     debug: bool = False
     &#34;&#34;&#34;(computed at runtime) whether to run in debug mode.&#34;&#34;&#34;
     n_train: int = -1
-    &#34;&#34;&#34;Number of maximum training samples. Negative number means use all of them.&#34;&#34;&#34;
-    n_test: int = -1
-    &#34;&#34;&#34;Number of test samples. Negative number means use all of them.&#34;&#34;&#34;
-    parallel: int = 1
-    &#34;&#34;&#34;Number of parallel requests per second to MLLM service providers.&#34;&#34;&#34;</code></pre>
+    &#34;&#34;&#34;Number of maximum training samples. Negative number means use all of them.&#34;&#34;&#34;</code></pre>
 </details>
 <div class="desc"><p>Arguments for the KABR task.</p></div>
-<h3>Class variables</h3>
+<h3>Instance variables</h3>
 <dl>
 <dt id="biobench.kabr.Args.batch_size_cv"><code class="name">var <span class="ident">batch_size_cv</span> : int</code></dt>
 <dd>
@@ -285,10 +286,6 @@ class Args:
 <dd>
 <div class="desc"><p>How to aggregate features across time dimension.</p></div>
 </dd>
-<dt id="biobench.kabr.Args.n_test"><code class="name">var <span class="ident">n_test</span> : int</code></dt>
-<dd>
-<div class="desc"><p>Number of test samples. Negative number means use all of them.</p></div>
-</dd>
 <dt id="biobench.kabr.Args.n_train"><code class="name">var <span class="ident">n_train</span> : int</code></dt>
 <dd>
 <div class="desc"><p>Number of maximum training samples. Negative number means use all of them.</p></div>
@@ -296,10 +293,6 @@ class Args:
 <dt id="biobench.kabr.Args.n_workers"><code class="name">var <span class="ident">n_workers</span> : int</code></dt>
 <dd>
 <div class="desc"><p>Number of dataloader worker processes.</p></div>
-</dd>
-<dt id="biobench.kabr.Args.parallel"><code class="name">var <span class="ident">parallel</span> : int</code></dt>
-<dd>
-<div class="desc"><p>Number of parallel requests per second to MLLM service providers.</p></div>
 </dd>
 <dt id="biobench.kabr.Args.seed"><code class="name">var <span class="ident">seed</span> : int</code></dt>
 <dd>
@@ -340,7 +333,7 @@ class Dataset(torch.utils.data.Dataset):
         labels: dict[int, list[int]] = {}
 
         if not os.path.exists(self.path) or not os.path.isdir(self.path):
-            msg = f&#34;Path &#39;{self.path}&#39; doesn&#39;t exist. Did you download the KABR dataset? See the docstring at the top of this file for instructions. If you did download it, pass the path as --dataset-dir PATH&#34;
+            msg = f&#34;Path &#39;{self.path}&#39; doesn&#39;t exist. Did you download the KABR dataset? See the docstring at the top of this file for instructions.&#34;
             raise RuntimeError(msg)
 
         with open(os.path.join(self.path, &#34;annotation&#34;, f&#34;{split}.csv&#34;)) as fd:
@@ -437,7 +430,7 @@ class Video:
         assert len(self.frames) == len(self.labels), err_msg</code></pre>
 </details>
 <div class="desc"><p>A single video instance as a sequence of frames.</p></div>
-<h3>Class variables</h3>
+<h3>Instance variables</h3>
 <dl>
 <dt id="biobench.kabr.Video.frames"><code class="name">var <span class="ident">frames</span> : list[str]</code></dt>
 <dd>
@@ -471,11 +464,16 @@ class Video:
 <li><code><a title="biobench" href="../index.html">biobench</a></code></li>
 </ul>
 </li>
+<li><h3><a href="#header-submodules">Sub-modules</a></h3>
+<ul>
+<li><code><a title="biobench.kabr.download" href="download.html">biobench.kabr.download</a></code></li>
+</ul>
+</li>
 <li><h3><a href="#header-functions">Functions</a></h3>
 <ul class="">
 <li><code><a title="biobench.kabr.aggregate_frames" href="#biobench.kabr.aggregate_frames">aggregate_frames</a></code></li>
 <li><code><a title="biobench.kabr.aggregate_labels" href="#biobench.kabr.aggregate_labels">aggregate_labels</a></code></li>
-<li><code><a title="biobench.kabr.benchmark_cvml" href="#biobench.kabr.benchmark_cvml">benchmark_cvml</a></code></li>
+<li><code><a title="biobench.kabr.benchmark" href="#biobench.kabr.benchmark">benchmark</a></code></li>
 <li><code><a title="biobench.kabr.get_features" href="#biobench.kabr.get_features">get_features</a></code></li>
 </ul>
 </li>
@@ -489,10 +487,8 @@ class Video:
 <li><code><a title="biobench.kabr.Args.debug" href="#biobench.kabr.Args.debug">debug</a></code></li>
 <li><code><a title="biobench.kabr.Args.device" href="#biobench.kabr.Args.device">device</a></code></li>
 <li><code><a title="biobench.kabr.Args.frame_agg" href="#biobench.kabr.Args.frame_agg">frame_agg</a></code></li>
-<li><code><a title="biobench.kabr.Args.n_test" href="#biobench.kabr.Args.n_test">n_test</a></code></li>
 <li><code><a title="biobench.kabr.Args.n_train" href="#biobench.kabr.Args.n_train">n_train</a></code></li>
 <li><code><a title="biobench.kabr.Args.n_workers" href="#biobench.kabr.Args.n_workers">n_workers</a></code></li>
-<li><code><a title="biobench.kabr.Args.parallel" href="#biobench.kabr.Args.parallel">parallel</a></code></li>
 <li><code><a title="biobench.kabr.Args.seed" href="#biobench.kabr.Args.seed">seed</a></code></li>
 </ul>
 </li>
@@ -513,7 +509,7 @@ class Video:
 </nav>
 </main>
 <footer id="footer">
-<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.5</a>.</p>
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
 </footer>
 </body>
 </html>

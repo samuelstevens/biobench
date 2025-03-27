@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
 <meta name="generator" content="pdoc3 0.11.6">
-<title>biobench.simpleshot API documentation</title>
-<meta name="description" content="Implements normalized nearest-centroid classifiers, as described in [this paper](https://arxiv.org/abs/1911.04623) …">
+<title>biobench.kabr.download API documentation</title>
+<meta name="description" content="">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
@@ -35,18 +35,9 @@ el.replaceWith(d);
 <main>
 <article id="content">
 <header>
-<h1 class="title">Module <code>biobench.simpleshot</code></h1>
+<h1 class="title">Module <code>biobench.kabr.download</code></h1>
 </header>
 <section id="section-intro">
-<p>Implements normalized nearest-centroid classifiers, as described in <a href="https://arxiv.org/abs/1911.04623">this paper</a>.</p>
-<p>If you use this work, be sure to cite the original work:</p>
-<pre><code>@article{wang2019simpleshot,
-  title={Simpleshot: Revisiting nearest-neighbor classification for few-shot learning},
-  author={Wang, Yan and Chao, Wei-Lun and Weinberger, Kilian Q and Van Der Maaten, Laurens},
-  journal={arXiv preprint arXiv:1911.04623},
-  year={2019}
-}
-</code></pre>
 </section>
 <section>
 </section>
@@ -55,131 +46,176 @@ el.replaceWith(d);
 <section>
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
-<dt id="biobench.simpleshot.batched_idx"><code class="name flex">
-<span>def <span class="ident">batched_idx</span></span>(<span>total_size: int, batch_size: int) ‑> Iterator[tuple[int, int]]</span>
+<dt id="biobench.kabr.download.compute_md5"><code class="name flex">
+<span>def <span class="ident">compute_md5</span></span>(<span>fpath: str)</span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def batched_idx(
-    total_size: int, batch_size: int
-) -&gt; collections.abc.Iterator[tuple[int, int]]:
-    &#34;&#34;&#34;
-    Iterate over (start, end) indices for total_size examples, where end - start is at most batch_size.
-
-    Args:
-        total_size: total number of examples
-        batch_size: maximum distance between the generated indices.
-
-    Returns:
-        A generator of (int, int) tuples that can slice up a list or a tensor.
-    &#34;&#34;&#34;
-    for start in range(0, total_size, batch_size):
-        stop = min(start + batch_size, total_size)
-        yield start, stop</code></pre>
+<pre><code class="python">def compute_md5(fpath: str):
+    hasher = hashlib.md5()
+    with open(fpath, &#34;rb&#34;) as f:
+        CHUNK_SIZE = 8 * 1024 * 1024  # 8MB
+        for chunk in iter(lambda: f.read(CHUNK_SIZE), b&#34;&#34;):
+            hasher.update(chunk)
+    return hasher.hexdigest()</code></pre>
 </details>
-<div class="desc"><p>Iterate over (start, end) indices for total_size examples, where end - start is at most batch_size.</p>
-<h2 id="args">Args</h2>
-<dl>
-<dt><strong><code>total_size</code></strong></dt>
-<dd>total number of examples</dd>
-<dt><strong><code>batch_size</code></strong></dt>
-<dd>maximum distance between the generated indices.</dd>
-</dl>
-<h2 id="returns">Returns</h2>
-<p>A generator of (int, int) tuples that can slice up a list or a tensor.</p></div>
+<div class="desc"></div>
 </dd>
-<dt id="biobench.simpleshot.l2_normalize"><code class="name flex">
-<span>def <span class="ident">l2_normalize</span></span>(<span>features: jaxtyping.Float[Tensor, 'n_examples dim']) ‑> jaxtyping.Float[Tensor, 'n_examples dim']</span>
+<dt id="biobench.kabr.download.concatenate_files"><code class="name flex">
+<span>def <span class="ident">concatenate_files</span></span>(<span>out: str, animal: str)</span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def l2_normalize(
-    features: Float[Tensor, &#34;n_examples dim&#34;],
-) -&gt; Float[Tensor, &#34;n_examples dim&#34;]:
-    &#34;&#34;&#34;L2-normalize a batch of features.
+<pre><code class="python">def concatenate_files(out: str, animal: str):
+    logger.info(&#34;Concatenating files for &#39;%s&#39;.&#34;, animal)
 
-    Args:
-        features: batch of $d$-dimensional vectors.
-
-    Returns:
-        batch of $d$-dimensional vectors with unit L2 norm.
-    &#34;&#34;&#34;
-    norms = np.linalg.norm(features, ord=2, axis=1, keepdims=True)
-    return features / norms</code></pre>
+    part_files = sorted(glob.glob(os.path.join(out, f&#34;{animal}_part_*&#34;)))
+    assert part_files
+    # Concatenate all part files into a single zip file
+    with open(os.path.join(out, f&#34;{animal}.zip&#34;), &#34;wb&#34;) as f_out:
+        for fpath in part_files:
+            with open(fpath, &#34;rb&#34;) as f_in:
+                content = f_in.read()
+            print(fpath, len(content))
+            f_out.write(content)
+            # Delete part files as they are concatenated
+            os.remove(fpath)
+    logger.info(&#34;Archive for &#39;%s&#39; concatenated.&#34;, animal)</code></pre>
 </details>
-<div class="desc"><p>L2-normalize a batch of features.</p>
-<h2 id="args">Args</h2>
-<dl>
-<dt><strong><code>features</code></strong></dt>
-<dd>batch of $d$-dimensional vectors.</dd>
-</dl>
-<h2 id="returns">Returns</h2>
-<p>batch of $d$-dimensional vectors with unit L2 norm.</p></div>
+<div class="desc"></div>
 </dd>
-<dt id="biobench.simpleshot.simpleshot"><code class="name flex">
-<span>def <span class="ident">simpleshot</span></span>(<span>x_train: jaxtyping.Float[Tensor, 'n_train dim'],<br>y_train: jaxtyping.Int[Tensor, 'n_train'],<br>x_test: jaxtyping.Float[Tensor, 'n_test dim'],<br>y_test: jaxtyping.Int[Tensor, 'n_test'],<br>batch_size: int,<br>device: str) ‑> jaxtyping.Float[Tensor, 'n_test']</span>
+<dt id="biobench.kabr.download.generate_part_files"><code class="name flex">
+<span>def <span class="ident">generate_part_files</span></span>(<span>animal: str, start: str, end: str) ‑> list[str]</span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def simpleshot(
-    x_train: Float[Tensor, &#34;n_train dim&#34;],
-    y_train: Int[Tensor, &#34; n_train&#34;],
-    x_test: Float[Tensor, &#34;n_test dim&#34;],
-    y_test: Int[Tensor, &#34; n_test&#34;],
-    batch_size: int,
-    device: str,
-) -&gt; Float[Tensor, &#34; n_test&#34;]:
-    &#34;&#34;&#34;
-    Applies simpleshot to features. Returns the list of scores for x_test.
-
-    Args:
-        ...
-
-    Returns:
-        A tensor of 0/1 scores, one for each test example, only considering exact match.
-    &#34;&#34;&#34;
-    x_mean = x_train.mean(axis=0, keepdims=True)
-
-    x_train = x_train - x_mean
-    x_train = l2_normalize(x_train)
-
-    x_test = x_test - x_mean
-    x_test = l2_normalize(x_test)
-
-    clf = sklearn.neighbors.NearestCentroid()
-    clf.fit(x_train, y_train)
-
-    # Do this next step on the GPU to make it fast.
-    # Goes from 1 batch/sec to 77 batch/sec
-    centroids = torch.from_numpy(clf.centroids_).to(device)
-    x_test = x_test.to(device)
-    y_test = y_test.to(device)
-
-    scores = []
-    for start, stop in batched_idx(len(x_test), batch_size):
-        x_batch = x_test[start:stop]
-        y_batch = y_test[start:stop]
-        distances = torch.linalg.vector_norm(x_batch[:, None] - centroids, axis=2)
-        preds = torch.argmin(distances, dim=1)
-
-        scores.append((preds == y_batch).type(torch.float32))
-
-    return torch.cat(scores, axis=0)</code></pre>
+<pre><code class="python">def generate_part_files(animal: str, start: str, end: str) -&gt; list[str]:
+    start_a, start_b = ord(start[0]), ord(start[1])
+    end_a, end_b = ord(end[0]), ord(end[1])
+    return [
+        f&#34;{animal}_part_{chr(a)}{chr(b)}&#34;
+        for a in range(start_a, end_a + 1)
+        for b in range(start_b, end_b + 1)
+    ]</code></pre>
 </details>
-<div class="desc"><p>Applies simpleshot to features. Returns the list of scores for x_test.</p>
-<h2 id="args">Args</h2>
-<p>&hellip;</p>
-<h2 id="returns">Returns</h2>
-<p>A tensor of 0/1 scores, one for each test example, only considering exact match.</p></div>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.kabr.download.main"><code class="name flex">
+<span>def <span class="ident">main</span></span>(<span>out: str)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def main(out: str):
+    animals = [&#34;giraffes&#34;, &#34;zebras_grevys&#34;, &#34;zebras_plains&#34;]
+
+    animal_parts_range = {
+        &#34;giraffes&#34;: (&#34;aa&#34;, &#34;ad&#34;),
+        &#34;zebras_grevys&#34;: (&#34;aa&#34;, &#34;am&#34;),
+        &#34;zebras_plains&#34;: (&#34;aa&#34;, &#34;al&#34;),
+    }
+
+    # Define the static files that are not dependent on the animals list
+    static_files = [
+        &#34;README.txt&#34;,
+        &#34;annotation/classes.json&#34;,
+        &#34;annotation/distribution.xlsx&#34;,
+        &#34;annotation/train.csv&#34;,
+        &#34;annotation/val.csv&#34;,
+        &#34;configs/I3D.yaml&#34;,
+        &#34;configs/SLOWFAST.yaml&#34;,
+        &#34;configs/X3D.yaml&#34;,
+        &#34;dataset/image2video.py&#34;,
+        &#34;dataset/image2visual.py&#34;,
+    ]
+
+    # Generate the part files for each animal
+    part_files = [
+        f&#34;dataset/image/{part}&#34;
+        for animal, (start, end) in animal_parts_range.items()
+        for part in generate_part_files(animal, start, end)
+    ]
+
+    archive_md5_files = [f&#34;{animal}_md5.txt&#34; for animal in animals]
+
+    files = static_files + archive_md5_files + part_files
+
+    logger.info(&#34;Downloading the Kenyan Animal Behavior Recognition (KABR) dataset.&#34;)
+
+    for i, fname in enumerate(tqdm.tqdm(files)):
+        # Construct the full URL
+        fpath = os.path.join(out, fname)
+
+        if os.path.exists(fpath):
+            logger.debug(&#34;File &#39;%s&#39; exists. Skipping download.&#34;, fpath)
+            continue
+
+        url = f&#34;{base_url}/{fname}&#34;
+
+        # Create the necessary directories based on the file path
+        os.makedirs(os.path.join(out, os.path.dirname(fpath)), exist_ok=True)
+
+        # Download the file and save it with the preserved file path
+        response = requests.get(url)
+        response.raise_for_status()
+        with open(fpath, &#34;wb&#34;) as fd:
+            fd.write(response.content)
+
+    with concurrent.futures.ThreadPoolExecutor() as pool:
+        list(pool.map(lambda animal: concatenate_files(out, animal), animals))
+
+    with concurrent.futures.ThreadPoolExecutor() as pool:
+        list(pool.map(lambda animal: verify_and_extract(out, animal), animals))</code></pre>
+</details>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.kabr.download.verify_and_extract"><code class="name flex">
+<span>def <span class="ident">verify_and_extract</span></span>(<span>out: str, animal: str)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def verify_and_extract(out: str, animal: str):
+    print(f&#34;Confirming data integrity for {animal}.zip ...&#34;)
+    zip_md5 = compute_md5(f&#34;{save_dir}/{dataset_prefix}{animal}.zip&#34;)
+
+    with open(f&#34;{save_dir}/{dataset_prefix}{animal}_md5.txt&#34;, &#34;r&#34;) as file:
+        expected_md5 = file.read().strip().split()[0]
+
+    if zip_md5 == expected_md5:
+        print(f&#34;MD5 sum for {animal}.zip is correct.&#34;)
+
+        print(f&#34;Extracting {animal}.zip ...&#34;)
+        with zipfile.ZipFile(
+            f&#34;{save_dir}/{dataset_prefix}{animal}.zip&#34;, &#34;r&#34;
+        ) as zip_ref:
+            zip_ref.extractall(f&#34;{save_dir}/{dataset_prefix}&#34;)
+        print(f&#34;{animal}.zip extracted.&#34;)
+        print(f&#34;Cleaning up for {animal} ...&#34;)
+        os.remove(f&#34;{save_dir}/{dataset_prefix}{animal}.zip&#34;)
+        os.remove(f&#34;{save_dir}/{dataset_prefix}{animal}_md5.txt&#34;)
+    else:
+        print(
+            f&#34;MD5 sum for {animal}.zip is incorrect. Expected: {expected_md5}, but got: {zip_md5}.&#34;
+        )
+        print(
+            &#34;There may be data corruption. Please try to download and reconstruct the data again or reach out to the corresponding authors for assistance.&#34;
+        )</code></pre>
+</details>
+<div class="desc"></div>
 </dd>
 </dl>
 </section>
@@ -193,14 +229,16 @@ el.replaceWith(d);
 <ul id="index">
 <li><h3>Super-module</h3>
 <ul>
-<li><code><a title="biobench" href="index.html">biobench</a></code></li>
+<li><code><a title="biobench.kabr" href="index.html">biobench.kabr</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-functions">Functions</a></h3>
 <ul class="">
-<li><code><a title="biobench.simpleshot.batched_idx" href="#biobench.simpleshot.batched_idx">batched_idx</a></code></li>
-<li><code><a title="biobench.simpleshot.l2_normalize" href="#biobench.simpleshot.l2_normalize">l2_normalize</a></code></li>
-<li><code><a title="biobench.simpleshot.simpleshot" href="#biobench.simpleshot.simpleshot">simpleshot</a></code></li>
+<li><code><a title="biobench.kabr.download.compute_md5" href="#biobench.kabr.download.compute_md5">compute_md5</a></code></li>
+<li><code><a title="biobench.kabr.download.concatenate_files" href="#biobench.kabr.download.concatenate_files">concatenate_files</a></code></li>
+<li><code><a title="biobench.kabr.download.generate_part_files" href="#biobench.kabr.download.generate_part_files">generate_part_files</a></code></li>
+<li><code><a title="biobench.kabr.download.main" href="#biobench.kabr.download.main">main</a></code></li>
+<li><code><a title="biobench.kabr.download.verify_and_extract" href="#biobench.kabr.download.verify_and_extract">verify_and_extract</a></code></li>
 </ul>
 </li>
 </ul>

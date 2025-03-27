@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
-<meta name="generator" content="pdoc3 0.11.5">
+<meta name="generator" content="pdoc3 0.11.6">
 <title>biobench.rarespecies API documentation</title>
 <meta name="description" content="">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
@@ -64,45 +64,43 @@ el.replaceWith(d);
 <div class="desc"></div>
 </dd>
 <dt id="biobench.rarespecies.benchmark"><code class="name flex">
-<span>def <span class="ident">benchmark</span></span>(<span>args: <a title="biobench.rarespecies.Args" href="#biobench.rarespecies.Args">Args</a>,<br>model_args: <a title="biobench.interfaces.ModelArgsCvml" href="../interfaces.html#biobench.interfaces.ModelArgsCvml">ModelArgsCvml</a>) ‑> tuple[<a title="biobench.interfaces.ModelArgsCvml" href="../interfaces.html#biobench.interfaces.ModelArgsCvml">ModelArgsCvml</a>, <a title="biobench.interfaces.TaskReport" href="../interfaces.html#biobench.interfaces.TaskReport">TaskReport</a>]</span>
+<span>def <span class="ident">benchmark</span></span>(<span>cfg: <a title="biobench.config.Experiment" href="../config.html#biobench.config.Experiment">Experiment</a>) ‑> tuple[<a title="biobench.config.Model" href="../config.html#biobench.config.Model">Model</a>, <a title="biobench.reporting.Report" href="../reporting.html#biobench.reporting.Report">Report</a>]</span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def benchmark(
-    args: Args, model_args: interfaces.ModelArgsCvml
-) -&gt; tuple[interfaces.ModelArgsCvml, interfaces.TaskReport]:
-    backbone = registry.load_vision_backbone(*model_args)
-    features = get_features(args, backbone)
+<pre><code class="python">def benchmark(cfg: config.Experiment) -&gt; tuple[config.Model, reporting.Report]:
+    backbone = registry.load_vision_backbone(cfg.model)
+    features = get_features(cfg, backbone)
 
     train_i, test_i = make_split(features.y, k=1)
 
     scores = simpleshot(
-        args,
+        cfg,
         features.x[train_i],
         features.y[train_i],
         features.x[test_i],
         features.y[test_i],
     )
     examples = [
-        interfaces.Prediction(str(id), float(score), {})
+        reporting.Prediction(str(id), float(score), {})
         for id, score in zip(features.ids[test_i], scores.tolist())
     ]
-    return model_args, interfaces.TaskReport(&#34;RareSpecies&#34;, examples)</code></pre>
+    return cfg.model, reporting.Report(&#34;RareSpecies&#34;, examples)</code></pre>
 </details>
 <div class="desc"></div>
 </dd>
 <dt id="biobench.rarespecies.get_features"><code class="name flex">
-<span>def <span class="ident">get_features</span></span>(<span>args: <a title="biobench.rarespecies.Args" href="#biobench.rarespecies.Args">Args</a>,<br>backbone: <a title="biobench.interfaces.VisionBackbone" href="../interfaces.html#biobench.interfaces.VisionBackbone">VisionBackbone</a>) ‑> <a title="biobench.rarespecies.Features" href="#biobench.rarespecies.Features">Features</a></span>
+<span>def <span class="ident">get_features</span></span>(<span>args: <a title="biobench.rarespecies.Args" href="#biobench.rarespecies.Args">Args</a>,<br>backbone: <a title="biobench.registry.VisionBackbone" href="../registry.html#biobench.registry.VisionBackbone">VisionBackbone</a>) ‑> <a title="biobench.rarespecies.Features" href="#biobench.rarespecies.Features">Features</a></span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def get_features(args: Args, backbone: interfaces.VisionBackbone) -&gt; Features:
+<pre><code class="python">def get_features(args: Args, backbone: registry.VisionBackbone) -&gt; Features:
     img_transform = backbone.make_img_transform()
     backbone = torch.compile(backbone.to(args.device))
 
@@ -121,8 +119,6 @@ el.replaceWith(d);
         shuffle=False,  # We use dataset.shuffle instead
     )
 
-    label_processor = LabelProcessor()
-
     all_features, all_labels, all_ids = [], [], []
 
     total = math.ceil(11984 / args.batch_size) if not args.debug else 2
@@ -137,10 +133,7 @@ el.replaceWith(d);
             features = backbone.img_encode(images).img_features
 
         all_features.append(features.cpu())
-
-        labels = [label_processor.transform(label) for label in batch[&#34;label&#34;]]
-        all_labels.extend(labels)
-
+        all_labels.extend(batch[&#34;label&#34;])
         all_ids.extend(batch[&#34;rarespecies_id&#34;])
 
     all_features = torch.cat(all_features, dim=0).cpu()
@@ -261,7 +254,7 @@ el.replaceWith(d);
 <dl>
 <dt id="biobench.rarespecies.Args"><code class="flex name class">
 <span>class <span class="ident">Args</span></span>
-<span>(</span><span>batch_size: int = 256,<br>n_workers: int = 4,<br>log_every: int = 10,<br>device: str = 'cuda',<br>debug: bool = False,<br>n_train: int = -1,<br>n_test: int = -1,<br>parallel: int = 1)</span>
+<span>(</span><span>batch_size: int = 256,<br>n_workers: int = 4,<br>log_every: int = 10,<br>device: str = 'cuda',<br>debug: bool = False,<br>n_train: int = -1)</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -283,14 +276,10 @@ class Args:
     debug: bool = False
     &#34;&#34;&#34;(computed at runtime) whether to run in debug mode.&#34;&#34;&#34;
     n_train: int = -1
-    &#34;&#34;&#34;(computed at runtime) number of maximum training samples. Negative number means use all of them.&#34;&#34;&#34;
-    n_test: int = -1
-    &#34;&#34;&#34;(computed at runtime) number of test samples. Negative number means use all of them.&#34;&#34;&#34;
-    parallel: int = 1
-    &#34;&#34;&#34;(computed at runtime) number of parallel requests per second to MLLM service providers.&#34;&#34;&#34;</code></pre>
+    &#34;&#34;&#34;(computed at runtime) number of maximum training samples. Negative number means use all of them.&#34;&#34;&#34;</code></pre>
 </details>
-<div class="desc"><p>Args(batch_size: int = 256, n_workers: int = 4, log_every: int = 10, device: str = 'cuda', debug: bool = False, n_train: int = -1, n_test: int = -1, parallel: int = 1)</p></div>
-<h3>Class variables</h3>
+<div class="desc"><p>Args(batch_size: int = 256, n_workers: int = 4, log_every: int = 10, device: str = 'cuda', debug: bool = False, n_train: int = -1)</p></div>
+<h3>Instance variables</h3>
 <dl>
 <dt id="biobench.rarespecies.Args.batch_size"><code class="name">var <span class="ident">batch_size</span> : int</code></dt>
 <dd>
@@ -308,10 +297,6 @@ class Args:
 <dd>
 <div class="desc"><p>how often (number of batches) to log progress.</p></div>
 </dd>
-<dt id="biobench.rarespecies.Args.n_test"><code class="name">var <span class="ident">n_test</span> : int</code></dt>
-<dd>
-<div class="desc"><p>(computed at runtime) number of test samples. Negative number means use all of them.</p></div>
-</dd>
 <dt id="biobench.rarespecies.Args.n_train"><code class="name">var <span class="ident">n_train</span> : int</code></dt>
 <dd>
 <div class="desc"><p>(computed at runtime) number of maximum training samples. Negative number means use all of them.</p></div>
@@ -319,10 +304,6 @@ class Args:
 <dt id="biobench.rarespecies.Args.n_workers"><code class="name">var <span class="ident">n_workers</span> : int</code></dt>
 <dd>
 <div class="desc"><p>number of dataloader worker processes.</p></div>
-</dd>
-<dt id="biobench.rarespecies.Args.parallel"><code class="name">var <span class="ident">parallel</span> : int</code></dt>
-<dd>
-<div class="desc"><p>(computed at runtime) number of parallel requests per second to MLLM service providers.</p></div>
 </dd>
 </dl>
 </dd>
@@ -343,7 +324,7 @@ class Features:
     ids: Shaped[np.ndarray, &#34; n&#34;]</code></pre>
 </details>
 <div class="desc"><p>Features(x: jaxtyping.Float[Tensor, 'n dim'], y: jaxtyping.Int[Tensor, 'n'], ids: jaxtyping.Shaped[ndarray, 'n'])</p></div>
-<h3>Class variables</h3>
+<h3>Instance variables</h3>
 <dl>
 <dt id="biobench.rarespecies.Features.ids"><code class="name">var <span class="ident">ids</span> : jaxtyping.Shaped[ndarray, 'n']</code></dt>
 <dd>
@@ -355,43 +336,6 @@ class Features:
 </dd>
 <dt id="biobench.rarespecies.Features.y"><code class="name">var <span class="ident">y</span> : jaxtyping.Int[Tensor, 'n']</code></dt>
 <dd>
-<div class="desc"></div>
-</dd>
-</dl>
-</dd>
-<dt id="biobench.rarespecies.LabelProcessor"><code class="flex name class">
-<span>class <span class="ident">LabelProcessor</span></span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class LabelProcessor:
-    def __init__(self):
-        self._lookup = {}
-
-    def transform(self, label) -&gt; int:
-        if label not in self._lookup:
-            self._lookup[label] = len(self._lookup)
-        return self._lookup[label]</code></pre>
-</details>
-<div class="desc"></div>
-<h3>Methods</h3>
-<dl>
-<dt id="biobench.rarespecies.LabelProcessor.transform"><code class="name flex">
-<span>def <span class="ident">transform</span></span>(<span>self, label) ‑> int</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def transform(self, label) -&gt; int:
-    if label not in self._lookup:
-        self._lookup[label] = len(self._lookup)
-    return self._lookup[label]</code></pre>
-</details>
 <div class="desc"></div>
 </dd>
 </dl>
@@ -460,10 +404,8 @@ class Features:
 <li><code><a title="biobench.rarespecies.Args.debug" href="#biobench.rarespecies.Args.debug">debug</a></code></li>
 <li><code><a title="biobench.rarespecies.Args.device" href="#biobench.rarespecies.Args.device">device</a></code></li>
 <li><code><a title="biobench.rarespecies.Args.log_every" href="#biobench.rarespecies.Args.log_every">log_every</a></code></li>
-<li><code><a title="biobench.rarespecies.Args.n_test" href="#biobench.rarespecies.Args.n_test">n_test</a></code></li>
 <li><code><a title="biobench.rarespecies.Args.n_train" href="#biobench.rarespecies.Args.n_train">n_train</a></code></li>
 <li><code><a title="biobench.rarespecies.Args.n_workers" href="#biobench.rarespecies.Args.n_workers">n_workers</a></code></li>
-<li><code><a title="biobench.rarespecies.Args.parallel" href="#biobench.rarespecies.Args.parallel">parallel</a></code></li>
 </ul>
 </li>
 <li>
@@ -475,12 +417,6 @@ class Features:
 </ul>
 </li>
 <li>
-<h4><code><a title="biobench.rarespecies.LabelProcessor" href="#biobench.rarespecies.LabelProcessor">LabelProcessor</a></code></h4>
-<ul class="">
-<li><code><a title="biobench.rarespecies.LabelProcessor.transform" href="#biobench.rarespecies.LabelProcessor.transform">transform</a></code></li>
-</ul>
-</li>
-<li>
 <h4><code><a title="biobench.rarespecies.Preprocess" href="#biobench.rarespecies.Preprocess">Preprocess</a></code></h4>
 </li>
 </ul>
@@ -489,7 +425,7 @@ class Features:
 </nav>
 </main>
 <footer id="footer">
-<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.5</a>.</p>
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
 </footer>
 </body>
 </html>

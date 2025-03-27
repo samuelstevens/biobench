@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
-<meta name="generator" content="pdoc3 0.11.5">
+<meta name="generator" content="pdoc3 0.11.6">
 <title>biobench.newt API documentation</title>
 <meta name="description" content="NeWT: Natural World Tasks …">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
@@ -65,32 +65,25 @@ We aggregate scores across all 164 tasks.</p>
 <section>
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
-<dt id="biobench.newt.benchmark_cvml"><code class="name flex">
-<span>def <span class="ident">benchmark_cvml</span></span>(<span>args: <a title="biobench.newt.Args" href="#biobench.newt.Args">Args</a>,<br>model_args: <a title="biobench.interfaces.ModelArgsCvml" href="../interfaces.html#biobench.interfaces.ModelArgsCvml">ModelArgsCvml</a>) ‑> tuple[<a title="biobench.interfaces.ModelArgsCvml" href="../interfaces.html#biobench.interfaces.ModelArgsCvml">ModelArgsCvml</a>, <a title="biobench.interfaces.TaskReport" href="../interfaces.html#biobench.interfaces.TaskReport">TaskReport</a>]</span>
+<dt id="biobench.newt.benchmark"><code class="name flex">
+<span>def <span class="ident">benchmark</span></span>(<span>cfg: <a title="biobench.config.Experiment" href="../config.html#biobench.config.Experiment">Experiment</a>) ‑> <a title="biobench.reporting.Report" href="../reporting.html#biobench.reporting.Report">Report</a></span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def benchmark_cvml(
-    args: Args, model_args: interfaces.ModelArgsCvml
-) -&gt; tuple[interfaces.ModelArgsCvml, interfaces.TaskReport]:
+<pre><code class="python">def benchmark(cfg: config.Experiment) -&gt; reporting.Report:
     &#34;&#34;&#34;
     The NeWT benchmark.
     First, get features for all images.
     Second, select the subsets of features that correspond to different tasks and train an SVM.
     Third, evaluate the SVM and report results.
     &#34;&#34;&#34;
-    # 1. Load model
-    backbone = registry.load_vision_backbone(*model_args)
-
-    # 2. Get features.
-    all_task_features = get_all_tasks_cvml(args, backbone)
 
     # Fit SVMs.
-    results = []
-    for task in all_task_features:
+    all_preds = []
+    for task in get_all_tasks(cfg):
         (x_train, y_train), (x_test, y_test) = task.splits
 
         x_mean = x_train.mean(axis=0, keepdims=True)
@@ -101,162 +94,77 @@ We aggregate scores across all 164 tasks.</p>
         x_test = x_test - x_mean
         x_test = l2_normalize(x_test)
 
-        svc = init_svc()
+        svc = init_svc(cfg.n_train)
 
         svc.fit(x_train, y_train)
         y_pred = svc.predict(x_test)
-        examples = [
-            interfaces.Prediction(
-                str(id),
-                float(pred == true),
-                {&#34;cluster&#34;: task.cluster, &#34;task&#34;: task.name},
-            )
-            for id, pred, true in zip(task.example_ids, y_pred, y_test)
-        ]
-        test_acc = np.mean(y_pred == y_test)
-
-        results.append({
+        info = {
             &#34;task&#34;: task.name,
             &#34;cluster&#34;: task.cluster,
-            &#34;examples&#34;: examples,
-            &#34;test_acc&#34;: test_acc,
-        })
+            &#34;subcluster&#34;: task.subcluster,
+        }
+        preds = [
+            reporting.Prediction(str(id), float(pred == true), info)
+            for id, pred, true in zip(task.example_ids, y_pred, y_test)
+        ]
 
-    # Removes &#39;examples&#39; from each dict in results
-    examples = list(
-        itertools.chain.from_iterable((result.pop(&#34;examples&#34;) for result in results))
-    )
+        all_preds.extend(preds)
 
-    return model_args, interfaces.TaskReport(&#34;NeWT&#34;, examples)</code></pre>
+    return reporting.Report(&#34;newt&#34;, all_preds, cfg)</code></pre>
 </details>
 <div class="desc"><p>The NeWT benchmark.
 First, get features for all images.
 Second, select the subsets of features that correspond to different tasks and train an SVM.
 Third, evaluate the SVM and report results.</p></div>
 </dd>
-<dt id="biobench.newt.benchmark_mllm"><code class="name flex">
-<span>def <span class="ident">benchmark_mllm</span></span>(<span>args: <a title="biobench.newt.Args" href="#biobench.newt.Args">Args</a>,<br>model_args: <a title="biobench.interfaces.ModelArgsMllm" href="../interfaces.html#biobench.interfaces.ModelArgsMllm">ModelArgsMllm</a>) ‑> tuple[<a title="biobench.interfaces.ModelArgsMllm" href="../interfaces.html#biobench.interfaces.ModelArgsMllm">ModelArgsMllm</a>, <a title="biobench.interfaces.TaskReport" href="../interfaces.html#biobench.interfaces.TaskReport">TaskReport</a>]</span>
+<dt id="biobench.newt.get_all_tasks"><code class="name flex">
+<span>def <span class="ident">get_all_tasks</span></span>(<span>cfg: <a title="biobench.config.Experiment" href="../config.html#biobench.config.Experiment">Experiment</a>) ‑> Iterator[<a title="biobench.newt.Task" href="#biobench.newt.Task">Task</a>]</span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def benchmark_mllm(
-    args: Args, model_args: interfaces.ModelArgsMllm
-) -&gt; tuple[interfaces.ModelArgsMllm, interfaces.TaskReport]:
-    rng = random.Random(args.seed)
-
-    results = []
-    with asyncio.Runner() as loop:
-        for task, dataset in get_all_tasks_mllm(args):
-            limiter = mllms.RateLimiter(args.parallel)
-            semaphore = asyncio.Semaphore(args.parallel)
-
-            @beartype.beartype
-            async def run_one(
-                fewshot_examples: list[mllms.Example], test_example: SampleMllm
-            ) -&gt; interfaces.Prediction:
-                async with semaphore:
-                    await limiter.acquire()
-                    assistant = await mllms.send(
-                        model_args,
-                        fewshot_examples,
-                        test_example.image,
-                        test_example.make_user(rng),
-                    )
-                    pred_y = test_example.parse_assistant(assistant)
-                    return interfaces.Prediction(
-                        test_example.image_id,
-                        float(pred_y == test_example.label),
-                        info={&#34;cluster&#34;: task.cluster, &#34;task&#34;: task.name},
-                    )
-
-            @beartype.beartype
-            async def run_all(
-                submissions: list[tuple[list[mllms.Example], SampleMllm]],
-            ) -&gt; list[interfaces.Prediction]:
-                tasks = [asyncio.create_task(run_one(*args)) for args in submissions]
-                preds = []
-                for task in helpers.progress(tasks):
-                    pred: interfaces.Prediction = await task
-                    preds.append(pred)
-                return preds
-
-            llm_args = []
-            i_train = rng.choices(task.train, k=args.max_examples)
-
-            for i in task.test:
-                test_example = dataset[i]
-
-                # Try to fit them into a prompt.
-                n_examples = 0
-                fewshot_examples = []
-                while (
-                    mllms.fits(
-                        model_args,
-                        fewshot_examples,
-                        test_example.image,
-                        test_example.make_user(rng),
-                    )
-                    and n_examples &lt; args.max_examples
-                ):
-                    # Add another example.
-                    n_examples += 1
-                    fewshot_examples = [
-                        dataset[j].to_example(rng) for j in i_train[:n_examples]
-                    ]
-
-                llm_args.append((fewshot_examples, test_example))
-
-            preds = loop.run(run_all(llm_args))
-            test_acc = np.mean([pred.score for pred in preds]).item()
-
-            results.append({
-                &#34;task&#34;: task.name,
-                &#34;cluster&#34;: task.cluster,
-                &#34;predictions&#34;: preds,
-                &#34;test_acc&#34;: test_acc,
-            })
-
-    predictions = list(
-        itertools.chain.from_iterable((result.pop(&#34;predictions&#34;) for result in results))
-    )
-    return model_args, interfaces.TaskReport(&#34;NeWT&#34;, args.max_examples, predictions)</code></pre>
-</details>
-<div class="desc"></div>
-</dd>
-<dt id="biobench.newt.get_all_tasks_cvml"><code class="name flex">
-<span>def <span class="ident">get_all_tasks_cvml</span></span>(<span>args: <a title="biobench.newt.Args" href="#biobench.newt.Args">Args</a>,<br>backbone: <a title="biobench.interfaces.VisionBackbone" href="../interfaces.html#biobench.interfaces.VisionBackbone">VisionBackbone</a>) ‑> Iterator[<a title="biobench.newt.TaskCvml" href="#biobench.newt.TaskCvml">TaskCvml</a>]</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def get_all_tasks_cvml(
-    args: Args, backbone: interfaces.VisionBackbone
-) -&gt; collections.abc.Iterator[TaskCvml]:
+<pre><code class="python">def get_all_tasks(cfg: config.Experiment) -&gt; collections.abc.Iterator[Task]:
     &#34;&#34;&#34; &#34;&#34;&#34;
+    rng = np.random.default_rng(seed=cfg.seed)
+
+    # Load model
+    backbone = registry.load_vision_backbone(cfg.model)
+    img_transform = backbone.make_img_transform()
+    backbone = torch.compile(backbone.to(cfg.device))
+
     labels_csv_name = &#34;newt2021_labels.csv&#34;
-    labels_csv_path = os.path.join(args.data, labels_csv_name)
-    images_dir_name = &#34;newt2021_images&#34;
-    images_dir_path = os.path.join(args.data, images_dir_name)
+    labels_csv_path = os.path.join(cfg.data.newt, labels_csv_name)
+    imgs_dir_name = &#34;newt2021_images&#34;
+    imgs_dir_path = os.path.join(cfg.data.newt, imgs_dir_name)
 
     if not os.path.isfile(labels_csv_path):
         msg = f&#34;Path &#39;{labels_csv_path}&#39; doesn&#39;t exist. Did you download the Newt dataset? See the docstring at the top of this file for instructions. If you did download it, pass the path with &#39;--data&#39;; see --help for more.&#34;
         raise RuntimeError(msg)
 
-    df = pl.read_csv(labels_csv_path).with_row_index()
+    # Read the CSV and add row indices
+    df = pl.read_csv(labels_csv_path).with_row_index(name=&#34;original_index&#34;)
 
-    img_transform = backbone.make_img_transform()
-    backbone = torch.compile(backbone.to(args.device))
+    # Sample balanced training data for each task
+    df = sample(rng, df, cfg.n_train).with_row_index(name=&#34;sampled_index&#34;)
 
-    dataset = DatasetCvml(images_dir_path, df, img_transform)
+    # Get all image IDs and labels
+    all_data = df.select(&#34;id&#34;, &#34;label&#34;).to_numpy(structured=True)
+    all_ids, all_labels = all_data[&#34;id&#34;], all_data[&#34;label&#34;]
+
+    # Create dataset with all samples
+    dataset = Dataset(
+        imgs_dir_path,
+        all_ids,
+        all_labels,
+        img_transform,
+    )
+
     dataloader = torch.utils.data.DataLoader(
         dataset,
-        batch_size=args.batch_size,
-        num_workers=args.n_workers,
+        batch_size=cfg.batch_size,
+        num_workers=cfg.n_workers,
         drop_last=False,
         shuffle=False,
         pin_memory=False,
@@ -265,18 +173,19 @@ Third, evaluate the SVM and report results.</p></div>
 
     all_features, all_ids = [], []
 
-    total = len(dataloader) if not args.debug else 2
+    # Need to select just a subset of rows based on cfg.n_train.
+    total = len(dataloader) if not cfg.debug else 2
     it = iter(dataloader)
-    for b in helpers.progress(range(total), every=args.log_every, desc=&#34;embed&#34;):
-        ids, images = next(it)
-        images = images.to(args.device)
+    for b in helpers.progress(range(total), every=10, desc=&#34;embed&#34;):
+        batch = next(it)
+        imgs = batch[&#34;img&#34;].to(cfg.device)
 
         with torch.amp.autocast(&#34;cuda&#34;):
-            features = backbone.img_encode(images).img_features
+            features = backbone.img_encode(imgs).img_features
             features = torch.nn.functional.normalize(features, dim=-1)
             all_features.append(features.cpu())
 
-        all_ids.extend(ids)
+        all_ids.extend(batch[&#34;img_id&#34;])
 
     all_features = torch.cat(all_features, dim=0).cpu()
     all_ids = np.array(all_ids)
@@ -284,7 +193,7 @@ Third, evaluate the SVM and report results.</p></div>
     for task in df.get_column(&#34;task&#34;).unique():
         task_df = df.filter(pl.col(&#34;task&#34;) == task)
 
-        task_idx = task_df.get_column(&#34;index&#34;).to_numpy()
+        task_idx = task_df.get_column(&#34;sampled_index&#34;).to_numpy()
         features = all_features[task_idx].numpy()
         ids = all_ids[task_idx]
 
@@ -292,55 +201,28 @@ Third, evaluate the SVM and report results.</p></div>
         is_train = task_df.select(pl.col(&#34;split&#34;) == &#34;train&#34;).get_column(&#34;split&#34;)
 
         cluster = task_df.item(row=0, column=&#34;task_cluster&#34;)
-        yield TaskCvml(task, cluster, features, labels, is_train.to_numpy(), ids)</code></pre>
-</details>
-<div class="desc"></div>
-</dd>
-<dt id="biobench.newt.get_all_tasks_mllm"><code class="name flex">
-<span>def <span class="ident">get_all_tasks_mllm</span></span>(<span>args: <a title="biobench.newt.Args" href="#biobench.newt.Args">Args</a>) ‑> Iterator[tuple[<a title="biobench.newt.TaskMllm" href="#biobench.newt.TaskMllm">TaskMllm</a>, <a title="biobench.newt.DatasetMllm" href="#biobench.newt.DatasetMllm">DatasetMllm</a>]]</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def get_all_tasks_mllm(
-    args: Args,
-) -&gt; collections.abc.Iterator[tuple[TaskMllm, DatasetMllm]]:
-    &#34;&#34;&#34; &#34;&#34;&#34;
-    labels_csv_name = &#34;newt2021_labels.csv&#34;
-    labels_csv_path = os.path.join(args.data, labels_csv_name)
-    images_dir_name = &#34;newt2021_images&#34;
-    images_dir_path = os.path.join(args.data, images_dir_name)
-
-    if not os.path.isfile(labels_csv_path):
-        msg = f&#34;Path &#39;{labels_csv_path}&#39; doesn&#39;t exist. Did you download the Newt dataset? See the docstring at the top of this file for instructions. If you did download it, pass the path with &#39;--data&#39;; see --help for more.&#34;
-        raise RuntimeError(msg)
-
-    df = pl.read_csv(labels_csv_path).with_row_index()
-    dataset = DatasetMllm(images_dir_path, df)
-
-    for task in df.get_column(&#34;task&#34;).unique():
-        task_df = df.filter(pl.col(&#34;task&#34;) == task)
-
-        task_idx = task_df.get_column(&#34;index&#34;).to_numpy()
-        is_train = task_df.select(pl.col(&#34;split&#34;) == &#34;train&#34;).get_column(&#34;split&#34;)
-        cluster = task_df.item(row=0, column=&#34;task_cluster&#34;)
-
-        yield TaskMllm(task, cluster, task_idx[is_train], task_idx[~is_train]), dataset</code></pre>
+        subcluster = task_df.item(row=0, column=&#34;task_subcluster&#34;)
+        yield Task(
+            task, cluster, subcluster, features, labels, is_train.to_numpy(), ids
+        )</code></pre>
 </details>
 <div class="desc"></div>
 </dd>
 <dt id="biobench.newt.init_svc"><code class="name flex">
-<span>def <span class="ident">init_svc</span></span>(<span>)</span>
+<span>def <span class="ident">init_svc</span></span>(<span>n_train: int)</span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def init_svc():
+<pre><code class="python">def init_svc(n_train: int):
     &#34;&#34;&#34;Create a new, randomly initialized SVM with a random hyperparameter search over kernel, C and gamma. It uses only 16 jobs in parallel to prevent overloading the CPUs on a shared machine.&#34;&#34;&#34;
+    if n_train &lt; 10:
+        return sklearn.pipeline.make_pipeline(
+            sklearn.svm.SVC(kernel=&#34;linear&#34;),
+        )
+
     return sklearn.model_selection.RandomizedSearchCV(
         sklearn.pipeline.make_pipeline(
             sklearn.preprocessing.StandardScaler(),
@@ -375,96 +257,98 @@ Third, evaluate the SVM and report results.</p></div>
 </details>
 <div class="desc"><p>Normalizes a batch of vectors to have L2 unit norm.</p></div>
 </dd>
+<dt id="biobench.newt.sample"><code class="name flex">
+<span>def <span class="ident">sample</span></span>(<span>rng: numpy.random._generator.Generator,<br>df: polars.dataframe.frame.DataFrame,<br>n_train: int) ‑> polars.dataframe.frame.DataFrame</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def sample(rng: np.random.Generator, df: pl.DataFrame, n_train: int) -&gt; pl.DataFrame:
+    &#34;&#34;&#34;Sample a balanced subset of training data points for each task.
+
+    Args:
+        rng: Random number generator.
+        df: NeWT dataframe.
+        n_train: Number of training samples per task to return.
+
+    Returns:
+        A DataFrame with balanced training samples and all test samples.
+    &#34;&#34;&#34;
+    if n_train &lt;= 0:
+        return df  # Return all data if n_train is not positive
+
+    # Create a new dataframe to store the results
+    result_dfs = []
+
+    # Keep all test samples
+    test_df = df.filter(pl.col(&#34;split&#34;) != &#34;train&#34;)
+    result_dfs.append(test_df)
+
+    # Process each task separately
+    for task in df.get_column(&#34;task&#34;).unique():
+        task_df = df.filter((pl.col(&#34;task&#34;) == task) &amp; (pl.col(&#34;split&#34;) == &#34;train&#34;))
+
+        # Skip if the task has no training samples
+        if task_df.height == 0:
+            continue
+
+        # Get samples for each class
+        class0_df = task_df.filter(pl.col(&#34;label&#34;) == 0)
+        class1_df = task_df.filter(pl.col(&#34;label&#34;) == 1)
+
+        n0 = n_train // 2
+        n1 = n_train - n0
+
+        assert n0 &gt; 0
+        assert n1 &gt; 0
+
+        # Sample from each class
+        if n0 &lt; class0_df.height:
+            indices0 = rng.choice(class0_df.height, size=n0, replace=False)
+            result_dfs.append(
+                class0_df.with_row_index(name=&#34;tmp&#34;)
+                .filter(pl.col(&#34;tmp&#34;).is_in(indices0))
+                .drop(&#34;tmp&#34;)
+            )
+        else:
+            result_dfs.append(class0_df)
+
+        if n1 &lt; class1_df.height:
+            indices1 = rng.choice(class1_df.height, size=n1, replace=False)
+            result_dfs.append(
+                class1_df.with_row_index(name=&#34;tmp&#34;)
+                .filter(pl.col(&#34;tmp&#34;).is_in(indices1))
+                .drop(&#34;tmp&#34;)
+            )
+        else:
+            result_dfs.append(class1_df)
+
+    # Combine all dataframes
+    return pl.concat(result_dfs)</code></pre>
+</details>
+<div class="desc"><p>Sample a balanced subset of training data points for each task.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>rng</code></strong></dt>
+<dd>Random number generator.</dd>
+<dt><strong><code>df</code></strong></dt>
+<dd>NeWT dataframe.</dd>
+<dt><strong><code>n_train</code></strong></dt>
+<dd>Number of training samples per task to return.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>A DataFrame with balanced training samples and all test samples.</p></div>
+</dd>
 </dl>
 </section>
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
-<dt id="biobench.newt.Args"><code class="flex name class">
-<span>class <span class="ident">Args</span></span>
-<span>(</span><span>data: str = '',<br>batch_size_cv: int = 256,<br>n_workers: int = 4,<br>log_every: int = 10,<br>seed: int = 42,<br>device: str = 'cuda',<br>debug: bool = False,<br>n_train: int = -1,<br>n_test: int = -1,<br>parallel: int = 1)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">@beartype.beartype
-@dataclasses.dataclass(frozen=True)
-class Args:
-    &#34;&#34;&#34;NeWT task arguments.&#34;&#34;&#34;
-
-    data: str = &#34;&#34;
-    &#34;&#34;&#34;dataset directory; where you downloaded this task&#39;s data to.&#34;&#34;&#34;
-    batch_size_cv: int = 256
-    &#34;&#34;&#34;batch size for computer vision model.&#34;&#34;&#34;
-    n_workers: int = 4
-    &#34;&#34;&#34;number of dataloader worker processes.&#34;&#34;&#34;
-    log_every: int = 10
-    &#34;&#34;&#34;how often (number of batches) to log progress.&#34;&#34;&#34;
-    seed: int = 42
-    &#34;&#34;&#34;random seed.&#34;&#34;&#34;
-
-    # Computed at runtime.
-    device: str = &#34;cuda&#34;
-    &#34;&#34;&#34;(computed at runtime) which kind of accelerator to use.&#34;&#34;&#34;
-    debug: bool = False
-    &#34;&#34;&#34;(computed at runtime) whether to run in debug mode.&#34;&#34;&#34;
-    n_train: int = -1
-    &#34;&#34;&#34;(computed at runtime) number of maximum training samples. Negative number means use all of them.&#34;&#34;&#34;
-    n_test: int = -1
-    &#34;&#34;&#34;(computed at runtime) number of test samples. Negative number means use all of them.&#34;&#34;&#34;
-    parallel: int = 1
-    &#34;&#34;&#34;(computed at runtime) number of parallel requests per second to MLLM service providers.&#34;&#34;&#34;</code></pre>
-</details>
-<div class="desc"><p>NeWT task arguments.</p></div>
-<h3>Class variables</h3>
-<dl>
-<dt id="biobench.newt.Args.batch_size_cv"><code class="name">var <span class="ident">batch_size_cv</span> : int</code></dt>
-<dd>
-<div class="desc"><p>batch size for computer vision model.</p></div>
-</dd>
-<dt id="biobench.newt.Args.data"><code class="name">var <span class="ident">data</span> : str</code></dt>
-<dd>
-<div class="desc"><p>dataset directory; where you downloaded this task's data to.</p></div>
-</dd>
-<dt id="biobench.newt.Args.debug"><code class="name">var <span class="ident">debug</span> : bool</code></dt>
-<dd>
-<div class="desc"><p>(computed at runtime) whether to run in debug mode.</p></div>
-</dd>
-<dt id="biobench.newt.Args.device"><code class="name">var <span class="ident">device</span> : str</code></dt>
-<dd>
-<div class="desc"><p>(computed at runtime) which kind of accelerator to use.</p></div>
-</dd>
-<dt id="biobench.newt.Args.log_every"><code class="name">var <span class="ident">log_every</span> : int</code></dt>
-<dd>
-<div class="desc"><p>how often (number of batches) to log progress.</p></div>
-</dd>
-<dt id="biobench.newt.Args.n_test"><code class="name">var <span class="ident">n_test</span> : int</code></dt>
-<dd>
-<div class="desc"><p>(computed at runtime) number of test samples. Negative number means use all of them.</p></div>
-</dd>
-<dt id="biobench.newt.Args.n_train"><code class="name">var <span class="ident">n_train</span> : int</code></dt>
-<dd>
-<div class="desc"><p>(computed at runtime) number of maximum training samples. Negative number means use all of them.</p></div>
-</dd>
-<dt id="biobench.newt.Args.n_workers"><code class="name">var <span class="ident">n_workers</span> : int</code></dt>
-<dd>
-<div class="desc"><p>number of dataloader worker processes.</p></div>
-</dd>
-<dt id="biobench.newt.Args.parallel"><code class="name">var <span class="ident">parallel</span> : int</code></dt>
-<dd>
-<div class="desc"><p>(computed at runtime) number of parallel requests per second to MLLM service providers.</p></div>
-</dd>
-<dt id="biobench.newt.Args.seed"><code class="name">var <span class="ident">seed</span> : int</code></dt>
-<dd>
-<div class="desc"><p>random seed.</p></div>
-</dd>
-</dl>
-</dd>
-<dt id="biobench.newt.DatasetCvml"><code class="flex name class">
-<span>class <span class="ident">DatasetCvml</span></span>
-<span>(</span><span>dir: str, df, transform=None)</span>
+<dt id="biobench.newt.Dataset"><code class="flex name class">
+<span>class <span class="ident">Dataset</span></span>
+<span>(</span><span>root: str,<br>img_ids: jaxtyping.Shaped[ndarray, 'n'],<br>labels: jaxtyping.Int[ndarray, 'n'],<br>transform=None)</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -472,36 +356,75 @@ class Args:
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
-class DatasetCvml(torch.utils.data.Dataset):
-    &#34;&#34;&#34;
-    A dataset that returns `(example id, image tensor)` tuples.
-    &#34;&#34;&#34;
+class Dataset(torch.utils.data.Dataset):
+    &#34;&#34;&#34;A dataset that returns ImageSample dictionaries.&#34;&#34;&#34;
 
-    def __init__(self, dir: str, df, transform=None):
+    def __init__(
+        self,
+        root: str,
+        img_ids: Shaped[np.ndarray, &#34; n&#34;],
+        labels: Int[np.ndarray, &#34; n&#34;],
+        transform=None,
+    ):
+        &#34;&#34;&#34;Initialize the dataset with image paths and labels.
+
+        Args:
+            root: Root directory containing the images.
+            img_ids: Array of image IDs.
+            labels: Array of binary labels corresponding to the images.
+            transform: Optional transform to apply to the images.
+        &#34;&#34;&#34;
         self.transform = transform
-        self.image_ids = df.get_column(&#34;id&#34;).to_list()
-        self.dir = dir
+        self.root = root
+        self.img_ids = img_ids
+        self.labels = labels
 
-    def __getitem__(self, i: int) -&gt; tuple[str, Float[Tensor, &#34;3 width height&#34;]]:
-        image_id = self.image_ids[i]
-        image = Image.open(os.path.join(self.dir, f&#34;{image_id}.jpg&#34;))
+    def __getitem__(self, i: int) -&gt; Sample:
+        &#34;&#34;&#34;Get a sample by its index.
+
+        Args:
+            i: Index of the sample to retrieve.
+
+        Returns:
+            A dictionary containing the image ID, image tensor, and label.
+        &#34;&#34;&#34;
+        img_id = self.img_ids[i]
+        img = Image.open(os.path.join(self.root, f&#34;{img_id}.jpg&#34;))
         if self.transform is not None:
-            image = self.transform(image)
-        return image_id, image
+            img = self.transform(img)
+        label = self.labels[i]
+        return {&#34;img_id&#34;: img_id, &#34;img&#34;: img, &#34;label&#34;: label}
 
     def __len__(self) -&gt; int:
-        return len(self.image_ids)</code></pre>
+        &#34;&#34;&#34;Return the number of samples in the dataset.
+
+        Returns:
+            The number of samples.
+        &#34;&#34;&#34;
+        return len(self.img_ids)</code></pre>
 </details>
-<div class="desc"><p>A dataset that returns <code>(example id, image tensor)</code> tuples.</p></div>
+<div class="desc"><p>A dataset that returns ImageSample dictionaries.</p>
+<p>Initialize the dataset with image paths and labels.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>root</code></strong></dt>
+<dd>Root directory containing the images.</dd>
+<dt><strong><code>img_ids</code></strong></dt>
+<dd>Array of image IDs.</dd>
+<dt><strong><code>labels</code></strong></dt>
+<dd>Array of binary labels corresponding to the images.</dd>
+<dt><strong><code>transform</code></strong></dt>
+<dd>Optional transform to apply to the images.</dd>
+</dl></div>
 <h3>Ancestors</h3>
 <ul class="hlist">
 <li>torch.utils.data.dataset.Dataset</li>
 <li>typing.Generic</li>
 </ul>
 </dd>
-<dt id="biobench.newt.DatasetMllm"><code class="flex name class">
-<span>class <span class="ident">DatasetMllm</span></span>
-<span>(</span><span>root: str, df)</span>
+<dt id="biobench.newt.Sample"><code class="flex name class">
+<span>class <span class="ident">Sample</span></span>
+<span>(</span><span>*args, **kwargs)</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -509,216 +432,52 @@ class DatasetCvml(torch.utils.data.Dataset):
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
-class DatasetMllm(torch.utils.data.Dataset):
+class Sample(typing.TypedDict):
+    &#34;&#34;&#34;A dictionary representing a single image sample with its metadata.
+
+    Attributes:
+        img_id: Unique identifier for the image.
+        img: The image tensor with shape [3, width, height] (RGB channels first).
+        label: Binary class label (0 or 1) for the image.
     &#34;&#34;&#34;
-    A dataset that returns SampleMllms.
-    &#34;&#34;&#34;
 
-    def __init__(self, root: str, df):
-        self.root = root
-
-        self.image_ids = df.get_column(&#34;id&#34;).to_list()
-        self.labels = df.get_column(&#34;label&#34;).to_list()
-        self.tasks = df.get_column(&#34;task&#34;).to_list()
-
-    def __getitem__(self, i: int) -&gt; SampleMllm:
-        image_id = self.image_ids[i]
-        label = self.labels[i]
-        task = self.tasks[i]
-
-        classnames = tuple(text_label_to_classname[task].keys())
-        image = Image.open(os.path.join(self.root, f&#34;{image_id}.jpg&#34;))
-
-        return SampleMllm(
-            image_id,
-            image,
-            label,
-            classnames,
-        )
-
-    def __len__(self) -&gt; int:
-        return len(self.image_ids)</code></pre>
+    img_id: str
+    img: Float[Tensor, &#34;3 width height&#34;]
+    label: Int[Tensor, &#34;&#34;]</code></pre>
 </details>
-<div class="desc"><p>A dataset that returns SampleMllms.</p></div>
+<div class="desc"><p>A dictionary representing a single image sample with its metadata.</p>
+<h2 id="attributes">Attributes</h2>
+<dl>
+<dt><strong><code>img_id</code></strong></dt>
+<dd>Unique identifier for the image.</dd>
+<dt><strong><code>img</code></strong></dt>
+<dd>The image tensor with shape [3, width, height] (RGB channels first).</dd>
+<dt><strong><code>label</code></strong></dt>
+<dd>Binary class label (0 or 1) for the image.</dd>
+</dl></div>
 <h3>Ancestors</h3>
 <ul class="hlist">
-<li>torch.utils.data.dataset.Dataset</li>
-<li>typing.Generic</li>
+<li>builtins.dict</li>
 </ul>
-</dd>
-<dt id="biobench.newt.SampleMllm"><code class="flex name class">
-<span>class <span class="ident">SampleMllm</span></span>
-<span>(</span><span>image_id: str, image: PIL.Image.Image, label: int, classnames: tuple[str, str])</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">@beartype.beartype
-@dataclasses.dataclass(frozen=True)
-class SampleMllm:
-    image_id: str
-    image: Image.Image
-    label: int
-
-    # TODO: these classnames are not being translated correctly.
-    classnames: tuple[str, str]
-
-    @property
-    def classname(self) -&gt; str:
-        return self.classnames[self.label]
-
-    def make_user(self, rng: random.Random) -&gt; str:
-        a, b = self.classnames
-        if rng.random() &gt; 0.5:
-            a, b = b, a
-        return f&#34;What is this a picture of, &#39;{a}&#39; or &#39;{b}&#39;? Respond with your answer in bold.&#34;
-
-    @property
-    def assistant(self) -&gt; str:
-        return f&#34;**{self.classname}**&#34;
-
-    def parse_assistant(self, assistant: str) -&gt; int:
-        pattern = re.compile(r&#34;\*\*(.*)\*\*&#34;)
-        match = pattern.match(assistant)
-        if match:
-            # Return the closest classname in bold.
-            pred = difflib.get_close_matches(
-                match.group(1), self.classnames, cutoff=0.0
-            )[0]
-        else:
-            # Get the closest classname.
-            pred = difflib.get_close_matches(assistant, self.classnames, cutoff=0.0)[0]
-
-        for i, classname in enumerate(self.classnames):
-            if classname == pred:
-                return i
-        logger.warning(&#34;Something is wrong in parse_assistant.&#34;)
-        return 0
-
-    def to_example(self, rng: random.Random) -&gt; mllms.Example:
-        return mllms.Example(
-            image=self.image,
-            user=self.make_user(rng),
-            assistant=self.assistant,
-        )</code></pre>
-</details>
-<div class="desc"><p>SampleMllm(image_id: str, image: PIL.Image.Image, label: int, classnames: tuple[str, str])</p></div>
 <h3>Class variables</h3>
 <dl>
-<dt id="biobench.newt.SampleMllm.classnames"><code class="name">var <span class="ident">classnames</span> : tuple[str, str]</code></dt>
+<dt id="biobench.newt.Sample.img"><code class="name">var <span class="ident">img</span> : jaxtyping.Float[Tensor, '3 width height']</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="biobench.newt.SampleMllm.image"><code class="name">var <span class="ident">image</span> : PIL.Image.Image</code></dt>
+<dt id="biobench.newt.Sample.img_id"><code class="name">var <span class="ident">img_id</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="biobench.newt.SampleMllm.image_id"><code class="name">var <span class="ident">image_id</span> : str</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="biobench.newt.SampleMllm.label"><code class="name">var <span class="ident">label</span> : int</code></dt>
+<dt id="biobench.newt.Sample.label"><code class="name">var <span class="ident">label</span> : jaxtyping.Int[Tensor, '']</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
 </dl>
-<h3>Instance variables</h3>
-<dl>
-<dt id="biobench.newt.SampleMllm.assistant"><code class="name">prop <span class="ident">assistant</span> : str</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">@property
-def assistant(self) -&gt; str:
-    return f&#34;**{self.classname}**&#34;</code></pre>
-</details>
-<div class="desc"></div>
 </dd>
-<dt id="biobench.newt.SampleMllm.classname"><code class="name">prop <span class="ident">classname</span> : str</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">@property
-def classname(self) -&gt; str:
-    return self.classnames[self.label]</code></pre>
-</details>
-<div class="desc"></div>
-</dd>
-</dl>
-<h3>Methods</h3>
-<dl>
-<dt id="biobench.newt.SampleMllm.make_user"><code class="name flex">
-<span>def <span class="ident">make_user</span></span>(<span>self, rng: random.Random) ‑> str</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def make_user(self, rng: random.Random) -&gt; str:
-    a, b = self.classnames
-    if rng.random() &gt; 0.5:
-        a, b = b, a
-    return f&#34;What is this a picture of, &#39;{a}&#39; or &#39;{b}&#39;? Respond with your answer in bold.&#34;</code></pre>
-</details>
-<div class="desc"></div>
-</dd>
-<dt id="biobench.newt.SampleMllm.parse_assistant"><code class="name flex">
-<span>def <span class="ident">parse_assistant</span></span>(<span>self, assistant: str) ‑> int</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def parse_assistant(self, assistant: str) -&gt; int:
-    pattern = re.compile(r&#34;\*\*(.*)\*\*&#34;)
-    match = pattern.match(assistant)
-    if match:
-        # Return the closest classname in bold.
-        pred = difflib.get_close_matches(
-            match.group(1), self.classnames, cutoff=0.0
-        )[0]
-    else:
-        # Get the closest classname.
-        pred = difflib.get_close_matches(assistant, self.classnames, cutoff=0.0)[0]
-
-    for i, classname in enumerate(self.classnames):
-        if classname == pred:
-            return i
-    logger.warning(&#34;Something is wrong in parse_assistant.&#34;)
-    return 0</code></pre>
-</details>
-<div class="desc"></div>
-</dd>
-<dt id="biobench.newt.SampleMllm.to_example"><code class="name flex">
-<span>def <span class="ident">to_example</span></span>(<span>self, rng: random.Random) ‑> <a title="biobench.mllms.Example" href="../mllms.html#biobench.mllms.Example">Example</a></span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def to_example(self, rng: random.Random) -&gt; mllms.Example:
-    return mllms.Example(
-        image=self.image,
-        user=self.make_user(rng),
-        assistant=self.assistant,
-    )</code></pre>
-</details>
-<div class="desc"></div>
-</dd>
-</dl>
-</dd>
-<dt id="biobench.newt.TaskCvml"><code class="flex name class">
-<span>class <span class="ident">TaskCvml</span></span>
-<span>(</span><span>name: str,<br>cluster: str,<br>features: jaxtyping.Float[ndarray, 'batch dim'],<br>labels: jaxtyping.Int[ndarray, 'batch'],<br>is_train: jaxtyping.Bool[ndarray, 'batch'],<br>example_ids: jaxtyping.Shaped[ndarray, 'batch'])</span>
+<dt id="biobench.newt.Task"><code class="flex name class">
+<span>class <span class="ident">Task</span></span>
+<span>(</span><span>name: str,<br>cluster: str,<br>subcluster: str | None,<br>features: jaxtyping.Float[ndarray, 'batch dim'],<br>labels: jaxtyping.Int[ndarray, 'batch'],<br>is_train: jaxtyping.Bool[ndarray, 'batch'],<br>example_ids: jaxtyping.Shaped[ndarray, 'batch'])</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -727,13 +486,14 @@ def classname(self) -&gt; str:
 </summary>
 <pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
 @dataclasses.dataclass(frozen=True)
-class TaskCvml:
+class Task:
     &#34;&#34;&#34;
     Task is a group of features and labels for an SVM + a train/test split.
     &#34;&#34;&#34;
 
     name: str
     cluster: str
+    subcluster: str | None
     features: Float[np.ndarray, &#34;batch dim&#34;]
     labels: Int[np.ndarray, &#34; batch&#34;]
     is_train: Bool[np.ndarray, &#34; batch&#34;]
@@ -762,36 +522,33 @@ class TaskCvml:
         return (x_train, y_train), (x_test, y_test)</code></pre>
 </details>
 <div class="desc"><p>Task is a group of features and labels for an SVM + a train/test split.</p></div>
-<h3>Class variables</h3>
-<dl>
-<dt id="biobench.newt.TaskCvml.cluster"><code class="name">var <span class="ident">cluster</span> : str</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="biobench.newt.TaskCvml.example_ids"><code class="name">var <span class="ident">example_ids</span> : jaxtyping.Shaped[ndarray, 'batch']</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="biobench.newt.TaskCvml.features"><code class="name">var <span class="ident">features</span> : jaxtyping.Float[ndarray, 'batch dim']</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="biobench.newt.TaskCvml.is_train"><code class="name">var <span class="ident">is_train</span> : jaxtyping.Bool[ndarray, 'batch']</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="biobench.newt.TaskCvml.labels"><code class="name">var <span class="ident">labels</span> : jaxtyping.Int[ndarray, 'batch']</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="biobench.newt.TaskCvml.name"><code class="name">var <span class="ident">name</span> : str</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
 <h3>Instance variables</h3>
 <dl>
-<dt id="biobench.newt.TaskCvml.splits"><code class="name">prop <span class="ident">splits</span> : tuple[tuple[jaxtyping.Float[ndarray, 'n_train dim'], jaxtyping.Int[ndarray, 'n_train']], tuple[jaxtyping.Float[ndarray, 'n_test dim'], jaxtyping.Int[ndarray, 'n_test']]]</code></dt>
+<dt id="biobench.newt.Task.cluster"><code class="name">var <span class="ident">cluster</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.newt.Task.example_ids"><code class="name">var <span class="ident">example_ids</span> : jaxtyping.Shaped[ndarray, 'batch']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.newt.Task.features"><code class="name">var <span class="ident">features</span> : jaxtyping.Float[ndarray, 'batch dim']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.newt.Task.is_train"><code class="name">var <span class="ident">is_train</span> : jaxtyping.Bool[ndarray, 'batch']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.newt.Task.labels"><code class="name">var <span class="ident">labels</span> : jaxtyping.Int[ndarray, 'batch']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.newt.Task.name"><code class="name">var <span class="ident">name</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.newt.Task.splits"><code class="name">prop <span class="ident">splits</span> : tuple[tuple[jaxtyping.Float[ndarray, 'n_train dim'], jaxtyping.Int[ndarray, 'n_train']], tuple[jaxtyping.Float[ndarray, 'n_test dim'], jaxtyping.Int[ndarray, 'n_test']]]</code></dt>
 <dd>
 <details class="source">
 <summary>
@@ -819,48 +576,7 @@ def splits(
 <div class="desc"><p>The features and labels for train and test splits.</p>
 <p>Returned as <code>(x_train, y_train), (x_test, y_test)</code>.</p></div>
 </dd>
-</dl>
-</dd>
-<dt id="biobench.newt.TaskMllm"><code class="flex name class">
-<span>class <span class="ident">TaskMllm</span></span>
-<span>(</span><span>name: str,<br>cluster: str,<br>train: jaxtyping.Integer[ndarray, 'n_train'],<br>test: jaxtyping.Integer[ndarray, 'n_test'])</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
-@dataclasses.dataclass(frozen=True)
-class TaskMllm:
-    &#34;&#34;&#34;
-    Task is a group of indices for a MLLM with a train/test split.
-    &#34;&#34;&#34;
-
-    name: str
-    cluster: str
-    train: Integer[np.ndarray, &#34; n_train&#34;]
-    test: Integer[np.ndarray, &#34; n_test&#34;]
-
-    def __repr__(self) -&gt; str:
-        return f&#34;Task(name={self.name}, cluster={self.cluster}, n_train={len(self.train)}, n_test={len(self.test)})&#34;</code></pre>
-</details>
-<div class="desc"><p>Task is a group of indices for a MLLM with a train/test split.</p></div>
-<h3>Class variables</h3>
-<dl>
-<dt id="biobench.newt.TaskMllm.cluster"><code class="name">var <span class="ident">cluster</span> : str</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="biobench.newt.TaskMllm.name"><code class="name">var <span class="ident">name</span> : str</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="biobench.newt.TaskMllm.test"><code class="name">var <span class="ident">test</span> : jaxtyping.Integer[ndarray, 'n_test']</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="biobench.newt.TaskMllm.train"><code class="name">var <span class="ident">train</span> : jaxtyping.Integer[ndarray, 'n_train']</code></dt>
+<dt id="biobench.newt.Task.subcluster"><code class="name">var <span class="ident">subcluster</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -887,71 +603,38 @@ class TaskMllm:
 </ul>
 </li>
 <li><h3><a href="#header-functions">Functions</a></h3>
-<ul class="two-column">
-<li><code><a title="biobench.newt.benchmark_cvml" href="#biobench.newt.benchmark_cvml">benchmark_cvml</a></code></li>
-<li><code><a title="biobench.newt.benchmark_mllm" href="#biobench.newt.benchmark_mllm">benchmark_mllm</a></code></li>
-<li><code><a title="biobench.newt.get_all_tasks_cvml" href="#biobench.newt.get_all_tasks_cvml">get_all_tasks_cvml</a></code></li>
-<li><code><a title="biobench.newt.get_all_tasks_mllm" href="#biobench.newt.get_all_tasks_mllm">get_all_tasks_mllm</a></code></li>
+<ul class="">
+<li><code><a title="biobench.newt.benchmark" href="#biobench.newt.benchmark">benchmark</a></code></li>
+<li><code><a title="biobench.newt.get_all_tasks" href="#biobench.newt.get_all_tasks">get_all_tasks</a></code></li>
 <li><code><a title="biobench.newt.init_svc" href="#biobench.newt.init_svc">init_svc</a></code></li>
 <li><code><a title="biobench.newt.l2_normalize" href="#biobench.newt.l2_normalize">l2_normalize</a></code></li>
+<li><code><a title="biobench.newt.sample" href="#biobench.newt.sample">sample</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
 <li>
-<h4><code><a title="biobench.newt.Args" href="#biobench.newt.Args">Args</a></code></h4>
-<ul class="two-column">
-<li><code><a title="biobench.newt.Args.batch_size_cv" href="#biobench.newt.Args.batch_size_cv">batch_size_cv</a></code></li>
-<li><code><a title="biobench.newt.Args.data" href="#biobench.newt.Args.data">data</a></code></li>
-<li><code><a title="biobench.newt.Args.debug" href="#biobench.newt.Args.debug">debug</a></code></li>
-<li><code><a title="biobench.newt.Args.device" href="#biobench.newt.Args.device">device</a></code></li>
-<li><code><a title="biobench.newt.Args.log_every" href="#biobench.newt.Args.log_every">log_every</a></code></li>
-<li><code><a title="biobench.newt.Args.n_test" href="#biobench.newt.Args.n_test">n_test</a></code></li>
-<li><code><a title="biobench.newt.Args.n_train" href="#biobench.newt.Args.n_train">n_train</a></code></li>
-<li><code><a title="biobench.newt.Args.n_workers" href="#biobench.newt.Args.n_workers">n_workers</a></code></li>
-<li><code><a title="biobench.newt.Args.parallel" href="#biobench.newt.Args.parallel">parallel</a></code></li>
-<li><code><a title="biobench.newt.Args.seed" href="#biobench.newt.Args.seed">seed</a></code></li>
-</ul>
+<h4><code><a title="biobench.newt.Dataset" href="#biobench.newt.Dataset">Dataset</a></code></h4>
 </li>
 <li>
-<h4><code><a title="biobench.newt.DatasetCvml" href="#biobench.newt.DatasetCvml">DatasetCvml</a></code></h4>
-</li>
-<li>
-<h4><code><a title="biobench.newt.DatasetMllm" href="#biobench.newt.DatasetMllm">DatasetMllm</a></code></h4>
-</li>
-<li>
-<h4><code><a title="biobench.newt.SampleMllm" href="#biobench.newt.SampleMllm">SampleMllm</a></code></h4>
-<ul class="two-column">
-<li><code><a title="biobench.newt.SampleMllm.assistant" href="#biobench.newt.SampleMllm.assistant">assistant</a></code></li>
-<li><code><a title="biobench.newt.SampleMllm.classname" href="#biobench.newt.SampleMllm.classname">classname</a></code></li>
-<li><code><a title="biobench.newt.SampleMllm.classnames" href="#biobench.newt.SampleMllm.classnames">classnames</a></code></li>
-<li><code><a title="biobench.newt.SampleMllm.image" href="#biobench.newt.SampleMllm.image">image</a></code></li>
-<li><code><a title="biobench.newt.SampleMllm.image_id" href="#biobench.newt.SampleMllm.image_id">image_id</a></code></li>
-<li><code><a title="biobench.newt.SampleMllm.label" href="#biobench.newt.SampleMllm.label">label</a></code></li>
-<li><code><a title="biobench.newt.SampleMllm.make_user" href="#biobench.newt.SampleMllm.make_user">make_user</a></code></li>
-<li><code><a title="biobench.newt.SampleMllm.parse_assistant" href="#biobench.newt.SampleMllm.parse_assistant">parse_assistant</a></code></li>
-<li><code><a title="biobench.newt.SampleMllm.to_example" href="#biobench.newt.SampleMllm.to_example">to_example</a></code></li>
-</ul>
-</li>
-<li>
-<h4><code><a title="biobench.newt.TaskCvml" href="#biobench.newt.TaskCvml">TaskCvml</a></code></h4>
-<ul class="two-column">
-<li><code><a title="biobench.newt.TaskCvml.cluster" href="#biobench.newt.TaskCvml.cluster">cluster</a></code></li>
-<li><code><a title="biobench.newt.TaskCvml.example_ids" href="#biobench.newt.TaskCvml.example_ids">example_ids</a></code></li>
-<li><code><a title="biobench.newt.TaskCvml.features" href="#biobench.newt.TaskCvml.features">features</a></code></li>
-<li><code><a title="biobench.newt.TaskCvml.is_train" href="#biobench.newt.TaskCvml.is_train">is_train</a></code></li>
-<li><code><a title="biobench.newt.TaskCvml.labels" href="#biobench.newt.TaskCvml.labels">labels</a></code></li>
-<li><code><a title="biobench.newt.TaskCvml.name" href="#biobench.newt.TaskCvml.name">name</a></code></li>
-<li><code><a title="biobench.newt.TaskCvml.splits" href="#biobench.newt.TaskCvml.splits">splits</a></code></li>
-</ul>
-</li>
-<li>
-<h4><code><a title="biobench.newt.TaskMllm" href="#biobench.newt.TaskMllm">TaskMllm</a></code></h4>
+<h4><code><a title="biobench.newt.Sample" href="#biobench.newt.Sample">Sample</a></code></h4>
 <ul class="">
-<li><code><a title="biobench.newt.TaskMllm.cluster" href="#biobench.newt.TaskMllm.cluster">cluster</a></code></li>
-<li><code><a title="biobench.newt.TaskMllm.name" href="#biobench.newt.TaskMllm.name">name</a></code></li>
-<li><code><a title="biobench.newt.TaskMllm.test" href="#biobench.newt.TaskMllm.test">test</a></code></li>
-<li><code><a title="biobench.newt.TaskMllm.train" href="#biobench.newt.TaskMllm.train">train</a></code></li>
+<li><code><a title="biobench.newt.Sample.img" href="#biobench.newt.Sample.img">img</a></code></li>
+<li><code><a title="biobench.newt.Sample.img_id" href="#biobench.newt.Sample.img_id">img_id</a></code></li>
+<li><code><a title="biobench.newt.Sample.label" href="#biobench.newt.Sample.label">label</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="biobench.newt.Task" href="#biobench.newt.Task">Task</a></code></h4>
+<ul class="two-column">
+<li><code><a title="biobench.newt.Task.cluster" href="#biobench.newt.Task.cluster">cluster</a></code></li>
+<li><code><a title="biobench.newt.Task.example_ids" href="#biobench.newt.Task.example_ids">example_ids</a></code></li>
+<li><code><a title="biobench.newt.Task.features" href="#biobench.newt.Task.features">features</a></code></li>
+<li><code><a title="biobench.newt.Task.is_train" href="#biobench.newt.Task.is_train">is_train</a></code></li>
+<li><code><a title="biobench.newt.Task.labels" href="#biobench.newt.Task.labels">labels</a></code></li>
+<li><code><a title="biobench.newt.Task.name" href="#biobench.newt.Task.name">name</a></code></li>
+<li><code><a title="biobench.newt.Task.splits" href="#biobench.newt.Task.splits">splits</a></code></li>
+<li><code><a title="biobench.newt.Task.subcluster" href="#biobench.newt.Task.subcluster">subcluster</a></code></li>
 </ul>
 </li>
 </ul>
@@ -960,7 +643,7 @@ class TaskMllm:
 </nav>
 </main>
 <footer id="footer">
-<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.5</a>.</p>
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
 </footer>
 </body>
 </html>

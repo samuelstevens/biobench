@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
-<meta name="generator" content="pdoc3 0.11.5">
+<meta name="generator" content="pdoc3 0.11.6">
 <title>biobench.third_party_models API documentation</title>
 <meta name="description" content="">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
@@ -116,7 +116,7 @@ def get_ssl() -&gt; bool:
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
-class OpenClip(interfaces.VisionBackbone):
+class OpenClip(registry.VisionBackbone):
     &#34;&#34;&#34;
     Loads checkpoints from [open_clip](https://github.com/mlfoundations/open_clip), an open-source reproduction of the original [CLIP](https://arxiv.org/abs/2103.00020) paper.
 
@@ -153,14 +153,14 @@ class OpenClip(interfaces.VisionBackbone):
 
     def img_encode(
         self, batch: Float[Tensor, &#34;batch 3 width height&#34;]
-    ) -&gt; interfaces.EncodedImgBatch:
+    ) -&gt; registry.EncodedImgBatch:
         result = self.model(batch)
         # Sometimes the model does not return patch features if it has none.
         if isinstance(result, tuple):
             img, patches = result
-            return interfaces.EncodedImgBatch(img, patches)
+            return registry.EncodedImgBatch(img, patches)
         else:
-            return interfaces.EncodedImgBatch(result, None)</code></pre>
+            return registry.EncodedImgBatch(result, None)</code></pre>
 </details>
 <div class="desc"><p>Loads checkpoints from <a href="https://github.com/mlfoundations/open_clip">open_clip</a>, an open-source reproduction of the original <a href="https://arxiv.org/abs/2103.00020">CLIP</a> paper.</p>
 <p>Checkpoints are in the format <code>&lt;ARCH&gt;/&lt;CKPT&gt;</code>.
@@ -169,15 +169,15 @@ For example, to load a ViT-B/16 train on Apple's Data Filtering Networks dataset
 <p>Initialize internal Module state, shared by both nn.Module and ScriptModule.</p></div>
 <h3>Ancestors</h3>
 <ul class="hlist">
-<li><a title="biobench.interfaces.VisionBackbone" href="interfaces.html#biobench.interfaces.VisionBackbone">VisionBackbone</a></li>
+<li><a title="biobench.registry.VisionBackbone" href="registry.html#biobench.registry.VisionBackbone">VisionBackbone</a></li>
 <li>torch.nn.modules.module.Module</li>
 </ul>
 <h3>Inherited members</h3>
 <ul class="hlist">
-<li><code><b><a title="biobench.interfaces.VisionBackbone" href="interfaces.html#biobench.interfaces.VisionBackbone">VisionBackbone</a></b></code>:
+<li><code><b><a title="biobench.registry.VisionBackbone" href="registry.html#biobench.registry.VisionBackbone">VisionBackbone</a></b></code>:
 <ul class="hlist">
-<li><code><a title="biobench.interfaces.VisionBackbone.img_encode" href="interfaces.html#biobench.interfaces.VisionBackbone.img_encode">img_encode</a></code></li>
-<li><code><a title="biobench.interfaces.VisionBackbone.make_img_transform" href="interfaces.html#biobench.interfaces.VisionBackbone.make_img_transform">make_img_transform</a></code></li>
+<li><code><a title="biobench.registry.VisionBackbone.img_encode" href="registry.html#biobench.registry.VisionBackbone.img_encode">img_encode</a></code></li>
+<li><code><a title="biobench.registry.VisionBackbone.make_img_transform" href="registry.html#biobench.registry.VisionBackbone.make_img_transform">make_img_transform</a></code></li>
 </ul>
 </li>
 </ul>
@@ -192,7 +192,7 @@ For example, to load a ViT-B/16 train on Apple's Data Filtering Networks dataset
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
-class TimmVit(interfaces.VisionBackbone):
+class TimmVit(registry.VisionBackbone):
     &#34;&#34;&#34; &#34;&#34;&#34;
 
     # TODO: docs + describe the ckpt format.
@@ -212,7 +212,7 @@ class TimmVit(interfaces.VisionBackbone):
 
     def img_encode(
         self, batch: Float[Tensor, &#34;batch 3 width height&#34;]
-    ) -&gt; interfaces.EncodedImgBatch:
+    ) -&gt; registry.EncodedImgBatch:
         patches = self.model.forward_features(batch)
         # Use [CLS] token if it exists, otherwise do a maxpool
         if self.model.num_prefix_tokens &gt; 0:
@@ -223,20 +223,20 @@ class TimmVit(interfaces.VisionBackbone):
         # Remove all non-image patches, like the [CLS] token or registers
         patches = patches[:, self.model.num_prefix_tokens :, ...]
 
-        return interfaces.EncodedImgBatch(img, patches)</code></pre>
+        return registry.EncodedImgBatch(img, patches)</code></pre>
 </details>
 <div class="desc"><p>Initialize internal Module state, shared by both nn.Module and ScriptModule.</p></div>
 <h3>Ancestors</h3>
 <ul class="hlist">
-<li><a title="biobench.interfaces.VisionBackbone" href="interfaces.html#biobench.interfaces.VisionBackbone">VisionBackbone</a></li>
+<li><a title="biobench.registry.VisionBackbone" href="registry.html#biobench.registry.VisionBackbone">VisionBackbone</a></li>
 <li>torch.nn.modules.module.Module</li>
 </ul>
 <h3>Inherited members</h3>
 <ul class="hlist">
-<li><code><b><a title="biobench.interfaces.VisionBackbone" href="interfaces.html#biobench.interfaces.VisionBackbone">VisionBackbone</a></b></code>:
+<li><code><b><a title="biobench.registry.VisionBackbone" href="registry.html#biobench.registry.VisionBackbone">VisionBackbone</a></b></code>:
 <ul class="hlist">
-<li><code><a title="biobench.interfaces.VisionBackbone.img_encode" href="interfaces.html#biobench.interfaces.VisionBackbone.img_encode">img_encode</a></code></li>
-<li><code><a title="biobench.interfaces.VisionBackbone.make_img_transform" href="interfaces.html#biobench.interfaces.VisionBackbone.make_img_transform">make_img_transform</a></code></li>
+<li><code><a title="biobench.registry.VisionBackbone.img_encode" href="registry.html#biobench.registry.VisionBackbone.img_encode">img_encode</a></code></li>
+<li><code><a title="biobench.registry.VisionBackbone.make_img_transform" href="registry.html#biobench.registry.VisionBackbone.make_img_transform">make_img_transform</a></code></li>
 </ul>
 </li>
 </ul>
@@ -251,7 +251,7 @@ class TimmVit(interfaces.VisionBackbone):
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
-class TorchvisionModel(interfaces.VisionBackbone):
+class TorchvisionModel(registry.VisionBackbone):
     def __init__(self, ckpt: str):
         import torchvision
 
@@ -261,7 +261,7 @@ class TorchvisionModel(interfaces.VisionBackbone):
 
     def img_encode(
         self, batch: Float[Tensor, &#34;batch 3 width height&#34;]
-    ) -&gt; interfaces.EncodedImgBatch:
+    ) -&gt; registry.EncodedImgBatch:
         breakpoint()
 
     def make_img_transform(self):
@@ -274,15 +274,15 @@ See <code><a title="biobench.registry" href="registry.html">biobench.registry</a
 <p>Initialize internal Module state, shared by both nn.Module and ScriptModule.</p></div>
 <h3>Ancestors</h3>
 <ul class="hlist">
-<li><a title="biobench.interfaces.VisionBackbone" href="interfaces.html#biobench.interfaces.VisionBackbone">VisionBackbone</a></li>
+<li><a title="biobench.registry.VisionBackbone" href="registry.html#biobench.registry.VisionBackbone">VisionBackbone</a></li>
 <li>torch.nn.modules.module.Module</li>
 </ul>
 <h3>Inherited members</h3>
 <ul class="hlist">
-<li><code><b><a title="biobench.interfaces.VisionBackbone" href="interfaces.html#biobench.interfaces.VisionBackbone">VisionBackbone</a></b></code>:
+<li><code><b><a title="biobench.registry.VisionBackbone" href="registry.html#biobench.registry.VisionBackbone">VisionBackbone</a></b></code>:
 <ul class="hlist">
-<li><code><a title="biobench.interfaces.VisionBackbone.img_encode" href="interfaces.html#biobench.interfaces.VisionBackbone.img_encode">img_encode</a></code></li>
-<li><code><a title="biobench.interfaces.VisionBackbone.make_img_transform" href="interfaces.html#biobench.interfaces.VisionBackbone.make_img_transform">make_img_transform</a></code></li>
+<li><code><a title="biobench.registry.VisionBackbone.img_encode" href="registry.html#biobench.registry.VisionBackbone.img_encode">img_encode</a></code></li>
+<li><code><a title="biobench.registry.VisionBackbone.make_img_transform" href="registry.html#biobench.registry.VisionBackbone.make_img_transform">make_img_transform</a></code></li>
 </ul>
 </li>
 </ul>
@@ -323,7 +323,7 @@ See <code><a title="biobench.registry" href="registry.html">biobench.registry</a
 </nav>
 </main>
 <footer id="footer">
-<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.5</a>.</p>
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
 </footer>
 </body>
 </html>

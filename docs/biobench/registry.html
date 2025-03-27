@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
-<meta name="generator" content="pdoc3 0.11.5">
+<meta name="generator" content="pdoc3 0.11.6">
 <title>biobench.registry API documentation</title>
 <meta name="description" content="Stores all vision backbones.
 Users can register new custom backbones from their code to evaluate on biobench using `register_vision_backbone`.
@@ -42,11 +42,11 @@ el.replaceWith(d);
 <section id="section-intro">
 <p>Stores all vision backbones.
 Users can register new custom backbones from their code to evaluate on biobench using <code><a title="biobench.registry.register_vision_backbone" href="#biobench.registry.register_vision_backbone">register_vision_backbone()</a></code>.
-As long as it satisfies the <code><a title="biobench.interfaces.VisionBackbone" href="interfaces.html#biobench.interfaces.VisionBackbone">VisionBackbone</a></code> interface, it will work will all tasks.</p>
+As long as it satisfies the <code><a title="biobench.registry.VisionBackbone" href="#biobench.registry.VisionBackbone">VisionBackbone</a></code> interface, it will work will all tasks.</p>
 <h1 id="adding-new-models">Adding New Models</h1>
 <p>To add a new model, you need to:</p>
 <ol>
-<li>Write a new class that satisfies <code><a title="biobench.interfaces.VisionBackbone" href="interfaces.html#biobench.interfaces.VisionBackbone">VisionBackbone</a></code>.</li>
+<li>Write a new class that satisfies <code>biobench.interfaces.VisionBackbone</code>.</li>
 <li>Register the class using <code><a title="biobench.registry.register_vision_backbone" href="#biobench.registry.register_vision_backbone">register_vision_backbone()</a></code> under a new name.</li>
 </ol>
 <h2 id="1-create-a-new-class">1. Create a New Class</h2>
@@ -110,7 +110,7 @@ Then we load the weights.</p>
 <div class="desc"><p>List all vision backbone model orgs.</p></div>
 </dd>
 <dt id="biobench.registry.load_vision_backbone"><code class="name flex">
-<span>def <span class="ident">load_vision_backbone</span></span>(<span>model_args: <a title="biobench.interfaces.ModelArgsCvml" href="interfaces.html#biobench.interfaces.ModelArgsCvml">ModelArgsCvml</a>) ‑> <a title="biobench.interfaces.VisionBackbone" href="interfaces.html#biobench.interfaces.VisionBackbone">VisionBackbone</a></span>
+<span>def <span class="ident">load_vision_backbone</span></span>(<span>model_cfg: <a title="biobench.config.Model" href="config.html#biobench.config.Model">Model</a>) ‑> <a title="biobench.registry.VisionBackbone" href="#biobench.registry.VisionBackbone">VisionBackbone</a></span>
 </code></dt>
 <dd>
 <details class="source">
@@ -118,29 +118,27 @@ Then we load the weights.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">@beartype.beartype
-def load_vision_backbone(
-    model_args: interfaces.ModelArgsCvml,
-) -&gt; interfaces.VisionBackbone:
+def load_vision_backbone(model_cfg: config.Model) -&gt; VisionBackbone:
     &#34;&#34;&#34;
     Load a pretrained vision backbone.
     &#34;&#34;&#34;
-    if model_args.org not in _global_backbone_registry:
-        raise ValueError(f&#34;Org &#39;{model_args.org}&#39; not found.&#34;)
+    if model_cfg.org not in _global_backbone_registry:
+        raise ValueError(f&#34;Org &#39;{model_cfg.org}&#39; not found.&#34;)
 
-    cls = _global_backbone_registry[model_args.org]
-    return cls(model_args.ckpt)</code></pre>
+    cls = _global_backbone_registry[model_cfg.org]
+    return cls(model_cfg.ckpt)</code></pre>
 </details>
 <div class="desc"><p>Load a pretrained vision backbone.</p></div>
 </dd>
 <dt id="biobench.registry.register_vision_backbone"><code class="name flex">
-<span>def <span class="ident">register_vision_backbone</span></span>(<span>model_org: str,<br>cls: type[<a title="biobench.interfaces.VisionBackbone" href="interfaces.html#biobench.interfaces.VisionBackbone">VisionBackbone</a>])</span>
+<span>def <span class="ident">register_vision_backbone</span></span>(<span>model_org: str,<br>cls: type[<a title="biobench.registry.VisionBackbone" href="#biobench.registry.VisionBackbone">VisionBackbone</a>])</span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def register_vision_backbone(model_org: str, cls: type[interfaces.VisionBackbone]):
+<pre><code class="python">def register_vision_backbone(model_org: str, cls: type[VisionBackbone]):
     &#34;&#34;&#34;
     Register a new vision backbone class.
     &#34;&#34;&#34;
@@ -153,6 +151,128 @@ def load_vision_backbone(
 </dl>
 </section>
 <section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="biobench.registry.EncodedImgBatch"><code class="flex name class">
+<span>class <span class="ident">EncodedImgBatch</span></span>
+<span>(</span><span>img_features: jaxtyping.Float[Tensor, 'batch img_dim'],<br>patch_features: jaxtyping.Float[Tensor, 'batch n_patches patch_dim'] | None)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
+@dataclasses.dataclass(frozen=True)
+class EncodedImgBatch:
+    &#34;&#34;&#34;The output of a `VisionBackbone`&#39;s `VisionBackbone.img_encode()` method.&#34;&#34;&#34;
+
+    img_features: Float[Tensor, &#34;batch img_dim&#34;]
+    &#34;&#34;&#34;Image-level features. Each image is represented by a single vector.&#34;&#34;&#34;
+    patch_features: Float[Tensor, &#34;batch n_patches patch_dim&#34;] | None
+    &#34;&#34;&#34;Patch-level features. Only ViTs have patch-level features. These features might be a different dimension that the image features because of projection heads or such.&#34;&#34;&#34;</code></pre>
+</details>
+<div class="desc"><p>The output of a <code><a title="biobench.registry.VisionBackbone" href="#biobench.registry.VisionBackbone">VisionBackbone</a></code>'s <code><a title="biobench.registry.VisionBackbone.img_encode" href="#biobench.registry.VisionBackbone.img_encode">VisionBackbone.img_encode()</a></code> method.</p></div>
+<h3>Instance variables</h3>
+<dl>
+<dt id="biobench.registry.EncodedImgBatch.img_features"><code class="name">var <span class="ident">img_features</span> : jaxtyping.Float[Tensor, 'batch img_dim']</code></dt>
+<dd>
+<div class="desc"><p>Image-level features. Each image is represented by a single vector.</p></div>
+</dd>
+<dt id="biobench.registry.EncodedImgBatch.patch_features"><code class="name">var <span class="ident">patch_features</span> : jaxtyping.Float[Tensor, 'batch n_patches patch_dim'] | None</code></dt>
+<dd>
+<div class="desc"><p>Patch-level features. Only ViTs have patch-level features. These features might be a different dimension that the image features because of projection heads or such.</p></div>
+</dd>
+</dl>
+</dd>
+<dt id="biobench.registry.VisionBackbone"><code class="flex name class">
+<span>class <span class="ident">VisionBackbone</span></span>
+<span>(</span><span>*args, **kwargs)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
+class VisionBackbone(torch.nn.Module):
+    &#34;&#34;&#34;
+    A frozen vision model that embeds batches of images into batches of vectors.
+
+    To add new models to the benchmark, you can simply create a new class that satisfies this interface and register it.
+    See `biobench.registry` for a tutorial on adding new vision backbones.
+    &#34;&#34;&#34;
+
+    def img_encode(
+        self, batch: Float[Tensor, &#34;batch 3 width height&#34;]
+    ) -&gt; EncodedImgBatch:
+        &#34;&#34;&#34;Encode a batch of images.&#34;&#34;&#34;
+        err_msg = f&#34;{self.__class__.__name__} must implemented img_encode().&#34;
+        raise NotImplementedError(err_msg)
+
+    def make_img_transform(self):
+        &#34;&#34;&#34;
+        Return whatever function the backbone wants for image preprocessing.
+        This should be an evaluation transform, not a training transform, because we are using the output features of this backbone as data and not updating this backbone.
+        &#34;&#34;&#34;
+        err_msg = f&#34;{self.__class__.__name__} must implemented make_img_transform().&#34;
+        raise NotImplementedError(err_msg)</code></pre>
+</details>
+<div class="desc"><p>A frozen vision model that embeds batches of images into batches of vectors.</p>
+<p>To add new models to the benchmark, you can simply create a new class that satisfies this interface and register it.
+See <code><a title="biobench.registry" href="#biobench.registry">biobench.registry</a></code> for a tutorial on adding new vision backbones.</p>
+<p>Initialize internal Module state, shared by both nn.Module and ScriptModule.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>torch.nn.modules.module.Module</li>
+</ul>
+<h3>Subclasses</h3>
+<ul class="hlist">
+<li><a title="biobench.third_party_models.OpenClip" href="third_party_models.html#biobench.third_party_models.OpenClip">OpenClip</a></li>
+<li><a title="biobench.third_party_models.TimmVit" href="third_party_models.html#biobench.third_party_models.TimmVit">TimmVit</a></li>
+<li><a title="biobench.third_party_models.TorchvisionModel" href="third_party_models.html#biobench.third_party_models.TorchvisionModel">TorchvisionModel</a></li>
+</ul>
+<h3>Methods</h3>
+<dl>
+<dt id="biobench.registry.VisionBackbone.img_encode"><code class="name flex">
+<span>def <span class="ident">img_encode</span></span>(<span>self, batch: jaxtyping.Float[Tensor, 'batch 3 width height']) ‑> <a title="biobench.registry.EncodedImgBatch" href="#biobench.registry.EncodedImgBatch">EncodedImgBatch</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def img_encode(
+    self, batch: Float[Tensor, &#34;batch 3 width height&#34;]
+) -&gt; EncodedImgBatch:
+    &#34;&#34;&#34;Encode a batch of images.&#34;&#34;&#34;
+    err_msg = f&#34;{self.__class__.__name__} must implemented img_encode().&#34;
+    raise NotImplementedError(err_msg)</code></pre>
+</details>
+<div class="desc"><p>Encode a batch of images.</p></div>
+</dd>
+<dt id="biobench.registry.VisionBackbone.make_img_transform"><code class="name flex">
+<span>def <span class="ident">make_img_transform</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def make_img_transform(self):
+    &#34;&#34;&#34;
+    Return whatever function the backbone wants for image preprocessing.
+    This should be an evaluation transform, not a training transform, because we are using the output features of this backbone as data and not updating this backbone.
+    &#34;&#34;&#34;
+    err_msg = f&#34;{self.__class__.__name__} must implemented make_img_transform().&#34;
+    raise NotImplementedError(err_msg)</code></pre>
+</details>
+<div class="desc"><p>Return whatever function the backbone wants for image preprocessing.
+This should be an evaluation transform, not a training transform, because we are using the output features of this backbone as data and not updating this backbone.</p></div>
+</dd>
+</dl>
+</dd>
+</dl>
 </section>
 </article>
 <nav id="sidebar">
@@ -178,11 +298,29 @@ def load_vision_backbone(
 <li><code><a title="biobench.registry.register_vision_backbone" href="#biobench.registry.register_vision_backbone">register_vision_backbone</a></code></li>
 </ul>
 </li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="biobench.registry.EncodedImgBatch" href="#biobench.registry.EncodedImgBatch">EncodedImgBatch</a></code></h4>
+<ul class="">
+<li><code><a title="biobench.registry.EncodedImgBatch.img_features" href="#biobench.registry.EncodedImgBatch.img_features">img_features</a></code></li>
+<li><code><a title="biobench.registry.EncodedImgBatch.patch_features" href="#biobench.registry.EncodedImgBatch.patch_features">patch_features</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="biobench.registry.VisionBackbone" href="#biobench.registry.VisionBackbone">VisionBackbone</a></code></h4>
+<ul class="">
+<li><code><a title="biobench.registry.VisionBackbone.img_encode" href="#biobench.registry.VisionBackbone.img_encode">img_encode</a></code></li>
+<li><code><a title="biobench.registry.VisionBackbone.make_img_transform" href="#biobench.registry.VisionBackbone.make_img_transform">make_img_transform</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
 </ul>
 </nav>
 </main>
 <footer id="footer">
-<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.5</a>.</p>
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
 </footer>
 </body>
 </html>
