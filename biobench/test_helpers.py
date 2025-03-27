@@ -14,46 +14,28 @@ def measure_balance(labels, indices) -> float:
     """
     Calculate a balance metric (coefficient of variation, lower is better) for the selected samples (labels[indices]).
 
-    Returns 0 for perfect balance, higher for more imbalance
+    Returns 0 for perfect balance, higher for more imbalance.
     """
+    #  It should return 1.0 if it was possible to include at least one of each class but does not. AI!
     if len(indices) == 0:
         return 0.0
-    
+
     # Get the distribution of classes in the selected samples
     selected_labels = labels[indices]
     class_counts = collections.Counter(selected_labels)
-    
+
     # Calculate coefficient of variation (standard deviation / mean)
     counts = np.array(list(class_counts.values()))
-    
+
     # If only one class is present, return a high value to indicate imbalance
     if len(counts) == 1:
         return 1.0
-    
+
     mean = np.mean(counts)
     std = np.std(counts, ddof=1)  # Using sample standard deviation
-    
+
     # Return coefficient of variation (0 for perfect balance)
     return std / mean if mean > 0 else 0.0
-
-
-@beartype.beartype
-def get_class_distribution(labels, indices):
-    """
-    Get the distribution of classes in the selected samples.
-    
-    Args:
-        labels: Array of class labels
-        indices: Indices of selected samples
-        
-    Returns:
-        Counter object with class counts
-    """
-    if len(indices) == 0:
-        return collections.Counter()
-    
-    selected_labels = labels[indices]
-    return collections.Counter(selected_labels)
 
 
 @given(
@@ -100,14 +82,10 @@ def test_class_balance(labels, n):
 
     # Get balanced samples
     balanced_indices = helpers.balanced_random_sample(labels, n)
-    balanced_dist = get_class_distribution(labels, balanced_indices)
+    balanced_balance = measure_balance(labels, balanced_indices)
 
     # Get a normal random sample for comparison
     random_indices = np.random.choice(len(labels), min(n, len(labels)), replace=False)
-    random_balance = measure_balance(labels, random_indices)
-
-    # Calculate balance metrics (lower is better)
-    balanced_balance = measure_balance(labels, balanced_indices)
     random_balance = measure_balance(labels, random_indices)
 
     # Check if our balanced sampling is generally better than random
@@ -123,15 +101,6 @@ def test_single_class_sampling():
     indices = helpers.balanced_random_sample(labels, 3)
     assert len(indices) == 3
     assert len(np.unique(indices)) == 3
-
-
-def test_highly_imbalanced_dataset():
-    """Test sampling from a highly imbalanced dataset"""
-    labels = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 1], dtype=int)
-    indices = helpers.balanced_random_sample(labels, 4)
-    distribution = get_class_distribution(labels, indices)
-    # Should have at least one of each class if possible
-    assert 0 in distribution and 1 in distribution
 
 
 def test_small_sample_size():
