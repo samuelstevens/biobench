@@ -16,7 +16,44 @@ def measure_balance(labels, indices) -> float:
 
     Returns 0 for perfect balance, higher for more imbalance
     """
-    # Fill this function in. AI!
+    if len(indices) == 0:
+        return 0.0
+    
+    # Get the distribution of classes in the selected samples
+    selected_labels = labels[indices]
+    class_counts = collections.Counter(selected_labels)
+    
+    # Calculate coefficient of variation (standard deviation / mean)
+    counts = np.array(list(class_counts.values()))
+    
+    # If only one class is present, return a high value to indicate imbalance
+    if len(counts) == 1:
+        return 1.0
+    
+    mean = np.mean(counts)
+    std = np.std(counts, ddof=1)  # Using sample standard deviation
+    
+    # Return coefficient of variation (0 for perfect balance)
+    return std / mean if mean > 0 else 0.0
+
+
+@beartype.beartype
+def get_class_distribution(labels, indices):
+    """
+    Get the distribution of classes in the selected samples.
+    
+    Args:
+        labels: Array of class labels
+        indices: Indices of selected samples
+        
+    Returns:
+        Counter object with class counts
+    """
+    if len(indices) == 0:
+        return collections.Counter()
+    
+    selected_labels = labels[indices]
+    return collections.Counter(selected_labels)
 
 
 @given(
@@ -70,8 +107,8 @@ def test_class_balance(labels, n):
     random_balance = measure_balance(labels, random_indices)
 
     # Calculate balance metrics (lower is better)
-    balanced_balance = get_balance_metric(balanced_dist)
-    random_balance = get_balance_metric(random_dist)
+    balanced_balance = measure_balance(labels, balanced_indices)
+    random_balance = measure_balance(labels, random_indices)
 
     # Check if our balanced sampling is generally better than random
     # Note: This might occasionally fail due to randomness, but should pass most of the time
