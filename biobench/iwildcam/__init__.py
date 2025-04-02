@@ -103,10 +103,9 @@ def get_features(
             assert len(i) == cfg.n_train
             dataset = torch.utils.data.Subset(dataset, i)
             # Stack Trace:
-            # 'Subset' object has no attribute 'collate'
-            # > .venv/lib/python3.12/site-packages/wilds/common/data_loaders.py(34)get_train_loader()
-            # -> collate_fn=dataset.collate,
-            # Explain why this is necessary. AI!
+            # When we create a Subset, it doesn't inherit the collate method from the original dataset.
+            # The WILDS dataloader expects this attribute to be present as it uses it for the collate_fn
+            # parameter. We need to copy it from the original dataset to avoid AttributeError.
             dataset.collate = dataset.dataset.collate
         dataloader = wilds.common.data_loaders.get_train_loader(
             "standard",
