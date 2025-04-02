@@ -23,28 +23,6 @@ from biobench import config, helpers, registry, reporting
 logger = logging.getLogger("iwildcam")
 
 
-@beartype.beartype
-@dataclasses.dataclass(frozen=True)
-class Args:
-    """Arguments for the iWildCam task."""
-
-    data: str = ""
-    """dataset directory; where you downloaded this task's data to."""
-    batch_size_cv: int = 2048
-    """batch size for deep model."""
-    n_workers: int = 4
-    """number of dataloader worker processes."""
-    log_every: int = 10
-    """how often (number of batches) to log progress."""
-    # Computed at runtime.
-    device: str = "cuda"
-    """(computed at runtime) which kind of accelerator to use."""
-    debug: bool = False
-    """(computed at runtime) whether to run in debug mode."""
-    n_train: int = -1
-    """(computed at runtime) number of maximum training samples. Negative number means use all of them."""
-
-
 @jaxtyped(typechecker=beartype.beartype)
 @dataclasses.dataclass(frozen=True)
 class Features:
@@ -65,42 +43,21 @@ class MeanScoreCalculator:
 
 
 @beartype.beartype
-def benchmark(cfg: config.Experiment) -> tuple[config.Model, reporting.Report]:
+def benchmark(cfg: config.Experiment) -> reporting.Report:
     backbone = registry.load_vision_backbone(cfg.model)
 
     # 1. Load dataloaders.
-    transform = backbone.make_img_transform()
-    if not os.path.exists(cfg.data.iwildcam) or not os.path.isdir(cfg.data.iwildcam):
-        msg = f"Path '{args.data}' doesn't exist. Did you download the iWildCam dataset? See the docstring at the top of this file for instructions. If you did download it, pass the path as --iwildcam-args.data PATH"
-        raise RuntimeError(msg)
-    dataset = wilds.get_dataset(dataset="iwildcam", download=False, root_dir=args.data)
-
-    test_data = dataset.get_subset("test", transform=transform)
-    breakpoint()
-    test_dataloader = wilds.common.data_loaders.get_eval_loader(
-        "standard",
-        test_data,
-        batch_size=args.batch_size,
-        num_workers=args.n_workers,
-    )
-    test_features = get_features(args, backbone, test_dataloader)
+    test_features = get_features(cfg, backbone, is_train=False)
     logger.info("Got test features.")
 
-    train_dataset = dataset.get_subset("train", transform=transform)
-    train_dataloader = wilds.common.data_loaders.get_train_loader(
-        "standard",
-        train_dataset,
-        batch_size=args.batch_size,
-        num_workers=args.n_workers,
-    )
-    train_features = get_features(args, backbone, train_dataloader)
+    train_features = get_features(cfg, backbone, is_train=True)
     logger.info("Got train features.")
 
     # 2. Fit model.
-    clf = init_clf(args)
+    clf = init_clf(cfg)
     clf.fit(train_features.x, train_features.y)
 
-    helpers.write_hparam_sweep_plot("iwildcam", model_args, clf)
+    helpers.write_hparam_sweep_plot("iwildcam", cfg.model.ckpt, clf)
     alpha = clf.best_params_["ridgeclassifier__alpha"].item()
     logger.info("alpha=%.2g scored %.3f.", alpha, clf.best_score_.item())
 
@@ -127,17 +84,54 @@ def benchmark(cfg: config.Experiment) -> tuple[config.Model, reporting.Report]:
 
 @jaxtyped(typechecker=beartype.beartype)
 @torch.no_grad()
-def get_features(args: Args, backbone: registry.VisionBackbone, dataloader) -> Features:
-    backbone = torch.compile(backbone.to(args.device))
+def get_features(
+    cfg: config.Experiment, backbone: registry.VisionBackbone, *, is_train: bool
+) -> Features:
+    if not os.path.exists(cfg.data.iwildcam) or not os.path.isdir(cfg.data.iwildcam):
+        msg = f"Path '{cfg.data.iwildcam}' doesn't exist. Did you download the iWildCam dataset? See the docstring at the top of this file for instructions."
+        raise RuntimeError(msg)
 
+    dataset = wilds.get_dataset(
+        dataset="iwildcam", download=False, root_dir=cfg.data.iwildcam
+    )
+
+    transform = backbone.make_img_transform()
+    if is_train:
+        dataset = dataset.get_subset("train", transform=transform)
+        if cfg.n_train > 0:
+            i = helpers.balanced_random_sample(dataset.y_array.numpy(), cfg.n_train)
+            assert len(i) == cfg.n_train
+            dataset = torch.utils.data.Subset(dataset, i)
+            # Stack Trace:
+            # 'Subset' object has no attribute 'collate'
+            # > .venv/lib/python3.12/site-packages/wilds/common/data_loaders.py(34)get_train_loader()
+            # -> collate_fn=dataset.collate,
+            # Explain why this is necessary. AI!
+            dataset.collate = dataset.dataset.collate
+        dataloader = wilds.common.data_loaders.get_train_loader(
+            "standard",
+            dataset,
+            batch_size=cfg.batch_size,
+            num_workers=cfg.n_workers,
+        )
+    else:
+        dataset = dataset.get_subset("test", transform=transform)
+        dataloader = wilds.common.data_loaders.get_eval_loader(
+            "standard",
+            dataset,
+            batch_size=cfg.batch_size,
+            num_workers=cfg.n_workers,
+        )
+
+    backbone = torch.compile(backbone.to(cfg.device))
     all_features, all_labels, all_ids = [], [], []
 
     # I don't do `for ... in dataloader` because early breaks were throwing exceptions.
-    total = len(dataloader) if not args.debug else 2
+    total = len(dataloader) if not cfg.debug else 2
     it = iter(dataloader)
-    for b in helpers.progress(range(total), every=args.log_every):
+    for b in helpers.progress(range(total), every=10):
         images, labels, _ = next(it)
-        images = images.to(args.device)
+        images = images.to(cfg.device)
 
         with torch.amp.autocast("cuda"):
             features = backbone.img_encode(images).img_features
@@ -145,7 +139,7 @@ def get_features(args: Args, backbone: registry.VisionBackbone, dataloader) -> F
 
         all_labels.extend(labels)
 
-        ids = (np.arange(len(labels)) + b * args.batch_size).astype(str)
+        ids = (np.arange(len(labels)) + b * cfg.batch_size).astype(str)
         all_ids.append(ids)
 
     all_features = torch.cat(all_features, axis=0).cpu().numpy()
@@ -155,9 +149,10 @@ def get_features(args: Args, backbone: registry.VisionBackbone, dataloader) -> F
     return Features(all_features, all_labels, all_ids)
 
 
-def init_clf(args: Args):
+@beartype.beartype
+def init_clf(cfg: config.Experiment):
     alpha = np.pow(2.0, np.arange(-15, 5))
-    if args.debug:
+    if cfg.debug:
         alpha = np.pow(2.0, np.arange(-2, 2))
 
     return sklearn.model_selection.GridSearchCV(
