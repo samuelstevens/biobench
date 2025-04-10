@@ -106,7 +106,10 @@ def main(cfg: str = os.path.join("configs", "neurips.toml"), dry_run: bool = Tru
             key = (job_cfg.model.ckpt, job_cfg.n_train)
             model_counts[key] += 1
 
-        # If model_counts is empty (no jobs to run), print a "all jobs done"-like message and do not print the table. AI!
+        # Check if there are any jobs to run
+        if not model_counts:
+            logger.info("All jobs have already been completed. Nothing to run.")
+            return
 
         # Print summary table
         logger.info("Job Summary:")
