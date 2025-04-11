@@ -80,7 +80,12 @@ class OpenClip(registry.VisionBackbone):
 
 @jaxtyped(typechecker=beartype.beartype)
 class Timm(registry.VisionBackbone):
-    """ """
+    """
+    Wrapper for models from the Timm (PyTorch Image Models) library.
+
+    This class provides an interface to use any model from the Timm library
+    as a vision backbone in the biobench framework.
+    """
 
     # TODO: docs + describe the ckpt format.
     def __init__(self, ckpt: str, **kwargs):
@@ -102,20 +107,40 @@ class Timm(registry.VisionBackbone):
         if feats.ndim == 4:
             # This is probably a convnet of some kind, with (batch, dim, width, height)
             bsz, d, w, h = feats.shape
-            # Expect d > w, d > h and w == h. Use specific error messages to make it easier for users to understand what to expect, what went wrong, and why it's bad. AI!
-            breakpoint()
+
+            # Validate the shape of the features
+            if not (d > w and d > h):
+                raise ValueError(
+                    f"Expected feature dimensions (d={d}) to be larger than spatial dimensions "
+                    f"(w={w}, h={h}). This suggests the tensor dimensions may be in an unexpected order."
+                )
+
+            if w != h:
+                raise ValueError(
+                    f"Expected equal spatial dimensions, but got width={w} and height={h}. "
+                    f"Unequal spatial dimensions may cause issues with subsequent processing."
+                )
+
+            # Reshape to (batch, patches, dim) format
+            patches = feats.permute(0, 2, 3, 1).reshape(bsz, w * h, d)
+            img = patches.mean(dim=1)  # Global average pooling
         elif feats.ndim == 3:
             # This is probably a ViT with (batch, patches, dim)
-            breakpoint()
+            bsz, num_patches, d = feats.shape
+            patches = feats
 
-        # Use [CLS] token if it exists, otherwise do a maxpool
-        if self.model.num_prefix_tokens > 0:
-            img = patches[:, 0, ...]
+            # For ViT models, we typically use the class token ([CLS]) as the image representation
+            # if it exists, otherwise we do mean pooling over patches
+            if self.model.num_prefix_tokens > 0:
+                img = patches[:, 0]  # Use [CLS] token
+                # Remove prefix tokens (like [CLS]) from patches
+                patches = patches[:, self.model.num_prefix_tokens :]
+            else:
+                img = patches.mean(dim=1)  # Mean pooling if no [CLS] token
         else:
-            img = patches.max(axis=1).values
-
-        # Remove all non-image patches, like the [CLS] token or registers
-        patches = patches[:, self.model.num_prefix_tokens :, ...]
+            raise ValueError(
+                f"Unexpected feature dimension: {feats.ndim}. Expected either 3 (ViT models) or 4 (ConvNet models). Check if the model architecture is supported."
+            )
 
         return registry.EncodedImgBatch(img, patches)
 
