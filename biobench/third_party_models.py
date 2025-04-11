@@ -5,17 +5,9 @@ import beartype
 from jaxtyping import Float, jaxtyped
 from torch import Tensor
 
-from biobench import registry
+from . import helpers, registry
 
 logger = logging.getLogger("third_party")
-
-
-@beartype.beartype
-def get_cache_dir() -> str:
-    cache_dir = ""
-    for var in ("BIOBENCH_CACHE", "HF_HOME", "HF_HUB_CACHE"):
-        cache_dir = cache_dir or os.environ.get(var, "")
-    return cache_dir or "."
 
 
 @beartype.beartype
@@ -65,7 +57,7 @@ class OpenClip(registry.VisionBackbone):
         else:
             arch, ckpt = ckpt.split("/")
             clip, self.img_transform = open_clip.create_model_from_pretrained(
-                arch, pretrained=ckpt, cache_dir=get_cache_dir()
+                arch, pretrained=ckpt, cache_dir=helpers.get_cache_dir()
             )
 
         self.model = clip.visual
@@ -87,7 +79,7 @@ class OpenClip(registry.VisionBackbone):
 
 
 @jaxtyped(typechecker=beartype.beartype)
-class TimmVit(registry.VisionBackbone):
+class Timm(registry.VisionBackbone):
     """ """
 
     # TODO: docs + describe the ckpt format.
@@ -95,8 +87,6 @@ class TimmVit(registry.VisionBackbone):
         super().__init__()
         import timm
 
-        err_msg = "You are trying to load a non-ViT checkpoint; the `img_encode()` method assumes `model.forward_features()` will return features with shape (batch, n_patches, dim) which is not true for non-ViT checkpoints."
-        assert "vit" in ckpt, err_msg
         self.model = timm.create_model(ckpt, pretrained=True)
 
         data_cfg = timm.data.resolve_data_config(self.model.pretrained_cfg)
@@ -108,7 +98,16 @@ class TimmVit(registry.VisionBackbone):
     def img_encode(
         self, batch: Float[Tensor, "batch 3 width height"]
     ) -> registry.EncodedImgBatch:
-        patches = self.model.forward_features(batch)
+        feats = self.model.forward_features(batch)
+        if feats.ndim == 4:
+            # This is probably a convnet of some kind, with (batch, dim, width, height)
+            bsz, d, w, h = feats.shape
+            # Expect d > w, d > h and w == h. Use specific error messages to make it easier for users to understand what to expect, what went wrong, and why it's bad. AI!
+            breakpoint()
+        elif feats.ndim == 3:
+            # This is probably a ViT with (batch, patches, dim)
+            breakpoint()
+
         # Use [CLS] token if it exists, otherwise do a maxpool
         if self.model.num_prefix_tokens > 0:
             img = patches[:, 0, ...]
