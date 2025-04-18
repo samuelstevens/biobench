@@ -235,6 +235,15 @@ class AIMv2(registry.VisionBackbone):
             last_hidden_state=x,
             hidden_states=hidden_states,
         )
+        
+    def img_encode(
+        self, batch: Float[Tensor, "batch 3 width height"]
+    ) -> Float[Tensor, "batch dim"]:
+        with torch.no_grad():
+            return self.forward(batch)["last_hidden_state"].mean(dim=1)
+            
+    def make_img_transform(self):
+        return torch.nn.Identity()
 
 
 @beartype.beartype
