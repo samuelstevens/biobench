@@ -11,7 +11,7 @@ dependencies = [
     "tyro>=0.8.10",
     "torchmetrics>=1.4.1",
     "open-clip-torch>=2.26.1",
-    "datasets>=2.21.0",
+    "datasets>=3.4.1",
     "scikit-learn>=1.5.1",
     "requests>=2.32.3",
     "tqdm>=4.66.5",
@@ -29,6 +29,7 @@ dependencies = [
     "gdown>=5.2.0",
     "pytest>=8.3.5",
     "hypothesis>=6.130.4",
+    "safetensors>=0.5.3",
 ]
 
 [tool.ruff.lint]
@@ -38,4 +39,5 @@ ignore = ["F722", "E402", "E501"]
 [dependency-groups]
 dev = [
     "pyinstrument>=5.0.1",
+    "transformers>=4.51.3",
 ]

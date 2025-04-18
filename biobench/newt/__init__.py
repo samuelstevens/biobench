@@ -64,16 +64,17 @@ def benchmark(cfg: config.Experiment) -> reporting.Report:
         x_test = x_test - x_mean
         x_test = l2_normalize(x_test)
 
-        svc = init_svc()
+        svc = init_svc(cfg.n_train)
 
         svc.fit(x_train, y_train)
         y_pred = svc.predict(x_test)
+        info = {
+            "task": task.name,
+            "cluster": task.cluster,
+            "subcluster": task.subcluster,
+        }
         preds = [
-            reporting.Prediction(
-                str(id),
-                float(pred == true),
-                {"cluster": task.cluster, "task": task.name},
-            )
+            reporting.Prediction(str(id), float(pred == true), info)
             for id, pred, true in zip(task.example_ids, y_pred, y_test)
         ]
 
@@ -155,6 +156,7 @@ class Task:
 
     name: str
     cluster: str
+    subcluster: str | None
     features: Float[np.ndarray, "batch dim"]
     labels: Int[np.ndarray, " batch"]
     is_train: Bool[np.ndarray, " batch"]
@@ -196,26 +198,26 @@ def get_all_tasks(cfg: config.Experiment) -> collections.abc.Iterator[Task]:
 
     labels_csv_name = "newt2021_labels.csv"
     labels_csv_path = os.path.join(cfg.data.newt, labels_csv_name)
-    images_dir_name = "newt2021_images"
-    images_dir_path = os.path.join(cfg.data.newt, images_dir_name)
+    imgs_dir_name = "newt2021_images"
+    imgs_dir_path = os.path.join(cfg.data.newt, imgs_dir_name)
 
     if not os.path.isfile(labels_csv_path):
         msg = f"Path '{labels_csv_path}' doesn't exist. Did you download the Newt dataset? See the docstring at the top of this file for instructions. If you did download it, pass the path with '--data'; see --help for more."
         raise RuntimeError(msg)
 
     # Read the CSV and add row indices
-    df = pl.read_csv(labels_csv_path).with_row_index()
-    
+    df = pl.read_csv(labels_csv_path).with_row_index(name="original_index")
+
     # Sample balanced training data for each task
-    df = sample(rng, df, cfg.n_train)
-    
+    df = sample(rng, df, cfg.n_train).with_row_index(name="sampled_index")
+
     # Get all image IDs and labels
     all_data = df.select("id", "label").to_numpy(structured=True)
     all_ids, all_labels = all_data["id"], all_data["label"]
-    
+
     # Create dataset with all samples
     dataset = Dataset(
-        images_dir_path,
+        imgs_dir_path,
         all_ids,
         all_labels,
         img_transform,
@@ -234,19 +236,18 @@ def get_all_tasks(cfg: config.Experiment) -> collections.abc.Iterator[Task]:
     all_features, all_ids = [], []
 
     # Need to select just a subset of rows based on cfg.n_train.
-
     total = len(dataloader) if not cfg.debug else 2
     it = iter(dataloader)
     for b in helpers.progress(range(total), every=10, desc="embed"):
-        ids, images = next(it)
-        images = images.to(cfg.device)
+        batch = next(it)
+        imgs = batch["img"].to(cfg.device)
 
         with torch.amp.autocast("cuda"):
-            features = backbone.img_encode(images).img_features
+            features = backbone.img_encode(imgs).img_features
             features = torch.nn.functional.normalize(features, dim=-1)
             all_features.append(features.cpu())
 
-        all_ids.extend(ids)
+        all_ids.extend(batch["img_id"])
 
     all_features = torch.cat(all_features, dim=0).cpu()
     all_ids = np.array(all_ids)
@@ -254,7 +255,7 @@ def get_all_tasks(cfg: config.Experiment) -> collections.abc.Iterator[Task]:
     for task in df.get_column("task").unique():
         task_df = df.filter(pl.col("task") == task)
 
-        task_idx = task_df.get_column("index").to_numpy()
+        task_idx = task_df.get_column("sampled_index").to_numpy()
         features = all_features[task_idx].numpy()
         ids = all_ids[task_idx]
 
@@ -262,7 +263,10 @@ def get_all_tasks(cfg: config.Experiment) -> collections.abc.Iterator[Task]:
         is_train = task_df.select(pl.col("split") == "train").get_column("split")
 
         cluster = task_df.item(row=0, column="task_cluster")
-        yield Task(task, cluster, features, labels, is_train.to_numpy(), ids)
+        subcluster = task_df.item(row=0, column="task_subcluster")
+        yield Task(
+            task, cluster, subcluster, features, labels, is_train.to_numpy(), ids
+        )
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -274,8 +278,13 @@ def l2_normalize(
     return features / norms
 
 
-def init_svc():
+def init_svc(n_train: int):
     """Create a new, randomly initialized SVM with a random hyperparameter search over kernel, C and gamma. It uses only 16 jobs in parallel to prevent overloading the CPUs on a shared machine."""
+    if n_train < 10:
+        return sklearn.pipeline.make_pipeline(
+            sklearn.svm.SVC(kernel="linear"),
+        )
+
     return sklearn.model_selection.RandomizedSearchCV(
         sklearn.pipeline.make_pipeline(
             sklearn.preprocessing.StandardScaler(),
@@ -293,9 +302,7 @@ def init_svc():
 
 
 @jaxtyped(typechecker=beartype.beartype)
-def sample(
-    rng: np.random.Generator, df: pl.DataFrame, n_train: int
-) -> pl.DataFrame:
+def sample(rng: np.random.Generator, df: pl.DataFrame, n_train: int) -> pl.DataFrame:
     """Sample a balanced subset of training data points for each task.
 
     Args:
@@ -311,42 +318,49 @@ def sample(
 
     # Create a new dataframe to store the results
     result_dfs = []
-    
+
     # Keep all test samples
     test_df = df.filter(pl.col("split") != "train")
     result_dfs.append(test_df)
-    
+
     # Process each task separately
     for task in df.get_column("task").unique():
         task_df = df.filter((pl.col("task") == task) & (pl.col("split") == "train"))
-        
+
         # Skip if the task has no training samples
         if task_df.height == 0:
             continue
-            
+
         # Get samples for each class
         class0_df = task_df.filter(pl.col("label") == 0)
         class1_df = task_df.filter(pl.col("label") == 1)
-        
-        n0 = min(n_train // 2, class0_df.height)
-        n1 = min(n_train - n0, class1_df.height)
-        
-        # If one class has fewer samples than needed, take more from the other class
-        if n0 < n_train // 2 and class1_df.height > n1:
-            n1 = min(n_train - n0, class1_df.height)
-        elif n1 < (n_train - n_train // 2) and class0_df.height > n0:
-            n0 = min(n_train - n1, class0_df.height)
-        
+
+        n0 = n_train // 2
+        n1 = n_train - n0
+
+        assert n0 > 0
+        assert n1 > 0
+
         # Sample from each class
-        if n0 > 0:
+        if n0 < class0_df.height:
             indices0 = rng.choice(class0_df.height, size=n0, replace=False)
-            sampled0 = class0_df.slice(indices0)
-            result_dfs.append(sampled0)
-            
-        if n1 > 0:
+            result_dfs.append(
+                class0_df.with_row_index(name="tmp")
+                .filter(pl.col("tmp").is_in(indices0))
+                .drop("tmp")
+            )
+        else:
+            result_dfs.append(class0_df)
+
+        if n1 < class1_df.height:
             indices1 = rng.choice(class1_df.height, size=n1, replace=False)
-            sampled1 = class1_df.slice(indices1)
-            result_dfs.append(sampled1)
-    
+            result_dfs.append(
+                class1_df.with_row_index(name="tmp")
+                .filter(pl.col("tmp").is_in(indices1))
+                .drop("tmp")
+            )
+        else:
+            result_dfs.append(class1_df)
+
     # Combine all dataframes
     return pl.concat(result_dfs)

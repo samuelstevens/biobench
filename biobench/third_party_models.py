@@ -92,6 +92,8 @@ class Timm(registry.VisionBackbone):
         super().__init__()
         import timm
 
+        self.ckpt = ckpt
+
         self.model = timm.create_model(ckpt, pretrained=True)
 
         data_cfg = timm.data.resolve_data_config(self.model.pretrained_cfg)
@@ -111,19 +113,18 @@ class Timm(registry.VisionBackbone):
             # Validate the shape of the features
             if not (d > w and d > h):
                 raise ValueError(
-                    f"Expected feature dimensions (d={d}) to be larger than spatial dimensions "
-                    f"(w={w}, h={h}). This suggests the tensor dimensions may be in an unexpected order."
+                    f"Expected feature dimensions (d={d}) to be larger than spatial dimensions (w={w}, h={h}). This suggests the tensor dimensions may be in an unexpected order."
                 )
 
             if w != h:
                 raise ValueError(
-                    f"Expected equal spatial dimensions, but got width={w} and height={h}. "
-                    f"Unequal spatial dimensions may cause issues with subsequent processing."
+                    f"Expected equal spatial dimensions, but got width={w} and height={h}. Unequal spatial dimensions indicate a mistake in our understanding of the output features from model '{self.ckpt}'."
                 )
 
             # Reshape to (batch, patches, dim) format
             patches = feats.permute(0, 2, 3, 1).reshape(bsz, w * h, d)
-            img = patches.mean(dim=1)  # Global average pooling
+            # TODO: should we only use max pooling?
+            img = patches.max(dim=1).values  # Global max pooling
         elif feats.ndim == 3:
             # This is probably a ViT with (batch, patches, dim)
             bsz, num_patches, d = feats.shape
@@ -136,13 +137,44 @@ class Timm(registry.VisionBackbone):
                 # Remove prefix tokens (like [CLS]) from patches
                 patches = patches[:, self.model.num_prefix_tokens :]
             else:
-                img = patches.mean(dim=1)  # Mean pooling if no [CLS] token
+                img = patches.max(dim=1).values  # Max pooling if no [CLS] token
         else:
             raise ValueError(
-                f"Unexpected feature dimension: {feats.ndim}. Expected either 3 (ViT models) or 4 (ConvNet models). Check if the model architecture is supported."
+                f"Unexpected feature dimension: {feats.ndim}. Expected either 3 (ViT models) or 4 (ConvNet models). Check if the model architecture {self.ckpt} is supported."
             )
 
         return registry.EncodedImgBatch(img, patches)
+
+
+@jaxtyped(typechecker=beartype.beartype)
+class DinoV2(registry.VisionBackbone):
+    def __init__(self, ckpt: str, **kwargs):
+        super().__init__()
+
+        import torch
+
+        self.model = torch.hub.load("facebookresearch/dinov2", ckpt)
+
+    def img_encode(
+        self, batch: Float[Tensor, "batch 3 width height"]
+    ) -> Float[Tensor, "batch patches dim"]:
+        dct = self.model.forward_features(batch)
+
+        return registry.EncodedImgBatch(
+            dct["x_norm_clstoken"], dct["x_norm_patchtokens"]
+        )
+
+    def make_img_transform(self):
+        import torch
+        from torchvision.transforms import v2
+
+        return v2.Compose([
+            v2.Resize(size=(256, 256)),
+            v2.CenterCrop(size=(224, 224)),
+            v2.ToImage(),
+            v2.ToDtype(torch.float32, scale=True),
+            v2.Normalize(mean=[0.4850, 0.4560, 0.4060], std=[0.2290, 0.2240, 0.2250]),
+        ])
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -158,7 +190,3 @@ class TorchvisionModel(registry.VisionBackbone):
         self, batch: Float[Tensor, "batch 3 width height"]
     ) -> registry.EncodedImgBatch:
         breakpoint()
-
-    def make_img_transform(self):
-        # Per the docs, each set of weights has its own transform: https://pytorch.org/vision/stable/models.html#using-the-pre-trained-models
-        return self.model.weights.transforms()

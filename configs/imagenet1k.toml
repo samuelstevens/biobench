@@ -1,0 +1,89 @@
+n_train = -1
+
+[data]
+imagenet1k = "huggingface"
+
+[[models]]
+org = "open-clip"
+ckpt = "ViT-B-16/openai"
+
+[[models]]
+org = "open-clip"
+ckpt = "ViT-L-14/openai"
+
+[[models]]
+org = "open-clip"
+ckpt = "ViT-L-14-336/openai"
+
+[[models]]
+org = "open-clip"
+ckpt = "ViT-B-16-SigLIP/webli"
+
+[[models]]
+org = "open-clip"
+ckpt = "ViT-B-16-SigLIP-256/webli"
+
+[[models]]
+org = "open-clip"
+ckpt = "ViT-B-16-SigLIP-384/webli"
+
+[[models]]
+org = "open-clip"
+ckpt = "ViT-B-16-SigLIP-512/webli"
+
+[[models]]
+org = "open-clip"
+ckpt = "ViT-L-16-SigLIP-256/webli"
+
+[[models]]
+org = "open-clip"
+ckpt = "ViT-L-16-SigLIP-384/webli"
+
+[[models]]
+org = "open-clip"
+ckpt = "ViT-SO400M-14-SigLIP/webli"
+
+[[models]]
+org = "open-clip"
+ckpt = "ViT-SO400M-14-SigLIP-384/webli"
+
+[[models]]
+org = "dinov2"
+ckpt = "dinov2_vits14_reg"
+
+[[models]]
+org = "dinov2"
+ckpt = "dinov2_vitb14_reg"
+
+[[models]]
+org = "dinov2"
+ckpt = "dinov2_vitl14_reg"
+
+# [[models]]
+# org = "dinov2"
+# ckpt = "dinov2_vitg14_reg"
+
+[[models]]
+org = "open-clip"
+ckpt = "hf-hub:imageomics/bioclip"
+
+[[models]]
+org = "timm"
+ckpt = "efficientnet_b3.ra2_in1k"
+
+[[models]]
+org = "timm"
+ckpt = "mobilenetv3_large_100.ra_in1k"
+
+[[models]]
+org = "timm"
+ckpt = "resnet18d.ra2_in1k"
+
+[[models]]
+org = "timm"
+ckpt = "resnet18.a1_in1k"
+
+[[models]]
+org = "timm"
+ckpt = "resnet50d.a1_in1k"
+

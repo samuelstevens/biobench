@@ -33,9 +33,9 @@ class Features:
 
 @beartype.beartype
 class MeanScoreCalculator:
-    def __call__(self, examples: list[reporting.Prediction]) -> float:
-        y_pred = np.array([example.info["y_pred"] for example in examples])
-        y_true = np.array([example.info["y_true"] for example in examples])
+    def __call__(self, preds: list[reporting.Prediction]) -> float:
+        y_pred = np.array([pred.info["y_pred"] for pred in preds])
+        y_true = np.array([pred.info["y_true"] for pred in preds])
         score = sklearn.metrics.f1_score(
             y_true, y_pred, average="macro", labels=np.unique(y_true)
         )
@@ -57,29 +57,24 @@ def benchmark(cfg: config.Experiment) -> reporting.Report:
     clf = init_clf(cfg)
     clf.fit(train_features.x, train_features.y)
 
-    helpers.write_hparam_sweep_plot("iwildcam", cfg.model.ckpt, clf)
-    alpha = clf.best_params_["ridgeclassifier__alpha"].item()
-    logger.info("alpha=%.2g scored %.3f.", alpha, clf.best_score_.item())
+    if hasattr(clf, "best_params_"):
+        helpers.write_hparam_sweep_plot("iwildcam", cfg.model.ckpt, clf)
+        alpha = clf.best_params_["ridgeclassifier__alpha"].item()
+        logger.info("alpha=%.2g scored %.3f.", alpha, clf.best_score_.item())
 
     true_labels = test_features.y
     pred_labels = clf.predict(test_features.x)
 
-    examples = [
+    preds = [
         reporting.Prediction(
-            str(image_id),
+            str(img_id),
             float(pred == true),
             {"y_pred": pred.item(), "y_true": true.item()},
         )
-        for image_id, pred, true in zip(
-            helpers.progress(test_features.ids, desc="making examples", every=1_000),
-            pred_labels,
-            true_labels,
-        )
+        for img_id, pred, true in zip(test_features.ids, pred_labels, true_labels)
     ]
 
-    return cfg.model, reporting.Report(
-        "iWildCam", examples, calc_mean_score=MeanScoreCalculator()
-    )
+    return reporting.Report("iwildcam", preds, cfg)
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -102,10 +97,7 @@ def get_features(
             i = helpers.balanced_random_sample(dataset.y_array.numpy(), cfg.n_train)
             assert len(i) == cfg.n_train
             dataset = torch.utils.data.Subset(dataset, i)
-            # Stack Trace:
-            # When we create a Subset, it doesn't inherit the collate method from the original dataset.
-            # The WILDS dataloader expects this attribute to be present as it uses it for the collate_fn
-            # parameter. We need to copy it from the original dataset to avoid AttributeError.
+            # When we create a Subset, it doesn't inherit the collate method from the original dataset. The WILDS dataloader expects this attribute to be present as it uses it for the collate_fn parameter. We need to copy it from the original dataset to avoid AttributeError.
             dataset.collate = dataset.dataset.collate
         dataloader = wilds.common.data_loaders.get_train_loader(
             "standard",
@@ -129,11 +121,11 @@ def get_features(
     total = len(dataloader) if not cfg.debug else 2
     it = iter(dataloader)
     for b in helpers.progress(range(total), every=10):
-        images, labels, _ = next(it)
-        images = images.to(cfg.device)
+        imgs, labels, _ = next(it)
+        imgs = imgs.to(cfg.device)
 
         with torch.amp.autocast("cuda"):
-            features = backbone.img_encode(images).img_features
+            features = backbone.img_encode(imgs).img_features
             all_features.append(features.cpu())
 
         all_labels.extend(labels)
@@ -153,6 +145,9 @@ def init_clf(cfg: config.Experiment):
     alpha = np.pow(2.0, np.arange(-15, 5))
     if cfg.debug:
         alpha = np.pow(2.0, np.arange(-2, 2))
+
+    if 0 < cfg.n_train <= 300:
+        return sklearn.linear_model.RidgeClassifier()
 
     return sklearn.model_selection.GridSearchCV(
         sklearn.pipeline.make_pipeline(

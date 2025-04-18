@@ -64,7 +64,7 @@ import sklearn.pipeline
 import sklearn.preprocessing
 import sklearn.svm
 import torch
-from jaxtyping import Float, Shaped, jaxtyped
+from jaxtyping import Float, Int, Shaped, jaxtyped
 from PIL import Image
 from torch import Tensor
 
@@ -77,11 +77,8 @@ logger = logging.getLogger("plankton")
 @dataclasses.dataclass(frozen=True)
 class Features:
     x: Float[np.ndarray, "n dim"]
-    labels: Shaped[np.ndarray, " n"]
+    y: Int[np.ndarray, " n"]
     ids: Shaped[np.ndarray, " n"]
-
-    def y(self, encoder):
-        return encoder.transform(self.labels.reshape(-1, 1)).reshape(-1)
 
 
 @beartype.beartype
@@ -95,21 +92,17 @@ def benchmark(cfg: config.Experiment) -> reporting.Report:
     backbone = registry.load_vision_backbone(cfg.model)
 
     # 1. Get features
-    train_features = get_features(cfg, backbone, split="train")
-    val_features = get_features(cfg, backbone, split="val")
-
-    encoder = sklearn.preprocessing.OrdinalEncoder()
-    all_labels = np.concatenate((val_features.labels, train_features.labels))
-    encoder.fit(all_labels.reshape(-1, 1))
+    train_features = get_features(cfg, backbone, is_train=True)
+    val_features = get_features(cfg, backbone, is_train=False)
 
     # 2. Fit model.
     clf = init_clf(cfg)
-    clf.fit(train_features.x, train_features.y(encoder))
+    clf.fit(train_features.x, train_features.y)
 
     # 3. Predict.
     pred_labels = clf.predict(val_features.x)
     logger.info("Predicted classes for %d examples.", len(val_features.x))
-    true_labels = val_features.y(encoder)
+    true_labels = val_features.y
 
     preds = [
         reporting.Prediction(
@@ -117,14 +110,25 @@ def benchmark(cfg: config.Experiment) -> reporting.Report:
             float(pred == true),
             {"y_pred": pred.item(), "y_true": true.item()},
         )
-        for image_id, pred, true in zip(
-            helpers.progress(val_features.ids, desc="Making examples", every=1_000),
-            pred_labels,
-            true_labels,
-        )
+        for image_id, pred, true in zip(val_features.ids, pred_labels, true_labels)
     ]
 
     return reporting.Report("plankton", preds, cfg)
+
+
+@jaxtyped(typechecker=beartype.beartype)
+class Sample(typing.TypedDict):
+    """A dictionary representing a single image sample with its metadata.
+
+    Attributes:
+        img_id: Unique identifier for the image.
+        img: The image tensor with shape [3, width, height] (RGB channels first).
+        label: Binary class label (0 or 1) for the image.
+    """
+
+    img_id: str
+    img: Float[Tensor, "3 width height"]
+    label: Int[Tensor, ""]
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -138,42 +142,53 @@ class Dataset(torch.utils.data.Dataset):
         self.transform = transform
         self.samples = []
         if not os.path.exists(root) or not os.path.isdir(root):
-            msg = f"Path '{root}' doesn't exist. Did you download the plankton dataset? See the docstring at the top of this file for instructions. If you did download it, pass the path as --plankton-args.datadir PATH."
+            msg = f"Path '{root}' doesn't exist. Did you download the plankton dataset? See the docstring at the top of this file for instructions."
             raise RuntimeError(msg)
 
+        class_to_int = {}
+        for dirname in sorted(os.listdir(root)):
+            class_to_int[dirname] = len(class_to_int)
+
         for dirpath, dirnames, filenames in os.walk(root):
-            # TODO: there are random PDFs in these directories. You have to be careful to only get directories that are actually full of images.
-            # Also need to assign the same integers to the same classnames.
-            image_class = os.path.relpath(dirpath, root)
+            img_class = os.path.relpath(dirpath, root)
             for filename in filenames:
                 if not filename.endswith(".png"):
                     continue
-                image_id = filename.removesuffix(".png")
-                image_path = os.path.join(dirpath, filename)
-                self.samples.append((image_id, image_path, image_class))
+                img_id = filename.removesuffix(".png")
+                img_path = os.path.join(dirpath, filename)
+                self.samples.append((img_id, img_path, class_to_int[img_class]))
 
-    def __getitem__(self, i: int) -> tuple[str, Float[Tensor, "3 width height"], str]:
-        image_id, image_path, image_class = self.samples[i]
-        image = Image.open(image_path).convert("RGB")
+    def __getitem__(self, i) -> Sample:
+        img_id, img_path, label = self.samples[i]
+        img = Image.open(img_path).convert("RGB")
         if self.transform is not None:
-            image = self.transform(image)
-        return image_id, image, image_class
+            img = self.transform(img)
+        return {"img_id": img_id, "img": img, "label": label}
 
     def __len__(self) -> int:
         return len(self.samples)
+
+    @property
+    def labels(self) -> Int[np.ndarray, " n_samples"]:
+        return np.array([label for _, _, label in self.samples])
 
 
 @jaxtyped(typechecker=beartype.beartype)
 @torch.no_grad()
 def get_features(
-    cfg: config.Experiment, backbone: registry.VisionBackbone, *, split: str
+    cfg: config.Experiment, backbone: registry.VisionBackbone, *, is_train: bool
 ) -> Features:
+    split = "train" if is_train else "val"
     images_dir_path = os.path.join(cfg.data.plankton, split)
 
     img_transform = backbone.make_img_transform()
-    backbone = torch.compile(backbone.to(cfg.device))
-
     dataset = Dataset(images_dir_path, img_transform)
+
+    if is_train and cfg.n_train > 0:
+        i = helpers.balanced_random_sample(dataset.labels, cfg.n_train)
+        assert len(i) == cfg.n_train
+        dataset = torch.utils.data.Subset(dataset, i)
+
     dataloader = torch.utils.data.DataLoader(
         dataset,
         batch_size=cfg.batch_size,
@@ -184,34 +199,51 @@ def get_features(
         persistent_workers=False,
     )
 
-    all_ids, all_features, all_labels = [], [], []
+    backbone = torch.compile(backbone.to(cfg.device))
 
     total = len(dataloader) if not cfg.debug else 2
     it = iter(dataloader)
+
+    all_ids, all_features, all_labels = [], [], []
     for b in helpers.progress(range(total), every=10, desc=f"Embed {split}"):
-        ids, images, labels = next(it)
-        images = images.to(cfg.device)
+        batch = next(it)
+        imgs = batch["img"].to(cfg.device)
 
         with torch.amp.autocast("cuda"):
-            features = backbone.img_encode(images).img_features
+            features = backbone.img_encode(imgs).img_features
             all_features.append(features.cpu())
 
-        all_ids.extend(ids)
+        all_ids.extend(batch["img_id"])
 
-        all_labels.extend(labels)
+        all_labels.extend(batch["label"])
 
     all_features = torch.cat(all_features, axis=0).cpu().numpy()
     all_labels = np.array(all_labels)
     all_ids = np.array(all_ids)
+    assert len(all_ids) == len(dataset)
+    logger.info("Got features for %d images.", len(all_ids))
 
     return Features(all_features, all_labels, all_ids)
 
 
 @beartype.beartype
 def init_clf(cfg: config.Experiment):
-    """Make a GaussianNB."""
+    alpha = np.pow(2.0, np.arange(-15, 5))
+    if cfg.debug:
+        alpha = np.pow(2.0, np.arange(-2, 2))
 
-    return sklearn.pipeline.make_pipeline(
-        sklearn.preprocessing.StandardScaler(),
-        sklearn.naive_bayes.GaussianNB(),
+    if 0 < cfg.n_train <= 300:
+        return sklearn.linear_model.RidgeClassifier()
+
+    return sklearn.model_selection.HalvingGridSearchCV(
+        sklearn.pipeline.make_pipeline(
+            sklearn.preprocessing.StandardScaler(),
+            sklearn.linear_model.RidgeClassifier(1.0),
+        ),
+        {"ridgeclassifier__alpha": alpha},
+        n_jobs=16,
+        verbose=2,
+        factor=3,
+        random_state=cfg.seed,
+        scoring="f1_macro",
     )

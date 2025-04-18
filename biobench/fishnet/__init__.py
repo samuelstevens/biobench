@@ -23,7 +23,6 @@ If you use this evaluation, be sure to cite the original work:
 This task was contributed by [Jianyang Gu](https://vimar-gu.github.io/).
 """
 
-import dataclasses
 import logging
 import os.path
 
@@ -40,36 +39,10 @@ from .. import config, helpers, registry, reporting
 
 logger = logging.getLogger("fishnet")
 
-
-@beartype.beartype
-@dataclasses.dataclass(frozen=True)
-class Args:
-    """FishNet task arguments."""
-
-    data: str = ""
-    """dataset directory; where you downloaded this task's data to."""
-    batch_size: int = 256
-    """batch size for computer vision model."""
-    n_workers: int = 4
-    """number of dataloader worker processes."""
-    log_every: int = 10
-    """how often (number of epochs) to log progress."""
-    n_epochs: int = 100
-    """How many epochs to train the MLP classifier."""
-    learning_rate: float = 5e-4
-    """The learning rate for training the MLP classifier."""
-    threshold: float = 0.5
-    """The threshold to predict "presence" rather than "absence"."""
-    seed: int = 42
-    """random seed."""
-
-    # Computed at runtime.
-    device: str = "cuda"
-    """(computed at runtime) which kind of accelerator to use."""
-    debug: bool = False
-    """(computed at runtime) whether to run in debug mode."""
-    n_train: int = -1
-    """Number of maximum training samples. Negative number means use all of them."""
+batch_size = 1024
+learning_rate = 3e-4
+n_steps = 30_000
+threshold = 0.5
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -111,7 +84,7 @@ class Features(torch.utils.data.Dataset):
 
 
 @beartype.beartype
-def init_classifier(input_dim: int) -> torch.nn.Module:
+def init_clf(input_dim: int) -> torch.nn.Module:
     """A simple MLP classifier consistent with the design in FishNet."""
     return torch.nn.Sequential(
         torch.nn.Linear(input_dim, 512),
@@ -159,8 +132,24 @@ def calc_macro_f1(preds: list[reporting.Prediction]) -> float:
     )
 
 
+def infinite(dataloader):
+    """Creates an infinite iterator from a dataloader by creating a new iterator each time the previous one is exhausted.
+
+    Args:
+        dataloader: A PyTorch dataloader or similar iterable
+
+    Yields:
+        Batches from the dataloader, indefinitely
+    """
+    while True:
+        # Create a fresh iterator from the dataloader
+        it = iter(dataloader)
+        for batch in it:
+            yield batch
+
+
 @beartype.beartype
-def benchmark(cfg: config.Experiment) -> tuple[config.Model, reporting.Report]:
+def benchmark(cfg: config.Experiment) -> reporting.Report:
     """
     The FishNet benchmark.
     """
@@ -168,120 +157,117 @@ def benchmark(cfg: config.Experiment) -> tuple[config.Model, reporting.Report]:
     backbone = registry.load_vision_backbone(cfg.model)
 
     # 2. Get features.
-    train_dataset = get_features(args, backbone, is_train=True)
-    test_dataset = get_features(args, backbone, is_train=False)
+    train_dataset = get_features(cfg, backbone, is_train=True)
+    test_dataset = get_features(cfg, backbone, is_train=False)
 
     # 3. Set up classifier.
-    classifier = init_classifier(train_dataset.dim).to(args.device)
+    classifier = init_clf(train_dataset.dim).to(cfg.device)
 
     # 4. Load datasets for classifier.
     train_loader = torch.utils.data.DataLoader(
-        train_dataset, batch_size=args.batch_size, shuffle=True
+        train_dataset, batch_size=batch_size, shuffle=True
     )
     test_loader = torch.utils.data.DataLoader(
-        test_dataset, batch_size=args.batch_size, shuffle=False
+        test_dataset, batch_size=batch_size, shuffle=False
     )
-    optimizer = torch.optim.Adam(classifier.parameters(), lr=args.learning_rate)
+    optimizer = torch.optim.Adam(classifier.parameters(), lr=learning_rate)
     criterion = torch.nn.BCEWithLogitsLoss()
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.5)
 
     # 5. Fit the classifier.
-    for epoch in range(args.n_epochs):
-        total = 2 if args.debug else len(train_loader)
-        it = iter(train_loader)
-        for b in range(total):
-            features, labels, _ = next(it)
-            features = features.to(args.device)
-            labels = labels.to(args.device, dtype=torch.float)
-            output = classifier(features)
-            loss = criterion(output, labels)
+    it = infinite(train_loader)
+    for step in range(n_steps):
+        features, labels, _ = next(it)
+        features = features.to(cfg.device)
+        labels = labels.to(cfg.device, dtype=torch.float)
+        output = classifier(features)
+        loss = criterion(output, labels)
 
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
         scheduler.step()
 
         # Evaluate the classifier.
-        if (epoch + 1) % args.log_every == 0:
-            examples = evaluate(args, classifier, test_loader)
-            score = calc_macro_f1(examples)
-            logger.info("Epoch %d/%d: %.3f", epoch + 1, args.n_epochs, score)
+        if (step + 1) % 1_000 == 0:
+            preds = predict(cfg, classifier, test_loader)
+            score = calc_macro_f1(preds)
+            logger.info(
+                "Step %d/%d (%.1f%%): %.3f (macro F1)",
+                step + 1,
+                n_steps,
+                (step + 1) / n_steps * 100,
+                score,
+            )
 
-    return cfg.model, reporting.Report(
-        "FishNet", examples, calc_mean_score=calc_macro_f1
-    )
+    return reporting.Report("fishnet", preds, cfg)
 
 
 @beartype.beartype
-def evaluate(
-    args: Args, classifier: torch.nn.Module, dataloader
+def predict(
+    cfg: config.Experiment, classifier: torch.nn.Module, dataloader
 ) -> list[reporting.Prediction]:
     """
     Evaluates the trained classifier on a test split.
 
     Returns:
-        a list of Examples.
+        List of `reporting.Prediction`s
     """
-    total = 2 if args.debug else len(dataloader)
+    total = 2 if cfg.debug else len(dataloader)
     it = iter(dataloader)
-    examples = []
+    preds = []
     for b in range(total):
         features, labels, ids = next(it)
-        features = features.to(args.device)
+        features = features.to(cfg.device)
         labels = labels.numpy()
         with torch.no_grad():
             pred_logits = classifier(features)
-        pred_logits = (pred_logits > args.threshold).cpu().numpy()
+        pred_logits = (pred_logits > threshold).cpu().numpy()
         for id, pred, true in zip(ids, pred_logits, labels):
-            example = reporting.Prediction(
-                id,
-                float((pred == true).all()),
-                {"y_pred": pred.tolist(), "y_true": true.tolist()},
-            )
-            examples.append(example)
+            info = {"y_pred": pred.tolist(), "y_true": true.tolist()}
+            preds.append(reporting.Prediction(id, (pred == true).mean().item(), info))
 
-    return examples
+    return preds
 
 
 @jaxtyped(typechecker=beartype.beartype)
 @torch.no_grad()
 def get_features(
-    args: Args, backbone: registry.VisionBackbone, *, is_train: bool
+    cfg: config.Experiment, backbone: registry.VisionBackbone, *, is_train: bool
 ) -> Features:
     """Extract visual features."""
-    if not os.path.isdir(args.data):
-        msg = f"Path '{args.data}' doesn't exist. Did you download the FishNet dataset? See the docstring at the top of this file for instructions. If you did download it, pass the path with '--fishnet-args.data'; see --help for more."
+    if not os.path.isdir(cfg.data.fishnet):
+        msg = f"Path '{cfg.data.fishnet}' doesn't exist. Did you download the FishNet dataset? See the docstring at the top of this file for instructions."
         raise ValueError(msg)
 
     img_transform = backbone.make_img_transform()
-    backbone = torch.compile(backbone.to(args.device))
+    backbone = torch.compile(backbone.to(cfg.device))
 
     file = "train.csv" if is_train else "test.csv"
-    dataset = ImageDataset(args.data, file, transform=img_transform)
+    dataset = ImageDataset(cfg.data.fishnet, file, transform=img_transform)
+    if is_train and cfg.n_train > 0:
+        i = np.random.default_rng(seed=cfg.seed).choice(
+            len(dataset), cfg.n_train, replace=False, shuffle=False
+        )
+        assert len(i) == cfg.n_train
+        dataset = torch.utils.data.Subset(dataset, i)
+
     dataloader = torch.utils.data.DataLoader(
         dataset,
-        batch_size=args.batch_size,
-        num_workers=args.n_workers,
-        shuffle=True,
+        batch_size=cfg.batch_size,
+        num_workers=cfg.n_workers,
+        shuffle=False,
     )
 
     all_features, all_labels, all_ids = [], [], []
 
-    if args.debug:
-        n = args.batch_size * 2
-        total = 2  # 2 batches
-    elif is_train and args.n_train >= 0:
-        n = args.n_train
-        total = n // args.batch_size + 1
-    else:
-        n = len(dataset)
-        total = len(dataloader)
+    total = len(dataloader) if not cfg.debug else 2
+    it = iter(dataloader)
 
     it = iter(dataloader)
-    for b in helpers.progress(range(total), every=args.log_every, desc=file):
+    for b in helpers.progress(range(total), every=10, desc=file):
         images, labels, ids = next(it)
-        images = images.to(args.device)
+        images = images.to(cfg.device)
 
         features = backbone.img_encode(images).img_features
         all_features.append(features.cpu())
@@ -290,9 +276,10 @@ def get_features(
         all_ids.extend(ids)
 
     # Keep the Tensor data type for subsequent training
-    all_features = torch.cat(all_features, dim=0)[:n]
-    all_labels = torch.cat(all_labels, dim=0)[:n]
-    all_ids = all_ids[:n]
+    all_features = torch.cat(all_features, dim=0)
+    all_labels = torch.cat(all_labels, dim=0)
+    assert len(all_ids) == len(dataset)
+    logger.info("Got features for %d images.", len(all_ids))
 
     return Features(all_features, all_labels, all_ids)
 
@@ -329,7 +316,7 @@ class ImageDataset(torch.utils.data.Dataset):
         logger.info("csv file: %s has %d item.", csv_file, len(self.df))
 
     def __getitem__(
-        self, index: int
+        self, index
     ) -> tuple[Float[Tensor, "3 width height"], Int[Tensor, "9"], str]:
         row_data = self.df.row(index)
         image_name = row_data[self.image_col]

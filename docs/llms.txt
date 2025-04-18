@@ -1,3 +1,287 @@
+# biobench/aimv2.py
+
+```python
+import dataclasses
+import json
+import os
+
+import beartype
+import requests
+import safetensors.torch
+import torch
+from jaxtyping import Float, jaxtyped
+from torch import Tensor
+
+from . import helpers, registry
+
+
+@beartype.beartype
+@dataclasses.dataclass(frozen=True)
+class Config:
+    """This is the configuration class to store the configuration of an `AIMv2Model`.
+
+    Instantiating a configuration with the defaults will yield a similar configuration to that of the [apple/aimv2-large-patch14-224](https://huggingface.co/apple/aimv2-large-patch14-224).
+
+    Args:
+        hidden_size: Dimension of the hidden representations.
+        intermediate_size: Dimension of the SwiGLU representations.
+        num_hidden_layers: Number of hidden layers in the Transformer.
+        num_attention_heads: Number of attention heads for each attention layer in the Transformer.
+        num_channels: Number of input channels.
+        image_size: Image size.
+        patch_size: Patch size.
+        rms_norm_eps: Epsilon value used for the RMS normalization layer.
+        attention_dropout: Dropout ratio for attention probabilities.
+        projection_dropout: Dropout ratio for the projection layer after the attention.
+        torch_dtype: Data type.
+        qkv_bias: Whether to add a bias to the queries, keys and values.
+        use_bias: Whether to add a bias in the feed-forward and projection layers.
+    """
+
+    hidden_size: int
+    intermediate_size: int
+    num_hidden_layers: int
+    num_attention_heads: int
+    num_channels: int
+    image_size: int
+    patch_size: int
+    rms_norm_eps: float
+    attention_dropout: float
+    projection_dropout: float
+    torch_dtype: str
+    qkv_bias: bool
+    use_bias: bool
+
+
+@beartype.beartype
+class RMSNorm(torch.nn.Module):
+    def __init__(self, dim: int, eps: float = 1e-6):
+        super().__init__()
+        self.weight = torch.nn.Parameter(torch.ones(dim))
+        self.eps = eps
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        output = self._norm(x.float()).type_as(x)
+        return output * self.weight
+
+    def extra_repr(self) -> str:
+        return f"{tuple(self.weight.shape)}, eps={self.eps}"
+
+    def _norm(self, x: torch.Tensor) -> torch.Tensor:
+        return x * torch.rsqrt(x.pow(2).mean(-1, keepdim=True) + self.eps)
+
+
+@jaxtyped(typechecker=beartype.beartype)
+class SwiGLUFFN(torch.nn.Module):
+    def __init__(self, cfg: Config):
+        super().__init__()
+
+        self.fc1 = torch.nn.Linear(
+            cfg.hidden_size, cfg.intermediate_size, bias=cfg.use_bias
+        )
+        self.fc2 = torch.nn.Linear(
+            cfg.intermediate_size, cfg.hidden_size, bias=cfg.use_bias
+        )
+        self.fc3 = torch.nn.Linear(
+            cfg.hidden_size, cfg.intermediate_size, bias=cfg.use_bias
+        )
+
+    def forward(self, x: Float[Tensor, "*batch d"]) -> Float[Tensor, "*batch d"]:
+        x = torch.nn.functional.silu(self.fc1(x)) * self.fc3(x)
+        x = self.fc2(x)
+        return x
+
+
+@jaxtyped(typechecker=beartype.beartype)
+class PatchEmbed(torch.nn.Module):
+    def __init__(self, cfg: Config):
+        super().__init__()
+        self.proj = torch.nn.Conv2d(
+            cfg.num_channels,
+            cfg.hidden_size,
+            kernel_size=(cfg.patch_size, cfg.patch_size),
+            stride=(cfg.patch_size, cfg.patch_size),
+        )
+        self.norm = RMSNorm(cfg.hidden_size, eps=cfg.rms_norm_eps)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x = self.proj(x).flatten(2).transpose(1, 2)
+        x = self.norm(x)
+        return x
+
+
+@jaxtyped(typechecker=beartype.beartype)
+class ViTPreprocessor(torch.nn.Module):
+    def __init__(self, cfg: Config):
+        super().__init__()
+        num_patches = (cfg.image_size // cfg.patch_size) ** 2
+
+        self.patchifier = PatchEmbed(cfg)
+        self.pos_embed = torch.nn.Parameter(
+            torch.zeros((1, num_patches, cfg.hidden_size))
+        )
+
+    def forward(
+        self, x: Float[Tensor, "batch 3 width height"]
+    ) -> Float[Tensor, "batch patches d"]:
+        tokens = self.patchifier(x)
+        _, N, _ = tokens.shape
+        pos_embed = self.pos_embed.to(tokens.device)
+        tokens = tokens + pos_embed[:, :N]
+        return tokens
+
+
+@jaxtyped(typechecker=beartype.beartype)
+class Attention(torch.nn.Module):
+    def __init__(self, cfg: Config):
+        super().__init__()
+        dim = cfg.hidden_size
+
+        self.num_heads = cfg.num_attention_heads
+        self.qkv = torch.nn.Linear(dim, dim * 3, bias=cfg.qkv_bias)
+        self.attn_drop = torch.nn.Dropout(cfg.attention_dropout)
+        self.proj = torch.nn.Linear(dim, dim, bias=cfg.use_bias)
+        self.proj_drop = torch.nn.Dropout(cfg.projection_dropout)
+
+    def forward(self, x: torch.Tensor, mask: torch.Tensor = None) -> torch.Tensor:
+        B, N, C = x.shape
+        qkv = (
+            self.qkv(x)
+            .reshape(B, N, 3, self.num_heads, C // self.num_heads)
+            .permute(2, 0, 3, 1, 4)
+        )
+        q, k, v = qkv.unbind(0)
+
+        x = torch.nn.functional.scaled_dot_product_attention(q, k, v, attn_mask=mask)
+        x = x.transpose(1, 2).contiguous().reshape(B, N, C)
+        x = self.proj(x)
+        x = self.proj_drop(x)
+        return x
+
+
+@jaxtyped(typechecker=beartype.beartype)
+class Block(torch.nn.Module):
+    def __init__(self, cfg: Config):
+        super().__init__()
+        self.attn = Attention(cfg)
+        self.norm_1 = RMSNorm(cfg.hidden_size, eps=cfg.rms_norm_eps)
+        self.mlp = SwiGLUFFN(cfg)
+        self.norm_2 = RMSNorm(cfg.hidden_size, eps=cfg.rms_norm_eps)
+
+    def forward(
+        self, x: torch.Tensor, mask: torch.Tensor | None = None
+    ) -> torch.Tensor:
+        x = x + self.attn(self.norm_1(x), mask)
+        x = x + self.mlp(self.norm_2(x))
+        return x
+
+
+@jaxtyped(typechecker=beartype.beartype)
+class Transformer(torch.nn.Module):
+    def __init__(self, cfg: Config):
+        super().__init__()
+        self.blocks = torch.nn.ModuleList([
+            Block(cfg) for _ in range(cfg.num_hidden_layers)
+        ])
+        self.post_trunk_norm = RMSNorm(cfg.hidden_size, eps=cfg.rms_norm_eps)
+
+    def forward(self, tokens: Float[Tensor, "..."]) -> Float[Tensor, "..."]:
+        for block in self.blocks:
+            tokens = block(tokens)
+        tokens = self.post_trunk_norm(tokens)
+        return tokens
+
+
+@jaxtyped(typechecker=beartype.beartype)
+class AIMv2(registry.VisionBackbone):
+    def __init__(self, ckpt: str, **kwargs):
+        super().__init__()
+
+        # Config
+        with open(download_hf_file(ckpt, "config.json"), "r") as fd:
+            cfg_dct = json.load(fd)
+        for key in ("architectures", "auto_map", "transformers_version"):
+            cfg_dct.pop(key)
+        assert cfg_dct.pop("model_type") == "aimv2"
+        cfg = Config(**cfg_dct)
+
+        # Model
+        self.preprocessor = ViTPreprocessor(cfg)
+        self.trunk = Transformer(cfg)
+
+        # Pre-trained weights
+        ckpt_fpath = download_hf_file(ckpt, "model.safetensors")
+        state_dict = safetensors.torch.load_file(ckpt_fpath)
+        self.load_state_dict(state_dict)
+
+    def forward(self, x: Float[Tensor, "..."]) -> Float[Tensor, "..."]:
+        x = self.preprocessor(x)
+        x = self.trunk(x)
+        return x
+
+    def img_encode(
+        self, batch: Float[Tensor, "batch 3 width height"]
+    ) -> registry.EncodedImgBatch:
+        x = self.forward(batch)
+        return registry.EncodedImgBatch(x.max(dim=1).values, x)
+
+    def make_img_transform(self):
+        import torch
+        from torchvision.transforms import v2
+
+        return v2.Compose([
+            v2.Resize(size=224),
+            v2.CenterCrop(size=(224, 224)),
+            v2.ToImage(),
+            v2.ToDtype(torch.float32, scale=True),
+            v2.Normalize(
+                mean=[0.48145466, 0.4578275, 0.40821073],
+                std=[0.26862954, 0.26130258, 0.27577711],
+            ),
+        ])
+
+
+@beartype.beartype
+def download_hf_file(ckpt: str, filepath: str, *, force_download: bool = False) -> str:
+    """
+    Download a file from a Hugging Face model repository.
+
+    Args:
+        ckpt: The model checkpoint identifier (e.g., 'apple/aimv2-large-patch14-224')
+        filepath: The path to the file within the repo (e.g., 'config.json')
+        force_download: Whether to force download even if the file exists locally
+
+    Returns:
+        The path to the downloaded file on the local filesystem
+    """
+
+    # Construct the URL
+    url = f"https://huggingface.co/{ckpt}/resolve/main/{filepath}"
+
+    # Create the local path
+    cache_dir = helpers.get_cache_dir()
+    local_dir = os.path.join(cache_dir, "hf", ckpt)
+    local_path = os.path.join(local_dir, filepath)
+
+    # Create the directory if it doesn't exist
+    os.makedirs(os.path.dirname(local_path), exist_ok=True)
+
+    # Check if the file exists
+    if os.path.exists(local_path) and not force_download:
+        return local_path
+
+    # Download the file
+    response = requests.get(url, stream=True)
+    response.raise_for_status()
+
+    with open(local_path, "wb") as f:
+        for chunk in response.iter_content(chunk_size=8192):
+            f.write(chunk)
+
+    return local_path
+
+```
+
 # biobench/third_party_models.py
 
 ```python
@@ -8,17 +292,9 @@ import beartype
 from jaxtyping import Float, jaxtyped
 from torch import Tensor
 
-from biobench import registry
+from . import helpers, registry
 
 logger = logging.getLogger("third_party")
-
-
-@beartype.beartype
-def get_cache_dir() -> str:
-    cache_dir = ""
-    for var in ("BIOBENCH_CACHE", "HF_HOME", "HF_HUB_CACHE"):
-        cache_dir = cache_dir or os.environ.get(var, "")
-    return cache_dir or "."
 
 
 @beartype.beartype
@@ -68,7 +344,7 @@ class OpenClip(registry.VisionBackbone):
         else:
             arch, ckpt = ckpt.split("/")
             clip, self.img_transform = open_clip.create_model_from_pretrained(
-                arch, pretrained=ckpt, cache_dir=get_cache_dir()
+                arch, pretrained=ckpt, cache_dir=helpers.get_cache_dir()
             )
 
         self.model = clip.visual
@@ -90,16 +366,21 @@ class OpenClip(registry.VisionBackbone):
 
 
 @jaxtyped(typechecker=beartype.beartype)
-class TimmVit(registry.VisionBackbone):
-    """ """
+class Timm(registry.VisionBackbone):
+    """
+    Wrapper for models from the Timm (PyTorch Image Models) library.
+
+    This class provides an interface to use any model from the Timm library
+    as a vision backbone in the biobench framework.
+    """
 
     # TODO: docs + describe the ckpt format.
     def __init__(self, ckpt: str, **kwargs):
         super().__init__()
         import timm
 
-        err_msg = "You are trying to load a non-ViT checkpoint; the `img_encode()` method assumes `model.forward_features()` will return features with shape (batch, n_patches, dim) which is not true for non-ViT checkpoints."
-        assert "vit" in ckpt, err_msg
+        self.ckpt = ckpt
+
         self.model = timm.create_model(ckpt, pretrained=True)
 
         data_cfg = timm.data.resolve_data_config(self.model.pretrained_cfg)
@@ -111,17 +392,76 @@ class TimmVit(registry.VisionBackbone):
     def img_encode(
         self, batch: Float[Tensor, "batch 3 width height"]
     ) -> registry.EncodedImgBatch:
-        patches = self.model.forward_features(batch)
-        # Use [CLS] token if it exists, otherwise do a maxpool
-        if self.model.num_prefix_tokens > 0:
-            img = patches[:, 0, ...]
-        else:
-            img = patches.max(axis=1).values
+        feats = self.model.forward_features(batch)
+        if feats.ndim == 4:
+            # This is probably a convnet of some kind, with (batch, dim, width, height)
+            bsz, d, w, h = feats.shape
 
-        # Remove all non-image patches, like the [CLS] token or registers
-        patches = patches[:, self.model.num_prefix_tokens :, ...]
+            # Validate the shape of the features
+            if not (d > w and d > h):
+                raise ValueError(
+                    f"Expected feature dimensions (d={d}) to be larger than spatial dimensions (w={w}, h={h}). This suggests the tensor dimensions may be in an unexpected order."
+                )
+
+            if w != h:
+                raise ValueError(
+                    f"Expected equal spatial dimensions, but got width={w} and height={h}. Unequal spatial dimensions indicate a mistake in our understanding of the output features from model '{self.ckpt}'."
+                )
+
+            # Reshape to (batch, patches, dim) format
+            patches = feats.permute(0, 2, 3, 1).reshape(bsz, w * h, d)
+            # TODO: should we only use max pooling?
+            img = patches.max(dim=1).values  # Global max pooling
+        elif feats.ndim == 3:
+            # This is probably a ViT with (batch, patches, dim)
+            bsz, num_patches, d = feats.shape
+            patches = feats
+
+            # For ViT models, we typically use the class token ([CLS]) as the image representation
+            # if it exists, otherwise we do mean pooling over patches
+            if self.model.num_prefix_tokens > 0:
+                img = patches[:, 0]  # Use [CLS] token
+                # Remove prefix tokens (like [CLS]) from patches
+                patches = patches[:, self.model.num_prefix_tokens :]
+            else:
+                img = patches.max(dim=1).values  # Max pooling if no [CLS] token
+        else:
+            raise ValueError(
+                f"Unexpected feature dimension: {feats.ndim}. Expected either 3 (ViT models) or 4 (ConvNet models). Check if the model architecture {self.ckpt} is supported."
+            )
 
         return registry.EncodedImgBatch(img, patches)
+
+
+@jaxtyped(typechecker=beartype.beartype)
+class DinoV2(registry.VisionBackbone):
+    def __init__(self, ckpt: str, **kwargs):
+        super().__init__()
+
+        import torch
+
+        self.model = torch.hub.load("facebookresearch/dinov2", ckpt)
+
+    def img_encode(
+        self, batch: Float[Tensor, "batch 3 width height"]
+    ) -> Float[Tensor, "batch patches dim"]:
+        dct = self.model.forward_features(batch)
+
+        return registry.EncodedImgBatch(
+            dct["x_norm_clstoken"], dct["x_norm_patchtokens"]
+        )
+
+    def make_img_transform(self):
+        import torch
+        from torchvision.transforms import v2
+
+        return v2.Compose([
+            v2.Resize(size=(256, 256)),
+            v2.CenterCrop(size=(224, 224)),
+            v2.ToImage(),
+            v2.ToDtype(torch.float32, scale=True),
+            v2.Normalize(mean=[0.4850, 0.4560, 0.4060], std=[0.2290, 0.2240, 0.2250]),
+        ])
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -138,10 +478,6 @@ class TorchvisionModel(registry.VisionBackbone):
     ) -> registry.EncodedImgBatch:
         breakpoint()
 
-    def make_img_transform(self):
-        # Per the docs, each set of weights has its own transform: https://pytorch.org/vision/stable/models.html#using-the-pre-trained-models
-        return self.model.weights.transforms()
-
 ```
 
 # biobench/__init__.py
@@ -152,15 +488,14 @@ class TorchvisionModel(registry.VisionBackbone):
 import typing
 
 import tyro
-from beartype.claw import beartype_this_package
 
-from . import third_party_models
+from . import aimv2, third_party_models
 from .registry import list_vision_backbones, register_vision_backbone
 
-beartype_this_package()
-
-register_vision_backbone("timm-vit", third_party_models.TimmVit)
+register_vision_backbone("timm", third_party_models.Timm)
 register_vision_backbone("open-clip", third_party_models.OpenClip)
+register_vision_backbone("dinov2", third_party_models.DinoV2)
+register_vision_backbone("aimv2", aimv2.AIMv2)
 
 # Some helpful types
 if typing.TYPE_CHECKING:
@@ -375,6 +710,333 @@ def list_vision_backbones() -> list[str]:
 
 ```
 
+# biobench/test_helpers.py
+
+```python
+import collections
+
+import beartype
+import hypothesis.extra.numpy as npst
+import numpy as np
+from hypothesis import assume, given
+from hypothesis import strategies as st
+from jaxtyping import Int, jaxtyped
+
+from . import helpers
+
+
+@jaxtyped(typechecker=beartype.beartype)
+def measure_balance(
+    labels: Int[np.ndarray, " n_labels"], indices: Int[np.ndarray, " n"]
+) -> float:
+    """
+    Calculate a balance metric (coefficient of variation, lower is better) for the selected samples (labels[indices]).
+
+    Returns 0 for perfect balance, higher for more imbalance.
+    """
+    if len(indices) == 0:
+        return 0.0
+
+    # Get the distribution of classes in the selected samples
+    selected_labels = labels[indices]
+    class_counts = collections.Counter(selected_labels)
+
+    # Get all unique classes in the original dataset
+    all_classes = set(labels)
+
+    # Check if it was possible to include at least one of each class but didn't
+    if len(indices) >= len(all_classes) and len(class_counts) < len(all_classes):
+        return float("inf")
+
+    # Calculate coefficient of variation (standard deviation / mean)
+    counts = np.array(list(class_counts.values()))
+
+    # If only one class is present, return a high value to indicate imbalance
+    if len(counts) == 1:
+        return float("inf")
+
+    mean = np.mean(counts)
+    std = np.std(counts, ddof=1)  # Using sample standard deviation
+
+    # Return coefficient of variation (0 for perfect balance)
+    return std / mean if mean > 0 else 0.0
+
+
+@given(
+    labels=npst.arrays(
+        dtype=np.int32,
+        shape=st.integers(min_value=1000, max_value=10000),
+        elements=st.integers(min_value=0, max_value=100),
+    ),
+    n=st.integers(min_value=10, max_value=1000),
+)
+def test_correct_sample_size(labels, n):
+    """Test that the function returns exactly n samples (or all if n > len(labels))"""
+    assume(len(np.unique(labels)) > 1)  # Ensure we have at least 2 classes
+
+    indices = helpers.balanced_random_sample(labels, n)
+
+    # Check that the number of samples is correct
+    n_expected = min(n, len(labels))
+    assert len(indices) == n_expected
+
+    # Check that all indices are valid
+    assert np.all(indices < len(labels)), "Some indices are out of bounds"
+
+    # Check that there are no duplicate indices
+    assert len(indices) == len(np.unique(indices)), "Duplicate indices found"
+
+
+# Test case 2: Class balance property
+@given(
+    labels=npst.arrays(
+        dtype=np.int32,
+        shape=st.integers(min_value=1000, max_value=10000),
+        elements=st.integers(min_value=0, max_value=20),
+    ),
+    n=st.integers(min_value=100, max_value=1000),
+)
+def test_class_balance(labels, n):
+    """
+    Test that the class distribution in the sample is more balanced than random sampling would be.
+    """
+    unique_classes = np.unique(labels)
+    assume(len(unique_classes) > 1)  # Ensure we have at least 2 classes
+    assume(n >= len(unique_classes))  # Ensure we request at least one sample per class
+
+    # Get balanced samples
+    balanced_indices = helpers.balanced_random_sample(labels, n)
+    balanced_balance = measure_balance(labels, balanced_indices)
+
+    # Get a normal random sample for comparison
+    random_indices = np.random.choice(len(labels), min(n, len(labels)), replace=False)
+    random_balance = measure_balance(labels, random_indices)
+
+    # Check if our balanced sampling is generally better than random
+    # Note: This might occasionally fail due to randomness, but should pass most of the time
+    assert balanced_balance <= random_balance * 1.5, (
+        f"Balance metric: balanced={balanced_balance}, random={random_balance}"
+    )
+
+
+def test_single_class_sampling():
+    """Test sampling when all samples are from the same class"""
+    labels = np.array([1, 1, 1, 1, 1], dtype=int)
+    indices = helpers.balanced_random_sample(labels, 3)
+    assert len(indices) == 3
+    assert len(np.unique(indices)) == 3
+
+
+def test_small_sample_size():
+    """Test sampling with a very small n"""
+    labels = np.array([0, 0, 1, 1, 2, 2, 3, 3], dtype=int)
+    indices = helpers.balanced_random_sample(labels, 2)
+    assert len(indices) == 2
+
+
+def test_sample_size_larger_than_dataset():
+    """Test when requested sample size exceeds dataset size"""
+    labels = np.array([0, 1, 2], dtype=int)
+    indices = helpers.balanced_random_sample(labels, 10)
+    assert len(indices) == 3  # Should return all samples
+    assert set(indices) == {0, 1, 2}
+
+
+def test_empty_dataset():
+    """Test sampling from an empty dataset"""
+    labels = np.array([], dtype=int)
+    indices = helpers.balanced_random_sample(labels, 5)
+    assert len(indices) == 0
+
+
+def test_zero_samples_requested():
+    """Test when zero samples are requested"""
+    labels = np.array([0, 1, 2, 3], dtype=int)
+    indices = helpers.balanced_random_sample(labels, 0)
+    assert len(indices) == 0
+
+```
+
+# biobench/helpers.py
+
+```python
+"""
+Useful helpers for more than two tasks that don't fit anywhere else.
+"""
+
+import collections
+import collections.abc
+import logging
+import os.path
+import time
+
+import beartype
+import numpy as np
+from jaxtyping import Int, jaxtyped
+
+
+@beartype.beartype
+def get_cache_dir() -> str:
+    cache_dir = ""
+    for var in ("BIOBENCH_CACHE", "HF_HOME", "HF_HUB_CACHE"):
+        cache_dir = cache_dir or os.environ.get(var, "")
+    return cache_dir or "."
+
+
+@beartype.beartype
+class progress:
+    def __init__(self, it, *, every: int = 10, desc: str = "progress"):
+        """
+        Wraps an iterable with a logger like tqdm but doesn't use any control codes to manipulate a progress bar, which doesn't work well when your output is redirected to a file. Instead, simple logging statements are used, but it includes quality-of-life features like iteration speed and predicted time to finish.
+
+        Args:
+            it: Iterable to wrap.
+            every: How many iterations between logging progress.
+            desc: What to name the logger.
+        """
+        self.it = it
+        self.every = every
+        self.logger = logging.getLogger(desc)
+
+    def __iter__(self):
+        start = time.time()
+        for i, obj in enumerate(self.it):
+            yield obj
+
+            if (i + 1) % self.every == 0:
+                now = time.time()
+                duration_s = now - start
+                per_min = (i + 1) / (duration_s / 60)
+
+                if isinstance(self.it, collections.abc.Sized):
+                    pred_min = (len(self) - (i + 1)) / per_min
+                    self.logger.info(
+                        "%d/%d (%.1f%%) | %.1f it/m (expected finish in %.1fm)",
+                        i + 1,
+                        len(self),
+                        (i + 1) / len(self) * 100,
+                        per_min,
+                        pred_min,
+                    )
+                else:
+                    self.logger.info("%d/? | %.1f it/m", i + 1, per_min)
+
+    def __len__(self) -> int:
+        return len(self.it)
+
+
+@beartype.beartype
+def fs_safe(string: str) -> str:
+    """Makes a string safe for filesystems by removing typical special characters."""
+    return string.replace(":", "_").replace("/", "_")
+
+
+@beartype.beartype
+def write_hparam_sweep_plot(
+    task: str,
+    model: str,
+    clf,
+    x: str = "param_ridgeclassifier__alpha",
+    y: str = "mean_test_score",
+) -> str:
+    import matplotlib.pyplot as plt
+    import polars as pl
+
+    if not hasattr(clf, "cv_results_"):
+        return ""
+
+    df = pl.DataFrame(clf.cv_results_)
+
+    fig, ax = plt.subplots()
+
+    if "n_resources" in df.columns:
+        for n_resources in df.get_column("n_resources").unique().sort():
+            ax.scatter(
+                x=df.filter(pl.col("n_resources") == n_resources)[x],
+                y=df.filter(pl.col("n_resources") == n_resources)[y],
+                label=f"{n_resources} ex.",
+            )
+        fig.legend()
+    else:
+        ax.scatter(x=df[x], y=df[y])
+
+    ax.set_xlabel(x)
+    ax.set_ylabel(y)
+    ax.set_xscale("log")
+    ax.set_title(model)
+
+    fig.tight_layout()
+    filepath = os.path.join("logs", f"{task}_{fs_safe(model)}_hparam.png")
+    fig.savefig(filepath)
+    return filepath
+
+
+@jaxtyped(typechecker=beartype.beartype)
+def balanced_random_sample(
+    labels: Int[np.ndarray, " n_labels"], n: int
+) -> Int[np.ndarray, " n"]:
+    """
+    Select n random examples while balancing the number of examples per class.
+    """
+    # Count the occurrences of each class
+    class_counts = collections.Counter(labels)
+    unique_classes = list(class_counts.keys())
+    n_classes = len(unique_classes)
+
+    if not n_classes:
+        return np.array([], dtype=int)
+
+    # Calculate ideal number of samples per class
+    samples_per_class = n // n_classes
+
+    # Handle remainder by allocating extra samples to random classes
+    remainder = n % n_classes
+    extra_samples = np.zeros(n_classes, dtype=int)
+    if remainder > 0:
+        extra_indices = np.random.choice(n_classes, remainder, replace=False)
+        extra_samples[extra_indices] = 1
+
+    # Calculate final samples per class
+    final_samples = np.array([samples_per_class] * n_classes) + extra_samples
+
+    # Initialize result array
+    selected_indices = []
+
+    # For each class, select random samples
+    for i, class_label in enumerate(unique_classes):
+        # Get all indices for this class
+        class_indices = np.where(labels == class_label)[0]
+
+        # Calculate how many to take (minimum of available samples and desired samples)
+        n_to_take = min(len(class_indices), final_samples[i])
+
+        # Randomly sample without replacement
+        if n_to_take > 0:
+            sampled_indices = np.random.choice(class_indices, n_to_take, replace=False)
+            selected_indices.extend(sampled_indices)
+
+    # If we still don't have enough samples (due to some classes having too few examples),
+    # sample from the remaining examples across all classes
+    if len(selected_indices) < n:
+        # Create a mask of already selected indices
+        mask = np.ones(len(labels), dtype=bool)
+        mask[selected_indices] = False
+        remaining_indices = np.where(mask)[0]
+
+        # How many more do we need?
+        needed = n - len(selected_indices)
+
+        # Sample without replacement from remaining indices
+        if needed > 0 and len(remaining_indices) > 0:
+            additional_indices = np.random.choice(
+                remaining_indices, min(needed, len(remaining_indices)), replace=False
+            )
+            selected_indices.extend(additional_indices)
+
+    return np.array(selected_indices, dtype=int)
+
+```
+
 # biobench/reporting.py
 
 ```python
@@ -538,6 +1200,54 @@ class Report:
             logger.critical("Error writing report for '%s': %s", self.task_name, err)
             raise
 
+
+##########
+# COLORS #
+##########
+
+
+# https://coolors.co/palette/001219-005f73-0a9396-94d2bd-e9d8a6-ee9b00-ca6702-bb3e03-ae2012-9b2226
+
+BLACK_HEX = "001219"
+BLACK_RGB = (0, 18, 25)
+BLACK_RGB01 = tuple(c / 256 for c in BLACK_RGB)
+
+BLUE_HEX = "005f73"
+BLUE_RGB = (0, 95, 115)
+BLUE_RGB01 = tuple(c / 256 for c in BLUE_RGB)
+
+CYAN_HEX = "0a9396"
+CYAN_RGB = (10, 147, 150)
+CYAN_RGB01 = tuple(c / 256 for c in CYAN_RGB)
+
+SEA_HEX = "94d2bd"
+SEA_RGB = (148, 210, 189)
+SEA_RGB01 = tuple(c / 256 for c in SEA_RGB)
+
+CREAM_HEX = "e9d8a6"
+CREAM_RGB = (233, 216, 166)
+CREAM_RGB01 = tuple(c / 256 for c in CREAM_RGB)
+
+GOLD_HEX = "ee9b00"
+GOLD_RGB = (238, 155, 0)
+GOLD_RGB01 = tuple(c / 256 for c in GOLD_RGB)
+
+ORANGE_HEX = "ca6702"
+ORANGE_RGB = (202, 103, 2)
+ORANGE_RGB01 = tuple(c / 256 for c in ORANGE_RGB)
+
+RUST_HEX = "bb3e03"
+RUST_RGB = (187, 62, 3)
+RUST_RGB01 = tuple(c / 256 for c in RUST_RGB)
+
+SCARLET_HEX = "ae2012"
+SCARLET_RGB = (174, 32, 18)
+SCARLET_RGB01 = tuple(c / 256 for c in SCARLET_RGB)
+
+RED_HEX = "9b2226"
+RED_RGB = (155, 34, 38)
+RED_RGB01 = tuple(c / 256 for c in RED_RGB)
+
 ```
 
 # biobench/config.py
@@ -579,8 +1289,8 @@ class Data:
     """Data pathfor the Beluga whale re-ID benchmark."""
     fishnet: str = ""
     """Data path for the FishNet benchmark."""
-    imagenet1k: str = "huggingface"
-    """Data path for the ImageNet-1K benchmark. 'huggingface' because it is downloaded from HF."""
+    imagenet1k: str = ""
+    """Data path for the ImageNet-1K benchmark. You can put anything (like 'huggingface') because it is downloaded from HF."""
     newt: str = ""
     """Data path for the NeWT benchmark."""
     herbarium19: str = ""
@@ -700,319 +1410,61 @@ def load(path: str) -> list[Experiment]:
 
 ```
 
-# biobench/helpers.py
+# biobench/test_aimv2.py
 
 ```python
-"""
-Useful helpers for more than two tasks that don't fit anywhere else.
-"""
-
-import collections
-import collections.abc
-import logging
-import os.path
-import time
-
-import beartype
-import numpy as np
-from jaxtyping import Int, jaxtyped
-
-
-@beartype.beartype
-class progress:
-    def __init__(self, it, *, every: int = 10, desc: str = "progress"):
-        """
-        Wraps an iterable with a logger like tqdm but doesn't use any control codes to manipulate a progress bar, which doesn't work well when your output is redirected to a file. Instead, simple logging statements are used, but it includes quality-of-life features like iteration speed and predicted time to finish.
-
-        Args:
-            it: Iterable to wrap.
-            every: How many iterations between logging progress.
-            desc: What to name the logger.
-        """
-        self.it = it
-        self.every = every
-        self.logger = logging.getLogger(desc)
-
-    def __iter__(self):
-        start = time.time()
-        for i, obj in enumerate(self.it):
-            yield obj
-
-            if (i + 1) % self.every == 0:
-                now = time.time()
-                duration_s = now - start
-                per_min = (i + 1) / (duration_s / 60)
-
-                if isinstance(self.it, collections.abc.Sized):
-                    pred_min = (len(self) - (i + 1)) / per_min
-                    self.logger.info(
-                        "%d/%d (%.1f%%) | %.1f it/m (expected finish in %.1fm)",
-                        i + 1,
-                        len(self),
-                        (i + 1) / len(self) * 100,
-                        per_min,
-                        pred_min,
-                    )
-                else:
-                    self.logger.info("%d/? | %.1f it/m", i + 1, per_min)
-
-    def __len__(self) -> int:
-        return len(self.it)
-
-
-@beartype.beartype
-def fs_safe(string: str) -> str:
-    """Makes a string safe for filesystems by removing typical special characters."""
-    return string.replace(":", "_").replace("/", "_")
-
-
-@beartype.beartype
-def write_hparam_sweep_plot(
-    task: str,
-    model: str,
-    clf,
-    x: str = "param_ridgeclassifier__alpha",
-    y: str = "mean_test_score",
-) -> str:
-    import matplotlib.pyplot as plt
-    import polars as pl
-
-    df = pl.DataFrame(clf.cv_results_)
-
-    fig, ax = plt.subplots()
-
-    if "n_resources" in df.columns:
-        for n_resources in df.get_column("n_resources").unique().sort():
-            ax.scatter(
-                x=df.filter(pl.col("n_resources") == n_resources)[x],
-                y=df.filter(pl.col("n_resources") == n_resources)[y],
-                label=f"{n_resources} ex.",
-            )
-        fig.legend()
-    else:
-        ax.scatter(x=df[x], y=df[y])
-
-    ax.set_xlabel(x)
-    ax.set_ylabel(y)
-    ax.set_xscale("log")
-    ax.set_title(model)
-
-    fig.tight_layout()
-    filepath = os.path.join("logs", f"{task}_{fs_safe(model)}_hparam.png")
-    fig.savefig(filepath)
-    return filepath
-
-
-@jaxtyped(typechecker=beartype.beartype)
-def balanced_random_sample(
-    labels: Int[np.ndarray, " n_labels"], n: int
-) -> Int[np.ndarray, " n"]:
-    """
-    Select n random examples while balancing the number of examples per class.
-    """
-    # Count the occurrences of each class
-    class_counts = collections.Counter(labels)
-    unique_classes = list(class_counts.keys())
-    n_classes = len(unique_classes)
-
-    if not n_classes:
-        return np.array([], dtype=int)
-
-    # Calculate ideal number of samples per class
-    samples_per_class = n // n_classes
-
-    # Handle remainder by allocating extra samples to random classes
-    remainder = n % n_classes
-    extra_samples = np.zeros(n_classes, dtype=int)
-    if remainder > 0:
-        extra_indices = np.random.choice(n_classes, remainder, replace=False)
-        extra_samples[extra_indices] = 1
-
-    # Calculate final samples per class
-    final_samples = np.array([samples_per_class] * n_classes) + extra_samples
-
-    # Initialize result array
-    selected_indices = []
-
-    # For each class, select random samples
-    for i, class_label in enumerate(unique_classes):
-        # Get all indices for this class
-        class_indices = np.where(labels == class_label)[0]
-
-        # Calculate how many to take (minimum of available samples and desired samples)
-        n_to_take = min(len(class_indices), final_samples[i])
-
-        # Randomly sample without replacement
-        if n_to_take > 0:
-            sampled_indices = np.random.choice(class_indices, n_to_take, replace=False)
-            selected_indices.extend(sampled_indices)
-
-    # If we still don't have enough samples (due to some classes having too few examples),
-    # sample from the remaining examples across all classes
-    if len(selected_indices) < n:
-        # Create a mask of already selected indices
-        mask = np.ones(len(labels), dtype=bool)
-        mask[selected_indices] = False
-        remaining_indices = np.where(mask)[0]
-
-        # How many more do we need?
-        needed = n - len(selected_indices)
-
-        # Sample without replacement from remaining indices
-        if needed > 0 and len(remaining_indices) > 0:
-            additional_indices = np.random.choice(
-                remaining_indices, min(needed, len(remaining_indices)), replace=False
-            )
-            selected_indices.extend(additional_indices)
-
-    return np.array(selected_indices, dtype=int)
-
-```
-
-# biobench/test_helpers.py
-
-```python
-import collections
-
-import beartype
-import hypothesis.extra.numpy as npst
-import numpy as np
-from hypothesis import assume, given
-from hypothesis import strategies as st
-from jaxtyping import Int, jaxtyped
-
-from . import helpers
-
-
-@jaxtyped(typechecker=beartype.beartype)
-def measure_balance(
-    labels: Int[np.ndarray, " n_labels"], indices: Int[np.ndarray, " n"]
-) -> float:
-    """
-    Calculate a balance metric (coefficient of variation, lower is better) for the selected samples (labels[indices]).
-
-    Returns 0 for perfect balance, higher for more imbalance.
-    """
-    if len(indices) == 0:
-        return 0.0
-
-    # Get the distribution of classes in the selected samples
-    selected_labels = labels[indices]
-    class_counts = collections.Counter(selected_labels)
-
-    # Get all unique classes in the original dataset
-    all_classes = set(labels)
-
-    # Check if it was possible to include at least one of each class but didn't
-    if len(indices) >= len(all_classes) and len(class_counts) < len(all_classes):
-        return float("inf")
-
-    # Calculate coefficient of variation (standard deviation / mean)
-    counts = np.array(list(class_counts.values()))
-
-    # If only one class is present, return a high value to indicate imbalance
-    if len(counts) == 1:
-        return float("inf")
-
-    mean = np.mean(counts)
-    std = np.std(counts, ddof=1)  # Using sample standard deviation
-
-    # Return coefficient of variation (0 for perfect balance)
-    return std / mean if mean > 0 else 0.0
-
-
-@given(
-    labels=npst.arrays(
-        dtype=np.int32,
-        shape=st.integers(min_value=1000, max_value=10000),
-        elements=st.integers(min_value=0, max_value=100),
-    ),
-    n=st.integers(min_value=10, max_value=1000),
-)
-def test_correct_sample_size(labels, n):
-    """Test that the function returns exactly n samples (or all if n > len(labels))"""
-    assume(len(np.unique(labels)) > 1)  # Ensure we have at least 2 classes
-
-    indices = helpers.balanced_random_sample(labels, n)
-
-    # Check that the number of samples is correct
-    n_expected = min(n, len(labels))
-    assert len(indices) == n_expected
-
-    # Check that all indices are valid
-    assert np.all(indices < len(labels)), "Some indices are out of bounds"
-
-    # Check that there are no duplicate indices
-    assert len(indices) == len(np.unique(indices)), "Duplicate indices found"
-
-
-# Test case 2: Class balance property
-@given(
-    labels=npst.arrays(
-        dtype=np.int32,
-        shape=st.integers(min_value=1000, max_value=10000),
-        elements=st.integers(min_value=0, max_value=20),
-    ),
-    n=st.integers(min_value=100, max_value=1000),
-)
-def test_class_balance(labels, n):
-    """
-    Test that the class distribution in the sample is more balanced than random sampling would be.
-    """
-    unique_classes = np.unique(labels)
-    assume(len(unique_classes) > 1)  # Ensure we have at least 2 classes
-    assume(n >= len(unique_classes))  # Ensure we request at least one sample per class
-
-    # Get balanced samples
-    balanced_indices = helpers.balanced_random_sample(labels, n)
-    balanced_balance = measure_balance(labels, balanced_indices)
-
-    # Get a normal random sample for comparison
-    random_indices = np.random.choice(len(labels), min(n, len(labels)), replace=False)
-    random_balance = measure_balance(labels, random_indices)
-
-    # Check if our balanced sampling is generally better than random
-    # Note: This might occasionally fail due to randomness, but should pass most of the time
-    assert balanced_balance <= random_balance * 1.5, (
-        f"Balance metric: balanced={balanced_balance}, random={random_balance}"
-    )
-
-
-def test_single_class_sampling():
-    """Test sampling when all samples are from the same class"""
-    labels = np.array([1, 1, 1, 1, 1], dtype=int)
-    indices = helpers.balanced_random_sample(labels, 3)
-    assert len(indices) == 3
-    assert len(np.unique(indices)) == 3
-
-
-def test_small_sample_size():
-    """Test sampling with a very small n"""
-    labels = np.array([0, 0, 1, 1, 2, 2, 3, 3], dtype=int)
-    indices = helpers.balanced_random_sample(labels, 2)
-    assert len(indices) == 2
-
-
-def test_sample_size_larger_than_dataset():
-    """Test when requested sample size exceeds dataset size"""
-    labels = np.array([0, 1, 2], dtype=int)
-    indices = helpers.balanced_random_sample(labels, 10)
-    assert len(indices) == 3  # Should return all samples
-    assert set(indices) == {0, 1, 2}
-
-
-def test_empty_dataset():
-    """Test sampling from an empty dataset"""
-    labels = np.array([], dtype=int)
-    indices = helpers.balanced_random_sample(labels, 5)
-    assert len(indices) == 0
-
-
-def test_zero_samples_requested():
-    """Test when zero samples are requested"""
-    labels = np.array([0, 1, 2, 3], dtype=int)
-    indices = helpers.balanced_random_sample(labels, 0)
-    assert len(indices) == 0
+import pytest
+import torch
+import transformers
+
+from . import config, helpers, registry
+
+CKPTS = [
+    "apple/aimv2-large-patch14-224",
+    "apple/aimv2-large-patch14-224-distilled",
+    "apple/aimv2-1B-patch14-336",
+]
+DTYPE = torch.float32
+ATOL, RTOL = 1e-5, 1e-4
+
+
+@pytest.fixture(scope="session", params=CKPTS)
+def models(request):
+    ckpt = request.param
+    hf = transformers.AutoModel.from_pretrained(
+        ckpt, trust_remote_code=True, cache_dir=helpers.get_cache_dir()
+    ).eval()
+    bio = registry.load_vision_backbone(config.Model("aimv2", ckpt)).eval().to(DTYPE)
+    return hf, bio
+
+
+def _rand(batch: int = 1):
+    torch.manual_seed(0)
+    return torch.rand(batch, 3, 224, 224, dtype=DTYPE)
+
+
+def test_same_shape_single(models):
+    hf, bio = models
+    batch = _rand()
+    h = hf(batch).last_hidden_state
+    b = bio.img_encode(batch).patch_features
+    assert h.shape == b.shape
+
+
+def test_values_close_single(models):
+    hf, bio = models
+    batch = _rand()
+    h = hf(batch).last_hidden_state
+    b = bio.img_encode(batch).patch_features
+    assert torch.allclose(h, b, atol=ATOL, rtol=RTOL)
+
+
+def test_values_close_batch(models):
+    hf, bio = models
+    batch = _rand(batch=4)
+    h = hf(batch).last_hidden_state
+    b = bio.img_encode(batch).patch_features
+    assert torch.allclose(h, b, atol=ATOL, rtol=RTOL)
 
 ```
 
@@ -2150,7 +2602,6 @@ If you use this evaluation, be sure to cite the original work:
 This task was contributed by [Jianyang Gu](https://vimar-gu.github.io/).
 """
 
-import dataclasses
 import logging
 import os.path
 
@@ -2167,36 +2618,10 @@ from .. import config, helpers, registry, reporting
 
 logger = logging.getLogger("fishnet")
 
-
-@beartype.beartype
-@dataclasses.dataclass(frozen=True)
-class Args:
-    """FishNet task arguments."""
-
-    data: str = ""
-    """dataset directory; where you downloaded this task's data to."""
-    batch_size: int = 256
-    """batch size for computer vision model."""
-    n_workers: int = 4
-    """number of dataloader worker processes."""
-    log_every: int = 10
-    """how often (number of epochs) to log progress."""
-    n_epochs: int = 100
-    """How many epochs to train the MLP classifier."""
-    learning_rate: float = 5e-4
-    """The learning rate for training the MLP classifier."""
-    threshold: float = 0.5
-    """The threshold to predict "presence" rather than "absence"."""
-    seed: int = 42
-    """random seed."""
-
-    # Computed at runtime.
-    device: str = "cuda"
-    """(computed at runtime) which kind of accelerator to use."""
-    debug: bool = False
-    """(computed at runtime) whether to run in debug mode."""
-    n_train: int = -1
-    """Number of maximum training samples. Negative number means use all of them."""
+batch_size = 1024
+learning_rate = 3e-4
+n_steps = 30_000
+threshold = 0.5
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -2238,7 +2663,7 @@ class Features(torch.utils.data.Dataset):
 
 
 @beartype.beartype
-def init_classifier(input_dim: int) -> torch.nn.Module:
+def init_clf(input_dim: int) -> torch.nn.Module:
     """A simple MLP classifier consistent with the design in FishNet."""
     return torch.nn.Sequential(
         torch.nn.Linear(input_dim, 512),
@@ -2286,8 +2711,24 @@ def calc_macro_f1(preds: list[reporting.Prediction]) -> float:
     )
 
 
+def infinite(dataloader):
+    """Creates an infinite iterator from a dataloader by creating a new iterator each time the previous one is exhausted.
+
+    Args:
+        dataloader: A PyTorch dataloader or similar iterable
+
+    Yields:
+        Batches from the dataloader, indefinitely
+    """
+    while True:
+        # Create a fresh iterator from the dataloader
+        it = iter(dataloader)
+        for batch in it:
+            yield batch
+
+
 @beartype.beartype
-def benchmark(cfg: config.Experiment) -> tuple[config.Model, reporting.Report]:
+def benchmark(cfg: config.Experiment) -> reporting.Report:
     """
     The FishNet benchmark.
     """
@@ -2295,120 +2736,117 @@ def benchmark(cfg: config.Experiment) -> tuple[config.Model, reporting.Report]:
     backbone = registry.load_vision_backbone(cfg.model)
 
     # 2. Get features.
-    train_dataset = get_features(args, backbone, is_train=True)
-    test_dataset = get_features(args, backbone, is_train=False)
+    train_dataset = get_features(cfg, backbone, is_train=True)
+    test_dataset = get_features(cfg, backbone, is_train=False)
 
     # 3. Set up classifier.
-    classifier = init_classifier(train_dataset.dim).to(args.device)
+    classifier = init_clf(train_dataset.dim).to(cfg.device)
 
     # 4. Load datasets for classifier.
     train_loader = torch.utils.data.DataLoader(
-        train_dataset, batch_size=args.batch_size, shuffle=True
+        train_dataset, batch_size=batch_size, shuffle=True
     )
     test_loader = torch.utils.data.DataLoader(
-        test_dataset, batch_size=args.batch_size, shuffle=False
+        test_dataset, batch_size=batch_size, shuffle=False
     )
-    optimizer = torch.optim.Adam(classifier.parameters(), lr=args.learning_rate)
+    optimizer = torch.optim.Adam(classifier.parameters(), lr=learning_rate)
     criterion = torch.nn.BCEWithLogitsLoss()
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.5)
 
     # 5. Fit the classifier.
-    for epoch in range(args.n_epochs):
-        total = 2 if args.debug else len(train_loader)
-        it = iter(train_loader)
-        for b in range(total):
-            features, labels, _ = next(it)
-            features = features.to(args.device)
-            labels = labels.to(args.device, dtype=torch.float)
-            output = classifier(features)
-            loss = criterion(output, labels)
+    it = infinite(train_loader)
+    for step in range(n_steps):
+        features, labels, _ = next(it)
+        features = features.to(cfg.device)
+        labels = labels.to(cfg.device, dtype=torch.float)
+        output = classifier(features)
+        loss = criterion(output, labels)
 
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
         scheduler.step()
 
         # Evaluate the classifier.
-        if (epoch + 1) % args.log_every == 0:
-            examples = evaluate(args, classifier, test_loader)
-            score = calc_macro_f1(examples)
-            logger.info("Epoch %d/%d: %.3f", epoch + 1, args.n_epochs, score)
+        if (step + 1) % 1_000 == 0:
+            preds = predict(cfg, classifier, test_loader)
+            score = calc_macro_f1(preds)
+            logger.info(
+                "Step %d/%d (%.1f%%): %.3f (macro F1)",
+                step + 1,
+                n_steps,
+                (step + 1) / n_steps * 100,
+                score,
+            )
 
-    return cfg.model, reporting.Report(
-        "FishNet", examples, calc_mean_score=calc_macro_f1
-    )
+    return reporting.Report("fishnet", preds, cfg)
 
 
 @beartype.beartype
-def evaluate(
-    args: Args, classifier: torch.nn.Module, dataloader
+def predict(
+    cfg: config.Experiment, classifier: torch.nn.Module, dataloader
 ) -> list[reporting.Prediction]:
     """
     Evaluates the trained classifier on a test split.
 
     Returns:
-        a list of Examples.
+        List of `reporting.Prediction`s
     """
-    total = 2 if args.debug else len(dataloader)
+    total = 2 if cfg.debug else len(dataloader)
     it = iter(dataloader)
-    examples = []
+    preds = []
     for b in range(total):
         features, labels, ids = next(it)
-        features = features.to(args.device)
+        features = features.to(cfg.device)
         labels = labels.numpy()
         with torch.no_grad():
             pred_logits = classifier(features)
-        pred_logits = (pred_logits > args.threshold).cpu().numpy()
+        pred_logits = (pred_logits > threshold).cpu().numpy()
         for id, pred, true in zip(ids, pred_logits, labels):
-            example = reporting.Prediction(
-                id,
-                float((pred == true).all()),
-                {"y_pred": pred.tolist(), "y_true": true.tolist()},
-            )
-            examples.append(example)
+            info = {"y_pred": pred.tolist(), "y_true": true.tolist()}
+            preds.append(reporting.Prediction(id, (pred == true).mean().item(), info))
 
-    return examples
+    return preds
 
 
 @jaxtyped(typechecker=beartype.beartype)
 @torch.no_grad()
 def get_features(
-    args: Args, backbone: registry.VisionBackbone, *, is_train: bool
+    cfg: config.Experiment, backbone: registry.VisionBackbone, *, is_train: bool
 ) -> Features:
     """Extract visual features."""
-    if not os.path.isdir(args.data):
-        msg = f"Path '{args.data}' doesn't exist. Did you download the FishNet dataset? See the docstring at the top of this file for instructions. If you did download it, pass the path with '--fishnet-args.data'; see --help for more."
+    if not os.path.isdir(cfg.data.fishnet):
+        msg = f"Path '{cfg.data.fishnet}' doesn't exist. Did you download the FishNet dataset? See the docstring at the top of this file for instructions."
         raise ValueError(msg)
 
     img_transform = backbone.make_img_transform()
-    backbone = torch.compile(backbone.to(args.device))
+    backbone = torch.compile(backbone.to(cfg.device))
 
     file = "train.csv" if is_train else "test.csv"
-    dataset = ImageDataset(args.data, file, transform=img_transform)
+    dataset = ImageDataset(cfg.data.fishnet, file, transform=img_transform)
+    if is_train and cfg.n_train > 0:
+        i = np.random.default_rng(seed=cfg.seed).choice(
+            len(dataset), cfg.n_train, replace=False, shuffle=False
+        )
+        assert len(i) == cfg.n_train
+        dataset = torch.utils.data.Subset(dataset, i)
+
     dataloader = torch.utils.data.DataLoader(
         dataset,
-        batch_size=args.batch_size,
-        num_workers=args.n_workers,
-        shuffle=True,
+        batch_size=cfg.batch_size,
+        num_workers=cfg.n_workers,
+        shuffle=False,
     )
 
     all_features, all_labels, all_ids = [], [], []
 
-    if args.debug:
-        n = args.batch_size * 2
-        total = 2  # 2 batches
-    elif is_train and args.n_train >= 0:
-        n = args.n_train
-        total = n // args.batch_size + 1
-    else:
-        n = len(dataset)
-        total = len(dataloader)
+    total = len(dataloader) if not cfg.debug else 2
+    it = iter(dataloader)
 
     it = iter(dataloader)
-    for b in helpers.progress(range(total), every=args.log_every, desc=file):
+    for b in helpers.progress(range(total), every=10, desc=file):
         images, labels, ids = next(it)
-        images = images.to(args.device)
+        images = images.to(cfg.device)
 
         features = backbone.img_encode(images).img_features
         all_features.append(features.cpu())
@@ -2417,9 +2855,10 @@ def get_features(
         all_ids.extend(ids)
 
     # Keep the Tensor data type for subsequent training
-    all_features = torch.cat(all_features, dim=0)[:n]
-    all_labels = torch.cat(all_labels, dim=0)[:n]
-    all_ids = all_ids[:n]
+    all_features = torch.cat(all_features, dim=0)
+    all_labels = torch.cat(all_labels, dim=0)
+    assert len(all_ids) == len(dataset)
+    logger.info("Got features for %d images.", len(all_ids))
 
     return Features(all_features, all_labels, all_ids)
 
@@ -2456,7 +2895,7 @@ class ImageDataset(torch.utils.data.Dataset):
         logger.info("csv file: %s has %d item.", csv_file, len(self.df))
 
     def __getitem__(
-        self, index: int
+        self, index
     ) -> tuple[Float[Tensor, "3 width height"], Int[Tensor, "9"], str]:
         row_data = self.df.row(index)
         image_name = row_data[self.image_col]
@@ -2802,7 +3241,6 @@ def init_clf(args: Args):
 # requires-python = ">=3.11"
 # dependencies = [
 #     "wilds",
-#     "tqdm",
 #     "tyro",
 # ]
 # ///
@@ -2857,28 +3295,6 @@ from biobench import config, helpers, registry, reporting
 logger = logging.getLogger("iwildcam")
 
 
-@beartype.beartype
-@dataclasses.dataclass(frozen=True)
-class Args:
-    """Arguments for the iWildCam task."""
-
-    data: str = ""
-    """dataset directory; where you downloaded this task's data to."""
-    batch_size_cv: int = 2048
-    """batch size for deep model."""
-    n_workers: int = 4
-    """number of dataloader worker processes."""
-    log_every: int = 10
-    """how often (number of batches) to log progress."""
-    # Computed at runtime.
-    device: str = "cuda"
-    """(computed at runtime) which kind of accelerator to use."""
-    debug: bool = False
-    """(computed at runtime) whether to run in debug mode."""
-    n_train: int = -1
-    """(computed at runtime) number of maximum training samples. Negative number means use all of them."""
-
-
 @jaxtyped(typechecker=beartype.beartype)
 @dataclasses.dataclass(frozen=True)
 class Features:
@@ -2889,9 +3305,9 @@ class Features:
 
 @beartype.beartype
 class MeanScoreCalculator:
-    def __call__(self, examples: list[reporting.Prediction]) -> float:
-        y_pred = np.array([example.info["y_pred"] for example in examples])
-        y_true = np.array([example.info["y_true"] for example in examples])
+    def __call__(self, preds: list[reporting.Prediction]) -> float:
+        y_pred = np.array([pred.info["y_pred"] for pred in preds])
+        y_true = np.array([pred.info["y_true"] for pred in preds])
         score = sklearn.metrics.f1_score(
             y_true, y_pred, average="macro", labels=np.unique(y_true)
         )
@@ -2899,87 +3315,94 @@ class MeanScoreCalculator:
 
 
 @beartype.beartype
-def benchmark(cfg: config.Experiment) -> tuple[config.Model, reporting.Report]:
+def benchmark(cfg: config.Experiment) -> reporting.Report:
     backbone = registry.load_vision_backbone(cfg.model)
 
     # 1. Load dataloaders.
-    transform = backbone.make_img_transform()
-    if not os.path.exists(cfg.data.iwildcam) or not os.path.isdir(cfg.data.iwildcam):
-        msg = f"Path '{args.data}' doesn't exist. Did you download the iWildCam dataset? See the docstring at the top of this file for instructions. If you did download it, pass the path as --iwildcam-args.data PATH"
-        raise RuntimeError(msg)
-    dataset = wilds.get_dataset(dataset="iwildcam", download=False, root_dir=args.data)
-
-    test_data = dataset.get_subset("test", transform=transform)
-    breakpoint()
-    test_dataloader = wilds.common.data_loaders.get_eval_loader(
-        "standard",
-        test_data,
-        batch_size=args.batch_size,
-        num_workers=args.n_workers,
-    )
-    test_features = get_features(args, backbone, test_dataloader)
+    test_features = get_features(cfg, backbone, is_train=False)
     logger.info("Got test features.")
 
-    train_dataset = dataset.get_subset("train", transform=transform)
-    train_dataloader = wilds.common.data_loaders.get_train_loader(
-        "standard",
-        train_dataset,
-        batch_size=args.batch_size,
-        num_workers=args.n_workers,
-    )
-    train_features = get_features(args, backbone, train_dataloader)
+    train_features = get_features(cfg, backbone, is_train=True)
     logger.info("Got train features.")
 
     # 2. Fit model.
-    clf = init_clf(args)
+    clf = init_clf(cfg)
     clf.fit(train_features.x, train_features.y)
 
-    helpers.write_hparam_sweep_plot("iwildcam", model_args, clf)
-    alpha = clf.best_params_["ridgeclassifier__alpha"].item()
-    logger.info("alpha=%.2g scored %.3f.", alpha, clf.best_score_.item())
+    if hasattr(clf, "best_params_"):
+        helpers.write_hparam_sweep_plot("iwildcam", cfg.model.ckpt, clf)
+        alpha = clf.best_params_["ridgeclassifier__alpha"].item()
+        logger.info("alpha=%.2g scored %.3f.", alpha, clf.best_score_.item())
 
     true_labels = test_features.y
     pred_labels = clf.predict(test_features.x)
 
-    examples = [
+    preds = [
         reporting.Prediction(
-            str(image_id),
+            str(img_id),
             float(pred == true),
             {"y_pred": pred.item(), "y_true": true.item()},
         )
-        for image_id, pred, true in zip(
-            helpers.progress(test_features.ids, desc="making examples", every=1_000),
-            pred_labels,
-            true_labels,
-        )
+        for img_id, pred, true in zip(test_features.ids, pred_labels, true_labels)
     ]
 
-    return cfg.model, reporting.Report(
-        "iWildCam", examples, calc_mean_score=MeanScoreCalculator()
-    )
+    return reporting.Report("iwildcam", preds, cfg)
 
 
 @jaxtyped(typechecker=beartype.beartype)
 @torch.no_grad()
-def get_features(args: Args, backbone: registry.VisionBackbone, dataloader) -> Features:
-    backbone = torch.compile(backbone.to(args.device))
+def get_features(
+    cfg: config.Experiment, backbone: registry.VisionBackbone, *, is_train: bool
+) -> Features:
+    if not os.path.exists(cfg.data.iwildcam) or not os.path.isdir(cfg.data.iwildcam):
+        msg = f"Path '{cfg.data.iwildcam}' doesn't exist. Did you download the iWildCam dataset? See the docstring at the top of this file for instructions."
+        raise RuntimeError(msg)
 
+    dataset = wilds.get_dataset(
+        dataset="iwildcam", download=False, root_dir=cfg.data.iwildcam
+    )
+
+    transform = backbone.make_img_transform()
+    if is_train:
+        dataset = dataset.get_subset("train", transform=transform)
+        if cfg.n_train > 0:
+            i = helpers.balanced_random_sample(dataset.y_array.numpy(), cfg.n_train)
+            assert len(i) == cfg.n_train
+            dataset = torch.utils.data.Subset(dataset, i)
+            # When we create a Subset, it doesn't inherit the collate method from the original dataset. The WILDS dataloader expects this attribute to be present as it uses it for the collate_fn parameter. We need to copy it from the original dataset to avoid AttributeError.
+            dataset.collate = dataset.dataset.collate
+        dataloader = wilds.common.data_loaders.get_train_loader(
+            "standard",
+            dataset,
+            batch_size=cfg.batch_size,
+            num_workers=cfg.n_workers,
+        )
+    else:
+        dataset = dataset.get_subset("test", transform=transform)
+        dataloader = wilds.common.data_loaders.get_eval_loader(
+            "standard",
+            dataset,
+            batch_size=cfg.batch_size,
+            num_workers=cfg.n_workers,
+        )
+
+    backbone = torch.compile(backbone.to(cfg.device))
     all_features, all_labels, all_ids = [], [], []
 
     # I don't do `for ... in dataloader` because early breaks were throwing exceptions.
-    total = len(dataloader) if not args.debug else 2
+    total = len(dataloader) if not cfg.debug else 2
     it = iter(dataloader)
-    for b in helpers.progress(range(total), every=args.log_every):
-        images, labels, _ = next(it)
-        images = images.to(args.device)
+    for b in helpers.progress(range(total), every=10):
+        imgs, labels, _ = next(it)
+        imgs = imgs.to(cfg.device)
 
         with torch.amp.autocast("cuda"):
-            features = backbone.img_encode(images).img_features
+            features = backbone.img_encode(imgs).img_features
             all_features.append(features.cpu())
 
         all_labels.extend(labels)
 
-        ids = (np.arange(len(labels)) + b * args.batch_size).astype(str)
+        ids = (np.arange(len(labels)) + b * cfg.batch_size).astype(str)
         all_ids.append(ids)
 
     all_features = torch.cat(all_features, axis=0).cpu().numpy()
@@ -2989,10 +3412,14 @@ def get_features(args: Args, backbone: registry.VisionBackbone, dataloader) -> F
     return Features(all_features, all_labels, all_ids)
 
 
-def init_clf(args: Args):
+@beartype.beartype
+def init_clf(cfg: config.Experiment):
     alpha = np.pow(2.0, np.arange(-15, 5))
-    if args.debug:
+    if cfg.debug:
         alpha = np.pow(2.0, np.arange(-2, 2))
+
+    if 0 < cfg.n_train <= 300:
+        return sklearn.linear_model.RidgeClassifier()
 
     return sklearn.model_selection.GridSearchCV(
         sklearn.pipeline.make_pipeline(
@@ -3005,173 +3432,6 @@ def init_clf(args: Args):
         # This uses sklearn.metrics.f1_score with average="macro", just like our final score calculator.
         scoring="f1_macro",
     )
-
-```
-
-# biobench/kabr/download.py
-
-```python
-# /// script
-# requires-python = ">=3.12"
-# dependencies = [
-#     "beartype",
-#     "requests",
-#     "tqdm",
-#     "tyro",
-# ]
-# ///
-import concurrent.futures
-import glob
-import hashlib
-import logging
-import os
-import zipfile
-
-import beartype
-import requests
-import tqdm
-import tyro
-
-log_format = "[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s"
-logging.basicConfig(level=logging.INFO, format=log_format)
-logger = logging.getLogger("biobench")
-
-base_url = "https://huggingface.co/datasets/imageomics/KABR/resolve/main/KABR"
-
-
-@beartype.beartype
-def generate_part_files(animal: str, start: str, end: str) -> list[str]:
-    start_a, start_b = ord(start[0]), ord(start[1])
-    end_a, end_b = ord(end[0]), ord(end[1])
-    return [
-        f"{animal}_part_{chr(a)}{chr(b)}"
-        for a in range(start_a, end_a + 1)
-        for b in range(start_b, end_b + 1)
-    ]
-
-
-@beartype.beartype
-def concatenate_files(out: str, animal: str):
-    logger.info("Concatenating files for '%s'.", animal)
-
-    part_files = sorted(glob.glob(os.path.join(out, f"{animal}_part_*")))
-    assert part_files
-    # Concatenate all part files into a single zip file
-    with open(os.path.join(out, f"{animal}.zip"), "wb") as f_out:
-        for fpath in part_files:
-            with open(fpath, "rb") as f_in:
-                content = f_in.read()
-            print(fpath, len(content))
-            f_out.write(content)
-            # Delete part files as they are concatenated
-            os.remove(fpath)
-    logger.info("Archive for '%s' concatenated.", animal)
-
-
-@beartype.beartype
-def compute_md5(fpath: str):
-    hasher = hashlib.md5()
-    with open(fpath, "rb") as f:
-        CHUNK_SIZE = 8 * 1024 * 1024  # 8MB
-        for chunk in iter(lambda: f.read(CHUNK_SIZE), b""):
-            hasher.update(chunk)
-    return hasher.hexdigest()
-
-
-@beartype.beartype
-def verify_and_extract(out: str, animal: str):
-    print(f"Confirming data integrity for {animal}.zip ...")
-    zip_md5 = compute_md5(f"{save_dir}/{dataset_prefix}{animal}.zip")
-
-    with open(f"{save_dir}/{dataset_prefix}{animal}_md5.txt", "r") as file:
-        expected_md5 = file.read().strip().split()[0]
-
-    if zip_md5 == expected_md5:
-        print(f"MD5 sum for {animal}.zip is correct.")
-
-        print(f"Extracting {animal}.zip ...")
-        with zipfile.ZipFile(
-            f"{save_dir}/{dataset_prefix}{animal}.zip", "r"
-        ) as zip_ref:
-            zip_ref.extractall(f"{save_dir}/{dataset_prefix}")
-        print(f"{animal}.zip extracted.")
-        print(f"Cleaning up for {animal} ...")
-        os.remove(f"{save_dir}/{dataset_prefix}{animal}.zip")
-        os.remove(f"{save_dir}/{dataset_prefix}{animal}_md5.txt")
-    else:
-        print(
-            f"MD5 sum for {animal}.zip is incorrect. Expected: {expected_md5}, but got: {zip_md5}."
-        )
-        print(
-            "There may be data corruption. Please try to download and reconstruct the data again or reach out to the corresponding authors for assistance."
-        )
-
-
-@beartype.beartype
-def main(out: str):
-    animals = ["giraffes", "zebras_grevys", "zebras_plains"]
-
-    animal_parts_range = {
-        "giraffes": ("aa", "ad"),
-        "zebras_grevys": ("aa", "am"),
-        "zebras_plains": ("aa", "al"),
-    }
-
-    # Define the static files that are not dependent on the animals list
-    static_files = [
-        "README.txt",
-        "annotation/classes.json",
-        "annotation/distribution.xlsx",
-        "annotation/train.csv",
-        "annotation/val.csv",
-        "configs/I3D.yaml",
-        "configs/SLOWFAST.yaml",
-        "configs/X3D.yaml",
-        "dataset/image2video.py",
-        "dataset/image2visual.py",
-    ]
-
-    # Generate the part files for each animal
-    part_files = [
-        f"dataset/image/{part}"
-        for animal, (start, end) in animal_parts_range.items()
-        for part in generate_part_files(animal, start, end)
-    ]
-
-    archive_md5_files = [f"{animal}_md5.txt" for animal in animals]
-
-    files = static_files + archive_md5_files + part_files
-
-    logger.info("Downloading the Kenyan Animal Behavior Recognition (KABR) dataset.")
-
-    for i, fname in enumerate(tqdm.tqdm(files)):
-        # Construct the full URL
-        fpath = os.path.join(out, fname)
-
-        if os.path.exists(fpath):
-            logger.debug("File '%s' exists. Skipping download.", fpath)
-            continue
-
-        url = f"{base_url}/{fname}"
-
-        # Create the necessary directories based on the file path
-        os.makedirs(os.path.join(out, os.path.dirname(fpath)), exist_ok=True)
-
-        # Download the file and save it with the preserved file path
-        response = requests.get(url)
-        response.raise_for_status()
-        with open(fpath, "wb") as fd:
-            fd.write(response.content)
-
-    with concurrent.futures.ThreadPoolExecutor() as pool:
-        list(pool.map(lambda animal: concatenate_files(out, animal), animals))
-
-    with concurrent.futures.ThreadPoolExecutor() as pool:
-        list(pool.map(lambda animal: verify_and_extract(out, animal), animals))
-
-
-if __name__ == "__main__":
-    tyro.cli(main)
 
 ```
 
@@ -3903,7 +4163,7 @@ import sklearn.pipeline
 import sklearn.preprocessing
 import sklearn.svm
 import torch
-from jaxtyping import Float, Shaped, jaxtyped
+from jaxtyping import Float, Int, Shaped, jaxtyped
 from PIL import Image
 from torch import Tensor
 
@@ -3916,11 +4176,8 @@ logger = logging.getLogger("plankton")
 @dataclasses.dataclass(frozen=True)
 class Features:
     x: Float[np.ndarray, "n dim"]
-    labels: Shaped[np.ndarray, " n"]
+    y: Int[np.ndarray, " n"]
     ids: Shaped[np.ndarray, " n"]
-
-    def y(self, encoder):
-        return encoder.transform(self.labels.reshape(-1, 1)).reshape(-1)
 
 
 @beartype.beartype
@@ -3934,21 +4191,17 @@ def benchmark(cfg: config.Experiment) -> reporting.Report:
     backbone = registry.load_vision_backbone(cfg.model)
 
     # 1. Get features
-    train_features = get_features(cfg, backbone, split="train")
-    val_features = get_features(cfg, backbone, split="val")
-
-    encoder = sklearn.preprocessing.OrdinalEncoder()
-    all_labels = np.concatenate((val_features.labels, train_features.labels))
-    encoder.fit(all_labels.reshape(-1, 1))
+    train_features = get_features(cfg, backbone, is_train=True)
+    val_features = get_features(cfg, backbone, is_train=False)
 
     # 2. Fit model.
     clf = init_clf(cfg)
-    clf.fit(train_features.x, train_features.y(encoder))
+    clf.fit(train_features.x, train_features.y)
 
     # 3. Predict.
     pred_labels = clf.predict(val_features.x)
     logger.info("Predicted classes for %d examples.", len(val_features.x))
-    true_labels = val_features.y(encoder)
+    true_labels = val_features.y
 
     preds = [
         reporting.Prediction(
@@ -3956,14 +4209,25 @@ def benchmark(cfg: config.Experiment) -> reporting.Report:
             float(pred == true),
             {"y_pred": pred.item(), "y_true": true.item()},
         )
-        for image_id, pred, true in zip(
-            helpers.progress(val_features.ids, desc="Making examples", every=1_000),
-            pred_labels,
-            true_labels,
-        )
+        for image_id, pred, true in zip(val_features.ids, pred_labels, true_labels)
     ]
 
     return reporting.Report("plankton", preds, cfg)
+
+
+@jaxtyped(typechecker=beartype.beartype)
+class Sample(typing.TypedDict):
+    """A dictionary representing a single image sample with its metadata.
+
+    Attributes:
+        img_id: Unique identifier for the image.
+        img: The image tensor with shape [3, width, height] (RGB channels first).
+        label: Binary class label (0 or 1) for the image.
+    """
+
+    img_id: str
+    img: Float[Tensor, "3 width height"]
+    label: Int[Tensor, ""]
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -3977,42 +4241,53 @@ class Dataset(torch.utils.data.Dataset):
         self.transform = transform
         self.samples = []
         if not os.path.exists(root) or not os.path.isdir(root):
-            msg = f"Path '{root}' doesn't exist. Did you download the plankton dataset? See the docstring at the top of this file for instructions. If you did download it, pass the path as --plankton-args.datadir PATH."
+            msg = f"Path '{root}' doesn't exist. Did you download the plankton dataset? See the docstring at the top of this file for instructions."
             raise RuntimeError(msg)
 
+        class_to_int = {}
+        for dirname in sorted(os.listdir(root)):
+            class_to_int[dirname] = len(class_to_int)
+
         for dirpath, dirnames, filenames in os.walk(root):
-            # TODO: there are random PDFs in these directories. You have to be careful to only get directories that are actually full of images.
-            # Also need to assign the same integers to the same classnames.
-            image_class = os.path.relpath(dirpath, root)
+            img_class = os.path.relpath(dirpath, root)
             for filename in filenames:
                 if not filename.endswith(".png"):
                     continue
-                image_id = filename.removesuffix(".png")
-                image_path = os.path.join(dirpath, filename)
-                self.samples.append((image_id, image_path, image_class))
+                img_id = filename.removesuffix(".png")
+                img_path = os.path.join(dirpath, filename)
+                self.samples.append((img_id, img_path, class_to_int[img_class]))
 
-    def __getitem__(self, i: int) -> tuple[str, Float[Tensor, "3 width height"], str]:
-        image_id, image_path, image_class = self.samples[i]
-        image = Image.open(image_path).convert("RGB")
+    def __getitem__(self, i) -> Sample:
+        img_id, img_path, label = self.samples[i]
+        img = Image.open(img_path).convert("RGB")
         if self.transform is not None:
-            image = self.transform(image)
-        return image_id, image, image_class
+            img = self.transform(img)
+        return {"img_id": img_id, "img": img, "label": label}
 
     def __len__(self) -> int:
         return len(self.samples)
+
+    @property
+    def labels(self) -> Int[np.ndarray, " n_samples"]:
+        return np.array([label for _, _, label in self.samples])
 
 
 @jaxtyped(typechecker=beartype.beartype)
 @torch.no_grad()
 def get_features(
-    cfg: config.Experiment, backbone: registry.VisionBackbone, *, split: str
+    cfg: config.Experiment, backbone: registry.VisionBackbone, *, is_train: bool
 ) -> Features:
+    split = "train" if is_train else "val"
     images_dir_path = os.path.join(cfg.data.plankton, split)
 
     img_transform = backbone.make_img_transform()
-    backbone = torch.compile(backbone.to(cfg.device))
-
     dataset = Dataset(images_dir_path, img_transform)
+
+    if is_train and cfg.n_train > 0:
+        i = helpers.balanced_random_sample(dataset.labels, cfg.n_train)
+        assert len(i) == cfg.n_train
+        dataset = torch.utils.data.Subset(dataset, i)
+
     dataloader = torch.utils.data.DataLoader(
         dataset,
         batch_size=cfg.batch_size,
@@ -4023,38 +4298,53 @@ def get_features(
         persistent_workers=False,
     )
 
-    all_ids, all_features, all_labels = [], [], []
-    breakpoint()
+    backbone = torch.compile(backbone.to(cfg.device))
 
     total = len(dataloader) if not cfg.debug else 2
     it = iter(dataloader)
 
+    all_ids, all_features, all_labels = [], [], []
     for b in helpers.progress(range(total), every=10, desc=f"Embed {split}"):
-        ids, images, labels = next(it)
-        images = images.to(cfg.device)
+        batch = next(it)
+        imgs = batch["img"].to(cfg.device)
 
         with torch.amp.autocast("cuda"):
-            features = backbone.img_encode(images).img_features
+            features = backbone.img_encode(imgs).img_features
             all_features.append(features.cpu())
 
-        all_ids.extend(ids)
+        all_ids.extend(batch["img_id"])
 
-        all_labels.extend(labels)
+        all_labels.extend(batch["label"])
 
     all_features = torch.cat(all_features, axis=0).cpu().numpy()
     all_labels = np.array(all_labels)
     all_ids = np.array(all_ids)
+    assert len(all_ids) == len(dataset)
+    logger.info("Got features for %d images.", len(all_ids))
 
     return Features(all_features, all_labels, all_ids)
 
 
 @beartype.beartype
 def init_clf(cfg: config.Experiment):
-    """Make a GaussianNB."""
+    alpha = np.pow(2.0, np.arange(-15, 5))
+    if cfg.debug:
+        alpha = np.pow(2.0, np.arange(-2, 2))
 
-    return sklearn.pipeline.make_pipeline(
-        sklearn.preprocessing.StandardScaler(),
-        sklearn.naive_bayes.GaussianNB(),
+    if 0 < cfg.n_train <= 300:
+        return sklearn.linear_model.RidgeClassifier()
+
+    return sklearn.model_selection.HalvingGridSearchCV(
+        sklearn.pipeline.make_pipeline(
+            sklearn.preprocessing.StandardScaler(),
+            sklearn.linear_model.RidgeClassifier(1.0),
+        ),
+        {"ridgeclassifier__alpha": alpha},
+        n_jobs=16,
+        verbose=2,
+        factor=3,
+        random_state=cfg.seed,
+        scoring="f1_macro",
     )
 
 ```
@@ -4627,38 +4917,35 @@ def benchmark(cfg: config.Experiment) -> reporting.Report:
 
     clf = init_clf(cfg)
     clf.fit(train_features.x, train_features.y)
+    logger.info("Trained a classifier on %d examples.", len(train_features.y))
 
-    helpers.write_hparam_sweep_plot("imagenet1k", cfg.model.ckpt, clf)
-    alpha = clf.best_params_["ridgeclassifier__alpha"].item()
-    logger.info("alpha=%.2g scored %.3f.", alpha, clf.best_score_.item())
+    if hasattr(clf, "best_params_"):
+        helpers.write_hparam_sweep_plot("imagenet1k", cfg.model.ckpt, clf)
+        alpha = clf.best_params_["ridgeclassifier__alpha"].item()
+        logger.info("alpha=%.2g scored %.3f.", alpha, clf.best_score_.item())
 
     true_labels = test_features.y
     pred_labels = clf.predict(test_features.x)
 
     preds = [
         reporting.Prediction(
-            str(image_id),
+            str(img_id),
             float(pred == true),
             {"y_pred": pred.item(), "y_true": true.item()},
         )
-        for image_id, pred, true in zip(
-            helpers.progress(test_features.ids, desc="building exs", every=1_000),
-            pred_labels,
-            true_labels,
-        )
+        for img_id, pred, true in zip(test_features.ids, pred_labels, true_labels)
     ]
 
-    return reporting.Report("imagenet1k", preds)
+    return reporting.Report("imagenet1k", preds, cfg)
 
 
 class Transform:
     def __init__(self, img_transform):
         self._img_transform = img_transform
 
-    def __call__(self, example, index: int):
+    def __call__(self, example):
         example["image"] = example["image"].convert("RGB")
         example["image"] = self._img_transform(example["image"])
-        example["id"] = str(index)
         return example
 
 
@@ -4671,34 +4958,38 @@ def get_features(
     backbone = torch.compile(backbone.to(cfg.device))
     split = "train" if is_train else "validation"
 
-    dataset = datasets.load_dataset("ILSVRC/imagenet-1k", split=split)
-    n_examples = dataset.num_rows
+    dataset = datasets.load_dataset(
+        "ILSVRC/imagenet-1k", split=split, cache_dir=helpers.get_cache_dir()
+    )
 
-    if is_train:
+    if is_train and cfg.n_train > 0:
         i = helpers.balanced_random_sample(np.array(dataset["label"]), cfg.n_train)
+        assert len(i) == cfg.n_train
     else:
-        i = np.arange(n_examples)
+        i = np.arange(dataset.num_rows)
+
+    n_workers = min(len(i), cfg.n_workers)
 
     # Map
     dataset = (
-        dataset.select(i)
-        .to_iterable_dataset(num_shards=min(len(i), cfg.n_workers))
-        .map(Transform(img_transform), with_indices=True)
-        .shuffle(seed=cfg.seed)
+        dataset.map(lambda ex, idx: {"id": str(idx)}, with_indices=True)
+        .select(i)
+        .to_iterable_dataset(num_shards=n_workers)
+        .map(Transform(img_transform))
         .with_format("torch")
     )
 
     dataloader = torch.utils.data.DataLoader(
         dataset=dataset,
         batch_size=cfg.batch_size,
-        num_workers=cfg.n_workers,
+        num_workers=n_workers,
         drop_last=False,
         shuffle=False,
     )
 
     all_features, all_labels, all_ids = [], [], []
 
-    total = math.ceil(n_examples / cfg.batch_size) if not cfg.debug else 20
+    total = max(n_workers, math.ceil(len(i) / cfg.batch_size))
     it = iter(dataloader)
     logger.debug("Need to embed %d batches of %d images.", total, cfg.batch_size)
     for b in helpers.progress(range(total), every=10, desc=f"Embedding {split}"):
@@ -4716,6 +5007,7 @@ def get_features(
     all_features = torch.cat(all_features, dim=0).cpu().numpy()
     all_ids = np.array(all_ids)
     all_labels = torch.tensor(all_labels).numpy()
+    assert len(all_ids) == len(i) or cfg.n_train < 0
     logger.info("Got features for %d images.", len(all_ids))
 
     return Features(all_features, all_labels, all_ids)
@@ -4727,6 +5019,9 @@ def init_clf(cfg: config.Experiment):
     if cfg.debug:
         alpha = np.pow(2.0, np.arange(-2, 2))
 
+    if 0 < cfg.n_train < 2_000:
+        return sklearn.linear_model.RidgeClassifier()
+
     return sklearn.model_selection.HalvingGridSearchCV(
         sklearn.pipeline.make_pipeline(
             sklearn.preprocessing.StandardScaler(),
@@ -4736,6 +5031,7 @@ def init_clf(cfg: config.Experiment):
         n_jobs=16,
         verbose=2,
         factor=3,
+        random_state=cfg.seed,
     )
 
 ```
@@ -4878,6 +5174,11 @@ def main(cfg: str = os.path.join("configs", "neurips.toml"), dry_run: bool = Tru
         for job_cfg in jobs:
             key = (job_cfg.model.ckpt, job_cfg.n_train)
             model_counts[key] += 1
+
+        # Check if there are any jobs to run
+        if not model_counts:
+            logger.info("All jobs have already been completed. Nothing to run.")
+            return
 
         # Print summary table
         logger.info("Job Summary:")

@@ -36,38 +36,35 @@ def benchmark(cfg: config.Experiment) -> reporting.Report:
 
     clf = init_clf(cfg)
     clf.fit(train_features.x, train_features.y)
+    logger.info("Trained a classifier on %d examples.", len(train_features.y))
 
-    helpers.write_hparam_sweep_plot("imagenet1k", cfg.model.ckpt, clf)
-    alpha = clf.best_params_["ridgeclassifier__alpha"].item()
-    logger.info("alpha=%.2g scored %.3f.", alpha, clf.best_score_.item())
+    if hasattr(clf, "best_params_"):
+        helpers.write_hparam_sweep_plot("imagenet1k", cfg.model.ckpt, clf)
+        alpha = clf.best_params_["ridgeclassifier__alpha"].item()
+        logger.info("alpha=%.2g scored %.3f.", alpha, clf.best_score_.item())
 
     true_labels = test_features.y
     pred_labels = clf.predict(test_features.x)
 
     preds = [
         reporting.Prediction(
-            str(image_id),
+            str(img_id),
             float(pred == true),
             {"y_pred": pred.item(), "y_true": true.item()},
         )
-        for image_id, pred, true in zip(
-            helpers.progress(test_features.ids, desc="building exs", every=1_000),
-            pred_labels,
-            true_labels,
-        )
+        for img_id, pred, true in zip(test_features.ids, pred_labels, true_labels)
     ]
 
-    return reporting.Report("imagenet1k", preds)
+    return reporting.Report("imagenet1k", preds, cfg)
 
 
 class Transform:
     def __init__(self, img_transform):
         self._img_transform = img_transform
 
-    def __call__(self, example, index: int):
+    def __call__(self, example):
         example["image"] = example["image"].convert("RGB")
         example["image"] = self._img_transform(example["image"])
-        example["id"] = str(index)
         return example
 
 
@@ -80,34 +77,38 @@ def get_features(
     backbone = torch.compile(backbone.to(cfg.device))
     split = "train" if is_train else "validation"
 
-    dataset = datasets.load_dataset("ILSVRC/imagenet-1k", split=split)
-    n_examples = dataset.num_rows
+    dataset = datasets.load_dataset(
+        "ILSVRC/imagenet-1k", split=split, cache_dir=helpers.get_cache_dir()
+    )
 
-    if is_train:
+    if is_train and cfg.n_train > 0:
         i = helpers.balanced_random_sample(np.array(dataset["label"]), cfg.n_train)
+        assert len(i) == cfg.n_train
     else:
-        i = np.arange(n_examples)
+        i = np.arange(dataset.num_rows)
+
+    n_workers = min(len(i), cfg.n_workers)
 
     # Map
     dataset = (
-        dataset.select(i)
-        .to_iterable_dataset(num_shards=min(len(i), cfg.n_workers))
-        .map(Transform(img_transform), with_indices=True)
-        .shuffle(seed=cfg.seed)
+        dataset.map(lambda ex, idx: {"id": str(idx)}, with_indices=True)
+        .select(i)
+        .to_iterable_dataset(num_shards=n_workers)
+        .map(Transform(img_transform))
         .with_format("torch")
     )
 
     dataloader = torch.utils.data.DataLoader(
         dataset=dataset,
         batch_size=cfg.batch_size,
-        num_workers=cfg.n_workers,
+        num_workers=n_workers,
         drop_last=False,
         shuffle=False,
     )
 
     all_features, all_labels, all_ids = [], [], []
 
-    total = math.ceil(n_examples / cfg.batch_size) if not cfg.debug else 20
+    total = max(n_workers, math.ceil(len(i) / cfg.batch_size))
     it = iter(dataloader)
     logger.debug("Need to embed %d batches of %d images.", total, cfg.batch_size)
     for b in helpers.progress(range(total), every=10, desc=f"Embedding {split}"):
@@ -125,6 +126,7 @@ def get_features(
     all_features = torch.cat(all_features, dim=0).cpu().numpy()
     all_ids = np.array(all_ids)
     all_labels = torch.tensor(all_labels).numpy()
+    assert len(all_ids) == len(i) or cfg.n_train < 0
     logger.info("Got features for %d images.", len(all_ids))
 
     return Features(all_features, all_labels, all_ids)
@@ -136,6 +138,9 @@ def init_clf(cfg: config.Experiment):
     if cfg.debug:
         alpha = np.pow(2.0, np.arange(-2, 2))
 
+    if 0 < cfg.n_train < 2_000:
+        return sklearn.linear_model.RidgeClassifier()
+
     return sklearn.model_selection.HalvingGridSearchCV(
         sklearn.pipeline.make_pipeline(
             sklearn.preprocessing.StandardScaler(),
@@ -145,4 +150,5 @@ def init_clf(cfg: config.Experiment):
         n_jobs=16,
         verbose=2,
         factor=3,
+        random_state=cfg.seed,
     )

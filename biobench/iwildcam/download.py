@@ -2,7 +2,6 @@
 # requires-python = ">=3.11"
 # dependencies = [
 #     "wilds",
-#     "tqdm",
 #     "tyro",
 # ]
 # ///

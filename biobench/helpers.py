@@ -14,6 +14,14 @@ from jaxtyping import Int, jaxtyped
 
 
 @beartype.beartype
+def get_cache_dir() -> str:
+    cache_dir = ""
+    for var in ("BIOBENCH_CACHE", "HF_HOME", "HF_HUB_CACHE"):
+        cache_dir = cache_dir or os.environ.get(var, "")
+    return cache_dir or "."
+
+
+@beartype.beartype
 class progress:
     def __init__(self, it, *, every: int = 10, desc: str = "progress"):
         """
@@ -71,6 +79,9 @@ def write_hparam_sweep_plot(
 ) -> str:
     import matplotlib.pyplot as plt
     import polars as pl
+
+    if not hasattr(clf, "cv_results_"):
+        return ""
 
     df = pl.DataFrame(clf.cv_results_)
 

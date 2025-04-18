@@ -1,6 +1,6 @@
-docs: lint
-    uv run pdoc3 --force --html --output-dir docs --config latex_math=True biobench benchmark
+docs: fmt
     uv run python scripts/docs.py --in-paths biobench benchmark.py --out-fpath docs/llms.txt
+    uv run pdoc3 --force --html --output-dir docs --config latex_math=True biobench benchmark
 
 test: fmt
     uv run pytest biobench
