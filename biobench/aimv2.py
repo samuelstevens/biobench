@@ -64,12 +64,14 @@ class RMSNorm(torch.nn.Module):
 
 @jaxtyped(typechecker=beartype.beartype)
 class SwiGLUFFN(torch.nn.Module):
-    def __init__(self, d, d_mlp):
+    def __init__(self, config: AIMv2Config):
         super().__init__()
+        d = config.hidden_size
+        d_mlp = config.intermediate_size
 
-        self.fc1 = torch.nn.Linear(d, d_mlp, bias=False)
-        self.fc2 = torch.nn.Linear(d_mlp, d, bias=False)
-        self.fc3 = torch.nn.Linear(d, d_mlp, bias=False)
+        self.fc1 = torch.nn.Linear(d, d_mlp, bias=config.use_bias)
+        self.fc2 = torch.nn.Linear(d_mlp, d, bias=config.use_bias)
+        self.fc3 = torch.nn.Linear(d, d_mlp, bias=config.use_bias)
 
     def forward(self, x: Float[Tensor, "*batch d"]) -> Float[Tensor, "*batch d"]:
         x = torch.nn.functional.silu(self.fc1(x)) * self.fc3(x)
@@ -182,7 +184,28 @@ class Transformer(torch.nn.Module):
 class AIMv2(registry.VisionBackbone):
     def __init__(self, ckpt: str, **kwargs):
         super().__init__()
-        breakpoint()
+        # Load the config from the HF repo
+        import json
+        config_path = download_hf_file(ckpt, "config.json")
+        with open(config_path, "r") as f:
+            config_dict = json.load(f)
+        
+        # Create the config object
+        config = AIMv2Config(
+            hidden_size=config_dict.get("hidden_size", 1024),
+            intermediate_size=config_dict.get("intermediate_size", 2816),
+            num_hidden_layers=config_dict.get("num_hidden_layers", 24),
+            num_attention_heads=config_dict.get("num_attention_heads", 8),
+            num_channels=config_dict.get("num_channels", 3),
+            image_size=config_dict.get("image_size", 224),
+            patch_size=config_dict.get("patch_size", 14),
+            rms_norm_eps=config_dict.get("rms_norm_eps", 1e-5),
+            attention_dropout=config_dict.get("attention_dropout", 0.0),
+            projection_dropout=config_dict.get("projection_dropout", 0.0),
+            qkv_bias=config_dict.get("qkv_bias", False),
+            use_bias=config_dict.get("use_bias", False)
+        )
+        
         self.preprocessor = ViTPreprocessor(config)
         self.trunk = Transformer(config)
 
@@ -216,9 +239,43 @@ class AIMv2(registry.VisionBackbone):
 
 @beartype.beartype
 def download_hf_file(ckpt: str, filepath: str, *, force_download: bool = False) -> str:
-    # Download a file from a ckpt and a filepath within the repo from huggingface.
-    # apple/aimv2-large-patch14-224, config.json ->
-    # https://huggingface.co/apple/aimv2-large-patch14-224/resolve/main/config.json
-    # Save it to helpers.get_cache_dir() under a reasonable path. Check if it's downloaded before you redownload it, unless you have force_download.
-    # Return the filepath. AI!
-    breakpoint()
+    """
+    Download a file from a Hugging Face model repository.
+    
+    Args:
+        ckpt: The model checkpoint identifier (e.g., 'apple/aimv2-large-patch14-224')
+        filepath: The path to the file within the repo (e.g., 'config.json')
+        force_download: Whether to force download even if the file exists locally
+        
+    Returns:
+        The path to the downloaded file on the local filesystem
+    """
+    import os
+    import requests
+    from pathlib import Path
+    from . import helpers
+    
+    # Construct the URL
+    url = f"https://huggingface.co/{ckpt}/resolve/main/{filepath}"
+    
+    # Create the local path
+    cache_dir = helpers.get_cache_dir()
+    local_dir = os.path.join(cache_dir, "hf", ckpt)
+    local_path = os.path.join(local_dir, filepath)
+    
+    # Create the directory if it doesn't exist
+    os.makedirs(os.path.dirname(local_path), exist_ok=True)
+    
+    # Check if the file exists
+    if os.path.exists(local_path) and not force_download:
+        return local_path
+    
+    # Download the file
+    response = requests.get(url, stream=True)
+    response.raise_for_status()
+    
+    with open(local_path, "wb") as f:
+        for chunk in response.iter_content(chunk_size=8192):
+            f.write(chunk)
+    
+    return local_path
