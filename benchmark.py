@@ -28,7 +28,9 @@ logger = logging.getLogger("biobench")
 
 
 @beartype.beartype
-def main(cfg: str = os.path.join("configs", "neurips.toml"), dry_run: bool = True):
+def main(
+    cfgs: list[str] = [os.path.join("configs", "neurips.toml")], dry_run: bool = True
+):
     """
     Launch all jobs, using either a local GPU or a Slurm cluster. Then report results and save to disk.
 
@@ -36,6 +38,7 @@ def main(cfg: str = os.path.join("configs", "neurips.toml"), dry_run: bool = Tru
         cfg: Path to TOML config file.
         dry_run: If --no-dry-run, actually run experiment.
     """
+    # Make cfgs a list of loaded configs from cfgs, concatenating all the lists together. AI!
     cfgs = config.load(cfg)
 
     if not cfgs:
