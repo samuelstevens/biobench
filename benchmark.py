@@ -35,11 +35,14 @@ def main(
     Launch all jobs, using either a local GPU or a Slurm cluster. Then report results and save to disk.
 
     Args:
-        cfg: Path to TOML config file.
+        cfgs: List of paths to TOML config files.
         dry_run: If --no-dry-run, actually run experiment.
     """
-    # Make cfgs a list of loaded configs from cfgs, concatenating all the lists together. AI!
-    cfgs = config.load(cfg)
+    # Load all configs from the provided paths and concatenate them
+    all_configs = []
+    for cfg_path in cfgs:
+        all_configs.extend(config.load(cfg_path))
+    cfgs = all_configs
 
     if not cfgs:
         logger.warning("No configurations loaded.")
@@ -55,7 +58,6 @@ def main(
         if cfg.ssl != first.ssl:
             raise ValueError("All configs must have the same ssl setting")
 
-    # 1. Setup executor.
     # 1. Setup executor.
     if first.slurm_acct:
         executor = submitit.SlurmExecutor(folder=first.log_to)
