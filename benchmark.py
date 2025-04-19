@@ -38,7 +38,8 @@ def main(
         cfgs: List of paths to TOML config files.
         dry_run: If --no-dry-run, actually run experiment.
     """
-    # Load all configs from the provided paths and concatenate them
+    # Load all configs from the provided paths and concatenate them.
+    # Simplify this code; try not to use an intermediate variable. AI!
     all_configs = []
     for cfg_path in cfgs:
         all_configs.extend(config.load(cfg_path))
