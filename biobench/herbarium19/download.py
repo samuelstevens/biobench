@@ -56,11 +56,18 @@ class Args:
 
 
 def md5_of_file(path: str, chunk_size: int = 8192) -> str:
-    # Add some progress here with tqdm. Estimate the total length somehow before chunking so we know how long it will take. AI!
     h = hashlib.md5()
+    file_size = os.path.getsize(path)
     with open(path, "rb") as f:
-        for chunk in iter(lambda: f.read(chunk_size), b""):
-            h.update(chunk)
+        with tqdm.tqdm(
+            total=file_size,
+            unit="B",
+            unit_scale=True,
+            desc=f"Calculating MD5 for {os.path.basename(path)}"
+        ) as bar:
+            for chunk in iter(lambda: f.read(chunk_size), b""):
+                h.update(chunk)
+                bar.update(len(chunk))
     return h.hexdigest()
 
 
