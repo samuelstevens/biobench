@@ -161,32 +161,31 @@ class Report:
             raise
 
 
-# p.info might have y_pred or pred_y (same for y_true). Try to use both. AI!
 @beartype.beartype
 def micro_acc(preds: list[Prediction]) -> float:
-    y_pred = np.array([p.info["y_pred"] for p in preds])
-    y_true = np.array([p.info["y_true"] for p in preds])
+    y_pred = np.array([p.info.get("y_pred", p.info.get("pred_y")) for p in preds])
+    y_true = np.array([p.info.get("y_true", p.info.get("true_y")) for p in preds])
     return sklearn.metrics.accuracy_score(y_true, y_pred)
 
 
 @beartype.beartype
 def macro_acc(preds: list[Prediction]) -> float:
-    y_pred = np.array([p.info["y_pred"] for p in preds])
-    y_true = np.array([p.info["y_true"] for p in preds])
+    y_pred = np.array([p.info.get("y_pred", p.info.get("pred_y")) for p in preds])
+    y_true = np.array([p.info.get("y_true", p.info.get("true_y")) for p in preds])
     return sklearn.metrics.balanced_accuracy_score(y_true, y_pred)
 
 
 @beartype.beartype
 def micro_f1(preds: list[Prediction]) -> float:
-    y_pred = np.array([p.info["y_pred"] for p in preds])
-    y_true = np.array([p.info["y_true"] for p in preds])
+    y_pred = np.array([p.info.get("y_pred", p.info.get("pred_y")) for p in preds])
+    y_true = np.array([p.info.get("y_true", p.info.get("true_y")) for p in preds])
     return sklearn.metrics.f1_score(y_true, y_pred, average="micro")
 
 
 @beartype.beartype
 def macro_f1(preds: list[Prediction]) -> float:
-    y_pred = np.array([p.info["y_pred"] for p in preds])
-    y_true = np.array([p.info["y_true"] for p in preds])
+    y_pred = np.array([p.info.get("y_pred", p.info.get("pred_y")) for p in preds])
+    y_true = np.array([p.info.get("y_true", p.info.get("true_y")) for p in preds])
     return sklearn.metrics.f1_score(
         y_true, y_pred, average="macro", labels=np.unique(y_true)
     )
