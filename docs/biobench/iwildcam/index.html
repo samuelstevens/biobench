@@ -55,101 +55,111 @@ el.replaceWith(d);
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
 <dt id="biobench.iwildcam.benchmark"><code class="name flex">
-<span>def <span class="ident">benchmark</span></span>(<span>cfg: <a title="biobench.config.Experiment" href="../config.html#biobench.config.Experiment">Experiment</a>) ‑> tuple[<a title="biobench.config.Model" href="../config.html#biobench.config.Model">Model</a>, <a title="biobench.reporting.Report" href="../reporting.html#biobench.reporting.Report">Report</a>]</span>
+<span>def <span class="ident">benchmark</span></span>(<span>cfg: <a title="biobench.config.Experiment" href="../config.html#biobench.config.Experiment">Experiment</a>) ‑> <a title="biobench.reporting.Report" href="../reporting.html#biobench.reporting.Report">Report</a></span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def benchmark(cfg: config.Experiment) -&gt; tuple[config.Model, reporting.Report]:
+<pre><code class="python">@beartype.beartype
+def benchmark(cfg: config.Experiment) -&gt; reporting.Report:
     backbone = registry.load_vision_backbone(cfg.model)
 
     # 1. Load dataloaders.
-    transform = backbone.make_img_transform()
-    if not os.path.exists(cfg.data.iwildcam) or not os.path.isdir(cfg.data.iwildcam):
-        msg = f&#34;Path &#39;{args.data}&#39; doesn&#39;t exist. Did you download the iWildCam dataset? See the docstring at the top of this file for instructions. If you did download it, pass the path as --iwildcam-args.data PATH&#34;
-        raise RuntimeError(msg)
-    dataset = wilds.get_dataset(dataset=&#34;iwildcam&#34;, download=False, root_dir=args.data)
-
-    test_data = dataset.get_subset(&#34;test&#34;, transform=transform)
-    breakpoint()
-    test_dataloader = wilds.common.data_loaders.get_eval_loader(
-        &#34;standard&#34;,
-        test_data,
-        batch_size=args.batch_size,
-        num_workers=args.n_workers,
-    )
-    test_features = get_features(args, backbone, test_dataloader)
+    test_features = get_features(cfg, backbone, is_train=False)
     logger.info(&#34;Got test features.&#34;)
 
-    train_dataset = dataset.get_subset(&#34;train&#34;, transform=transform)
-    train_dataloader = wilds.common.data_loaders.get_train_loader(
-        &#34;standard&#34;,
-        train_dataset,
-        batch_size=args.batch_size,
-        num_workers=args.n_workers,
-    )
-    train_features = get_features(args, backbone, train_dataloader)
+    train_features = get_features(cfg, backbone, is_train=True)
     logger.info(&#34;Got train features.&#34;)
 
     # 2. Fit model.
-    clf = init_clf(args)
+    clf = init_clf(cfg)
     clf.fit(train_features.x, train_features.y)
 
-    helpers.write_hparam_sweep_plot(&#34;iwildcam&#34;, model_args, clf)
-    alpha = clf.best_params_[&#34;ridgeclassifier__alpha&#34;].item()
-    logger.info(&#34;alpha=%.2g scored %.3f.&#34;, alpha, clf.best_score_.item())
+    if hasattr(clf, &#34;best_params_&#34;):
+        helpers.write_hparam_sweep_plot(&#34;iwildcam&#34;, cfg.model.ckpt, clf)
+        alpha = clf.best_params_[&#34;ridgeclassifier__alpha&#34;].item()
+        logger.info(&#34;alpha=%.2g scored %.3f.&#34;, alpha, clf.best_score_.item())
 
     true_labels = test_features.y
     pred_labels = clf.predict(test_features.x)
 
-    examples = [
+    preds = [
         reporting.Prediction(
-            str(image_id),
+            str(img_id),
             float(pred == true),
             {&#34;y_pred&#34;: pred.item(), &#34;y_true&#34;: true.item()},
         )
-        for image_id, pred, true in zip(
-            helpers.progress(test_features.ids, desc=&#34;making examples&#34;, every=1_000),
-            pred_labels,
-            true_labels,
-        )
+        for img_id, pred, true in zip(test_features.ids, pred_labels, true_labels)
     ]
 
-    return cfg.model, reporting.Report(
-        &#34;iWildCam&#34;, examples, calc_mean_score=MeanScoreCalculator()
-    )</code></pre>
+    return reporting.Report(&#34;iwildcam&#34;, preds, cfg)</code></pre>
 </details>
 <div class="desc"></div>
 </dd>
 <dt id="biobench.iwildcam.get_features"><code class="name flex">
-<span>def <span class="ident">get_features</span></span>(<span>args: <a title="biobench.iwildcam.Args" href="#biobench.iwildcam.Args">Args</a>,<br>backbone: <a title="biobench.registry.VisionBackbone" href="../registry.html#biobench.registry.VisionBackbone">VisionBackbone</a>,<br>dataloader) ‑> <a title="biobench.iwildcam.Features" href="#biobench.iwildcam.Features">Features</a></span>
+<span>def <span class="ident">get_features</span></span>(<span>cfg: <a title="biobench.config.Experiment" href="../config.html#biobench.config.Experiment">Experiment</a>,<br>backbone: <a title="biobench.registry.VisionBackbone" href="../registry.html#biobench.registry.VisionBackbone">VisionBackbone</a>,<br>*,<br>is_train: bool) ‑> <a title="biobench.iwildcam.Features" href="#biobench.iwildcam.Features">Features</a></span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def get_features(args: Args, backbone: registry.VisionBackbone, dataloader) -&gt; Features:
-    backbone = torch.compile(backbone.to(args.device))
+<pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
+@torch.no_grad()
+def get_features(
+    cfg: config.Experiment, backbone: registry.VisionBackbone, *, is_train: bool
+) -&gt; Features:
+    if not os.path.exists(cfg.data.iwildcam) or not os.path.isdir(cfg.data.iwildcam):
+        msg = f&#34;Path &#39;{cfg.data.iwildcam}&#39; doesn&#39;t exist. Did you download the iWildCam dataset? See the docstring at the top of this file for instructions.&#34;
+        raise RuntimeError(msg)
 
+    dataset = wilds.get_dataset(
+        dataset=&#34;iwildcam&#34;, download=False, root_dir=cfg.data.iwildcam
+    )
+
+    transform = backbone.make_img_transform()
+    if is_train:
+        dataset = dataset.get_subset(&#34;train&#34;, transform=transform)
+        if cfg.n_train &gt; 0:
+            i = helpers.balanced_random_sample(dataset.y_array.numpy(), cfg.n_train)
+            assert len(i) == cfg.n_train
+            dataset = torch.utils.data.Subset(dataset, i)
+            # When we create a Subset, it doesn&#39;t inherit the collate method from the original dataset. The WILDS dataloader expects this attribute to be present as it uses it for the collate_fn parameter. We need to copy it from the original dataset to avoid AttributeError.
+            dataset.collate = dataset.dataset.collate
+        dataloader = wilds.common.data_loaders.get_train_loader(
+            &#34;standard&#34;,
+            dataset,
+            batch_size=cfg.batch_size,
+            num_workers=cfg.n_workers,
+        )
+    else:
+        dataset = dataset.get_subset(&#34;test&#34;, transform=transform)
+        dataloader = wilds.common.data_loaders.get_eval_loader(
+            &#34;standard&#34;,
+            dataset,
+            batch_size=cfg.batch_size,
+            num_workers=cfg.n_workers,
+        )
+
+    backbone = torch.compile(backbone.to(cfg.device))
     all_features, all_labels, all_ids = [], [], []
 
     # I don&#39;t do `for ... in dataloader` because early breaks were throwing exceptions.
-    total = len(dataloader) if not args.debug else 2
+    total = len(dataloader) if not cfg.debug else 2
     it = iter(dataloader)
-    for b in helpers.progress(range(total), every=args.log_every):
-        images, labels, _ = next(it)
-        images = images.to(args.device)
+    for b in helpers.progress(range(total), every=10):
+        imgs, labels, _ = next(it)
+        imgs = imgs.to(cfg.device)
 
         with torch.amp.autocast(&#34;cuda&#34;):
-            features = backbone.img_encode(images).img_features
+            features = backbone.img_encode(imgs).img_features
             all_features.append(features.cpu())
 
         all_labels.extend(labels)
 
-        ids = (np.arange(len(labels)) + b * args.batch_size).astype(str)
+        ids = (np.arange(len(labels)) + b * cfg.batch_size).astype(str)
         all_ids.append(ids)
 
     all_features = torch.cat(all_features, axis=0).cpu().numpy()
@@ -161,17 +171,21 @@ el.replaceWith(d);
 <div class="desc"></div>
 </dd>
 <dt id="biobench.iwildcam.init_clf"><code class="name flex">
-<span>def <span class="ident">init_clf</span></span>(<span>args: <a title="biobench.iwildcam.Args" href="#biobench.iwildcam.Args">Args</a>)</span>
+<span>def <span class="ident">init_clf</span></span>(<span>cfg: <a title="biobench.config.Experiment" href="../config.html#biobench.config.Experiment">Experiment</a>)</span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def init_clf(args: Args):
+<pre><code class="python">@beartype.beartype
+def init_clf(cfg: config.Experiment):
     alpha = np.pow(2.0, np.arange(-15, 5))
-    if args.debug:
+    if cfg.debug:
         alpha = np.pow(2.0, np.arange(-2, 2))
+
+    if 0 &lt; cfg.n_train &lt;= 300:
+        return sklearn.linear_model.RidgeClassifier()
 
     return sklearn.model_selection.GridSearchCV(
         sklearn.pipeline.make_pipeline(
@@ -187,14 +201,8 @@ el.replaceWith(d);
 </details>
 <div class="desc"></div>
 </dd>
-</dl>
-</section>
-<section>
-<h2 class="section-title" id="header-classes">Classes</h2>
-<dl>
-<dt id="biobench.iwildcam.Args"><code class="flex name class">
-<span>class <span class="ident">Args</span></span>
-<span>(</span><span>data: str = '',<br>batch_size_cv: int = 2048,<br>n_workers: int = 4,<br>log_every: int = 10,<br>device: str = 'cuda',<br>debug: bool = False,<br>n_train: int = -1)</span>
+<dt id="biobench.iwildcam.score"><code class="name flex">
+<span>def <span class="ident">score</span></span>(<span>preds: list[<a title="biobench.reporting.Prediction" href="../reporting.html#biobench.reporting.Prediction">Prediction</a>]) ‑> float</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -202,59 +210,16 @@ el.replaceWith(d);
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">@beartype.beartype
-@dataclasses.dataclass(frozen=True)
-class Args:
-    &#34;&#34;&#34;Arguments for the iWildCam task.&#34;&#34;&#34;
-
-    data: str = &#34;&#34;
-    &#34;&#34;&#34;dataset directory; where you downloaded this task&#39;s data to.&#34;&#34;&#34;
-    batch_size_cv: int = 2048
-    &#34;&#34;&#34;batch size for deep model.&#34;&#34;&#34;
-    n_workers: int = 4
-    &#34;&#34;&#34;number of dataloader worker processes.&#34;&#34;&#34;
-    log_every: int = 10
-    &#34;&#34;&#34;how often (number of batches) to log progress.&#34;&#34;&#34;
-    # Computed at runtime.
-    device: str = &#34;cuda&#34;
-    &#34;&#34;&#34;(computed at runtime) which kind of accelerator to use.&#34;&#34;&#34;
-    debug: bool = False
-    &#34;&#34;&#34;(computed at runtime) whether to run in debug mode.&#34;&#34;&#34;
-    n_train: int = -1
-    &#34;&#34;&#34;(computed at runtime) number of maximum training samples. Negative number means use all of them.&#34;&#34;&#34;</code></pre>
+def score(preds: list[reporting.Prediction]) -&gt; float:
+    return reporting.macro_f1(preds)</code></pre>
 </details>
-<div class="desc"><p>Arguments for the iWildCam task.</p></div>
-<h3>Instance variables</h3>
-<dl>
-<dt id="biobench.iwildcam.Args.batch_size_cv"><code class="name">var <span class="ident">batch_size_cv</span> : int</code></dt>
-<dd>
-<div class="desc"><p>batch size for deep model.</p></div>
-</dd>
-<dt id="biobench.iwildcam.Args.data"><code class="name">var <span class="ident">data</span> : str</code></dt>
-<dd>
-<div class="desc"><p>dataset directory; where you downloaded this task's data to.</p></div>
-</dd>
-<dt id="biobench.iwildcam.Args.debug"><code class="name">var <span class="ident">debug</span> : bool</code></dt>
-<dd>
-<div class="desc"><p>(computed at runtime) whether to run in debug mode.</p></div>
-</dd>
-<dt id="biobench.iwildcam.Args.device"><code class="name">var <span class="ident">device</span> : str</code></dt>
-<dd>
-<div class="desc"><p>(computed at runtime) which kind of accelerator to use.</p></div>
-</dd>
-<dt id="biobench.iwildcam.Args.log_every"><code class="name">var <span class="ident">log_every</span> : int</code></dt>
-<dd>
-<div class="desc"><p>how often (number of batches) to log progress.</p></div>
-</dd>
-<dt id="biobench.iwildcam.Args.n_train"><code class="name">var <span class="ident">n_train</span> : int</code></dt>
-<dd>
-<div class="desc"><p>(computed at runtime) number of maximum training samples. Negative number means use all of them.</p></div>
-</dd>
-<dt id="biobench.iwildcam.Args.n_workers"><code class="name">var <span class="ident">n_workers</span> : int</code></dt>
-<dd>
-<div class="desc"><p>number of dataloader worker processes.</p></div>
+<div class="desc"></div>
 </dd>
 </dl>
-</dd>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
 <dt id="biobench.iwildcam.Features"><code class="flex name class">
 <span>class <span class="ident">Features</span></span>
 <span>(</span><span>x: jaxtyping.Float[ndarray, 'n dim'],<br>y: jaxtyping.Int[ndarray, 'n'],<br>ids: jaxtyping.Shaped[ndarray, 'n'])</span>
@@ -288,26 +253,6 @@ class Features:
 </dd>
 </dl>
 </dd>
-<dt id="biobench.iwildcam.MeanScoreCalculator"><code class="flex name class">
-<span>class <span class="ident">MeanScoreCalculator</span></span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">@beartype.beartype
-class MeanScoreCalculator:
-    def __call__(self, examples: list[reporting.Prediction]) -&gt; float:
-        y_pred = np.array([example.info[&#34;y_pred&#34;] for example in examples])
-        y_true = np.array([example.info[&#34;y_true&#34;] for example in examples])
-        score = sklearn.metrics.f1_score(
-            y_true, y_pred, average=&#34;macro&#34;, labels=np.unique(y_true)
-        )
-        return score.item()</code></pre>
-</details>
-<div class="desc"></div>
-</dd>
 </dl>
 </section>
 </article>
@@ -331,22 +276,11 @@ class MeanScoreCalculator:
 <li><code><a title="biobench.iwildcam.benchmark" href="#biobench.iwildcam.benchmark">benchmark</a></code></li>
 <li><code><a title="biobench.iwildcam.get_features" href="#biobench.iwildcam.get_features">get_features</a></code></li>
 <li><code><a title="biobench.iwildcam.init_clf" href="#biobench.iwildcam.init_clf">init_clf</a></code></li>
+<li><code><a title="biobench.iwildcam.score" href="#biobench.iwildcam.score">score</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
-<li>
-<h4><code><a title="biobench.iwildcam.Args" href="#biobench.iwildcam.Args">Args</a></code></h4>
-<ul class="two-column">
-<li><code><a title="biobench.iwildcam.Args.batch_size_cv" href="#biobench.iwildcam.Args.batch_size_cv">batch_size_cv</a></code></li>
-<li><code><a title="biobench.iwildcam.Args.data" href="#biobench.iwildcam.Args.data">data</a></code></li>
-<li><code><a title="biobench.iwildcam.Args.debug" href="#biobench.iwildcam.Args.debug">debug</a></code></li>
-<li><code><a title="biobench.iwildcam.Args.device" href="#biobench.iwildcam.Args.device">device</a></code></li>
-<li><code><a title="biobench.iwildcam.Args.log_every" href="#biobench.iwildcam.Args.log_every">log_every</a></code></li>
-<li><code><a title="biobench.iwildcam.Args.n_train" href="#biobench.iwildcam.Args.n_train">n_train</a></code></li>
-<li><code><a title="biobench.iwildcam.Args.n_workers" href="#biobench.iwildcam.Args.n_workers">n_workers</a></code></li>
-</ul>
-</li>
 <li>
 <h4><code><a title="biobench.iwildcam.Features" href="#biobench.iwildcam.Features">Features</a></code></h4>
 <ul class="">
@@ -354,9 +288,6 @@ class MeanScoreCalculator:
 <li><code><a title="biobench.iwildcam.Features.x" href="#biobench.iwildcam.Features.x">x</a></code></li>
 <li><code><a title="biobench.iwildcam.Features.y" href="#biobench.iwildcam.Features.y">y</a></code></li>
 </ul>
-</li>
-<li>
-<h4><code><a title="biobench.iwildcam.MeanScoreCalculator" href="#biobench.iwildcam.MeanScoreCalculator">MeanScoreCalculator</a></code></h4>
 </li>
 </ul>
 </li>

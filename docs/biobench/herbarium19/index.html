@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
 <meta name="generator" content="pdoc3 0.11.6">
 <title>biobench.herbarium19 API documentation</title>
-<meta name="description" content="">
+<meta name="description" content="Herbarium19: classify specimens into species based on the 2019 FGVC6 competition …">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
@@ -38,8 +38,23 @@ el.replaceWith(d);
 <h1 class="title">Module <code>biobench.herbarium19</code></h1>
 </header>
 <section id="section-intro">
+<p>Herbarium19: classify specimens into species based on the 2019 FGVC6 competition.</p>
+<pre><code>@article{tan2019herbarium,
+  title={The herbarium challenge 2019 dataset},
+  author={Tan, Kiat Chuan and Liu, Yulong and Ambrose, Barbara and Tulig, Melissa and Belongie, Serge},
+  journal={arXiv preprint arXiv:1906.05372},
+  year={2019}
+}
+</code></pre>
 </section>
 <section>
+<h2 class="section-title" id="header-submodules">Sub-modules</h2>
+<dl>
+<dt><code class="name"><a title="biobench.herbarium19.download" href="download.html">biobench.herbarium19.download</a></code></dt>
+<dd>
+<div class="desc"><p>Download the Herbarium 2019 FGVC6 dataset directly from storage.googleapis.com …</p></div>
+</dd>
+</dl>
 </section>
 <section>
 </section>
@@ -47,21 +62,287 @@ el.replaceWith(d);
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
 <dt id="biobench.herbarium19.benchmark"><code class="name flex">
-<span>def <span class="ident">benchmark</span></span>(<span>cfg: <a title="biobench.config.Experiment" href="../config.html#biobench.config.Experiment">Experiment</a>) ‑> tuple[<a title="biobench.config.Model" href="../config.html#biobench.config.Model">Model</a>, <a title="biobench.reporting.Report" href="../reporting.html#biobench.reporting.Report">Report</a>]</span>
+<span>def <span class="ident">benchmark</span></span>(<span>cfg: <a title="biobench.config.Experiment" href="../config.html#biobench.config.Experiment">Experiment</a>) ‑> <a title="biobench.reporting.Report" href="../reporting.html#biobench.reporting.Report">Report</a></span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def benchmark(cfg: config.Experiment) -&gt; tuple[config.Model, reporting.Report]:
-    raise NotImplementedError()</code></pre>
+<pre><code class="python">@beartype.beartype
+@torch.no_grad()
+def benchmark(cfg: config.Experiment) -&gt; reporting.Report:
+    backbone = registry.load_vision_backbone(cfg.model)
+
+    train_feats = get_features(cfg, backbone, is_train=True)
+    test_feats = get_features(cfg, backbone, is_train=False)
+
+    clf = init_clf(cfg)
+    clf.fit(train_feats.x, train_feats.y)
+
+    if hasattr(clf, &#34;best_params_&#34;):
+        helpers.write_hparam_sweep_plot(&#34;herbarium19&#34;, cfg.model.ckpt, clf)
+
+    preds = clf.predict(test_feats.x)
+    examples = [
+        reporting.Prediction(
+            img_id, float(p == t), {&#34;y_pred&#34;: p.item(), &#34;y_true&#34;: p.item()}
+        )
+        for img_id, p, t in zip(test_feats.ids, preds, test_feats.y)
+    ]
+    return reporting.Report(&#34;herbarium19&#34;, examples, cfg)</code></pre>
+</details>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.herbarium19.get_features"><code class="name flex">
+<span>def <span class="ident">get_features</span></span>(<span>cfg: <a title="biobench.config.Experiment" href="../config.html#biobench.config.Experiment">Experiment</a>,<br>backbone: <a title="biobench.registry.VisionBackbone" href="../registry.html#biobench.registry.VisionBackbone">VisionBackbone</a>,<br>*,<br>is_train: bool) ‑> <a title="biobench.herbarium19.Features" href="#biobench.herbarium19.Features">Features</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
+@torch.no_grad()
+def get_features(
+    cfg: config.Experiment, backbone: registry.VisionBackbone, *, is_train: bool
+) -&gt; Features:
+    split = &#34;train&#34; if is_train else &#34;validation&#34;
+    images_dir_path = os.path.join(cfg.data.herbarium19, split)
+
+    img_transform = backbone.make_img_transform()
+    dataset = Dataset(images_dir_path, img_transform)
+
+    if is_train and cfg.n_train &gt; 0:
+        i = helpers.balanced_random_sample(dataset.labels, cfg.n_train)
+        assert len(i) == cfg.n_train
+        dataset = torch.utils.data.Subset(dataset, i)
+
+    dataloader = torch.utils.data.DataLoader(
+        dataset,
+        batch_size=cfg.batch_size,
+        num_workers=cfg.n_workers,
+        drop_last=False,
+        shuffle=False,
+        pin_memory=False,
+        persistent_workers=False,
+    )
+
+    backbone = torch.compile(backbone.to(cfg.device))
+
+    total = len(dataloader) if not cfg.debug else 2
+    it = iter(dataloader)
+
+    all_ids, all_features, all_labels = [], [], []
+    for b in helpers.progress(range(total), every=10, desc=f&#34;embed {split}&#34;):
+        batch = next(it)
+        imgs = batch[&#34;img&#34;].to(cfg.device)
+
+        with torch.amp.autocast(&#34;cuda&#34;):
+            features = backbone.img_encode(imgs).img_features
+            all_features.append(features.cpu())
+
+        all_ids.extend(batch[&#34;img_id&#34;])
+
+        all_labels.extend(batch[&#34;label&#34;])
+
+    all_features = torch.cat(all_features, axis=0).cpu().numpy()
+    all_labels = np.array(all_labels)
+    all_ids = np.array(all_ids)
+    assert len(all_ids) == len(dataset)
+    logger.info(&#34;Got features for %d images.&#34;, len(all_ids))
+
+    return Features(all_features, all_labels, all_ids)</code></pre>
+</details>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.herbarium19.init_clf"><code class="name flex">
+<span>def <span class="ident">init_clf</span></span>(<span>cfg: <a title="biobench.config.Experiment" href="../config.html#biobench.config.Experiment">Experiment</a>)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@beartype.beartype
+def init_clf(cfg: config.Experiment):
+    alpha = np.pow(2.0, np.arange(-15, 5))
+    if cfg.debug:
+        alpha = np.pow(2.0, np.arange(-2, 2))
+
+    if 0 &lt; cfg.n_train &lt;= 300:
+        return sklearn.linear_model.RidgeClassifier()
+
+    return sklearn.model_selection.HalvingGridSearchCV(
+        sklearn.pipeline.make_pipeline(
+            sklearn.preprocessing.StandardScaler(),
+            sklearn.linear_model.RidgeClassifier(1.0),
+        ),
+        {&#34;ridgeclassifier__alpha&#34;: alpha},
+        n_jobs=16,
+        verbose=2,
+        factor=3,
+        random_state=cfg.seed,
+        scoring=&#34;f1_macro&#34;,
+    )</code></pre>
+</details>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.herbarium19.score"><code class="name flex">
+<span>def <span class="ident">score</span></span>(<span>preds: list[<a title="biobench.reporting.Prediction" href="../reporting.html#biobench.reporting.Prediction">Prediction</a>]) ‑> float</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@beartype.beartype
+def score(preds: list[reporting.Prediction]) -&gt; float:
+    return reporting.macro_f1(preds)</code></pre>
 </details>
 <div class="desc"></div>
 </dd>
 </dl>
 </section>
 <section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="biobench.herbarium19.Dataset"><code class="flex name class">
+<span>class <span class="ident">Dataset</span></span>
+<span>(</span><span>root: str | pathlib.Path,<br>transform: Callable | None = None,<br>target_transform: Callable | None = None,<br>loader: Callable[[str], Any] = &lt;function default_loader&gt;,<br>is_valid_file: Callable[[str], bool] | None = None,<br>allow_empty: bool = False)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@beartype.beartype
+class Dataset(torchvision.datasets.ImageFolder):
+    &#34;&#34;&#34;ImageFolder but returns Sample.&#34;&#34;&#34;
+
+    def __getitem__(self, index) -&gt; Sample:
+        path, label = self.samples[index]
+        img = self.loader(path)
+        if self.transform:
+            img = self.transform(img)
+        return {&#34;img_id&#34;: path, &#34;img&#34;: img, &#34;label&#34;: label}
+
+    @property
+    def labels(self) -&gt; Int[np.ndarray, &#34; n&#34;]:
+        return np.array([label for _, label in self.samples])</code></pre>
+</details>
+<div class="desc"><p>ImageFolder but returns Sample.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>torchvision.datasets.folder.ImageFolder</li>
+<li>torchvision.datasets.folder.DatasetFolder</li>
+<li>torchvision.datasets.vision.VisionDataset</li>
+<li>torch.utils.data.dataset.Dataset</li>
+<li>typing.Generic</li>
+</ul>
+<h3>Instance variables</h3>
+<dl>
+<dt id="biobench.herbarium19.Dataset.labels"><code class="name">prop <span class="ident">labels</span> : jaxtyping.Int[ndarray, 'n']</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@property
+def labels(self) -&gt; Int[np.ndarray, &#34; n&#34;]:
+    return np.array([label for _, label in self.samples])</code></pre>
+</details>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="biobench.herbarium19.Features"><code class="flex name class">
+<span>class <span class="ident">Features</span></span>
+<span>(</span><span>x: jaxtyping.Float[ndarray, 'n dim'],<br>y: jaxtyping.Int[ndarray, 'n'],<br>ids: jaxtyping.Shaped[ndarray, 'n'])</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
+@dataclasses.dataclass(frozen=True)
+class Features:
+    x: Float[np.ndarray, &#34;n dim&#34;]
+    y: Int[np.ndarray, &#34; n&#34;]
+    ids: Shaped[np.ndarray, &#34; n&#34;]</code></pre>
+</details>
+<div class="desc"><p>Features(x: jaxtyping.Float[ndarray, 'n dim'], y: jaxtyping.Int[ndarray, 'n'], ids: jaxtyping.Shaped[ndarray, 'n'])</p></div>
+<h3>Instance variables</h3>
+<dl>
+<dt id="biobench.herbarium19.Features.ids"><code class="name">var <span class="ident">ids</span> : jaxtyping.Shaped[ndarray, 'n']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.herbarium19.Features.x"><code class="name">var <span class="ident">x</span> : jaxtyping.Float[ndarray, 'n dim']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.herbarium19.Features.y"><code class="name">var <span class="ident">y</span> : jaxtyping.Int[ndarray, 'n']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="biobench.herbarium19.Sample"><code class="flex name class">
+<span>class <span class="ident">Sample</span></span>
+<span>(</span><span>*args, **kwargs)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
+class Sample(typing.TypedDict):
+    &#34;&#34;&#34;A dictionary representing a single image sample with its metadata.
+
+    Attributes:
+        img_id: Unique identifier for the image.
+        img: The image tensor with shape [3, width, height] (RGB channels first).
+        label: Binary class label (0 or 1) for the image.
+    &#34;&#34;&#34;
+
+    img_id: str
+    img: Float[Tensor, &#34;3 width height&#34;]
+    label: Int[Tensor, &#34;&#34;]</code></pre>
+</details>
+<div class="desc"><p>A dictionary representing a single image sample with its metadata.</p>
+<h2 id="attributes">Attributes</h2>
+<dl>
+<dt><strong><code>img_id</code></strong></dt>
+<dd>Unique identifier for the image.</dd>
+<dt><strong><code>img</code></strong></dt>
+<dd>The image tensor with shape [3, width, height] (RGB channels first).</dd>
+<dt><strong><code>label</code></strong></dt>
+<dd>Binary class label (0 or 1) for the image.</dd>
+</dl></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>builtins.dict</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="biobench.herbarium19.Sample.img"><code class="name">var <span class="ident">img</span> : jaxtyping.Float[Tensor, '3 width height']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.herbarium19.Sample.img_id"><code class="name">var <span class="ident">img_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.herbarium19.Sample.label"><code class="name">var <span class="ident">label</span> : jaxtyping.Int[Tensor, '']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+</dl>
 </section>
 </article>
 <nav id="sidebar">
@@ -74,9 +355,43 @@ el.replaceWith(d);
 <li><code><a title="biobench" href="../index.html">biobench</a></code></li>
 </ul>
 </li>
+<li><h3><a href="#header-submodules">Sub-modules</a></h3>
+<ul>
+<li><code><a title="biobench.herbarium19.download" href="download.html">biobench.herbarium19.download</a></code></li>
+</ul>
+</li>
 <li><h3><a href="#header-functions">Functions</a></h3>
 <ul class="">
 <li><code><a title="biobench.herbarium19.benchmark" href="#biobench.herbarium19.benchmark">benchmark</a></code></li>
+<li><code><a title="biobench.herbarium19.get_features" href="#biobench.herbarium19.get_features">get_features</a></code></li>
+<li><code><a title="biobench.herbarium19.init_clf" href="#biobench.herbarium19.init_clf">init_clf</a></code></li>
+<li><code><a title="biobench.herbarium19.score" href="#biobench.herbarium19.score">score</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="biobench.herbarium19.Dataset" href="#biobench.herbarium19.Dataset">Dataset</a></code></h4>
+<ul class="">
+<li><code><a title="biobench.herbarium19.Dataset.labels" href="#biobench.herbarium19.Dataset.labels">labels</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="biobench.herbarium19.Features" href="#biobench.herbarium19.Features">Features</a></code></h4>
+<ul class="">
+<li><code><a title="biobench.herbarium19.Features.ids" href="#biobench.herbarium19.Features.ids">ids</a></code></li>
+<li><code><a title="biobench.herbarium19.Features.x" href="#biobench.herbarium19.Features.x">x</a></code></li>
+<li><code><a title="biobench.herbarium19.Features.y" href="#biobench.herbarium19.Features.y">y</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="biobench.herbarium19.Sample" href="#biobench.herbarium19.Sample">Sample</a></code></h4>
+<ul class="">
+<li><code><a title="biobench.herbarium19.Sample.img" href="#biobench.herbarium19.Sample.img">img</a></code></li>
+<li><code><a title="biobench.herbarium19.Sample.img_id" href="#biobench.herbarium19.Sample.img_id">img_id</a></code></li>
+<li><code><a title="biobench.herbarium19.Sample.label" href="#biobench.herbarium19.Sample.label">label</a></code></li>
+</ul>
+</li>
 </ul>
 </li>
 </ul>

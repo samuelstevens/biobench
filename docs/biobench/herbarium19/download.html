@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
 <meta name="generator" content="pdoc3 0.11.6">
-<title>biobench.inat21.download API documentation</title>
-<meta name="description" content="A script to download the iNat21 (mini) dataset …">
+<title>biobench.herbarium19.download API documentation</title>
+<meta name="description" content="Download the Herbarium 2019 FGVC6 dataset directly from storage.googleapis.com …">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
@@ -35,15 +35,15 @@ el.replaceWith(d);
 <main>
 <article id="content">
 <header>
-<h1 class="title">Module <code>biobench.inat21.download</code></h1>
+<h1 class="title">Module <code>biobench.herbarium19.download</code></h1>
 </header>
 <section id="section-intro">
-<p>A script to download the iNat21 (mini) dataset.</p>
-<p>Run with:</p>
-<ol>
-<li><code>python biobench/inat21/download.py --help</code> if <code>biobench/</code> is in your $PWD.</li>
-<li><code>python -m biobench.inat21.download --help</code> if you have installed <code><a title="biobench" href="../index.html">biobench</a></code> as a package.</li>
-</ol>
+<p>Download the Herbarium 2019 FGVC6 dataset directly from storage.googleapis.com.</p>
+<p>Splits:
+- train (34,225 images; 38 GB)
+- validation (2,679 images; 3 GB)
+- test (9,565 images; 11 GB)</p>
+<p>Verifies MD5 checksums before extraction.</p>
 </section>
 <section>
 </section>
@@ -52,129 +52,164 @@ el.replaceWith(d);
 <section>
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
-<dt id="biobench.inat21.download.download_tar"><code class="name flex">
-<span>def <span class="ident">download_tar</span></span>(<span>url: str, tar_path: str, chunk_size: int)</span>
+<dt id="biobench.herbarium19.download.download_split"><code class="name flex">
+<span>def <span class="ident">download_split</span></span>(<span>name: str, dest_dir: str, chunk_size: int) ‑> str</span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">@beartype.beartype
-def download_tar(url: str, tar_path: str, chunk_size: int):
+<pre><code class="python">def download_split(name: str, dest_dir: str, chunk_size: int) -&gt; str:
+    info = URLS[name]
+    url, expected_md5 = info[&#34;url&#34;], info[&#34;md5&#34;]
+    os.makedirs(dest_dir, exist_ok=True)
+    archive_path = os.path.join(dest_dir, f&#34;{name}.tar.gz&#34;)
+
+    # Skip download if present and checksum matches
+    if os.path.exists(archive_path):
+        if md5_of_file(archive_path) == expected_md5:
+            print(f&#34;{name}.tar.gz already exists and MD5 matches; skipping download&#34;)
+            return archive_path
+        else:
+            print(f&#34;MD5 mismatch for existing {name}.tar.gz; re-downloading&#34;)
+
+    # Stream-download
     r = requests.get(url, stream=True)
     r.raise_for_status()
+    total = int(r.headers.get(&#34;content-length&#34;, 0))
+    with (
+        open(archive_path, &#34;wb&#34;) as f,
+        tqdm.tqdm(
+            total=total, unit=&#34;B&#34;, unit_scale=True, desc=f&#34;download {name}&#34;
+        ) as bar,
+    ):
+        for chunk in r.iter_content(chunk_size=chunk_size):
+            f.write(chunk)
+            bar.update(len(chunk))
 
-    n_bytes = int(r.headers[&#34;content-length&#34;])
+    # verify
+    actual_md5 = md5_of_file(archive_path)
+    if actual_md5 != expected_md5:
+        raise ValueError(
+            f&#34;MD5 mismatch for {name}.tar.gz: expected {expected_md5}, got {actual_md5}&#34;
+        )
 
-    with open(tar_path, &#34;wb&#34;) as fd:
-        for chunk in tqdm.tqdm(
-            r.iter_content(chunk_size=chunk_size),
-            total=n_bytes / chunk_size,
-            unit=&#34;b&#34;,
-            unit_scale=1,
-            unit_divisor=1024,
-            desc=&#34;Downloading&#34;,
-        ):
-            fd.write(chunk)</code></pre>
+    return archive_path</code></pre>
 </details>
 <div class="desc"></div>
 </dd>
-<dt id="biobench.inat21.download.extract_tar"><code class="name flex">
-<span>def <span class="ident">extract_tar</span></span>(<span>tar_path: str, n_images: int, dir: str)</span>
+<dt id="biobench.herbarium19.download.extract_split"><code class="name flex">
+<span>def <span class="ident">extract_split</span></span>(<span>archive_path: str, dest_dir: str)</span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def extract_tar(tar_path: str, n_images: int, dir: str):
-    with tarfile.open(tar_path, &#34;r&#34;) as tar:
-        for member in tqdm.tqdm(tar, desc=&#34;Extracting images&#34;, total=n_images + 10_000):
-            tar.extract(member, path=dir, filter=&#34;data&#34;)</code></pre>
+<pre><code class="python">def extract_split(archive_path: str, dest_dir: str):
+    with tarfile.open(archive_path, &#34;r:gz&#34;) as tar:
+        for m in tqdm.tqdm(tar, desc=f&#34;Extracting {os.path.basename(archive_path)}&#34;):
+            tar.extract(m, path=dest_dir)</code></pre>
 </details>
 <div class="desc"></div>
 </dd>
-<dt id="biobench.inat21.download.main"><code class="name flex">
-<span>def <span class="ident">main</span></span>(<span>args: <a title="biobench.inat21.download.Args" href="#biobench.inat21.download.Args">Args</a>)</span>
+<dt id="biobench.herbarium19.download.main"><code class="name flex">
+<span>def <span class="ident">main</span></span>(<span>args: <a title="biobench.herbarium19.download.Args" href="#biobench.herbarium19.download.Args">Args</a>)</span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">@beartype.beartype
-def main(args: Args):
-    &#34;&#34;&#34;Download NeWT.&#34;&#34;&#34;
-    os.makedirs(args.dir, exist_ok=True)
-    chunk_size = int(args.chunk_size_kb * 1024)
-    train_tar_path = os.path.join(args.dir, &#34;train_mini.tar.gz&#34;)
-    val_tar_path = os.path.join(args.dir, &#34;val.tar.gz&#34;)
-
-    if args.val:
-        download_tar(val_images_url, val_tar_path, chunk_size)
-        print(f&#34;Downloaded validation images: {val_tar_path}.&#34;)
-
-    extract_tar(val_tar_path, 100_000, args.dir)
-    print(&#34;Extracted validation images.&#34;)
-
-    if args.train:
-        download_tar(train_mini_images_url, train_tar_path, chunk_size)
-        print(f&#34;Downloaded train (mini) images: {train_tar_path}.&#34;)
-
-    extract_tar(train_tar_path, 500_000, args.dir)
-    print(&#34;Extracted training images.&#34;)</code></pre>
+<pre><code class="python">def main(args: Args):
+    splits = {
+        &#34;train&#34;: args.download_train,
+        &#34;validation&#34;: args.download_validation,
+        &#34;test&#34;: args.download_test,
+    }
+    for name, do_dl in splits.items():
+        if not do_dl:
+            continue
+        archive = download_split(name, args.dir, args.chunk_size_kb * 1024)
+        if args.unzip:
+            extract_split(archive, args.dir)
+            print(f&#34;Extracted `{name}` into {args.dir}/{name}/&#34;)</code></pre>
 </details>
-<div class="desc"><p>Download NeWT.</p></div>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.herbarium19.download.md5_of_file"><code class="name flex">
+<span>def <span class="ident">md5_of_file</span></span>(<span>path: str, chunk_size: int = 8192) ‑> str</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def md5_of_file(path: str, chunk_size: int = 8192) -&gt; str:
+    h = hashlib.md5()
+    file_size = os.path.getsize(path)
+    with open(path, &#34;rb&#34;) as f:
+        desc = f&#34;MD5 for {os.path.basename(path)}&#34;
+        with tqdm.tqdm(total=file_size, unit=&#34;B&#34;, unit_scale=True, desc=desc) as bar:
+            for chunk in iter(lambda: f.read(chunk_size), b&#34;&#34;):
+                h.update(chunk)
+                bar.update(len(chunk))
+    return h.hexdigest()</code></pre>
+</details>
+<div class="desc"></div>
 </dd>
 </dl>
 </section>
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
-<dt id="biobench.inat21.download.Args"><code class="flex name class">
+<dt id="biobench.herbarium19.download.Args"><code class="flex name class">
 <span>class <span class="ident">Args</span></span>
-<span>(</span><span>dir: str = '.', chunk_size_kb: int = 1, val: bool = True, train: bool = True)</span>
+<span>(</span><span>dir: str = '.',<br>chunk_size_kb: int = 1024,<br>download_train: bool = True,<br>download_validation: bool = True,<br>download_test: bool = True,<br>unzip: bool = True)</span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">@beartype.beartype
-@dataclasses.dataclass(frozen=True)
+<pre><code class="python">@dataclasses.dataclass(frozen=True)
 class Args:
-    &#34;&#34;&#34;Configure download options.&#34;&#34;&#34;
-
     dir: str = &#34;.&#34;
-    &#34;&#34;&#34;Where to save data.&#34;&#34;&#34;
-
-    chunk_size_kb: int = 1
-    &#34;&#34;&#34;How many KB to download at a time before writing to file.&#34;&#34;&#34;
-
-    val: bool = True
-    &#34;&#34;&#34;Whether to download validation images [8.4GB].&#34;&#34;&#34;
-    train: bool = True
-    &#34;&#34;&#34;Whether to download (mini) train images [42GB].&#34;&#34;&#34;</code></pre>
+    &#34;&#34;&#34;Where to save the downloaded archives and extract them.&#34;&#34;&#34;
+    chunk_size_kb: int = 1024
+    &#34;&#34;&#34;Download chunk size in KB.&#34;&#34;&#34;
+    download_train: bool = True
+    download_validation: bool = True
+    download_test: bool = True
+    unzip: bool = True</code></pre>
 </details>
-<div class="desc"><p>Configure download options.</p></div>
+<div class="desc"><p>Args(dir: str = '.', chunk_size_kb: int = 1024, download_train: bool = True, download_validation: bool = True, download_test: bool = True, unzip: bool = True)</p></div>
 <h3>Instance variables</h3>
 <dl>
-<dt id="biobench.inat21.download.Args.chunk_size_kb"><code class="name">var <span class="ident">chunk_size_kb</span> : int</code></dt>
+<dt id="biobench.herbarium19.download.Args.chunk_size_kb"><code class="name">var <span class="ident">chunk_size_kb</span> : int</code></dt>
 <dd>
-<div class="desc"><p>How many KB to download at a time before writing to file.</p></div>
+<div class="desc"><p>Download chunk size in KB.</p></div>
 </dd>
-<dt id="biobench.inat21.download.Args.dir"><code class="name">var <span class="ident">dir</span> : str</code></dt>
+<dt id="biobench.herbarium19.download.Args.dir"><code class="name">var <span class="ident">dir</span> : str</code></dt>
 <dd>
-<div class="desc"><p>Where to save data.</p></div>
+<div class="desc"><p>Where to save the downloaded archives and extract them.</p></div>
 </dd>
-<dt id="biobench.inat21.download.Args.train"><code class="name">var <span class="ident">train</span> : bool</code></dt>
+<dt id="biobench.herbarium19.download.Args.download_test"><code class="name">var <span class="ident">download_test</span> : bool</code></dt>
 <dd>
-<div class="desc"><p>Whether to download (mini) train images [42GB].</p></div>
+<div class="desc"></div>
 </dd>
-<dt id="biobench.inat21.download.Args.val"><code class="name">var <span class="ident">val</span> : bool</code></dt>
+<dt id="biobench.herbarium19.download.Args.download_train"><code class="name">var <span class="ident">download_train</span> : bool</code></dt>
 <dd>
-<div class="desc"><p>Whether to download validation images [8.4GB].</p></div>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.herbarium19.download.Args.download_validation"><code class="name">var <span class="ident">download_validation</span> : bool</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.herbarium19.download.Args.unzip"><code class="name">var <span class="ident">unzip</span> : bool</code></dt>
+<dd>
+<div class="desc"></div>
 </dd>
 </dl>
 </dd>
@@ -188,25 +223,28 @@ class Args:
 <ul id="index">
 <li><h3>Super-module</h3>
 <ul>
-<li><code><a title="biobench.inat21" href="index.html">biobench.inat21</a></code></li>
+<li><code><a title="biobench.herbarium19" href="index.html">biobench.herbarium19</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-functions">Functions</a></h3>
 <ul class="">
-<li><code><a title="biobench.inat21.download.download_tar" href="#biobench.inat21.download.download_tar">download_tar</a></code></li>
-<li><code><a title="biobench.inat21.download.extract_tar" href="#biobench.inat21.download.extract_tar">extract_tar</a></code></li>
-<li><code><a title="biobench.inat21.download.main" href="#biobench.inat21.download.main">main</a></code></li>
+<li><code><a title="biobench.herbarium19.download.download_split" href="#biobench.herbarium19.download.download_split">download_split</a></code></li>
+<li><code><a title="biobench.herbarium19.download.extract_split" href="#biobench.herbarium19.download.extract_split">extract_split</a></code></li>
+<li><code><a title="biobench.herbarium19.download.main" href="#biobench.herbarium19.download.main">main</a></code></li>
+<li><code><a title="biobench.herbarium19.download.md5_of_file" href="#biobench.herbarium19.download.md5_of_file">md5_of_file</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
 <li>
-<h4><code><a title="biobench.inat21.download.Args" href="#biobench.inat21.download.Args">Args</a></code></h4>
-<ul class="">
-<li><code><a title="biobench.inat21.download.Args.chunk_size_kb" href="#biobench.inat21.download.Args.chunk_size_kb">chunk_size_kb</a></code></li>
-<li><code><a title="biobench.inat21.download.Args.dir" href="#biobench.inat21.download.Args.dir">dir</a></code></li>
-<li><code><a title="biobench.inat21.download.Args.train" href="#biobench.inat21.download.Args.train">train</a></code></li>
-<li><code><a title="biobench.inat21.download.Args.val" href="#biobench.inat21.download.Args.val">val</a></code></li>
+<h4><code><a title="biobench.herbarium19.download.Args" href="#biobench.herbarium19.download.Args">Args</a></code></h4>
+<ul class="two-column">
+<li><code><a title="biobench.herbarium19.download.Args.chunk_size_kb" href="#biobench.herbarium19.download.Args.chunk_size_kb">chunk_size_kb</a></code></li>
+<li><code><a title="biobench.herbarium19.download.Args.dir" href="#biobench.herbarium19.download.Args.dir">dir</a></code></li>
+<li><code><a title="biobench.herbarium19.download.Args.download_test" href="#biobench.herbarium19.download.Args.download_test">download_test</a></code></li>
+<li><code><a title="biobench.herbarium19.download.Args.download_train" href="#biobench.herbarium19.download.Args.download_train">download_train</a></code></li>
+<li><code><a title="biobench.herbarium19.download.Args.download_validation" href="#biobench.herbarium19.download.Args.download_validation">download_validation</a></code></li>
+<li><code><a title="biobench.herbarium19.download.Args.unzip" href="#biobench.herbarium19.download.Args.unzip">unzip</a></code></li>
 </ul>
 </li>
 </ul>

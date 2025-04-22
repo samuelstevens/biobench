@@ -51,13 +51,6 @@ We get video representations by embedding each frame of the video and taking the
 </ol>
 </section>
 <section>
-<h2 class="section-title" id="header-submodules">Sub-modules</h2>
-<dl>
-<dt><code class="name"><a title="biobench.kabr.download" href="download.html">biobench.kabr.download</a></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
 </section>
 <section>
 </section>
@@ -72,7 +65,8 @@ We get video representations by embedding each frame of the video and taking the
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def aggregate_frames(
+<pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
+def aggregate_frames(
     args: Args, features: Float[Tensor, &#34;n_frames n_examples dim&#34;]
 ) -&gt; Float[Tensor, &#34;n_examples dim&#34;]:
     if args.frame_agg == &#34;mean&#34;:
@@ -92,7 +86,8 @@ We get video representations by embedding each frame of the video and taking the
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def aggregate_labels(
+<pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
+def aggregate_labels(
     args: Args, labels: Int[Tensor, &#34;n_frames n_examples&#34;]
 ) -&gt; Int[Tensor, &#34; n_examples&#34;]:
     &#34;&#34;&#34;Aggregate per-frame labels to a per-video label. Uses the most common label (mode).&#34;&#34;&#34;
@@ -108,7 +103,8 @@ We get video representations by embedding each frame of the video and taking the
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def benchmark(cfg: config.Experiment) -&gt; tuple[config.Model, reporting.Report]:
+<pre><code class="python">@beartype.beartype
+def benchmark(cfg: config.Experiment) -&gt; tuple[config.Model, reporting.Report]:
     &#34;&#34;&#34;Runs KABR benchmark.&#34;&#34;&#34;
     # 1. Load model
     backbone = registry.load_vision_backbone(cfg.model)
@@ -165,7 +161,9 @@ We get video representations by embedding each frame of the video and taking the
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def get_features(
+<pre><code class="python">@torch.no_grad()
+@jaxtyped(typechecker=beartype.beartype)
+def get_features(
     cfg: config.Experiment, backbone: registry.VisionBackbone, dataloader
 ) -&gt; tuple[
     Float[Tensor, &#34;n_frames n_examples dim&#34;], Int[Tensor, &#34;n_frames n_examples&#34;]
@@ -462,11 +460,6 @@ class Video:
 <li><h3>Super-module</h3>
 <ul>
 <li><code><a title="biobench" href="../index.html">biobench</a></code></li>
-</ul>
-</li>
-<li><h3><a href="#header-submodules">Sub-modules</a></h3>
-<ul>
-<li><code><a title="biobench.kabr.download" href="download.html">biobench.kabr.download</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-functions">Functions</a></h3>

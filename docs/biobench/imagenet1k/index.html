@@ -54,35 +54,34 @@ el.replaceWith(d);
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def benchmark(cfg: config.Experiment) -&gt; reporting.Report:
+<pre><code class="python">@beartype.beartype
+def benchmark(cfg: config.Experiment) -&gt; reporting.Report:
     backbone = registry.load_vision_backbone(cfg.model)
     test_features = get_features(cfg, backbone, is_train=False)
     train_features = get_features(cfg, backbone, is_train=True)
 
     clf = init_clf(cfg)
     clf.fit(train_features.x, train_features.y)
+    logger.info(&#34;Trained a classifier on %d examples.&#34;, len(train_features.y))
 
-    helpers.write_hparam_sweep_plot(&#34;imagenet1k&#34;, cfg.model.ckpt, clf)
-    alpha = clf.best_params_[&#34;ridgeclassifier__alpha&#34;].item()
-    logger.info(&#34;alpha=%.2g scored %.3f.&#34;, alpha, clf.best_score_.item())
+    if hasattr(clf, &#34;best_params_&#34;):
+        helpers.write_hparam_sweep_plot(&#34;imagenet1k&#34;, cfg.model.ckpt, clf)
+        alpha = clf.best_params_[&#34;ridgeclassifier__alpha&#34;].item()
+        logger.info(&#34;alpha=%.2g scored %.3f.&#34;, alpha, clf.best_score_.item())
 
     true_labels = test_features.y
     pred_labels = clf.predict(test_features.x)
 
     preds = [
         reporting.Prediction(
-            str(image_id),
+            str(img_id),
             float(pred == true),
             {&#34;y_pred&#34;: pred.item(), &#34;y_true&#34;: true.item()},
         )
-        for image_id, pred, true in zip(
-            helpers.progress(test_features.ids, desc=&#34;building exs&#34;, every=1_000),
-            pred_labels,
-            true_labels,
-        )
+        for img_id, pred, true in zip(test_features.ids, pred_labels, true_labels)
     ]
 
-    return reporting.Report(&#34;imagenet1k&#34;, preds)</code></pre>
+    return reporting.Report(&#34;imagenet1k&#34;, preds, cfg)</code></pre>
 </details>
 <div class="desc"></div>
 </dd>
@@ -94,41 +93,47 @@ el.replaceWith(d);
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def get_features(
+<pre><code class="python">@beartype.beartype
+@torch.no_grad
+def get_features(
     cfg: config.Experiment, backbone: registry.VisionBackbone, *, is_train: bool
 ) -&gt; Features:
     img_transform = backbone.make_img_transform()
     backbone = torch.compile(backbone.to(cfg.device))
     split = &#34;train&#34; if is_train else &#34;validation&#34;
 
-    dataset = datasets.load_dataset(&#34;ILSVRC/imagenet-1k&#34;, split=split)
-    n_examples = dataset.num_rows
+    dataset = datasets.load_dataset(
+        &#34;ILSVRC/imagenet-1k&#34;, split=split, cache_dir=helpers.get_cache_dir()
+    )
 
-    if is_train:
+    if is_train and cfg.n_train &gt; 0:
         i = helpers.balanced_random_sample(np.array(dataset[&#34;label&#34;]), cfg.n_train)
+        assert len(i) == cfg.n_train
     else:
-        i = np.arange(n_examples)
+        i = np.arange(dataset.num_rows)
+
+    n_workers = min(len(i), cfg.n_workers)
 
     # Map
     dataset = (
-        dataset.select(i)
-        .to_iterable_dataset(num_shards=min(len(i), cfg.n_workers))
-        .map(Transform(img_transform), with_indices=True)
-        .shuffle(seed=cfg.seed)
+        dataset.map(lambda ex, idx: {&#34;id&#34;: str(idx)}, with_indices=True)
+        .select(i)
+        .to_iterable_dataset(num_shards=n_workers)
+        .map(Transform(img_transform))
         .with_format(&#34;torch&#34;)
     )
 
     dataloader = torch.utils.data.DataLoader(
         dataset=dataset,
         batch_size=cfg.batch_size,
-        num_workers=cfg.n_workers,
+        num_workers=n_workers,
         drop_last=False,
         shuffle=False,
     )
 
     all_features, all_labels, all_ids = [], [], []
 
-    total = math.ceil(n_examples / cfg.batch_size) if not cfg.debug else 20
+    total = max(n_workers, math.ceil(len(i) / cfg.batch_size))
     it = iter(dataloader)
     logger.debug(&#34;Need to embed %d batches of %d images.&#34;, total, cfg.batch_size)
     for b in helpers.progress(range(total), every=10, desc=f&#34;Embedding {split}&#34;):
@@ -146,6 +151,7 @@ el.replaceWith(d);
     all_features = torch.cat(all_features, dim=0).cpu().numpy()
     all_ids = np.array(all_ids)
     all_labels = torch.tensor(all_labels).numpy()
+    assert len(all_ids) == len(i) or cfg.n_train &lt; 0
     logger.info(&#34;Got features for %d images.&#34;, len(all_ids))
 
     return Features(all_features, all_labels, all_ids)</code></pre>
@@ -160,10 +166,14 @@ el.replaceWith(d);
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def init_clf(cfg: config.Experiment):
+<pre><code class="python">@beartype.beartype
+def init_clf(cfg: config.Experiment):
     alpha = np.pow(2.0, np.arange(-15, 5))
     if cfg.debug:
         alpha = np.pow(2.0, np.arange(-2, 2))
+
+    if 0 &lt; cfg.n_train &lt; 2_000:
+        return sklearn.linear_model.RidgeClassifier()
 
     return sklearn.model_selection.HalvingGridSearchCV(
         sklearn.pipeline.make_pipeline(
@@ -174,7 +184,22 @@ el.replaceWith(d);
         n_jobs=16,
         verbose=2,
         factor=3,
+        random_state=cfg.seed,
     )</code></pre>
+</details>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.imagenet1k.score"><code class="name flex">
+<span>def <span class="ident">score</span></span>(<span>preds: list[<a title="biobench.reporting.Prediction" href="../reporting.html#biobench.reporting.Prediction">Prediction</a>]) ‑> float</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@beartype.beartype
+def score(preds: list[reporting.Prediction]) -&gt; float:
+    return reporting.micro_acc(preds)</code></pre>
 </details>
 <div class="desc"></div>
 </dd>
@@ -229,10 +254,9 @@ class Features:
     def __init__(self, img_transform):
         self._img_transform = img_transform
 
-    def __call__(self, example, index: int):
+    def __call__(self, example):
         example[&#34;image&#34;] = example[&#34;image&#34;].convert(&#34;RGB&#34;)
         example[&#34;image&#34;] = self._img_transform(example[&#34;image&#34;])
-        example[&#34;id&#34;] = str(index)
         return example</code></pre>
 </details>
 <div class="desc"></div>
@@ -255,6 +279,7 @@ class Features:
 <li><code><a title="biobench.imagenet1k.benchmark" href="#biobench.imagenet1k.benchmark">benchmark</a></code></li>
 <li><code><a title="biobench.imagenet1k.get_features" href="#biobench.imagenet1k.get_features">get_features</a></code></li>
 <li><code><a title="biobench.imagenet1k.init_clf" href="#biobench.imagenet1k.init_clf">init_clf</a></code></li>
+<li><code><a title="biobench.imagenet1k.score" href="#biobench.imagenet1k.score">score</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>

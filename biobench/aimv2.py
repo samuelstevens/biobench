@@ -211,6 +211,8 @@ class AIMv2(registry.VisionBackbone):
         state_dict = safetensors.torch.load_file(ckpt_fpath)
         self.load_state_dict(state_dict)
 
+        self.size = int(ckpt[-3:])
+
     def forward(self, x: Float[Tensor, "..."]) -> Float[Tensor, "..."]:
         x = self.preprocessor(x)
         x = self.trunk(x)
@@ -227,8 +229,8 @@ class AIMv2(registry.VisionBackbone):
         from torchvision.transforms import v2
 
         return v2.Compose([
-            v2.Resize(size=224),
-            v2.CenterCrop(size=(224, 224)),
+            v2.Resize(size=self.size),
+            v2.CenterCrop(size=(self.size, self.size)),
             v2.ToImage(),
             v2.ToDtype(torch.float32, scale=True),
             v2.Normalize(
@@ -239,14 +241,14 @@ class AIMv2(registry.VisionBackbone):
 
 
 @beartype.beartype
-def download_hf_file(ckpt: str, filepath: str, *, force_download: bool = False) -> str:
+def download_hf_file(ckpt: str, filepath: str, *, force: bool = False) -> str:
     """
     Download a file from a Hugging Face model repository.
 
     Args:
         ckpt: The model checkpoint identifier (e.g., 'apple/aimv2-large-patch14-224')
         filepath: The path to the file within the repo (e.g., 'config.json')
-        force_download: Whether to force download even if the file exists locally
+        force: Whether to force download even if the file exists locally
 
     Returns:
         The path to the downloaded file on the local filesystem
@@ -264,7 +266,7 @@ def download_hf_file(ckpt: str, filepath: str, *, force_download: bool = False) 
     os.makedirs(os.path.dirname(local_path), exist_ok=True)
 
     # Check if the file exists
-    if os.path.exists(local_path) and not force_download:
+    if os.path.exists(local_path) and not force:
         return local_path
 
     # Download the file

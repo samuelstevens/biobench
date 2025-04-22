@@ -43,48 +43,6 @@ el.replaceWith(d);
 <p>Stores all vision backbones.
 Users can register new custom backbones from their code to evaluate on biobench using <code><a title="biobench.registry.register_vision_backbone" href="#biobench.registry.register_vision_backbone">register_vision_backbone()</a></code>.
 As long as it satisfies the <code><a title="biobench.registry.VisionBackbone" href="#biobench.registry.VisionBackbone">VisionBackbone</a></code> interface, it will work will all tasks.</p>
-<h1 id="adding-new-models">Adding New Models</h1>
-<p>To add a new model, you need to:</p>
-<ol>
-<li>Write a new class that satisfies <code>biobench.interfaces.VisionBackbone</code>.</li>
-<li>Register the class using <code><a title="biobench.registry.register_vision_backbone" href="#biobench.registry.register_vision_backbone">register_vision_backbone()</a></code> under a new name.</li>
-</ol>
-<h2 id="1-create-a-new-class">1. Create a New Class</h2>
-<p>Here is an example of writing a new class for <a href="https://pytorch.org/vision/stable/models.html">pre-trained torchvision models</a>.
-First, create a new class that will satisy the interface:</p>
-<pre><code class="language-python">@jaxtyped(typechecker=beartype.beartype)
-class TorchvisionModel(biobench.interfaces.VisionBackbone):
-    def __init__(self, ckpt: str):
-        import torchvision
-
-        arch, weights = ckpt.split(&quot;/&quot;)
-        if not hasattr(torchvision, arch):
-            raise ValueError(f&quot;'{arch}' is not a valid torchvision architecture.&quot;)
-        self.model = getattr(torchvision, arch)(weights=weights)
-        self.model.eval()
-
-    def img_encode(
-        self, batch: Float[Tensor, &quot;batch 3 width height&quot;]
-    ) -&gt; biobench.interfaces.EncodedImgBatch:
-        breakpoint()
-
-    def make_img_transform(self):
-        # Per the docs, each set of weights has its own transform: https://pytorch.org/vision/stable/models.html#using-the-pre-trained-models
-        return self.model.weights.transforms()
-</code></pre>
-<p>All models are initialized with a single checkpoint string.
-This string can be in whatever format you want, so it is best to document it somewhere so users know how to format it.</p>
-<p>Here, we will split on <code>/</code> and then assume the first half is a valid classname on <code>torchvision</code>.
-To make this a little easier on our users, we raise an error that has a more helpful description.
-Then we load the weights.</p>
-<div class="admonition tip">
-<p class="admonition-title">Tip:&ensp;See that we don't import <code>torchvision</code> until we finally initialize an instance of <code>TorchvisionModel</code>; this means that we don't have the runtime cost of importing <code>torchvision</code> if no instance of <code>TorchvisionModel</code> is actually used.</p>
-</div>
-<h2 id="2-register-the-class">2. Register the Class</h2>
-<p>Somewhere in your main script, you need to run:</p>
-<pre><code class="language-py">biobench.registry.register_vision_backbone(&quot;torchvision&quot;, TorchvisionModel)
-</code></pre>
-<p>You can add this line to your copy of <code><a title="benchmark" href="../benchmark.html">benchmark</a></code> to use <code>--model torchvision resnet50/IMAGENET1K_V2</code> to load a ResNet50 trained on ImageNet-1K.</p>
 </section>
 <section>
 </section>
@@ -228,9 +186,12 @@ See <code><a title="biobench.registry" href="#biobench.registry">biobench.regist
 </ul>
 <h3>Subclasses</h3>
 <ul class="hlist">
+<li><a title="biobench.aimv2.AIMv2" href="aimv2.html#biobench.aimv2.AIMv2">AIMv2</a></li>
+<li><a title="biobench.third_party_models.DinoV2" href="third_party_models.html#biobench.third_party_models.DinoV2">DinoV2</a></li>
 <li><a title="biobench.third_party_models.OpenClip" href="third_party_models.html#biobench.third_party_models.OpenClip">OpenClip</a></li>
-<li><a title="biobench.third_party_models.TimmVit" href="third_party_models.html#biobench.third_party_models.TimmVit">TimmVit</a></li>
+<li><a title="biobench.third_party_models.Timm" href="third_party_models.html#biobench.third_party_models.Timm">Timm</a></li>
 <li><a title="biobench.third_party_models.TorchvisionModel" href="third_party_models.html#biobench.third_party_models.TorchvisionModel">TorchvisionModel</a></li>
+<li><a title="biobench.vjepa.VJEPA" href="vjepa.html#biobench.vjepa.VJEPA">VJEPA</a></li>
 </ul>
 <h3>Methods</h3>
 <dl>
@@ -277,13 +238,7 @@ This should be an evaluation transform, not a training transform, because we are
 </article>
 <nav id="sidebar">
 <div class="toc">
-<ul>
-<li><a href="#adding-new-models">Adding New Models</a><ul>
-<li><a href="#1-create-a-new-class">1. Create a New Class</a></li>
-<li><a href="#2-register-the-class">2. Register the Class</a></li>
-</ul>
-</li>
-</ul>
+<ul></ul>
 </div>
 <ul id="index">
 <li><h3>Super-module</h3>

@@ -55,7 +55,7 @@ For example, see <code><a title="biobench.newt.download" href="biobench/newt/dow
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
 <dt id="benchmark.main"><code class="name flex">
-<span>def <span class="ident">main</span></span>(<span>cfg: str = 'configs/neurips.toml', dry_run: bool = True)</span>
+<span>def <span class="ident">main</span></span>(<span>cfgs: list[str] = ['configs/neurips.toml'], dry_run: bool = True)</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -63,15 +63,18 @@ For example, see <code><a title="biobench.newt.download" href="biobench/newt/dow
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">@beartype.beartype
-def main(cfg: str = os.path.join(&#34;configs&#34;, &#34;neurips.toml&#34;), dry_run: bool = True):
+def main(
+    cfgs: list[str] = [os.path.join(&#34;configs&#34;, &#34;neurips.toml&#34;)], dry_run: bool = True
+):
     &#34;&#34;&#34;
     Launch all jobs, using either a local GPU or a Slurm cluster. Then report results and save to disk.
 
     Args:
-        cfg: Path to TOML config file.
+        cfgs: List of paths to TOML config files.
         dry_run: If --no-dry-run, actually run experiment.
     &#34;&#34;&#34;
-    cfgs = config.load(cfg)
+    # Load all configs from the provided paths and concatenate them
+    cfgs = [cfg for path in cfgs for cfg in config.load(path)]
 
     if not cfgs:
         logger.warning(&#34;No configurations loaded.&#34;)
@@ -87,7 +90,6 @@ def main(cfg: str = os.path.join(&#34;configs&#34;, &#34;neurips.toml&#34;), dry
         if cfg.ssl != first.ssl:
             raise ValueError(&#34;All configs must have the same ssl setting&#34;)
 
-    # 1. Setup executor.
     # 1. Setup executor.
     if first.slurm_acct:
         executor = submitit.SlurmExecutor(folder=first.log_to)
@@ -141,13 +143,18 @@ def main(cfg: str = os.path.join(&#34;configs&#34;, &#34;neurips.toml&#34;), dry
             key = (job_cfg.model.ckpt, job_cfg.n_train)
             model_counts[key] += 1
 
+        # Check if there are any jobs to run
+        if not model_counts:
+            logger.info(&#34;All jobs have already been completed. Nothing to run.&#34;)
+            return
+
         # Print summary table
         logger.info(&#34;Job Summary:&#34;)
-        logger.info(&#34;%-40s | %-10s | %-5s&#34;, &#34;Model&#34;, &#34;Train Size&#34;, &#34;Count&#34;)
-        logger.info(&#34;-&#34; * 61)
+        logger.info(&#34;%-50s | %-10s | %-5s&#34;, &#34;Model&#34;, &#34;Train Size&#34;, &#34;Count&#34;)
+        logger.info(&#34;-&#34; * 71)
         for (model, n_train), count in sorted(model_counts.items()):
-            logger.info(&#34;%-40s | %-10d | %-5d&#34;, model, n_train, count)
-        logger.info(&#34;-&#34; * 61)
+            logger.info(&#34;%-50s | %10d | %5d&#34;, model, n_train, count)
+        logger.info(&#34;-&#34; * 71)
         logger.info(&#34;Total jobs to run: %d&#34;, len(jobs))
         return
 
@@ -169,8 +176,8 @@ def main(cfg: str = os.path.join(&#34;configs&#34;, &#34;neurips.toml&#34;), dry
 <div class="desc"><p>Launch all jobs, using either a local GPU or a Slurm cluster. Then report results and save to disk.</p>
 <h2 id="args">Args</h2>
 <dl>
-<dt><strong><code>cfg</code></strong></dt>
-<dd>Path to TOML config file.</dd>
+<dt><strong><code>cfgs</code></strong></dt>
+<dd>List of paths to TOML config files.</dd>
 <dt><strong><code>dry_run</code></strong></dt>
 <dd>If &ndash;no-dry-run, actually run experiment.</dd>
 </dl></div>

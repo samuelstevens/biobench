@@ -54,7 +54,8 @@ el.replaceWith(d);
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def benchmark(cfg: config.Experiment) -&gt; tuple[config.Model, reporting.Report]:
+<pre><code class="python">@beartype.beartype
+def benchmark(cfg: config.Experiment) -&gt; tuple[config.Model, reporting.Report]:
     raise NotImplementedError()</code></pre>
 </details>
 <div class="desc"></div>

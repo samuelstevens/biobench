@@ -55,7 +55,8 @@ el.replaceWith(d);
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def balanced_random_sample(
+<pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
+def balanced_random_sample(
     labels: Int[np.ndarray, &#34; n_labels&#34;], n: int
 ) -&gt; Int[np.ndarray, &#34; n&#34;]:
     &#34;&#34;&#34;
@@ -128,11 +129,29 @@ el.replaceWith(d);
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def fs_safe(string: str) -&gt; str:
+<pre><code class="python">@beartype.beartype
+def fs_safe(string: str) -&gt; str:
     &#34;&#34;&#34;Makes a string safe for filesystems by removing typical special characters.&#34;&#34;&#34;
     return string.replace(&#34;:&#34;, &#34;_&#34;).replace(&#34;/&#34;, &#34;_&#34;)</code></pre>
 </details>
 <div class="desc"><p>Makes a string safe for filesystems by removing typical special characters.</p></div>
+</dd>
+<dt id="biobench.helpers.get_cache_dir"><code class="name flex">
+<span>def <span class="ident">get_cache_dir</span></span>(<span>) ‑> str</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@beartype.beartype
+def get_cache_dir() -&gt; str:
+    cache_dir = &#34;&#34;
+    for var in (&#34;BIOBENCH_CACHE&#34;, &#34;HF_HOME&#34;, &#34;HF_HUB_CACHE&#34;):
+        cache_dir = cache_dir or os.environ.get(var, &#34;&#34;)
+    return cache_dir or &#34;.&#34;</code></pre>
+</details>
+<div class="desc"></div>
 </dd>
 <dt id="biobench.helpers.write_hparam_sweep_plot"><code class="name flex">
 <span>def <span class="ident">write_hparam_sweep_plot</span></span>(<span>task: str,<br>model: str,<br>clf,<br>x: str = 'param_ridgeclassifier__alpha',<br>y: str = 'mean_test_score') ‑> str</span>
@@ -142,7 +161,8 @@ el.replaceWith(d);
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def write_hparam_sweep_plot(
+<pre><code class="python">@beartype.beartype
+def write_hparam_sweep_plot(
     task: str,
     model: str,
     clf,
@@ -151,6 +171,9 @@ el.replaceWith(d);
 ) -&gt; str:
     import matplotlib.pyplot as plt
     import polars as pl
+
+    if not hasattr(clf, &#34;cv_results_&#34;):
+        return &#34;&#34;
 
     df = pl.DataFrame(clf.cv_results_)
 
@@ -262,6 +285,7 @@ class progress:
 <ul class="">
 <li><code><a title="biobench.helpers.balanced_random_sample" href="#biobench.helpers.balanced_random_sample">balanced_random_sample</a></code></li>
 <li><code><a title="biobench.helpers.fs_safe" href="#biobench.helpers.fs_safe">fs_safe</a></code></li>
+<li><code><a title="biobench.helpers.get_cache_dir" href="#biobench.helpers.get_cache_dir">get_cache_dir</a></code></li>
 <li><code><a title="biobench.helpers.write_hparam_sweep_plot" href="#biobench.helpers.write_hparam_sweep_plot">write_hparam_sweep_plot</a></code></li>
 </ul>
 </li>

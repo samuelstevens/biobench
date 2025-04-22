@@ -1,9 +1,10 @@
-n_train = [3, 10, 30, 100, 300, 1000, -1]
+n_train = -1
 
 [data]
 newt = "/research/nfs_su_809/workspace/stevens.994/datasets/newt"
 plankton = "/research/nfs_su_809/workspace/stevens.994/datasets/plankton"
 # herbarium19 = "/research/nfs_su_809/workspace/stevens.994/datasets/herbarium19"
+imagenet1k = "huggingface"
 # inat21 = "/research/nfs_su_809/workspace/stevens.994/datasets/inat21"
 # kabr = "/research/nfs_su_809/workspace/stevens.994/datasets/kabr"
 iwildcam = "/research/nfs_su_809/workspace/stevens.994/datasets/iwildcam"
@@ -57,7 +58,15 @@ ckpt = "ViT-SO400M-14-SigLIP-384/webli"
 
 [[models]]
 org = "timm"
+ckpt = "efficientnet_b0.ra_in1k"
+
+[[models]]
+org = "timm"
 ckpt = "efficientnet_b3.ra2_in1k"
+
+[[models]]
+org = "timm"
+ckpt = "mobilenetv2_100.ra_in1k"
 
 [[models]]
 org = "timm"
@@ -76,6 +85,22 @@ org = "timm"
 ckpt = "resnet50d.a1_in1k"
 
 [[models]]
+org = "timm"
+ckpt = "resnet50.a1_in1k"
+
+[[models]]
+org = "timm"
+ckpt = "convnext_tiny.in12k"
+
+[[models]]
+org = "timm"
+ckpt = "convnext_tiny.in12k_ft_in1k"
+
+[[models]]
+org = "timm"
+ckpt = "vit_base_patch16_224.augreg2_in21k_ft_in1k"
+
+[[models]]
 org = "dinov2"
 ckpt = "dinov2_vits14_reg"
 
@@ -86,6 +111,10 @@ ckpt = "dinov2_vitb14_reg"
 [[models]]
 org = "dinov2"
 ckpt = "dinov2_vitl14_reg"
+
+# [[models]]
+# org = "dinov2"
+# ckpt = "dinov2_vitg14_reg"
 
 [[models]]
 org = "aimv2"
@@ -110,10 +139,6 @@ ckpt = "apple/aimv2-huge-patch14-336"
 [[models]]
 org = "aimv2"
 ckpt = "apple/aimv2-huge-patch14-448"
-
-# [[models]]
-# org = "dinov2"
-# ckpt = "dinov2_vitg14_reg"
 
 [[models]]
 org = "open-clip"

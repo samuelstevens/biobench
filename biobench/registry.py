@@ -2,8 +2,6 @@
 Stores all vision backbones.
 Users can register new custom backbones from their code to evaluate on biobench using `register_vision_backbone`.
 As long as it satisfies the `VisionBackbone` interface, it will work will all tasks.
-
-.. include:: ./tutorial.md
 """
 
 import dataclasses

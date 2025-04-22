@@ -76,7 +76,8 @@ This is not a true, real-world task.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def benchmark(cfg: config.Experiment) -&gt; tuple[config.Model, reporting.Report]:
+<pre><code class="python">@beartype.beartype
+def benchmark(cfg: config.Experiment) -&gt; tuple[config.Model, reporting.Report]:
     &#34;&#34;&#34;
     Steps:
     1. Get features for all images.
@@ -128,7 +129,9 @@ This is not a true, real-world task.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def get_features(
+<pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
+@torch.no_grad()
+def get_features(
     args: Args, backbone: registry.VisionBackbone, *, is_train: bool
 ) -&gt; Features:
     img_transform = backbone.make_img_transform()
@@ -180,7 +183,8 @@ This is not a true, real-world task.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def init_clf(args: Args):
+<pre><code class="python">@beartype.beartype
+def init_clf(args: Args):
     alpha = np.pow(2.0, np.arange(-15, 5))
     if args.debug:
         alpha = np.pow(2.0, np.arange(-2, 2))

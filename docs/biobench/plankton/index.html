@@ -102,7 +102,8 @@ This task is particularly challenging because the image distribution is very dif
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def benchmark(cfg: config.Experiment) -&gt; reporting.Report:
+<pre><code class="python">@beartype.beartype
+def benchmark(cfg: config.Experiment) -&gt; reporting.Report:
     &#34;&#34;&#34;
     Steps:
     1. Get features for all images.
@@ -112,21 +113,17 @@ This task is particularly challenging because the image distribution is very dif
     backbone = registry.load_vision_backbone(cfg.model)
 
     # 1. Get features
-    train_features = get_features(cfg, backbone, split=&#34;train&#34;)
-    val_features = get_features(cfg, backbone, split=&#34;val&#34;)
-
-    encoder = sklearn.preprocessing.OrdinalEncoder()
-    all_labels = np.concatenate((val_features.labels, train_features.labels))
-    encoder.fit(all_labels.reshape(-1, 1))
+    train_features = get_features(cfg, backbone, is_train=True)
+    val_features = get_features(cfg, backbone, is_train=False)
 
     # 2. Fit model.
     clf = init_clf(cfg)
-    clf.fit(train_features.x, train_features.y(encoder))
+    clf.fit(train_features.x, train_features.y)
 
     # 3. Predict.
     pred_labels = clf.predict(val_features.x)
     logger.info(&#34;Predicted classes for %d examples.&#34;, len(val_features.x))
-    true_labels = val_features.y(encoder)
+    true_labels = val_features.y
 
     preds = [
         reporting.Prediction(
@@ -134,11 +131,7 @@ This task is particularly challenging because the image distribution is very dif
             float(pred == true),
             {&#34;y_pred&#34;: pred.item(), &#34;y_true&#34;: true.item()},
         )
-        for image_id, pred, true in zip(
-            helpers.progress(val_features.ids, desc=&#34;Making examples&#34;, every=1_000),
-            pred_labels,
-            true_labels,
-        )
+        for image_id, pred, true in zip(val_features.ids, pred_labels, true_labels)
     ]
 
     return reporting.Report(&#34;plankton&#34;, preds, cfg)</code></pre>
@@ -149,22 +142,29 @@ This task is particularly challenging because the image distribution is very dif
 3. Report score on test data.</p></div>
 </dd>
 <dt id="biobench.plankton.get_features"><code class="name flex">
-<span>def <span class="ident">get_features</span></span>(<span>cfg: <a title="biobench.config.Experiment" href="../config.html#biobench.config.Experiment">Experiment</a>,<br>backbone: <a title="biobench.registry.VisionBackbone" href="../registry.html#biobench.registry.VisionBackbone">VisionBackbone</a>,<br>*,<br>split: str) ‑> <a title="biobench.plankton.Features" href="#biobench.plankton.Features">Features</a></span>
+<span>def <span class="ident">get_features</span></span>(<span>cfg: <a title="biobench.config.Experiment" href="../config.html#biobench.config.Experiment">Experiment</a>,<br>backbone: <a title="biobench.registry.VisionBackbone" href="../registry.html#biobench.registry.VisionBackbone">VisionBackbone</a>,<br>*,<br>is_train: bool) ‑> <a title="biobench.plankton.Features" href="#biobench.plankton.Features">Features</a></span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def get_features(
-    cfg: config.Experiment, backbone: registry.VisionBackbone, *, split: str
+<pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
+@torch.no_grad()
+def get_features(
+    cfg: config.Experiment, backbone: registry.VisionBackbone, *, is_train: bool
 ) -&gt; Features:
+    split = &#34;train&#34; if is_train else &#34;val&#34;
     images_dir_path = os.path.join(cfg.data.plankton, split)
 
     img_transform = backbone.make_img_transform()
-    backbone = torch.compile(backbone.to(cfg.device))
-
     dataset = Dataset(images_dir_path, img_transform)
+
+    if is_train and cfg.n_train &gt; 0:
+        i = helpers.balanced_random_sample(dataset.labels, cfg.n_train)
+        assert len(i) == cfg.n_train
+        dataset = torch.utils.data.Subset(dataset, i)
+
     dataloader = torch.utils.data.DataLoader(
         dataset,
         batch_size=cfg.batch_size,
@@ -175,27 +175,29 @@ This task is particularly challenging because the image distribution is very dif
         persistent_workers=False,
     )
 
-    all_ids, all_features, all_labels = [], [], []
-    breakpoint()
+    backbone = torch.compile(backbone.to(cfg.device))
 
     total = len(dataloader) if not cfg.debug else 2
     it = iter(dataloader)
 
+    all_ids, all_features, all_labels = [], [], []
     for b in helpers.progress(range(total), every=10, desc=f&#34;Embed {split}&#34;):
-        ids, images, labels = next(it)
-        images = images.to(cfg.device)
+        batch = next(it)
+        imgs = batch[&#34;img&#34;].to(cfg.device)
 
         with torch.amp.autocast(&#34;cuda&#34;):
-            features = backbone.img_encode(images).img_features
+            features = backbone.img_encode(imgs).img_features
             all_features.append(features.cpu())
 
-        all_ids.extend(ids)
+        all_ids.extend(batch[&#34;img_id&#34;])
 
-        all_labels.extend(labels)
+        all_labels.extend(batch[&#34;label&#34;])
 
     all_features = torch.cat(all_features, axis=0).cpu().numpy()
     all_labels = np.array(all_labels)
     all_ids = np.array(all_ids)
+    assert len(all_ids) == len(dataset)
+    logger.info(&#34;Got features for %d images.&#34;, len(all_ids))
 
     return Features(all_features, all_labels, all_ids)</code></pre>
 </details>
@@ -209,15 +211,43 @@ This task is particularly challenging because the image distribution is very dif
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def init_clf(cfg: config.Experiment):
-    &#34;&#34;&#34;Make a GaussianNB.&#34;&#34;&#34;
+<pre><code class="python">@beartype.beartype
+def init_clf(cfg: config.Experiment):
+    alpha = np.pow(2.0, np.arange(-15, 5))
+    if cfg.debug:
+        alpha = np.pow(2.0, np.arange(-2, 2))
 
-    return sklearn.pipeline.make_pipeline(
-        sklearn.preprocessing.StandardScaler(),
-        sklearn.naive_bayes.GaussianNB(),
+    if 0 &lt; cfg.n_train &lt;= 300:
+        return sklearn.linear_model.RidgeClassifier()
+
+    return sklearn.model_selection.HalvingGridSearchCV(
+        sklearn.pipeline.make_pipeline(
+            sklearn.preprocessing.StandardScaler(),
+            sklearn.linear_model.RidgeClassifier(1.0),
+        ),
+        {&#34;ridgeclassifier__alpha&#34;: alpha},
+        n_jobs=16,
+        verbose=2,
+        factor=3,
+        random_state=cfg.seed,
+        scoring=&#34;f1_macro&#34;,
     )</code></pre>
 </details>
-<div class="desc"><p>Make a GaussianNB.</p></div>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.plankton.score"><code class="name flex">
+<span>def <span class="ident">score</span></span>(<span>preds: list[<a title="biobench.reporting.Prediction" href="../reporting.html#biobench.reporting.Prediction">Prediction</a>]) ‑> float</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@beartype.beartype
+def score(preds: list[reporting.Prediction]) -&gt; float:
+    return reporting.macro_f1(preds)</code></pre>
+</details>
+<div class="desc"></div>
 </dd>
 </dl>
 </section>
@@ -244,29 +274,35 @@ class Dataset(torch.utils.data.Dataset):
         self.transform = transform
         self.samples = []
         if not os.path.exists(root) or not os.path.isdir(root):
-            msg = f&#34;Path &#39;{root}&#39; doesn&#39;t exist. Did you download the plankton dataset? See the docstring at the top of this file for instructions. If you did download it, pass the path as --plankton-args.datadir PATH.&#34;
+            msg = f&#34;Path &#39;{root}&#39; doesn&#39;t exist. Did you download the plankton dataset? See the docstring at the top of this file for instructions.&#34;
             raise RuntimeError(msg)
 
+        class_to_int = {}
+        for dirname in sorted(os.listdir(root)):
+            class_to_int[dirname] = len(class_to_int)
+
         for dirpath, dirnames, filenames in os.walk(root):
-            # TODO: there are random PDFs in these directories. You have to be careful to only get directories that are actually full of images.
-            # Also need to assign the same integers to the same classnames.
-            image_class = os.path.relpath(dirpath, root)
+            img_class = os.path.relpath(dirpath, root)
             for filename in filenames:
                 if not filename.endswith(&#34;.png&#34;):
                     continue
-                image_id = filename.removesuffix(&#34;.png&#34;)
-                image_path = os.path.join(dirpath, filename)
-                self.samples.append((image_id, image_path, image_class))
+                img_id = filename.removesuffix(&#34;.png&#34;)
+                img_path = os.path.join(dirpath, filename)
+                self.samples.append((img_id, img_path, class_to_int[img_class]))
 
-    def __getitem__(self, i: int) -&gt; tuple[str, Float[Tensor, &#34;3 width height&#34;], str]:
-        image_id, image_path, image_class = self.samples[i]
-        image = Image.open(image_path).convert(&#34;RGB&#34;)
+    def __getitem__(self, i) -&gt; Sample:
+        img_id, img_path, label = self.samples[i]
+        img = Image.open(img_path).convert(&#34;RGB&#34;)
         if self.transform is not None:
-            image = self.transform(image)
-        return image_id, image, image_class
+            img = self.transform(img)
+        return {&#34;img_id&#34;: img_id, &#34;img&#34;: img, &#34;label&#34;: label}
 
     def __len__(self) -&gt; int:
-        return len(self.samples)</code></pre>
+        return len(self.samples)
+
+    @property
+    def labels(self) -&gt; Int[np.ndarray, &#34; n_samples&#34;]:
+        return np.array([label for _, _, label in self.samples])</code></pre>
 </details>
 <div class="desc"><p>An abstract class representing a :class:<code><a title="biobench.plankton.Dataset" href="#biobench.plankton.Dataset">Dataset</a></code>.</p>
 <p>All datasets that represent a map from keys to data samples should subclass
@@ -301,10 +337,25 @@ dataset with non-integral indices/keys, a custom sampler must be provided.</p>
 <div class="desc"><p>Optional function function that transforms an image into a format expected by a neural network.</p></div>
 </dd>
 </dl>
+<h3>Instance variables</h3>
+<dl>
+<dt id="biobench.plankton.Dataset.labels"><code class="name">prop <span class="ident">labels</span> : jaxtyping.Int[ndarray, 'n_samples']</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@property
+def labels(self) -&gt; Int[np.ndarray, &#34; n_samples&#34;]:
+    return np.array([label for _, _, label in self.samples])</code></pre>
+</details>
+<div class="desc"></div>
+</dd>
+</dl>
 </dd>
 <dt id="biobench.plankton.Features"><code class="flex name class">
 <span>class <span class="ident">Features</span></span>
-<span>(</span><span>x: jaxtyping.Float[ndarray, 'n dim'],<br>labels: jaxtyping.Shaped[ndarray, 'n'],<br>ids: jaxtyping.Shaped[ndarray, 'n'])</span>
+<span>(</span><span>x: jaxtyping.Float[ndarray, 'n dim'],<br>y: jaxtyping.Int[ndarray, 'n'],<br>ids: jaxtyping.Shaped[ndarray, 'n'])</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -315,20 +366,13 @@ dataset with non-integral indices/keys, a custom sampler must be provided.</p>
 @dataclasses.dataclass(frozen=True)
 class Features:
     x: Float[np.ndarray, &#34;n dim&#34;]
-    labels: Shaped[np.ndarray, &#34; n&#34;]
-    ids: Shaped[np.ndarray, &#34; n&#34;]
-
-    def y(self, encoder):
-        return encoder.transform(self.labels.reshape(-1, 1)).reshape(-1)</code></pre>
+    y: Int[np.ndarray, &#34; n&#34;]
+    ids: Shaped[np.ndarray, &#34; n&#34;]</code></pre>
 </details>
-<div class="desc"><p>Features(x: jaxtyping.Float[ndarray, 'n dim'], labels: jaxtyping.Shaped[ndarray, 'n'], ids: jaxtyping.Shaped[ndarray, 'n'])</p></div>
+<div class="desc"><p>Features(x: jaxtyping.Float[ndarray, 'n dim'], y: jaxtyping.Int[ndarray, 'n'], ids: jaxtyping.Shaped[ndarray, 'n'])</p></div>
 <h3>Instance variables</h3>
 <dl>
 <dt id="biobench.plankton.Features.ids"><code class="name">var <span class="ident">ids</span> : jaxtyping.Shaped[ndarray, 'n']</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="biobench.plankton.Features.labels"><code class="name">var <span class="ident">labels</span> : jaxtyping.Shaped[ndarray, 'n']</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -336,20 +380,61 @@ class Features:
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="biobench.plankton.Features.y"><code class="name">var <span class="ident">y</span> : jaxtyping.Int[ndarray, 'n']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 </dl>
-<h3>Methods</h3>
-<dl>
-<dt id="biobench.plankton.Features.y"><code class="name flex">
-<span>def <span class="ident">y</span></span>(<span>self, encoder)</span>
+</dd>
+<dt id="biobench.plankton.Sample"><code class="flex name class">
+<span>class <span class="ident">Sample</span></span>
+<span>(</span><span>*args, **kwargs)</span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def y(self, encoder):
-    return encoder.transform(self.labels.reshape(-1, 1)).reshape(-1)</code></pre>
+<pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
+class Sample(typing.TypedDict):
+    &#34;&#34;&#34;A dictionary representing a single image sample with its metadata.
+
+    Attributes:
+        img_id: Unique identifier for the image.
+        img: The image tensor with shape [3, width, height] (RGB channels first).
+        label: Binary class label (0 or 1) for the image.
+    &#34;&#34;&#34;
+
+    img_id: str
+    img: Float[Tensor, &#34;3 width height&#34;]
+    label: Int[Tensor, &#34;&#34;]</code></pre>
 </details>
+<div class="desc"><p>A dictionary representing a single image sample with its metadata.</p>
+<h2 id="attributes">Attributes</h2>
+<dl>
+<dt><strong><code>img_id</code></strong></dt>
+<dd>Unique identifier for the image.</dd>
+<dt><strong><code>img</code></strong></dt>
+<dd>The image tensor with shape [3, width, height] (RGB channels first).</dd>
+<dt><strong><code>label</code></strong></dt>
+<dd>Binary class label (0 or 1) for the image.</dd>
+</dl></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>builtins.dict</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="biobench.plankton.Sample.img"><code class="name">var <span class="ident">img</span> : jaxtyping.Float[Tensor, '3 width height']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.plankton.Sample.img_id"><code class="name">var <span class="ident">img_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.plankton.Sample.label"><code class="name">var <span class="ident">label</span> : jaxtyping.Int[Tensor, '']</code></dt>
+<dd>
 <div class="desc"></div>
 </dd>
 </dl>
@@ -377,6 +462,7 @@ class Features:
 <li><code><a title="biobench.plankton.benchmark" href="#biobench.plankton.benchmark">benchmark</a></code></li>
 <li><code><a title="biobench.plankton.get_features" href="#biobench.plankton.get_features">get_features</a></code></li>
 <li><code><a title="biobench.plankton.init_clf" href="#biobench.plankton.init_clf">init_clf</a></code></li>
+<li><code><a title="biobench.plankton.score" href="#biobench.plankton.score">score</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>
@@ -384,6 +470,7 @@ class Features:
 <li>
 <h4><code><a title="biobench.plankton.Dataset" href="#biobench.plankton.Dataset">Dataset</a></code></h4>
 <ul class="">
+<li><code><a title="biobench.plankton.Dataset.labels" href="#biobench.plankton.Dataset.labels">labels</a></code></li>
 <li><code><a title="biobench.plankton.Dataset.samples" href="#biobench.plankton.Dataset.samples">samples</a></code></li>
 <li><code><a title="biobench.plankton.Dataset.transform" href="#biobench.plankton.Dataset.transform">transform</a></code></li>
 </ul>
@@ -392,9 +479,16 @@ class Features:
 <h4><code><a title="biobench.plankton.Features" href="#biobench.plankton.Features">Features</a></code></h4>
 <ul class="">
 <li><code><a title="biobench.plankton.Features.ids" href="#biobench.plankton.Features.ids">ids</a></code></li>
-<li><code><a title="biobench.plankton.Features.labels" href="#biobench.plankton.Features.labels">labels</a></code></li>
 <li><code><a title="biobench.plankton.Features.x" href="#biobench.plankton.Features.x">x</a></code></li>
 <li><code><a title="biobench.plankton.Features.y" href="#biobench.plankton.Features.y">y</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="biobench.plankton.Sample" href="#biobench.plankton.Sample">Sample</a></code></h4>
+<ul class="">
+<li><code><a title="biobench.plankton.Sample.img" href="#biobench.plankton.Sample.img">img</a></code></li>
+<li><code><a title="biobench.plankton.Sample.img_id" href="#biobench.plankton.Sample.img_id">img_id</a></code></li>
+<li><code><a title="biobench.plankton.Sample.label" href="#biobench.plankton.Sample.label">label</a></code></li>
 </ul>
 </li>
 </ul>

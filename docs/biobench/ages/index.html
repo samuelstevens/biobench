@@ -72,7 +72,8 @@ We use a multiclass SVM from scikit learn.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def benchmark(cfg: config.Experiment) -&gt; tuple[config.Model, reporting.Report]:
+<pre><code class="python">@beartype.beartype
+def benchmark(cfg: config.Experiment) -&gt; tuple[config.Model, reporting.Report]:
     &#34;&#34;&#34;
     Run benchmark.
 
@@ -126,7 +127,9 @@ We use a multiclass SVM from scikit learn.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def get_all_tasks(
+<pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
+@torch.no_grad()
+def get_all_tasks(
     cfg: config.Experiment, backbone: registry.VisionBackbone
 ) -&gt; collections.abc.Iterator[tuple[str, Features, Features]]:
     &#34;&#34;&#34;

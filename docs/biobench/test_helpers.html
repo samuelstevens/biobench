@@ -54,7 +54,8 @@ el.replaceWith(d);
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def measure_balance(
+<pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
+def measure_balance(
     labels: Int[np.ndarray, &#34; n_labels&#34;], indices: Int[np.ndarray, &#34; n&#34;]
 ) -&gt; float:
     &#34;&#34;&#34;

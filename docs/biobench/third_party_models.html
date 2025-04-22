@@ -46,23 +46,6 @@ el.replaceWith(d);
 <section>
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
-<dt id="biobench.third_party_models.get_cache_dir"><code class="name flex">
-<span>def <span class="ident">get_cache_dir</span></span>(<span>) ‑> str</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">@beartype.beartype
-def get_cache_dir() -&gt; str:
-    cache_dir = &#34;&#34;
-    for var in (&#34;BIOBENCH_CACHE&#34;, &#34;HF_HOME&#34;, &#34;HF_HUB_CACHE&#34;):
-        cache_dir = cache_dir or os.environ.get(var, &#34;&#34;)
-    return cache_dir or &#34;.&#34;</code></pre>
-</details>
-<div class="desc"></div>
-</dd>
 <dt id="biobench.third_party_models.get_ssl"><code class="name flex">
 <span>def <span class="ident">get_ssl</span></span>(<span>) ‑> bool</span>
 </code></dt>
@@ -106,6 +89,64 @@ def get_ssl() -&gt; bool:
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
+<dt id="biobench.third_party_models.DinoV2"><code class="flex name class">
+<span>class <span class="ident">DinoV2</span></span>
+<span>(</span><span>ckpt: str, **kwargs)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
+class DinoV2(registry.VisionBackbone):
+    def __init__(self, ckpt: str, **kwargs):
+        super().__init__()
+
+        import torch
+
+        self.model = torch.hub.load(&#34;facebookresearch/dinov2&#34;, ckpt)
+
+    def img_encode(
+        self, batch: Float[Tensor, &#34;batch 3 width height&#34;]
+    ) -&gt; Float[Tensor, &#34;batch patches dim&#34;]:
+        dct = self.model.forward_features(batch)
+
+        return registry.EncodedImgBatch(
+            dct[&#34;x_norm_clstoken&#34;], dct[&#34;x_norm_patchtokens&#34;]
+        )
+
+    def make_img_transform(self):
+        import torch
+        from torchvision.transforms import v2
+
+        return v2.Compose([
+            v2.Resize(size=(256, 256)),
+            v2.CenterCrop(size=(224, 224)),
+            v2.ToImage(),
+            v2.ToDtype(torch.float32, scale=True),
+            v2.Normalize(mean=[0.4850, 0.4560, 0.4060], std=[0.2290, 0.2240, 0.2250]),
+        ])</code></pre>
+</details>
+<div class="desc"><p>A frozen vision model that embeds batches of images into batches of vectors.</p>
+<p>To add new models to the benchmark, you can simply create a new class that satisfies this interface and register it.
+See <code><a title="biobench.registry" href="registry.html">biobench.registry</a></code> for a tutorial on adding new vision backbones.</p>
+<p>Initialize internal Module state, shared by both nn.Module and ScriptModule.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="biobench.registry.VisionBackbone" href="registry.html#biobench.registry.VisionBackbone">VisionBackbone</a></li>
+<li>torch.nn.modules.module.Module</li>
+</ul>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="biobench.registry.VisionBackbone" href="registry.html#biobench.registry.VisionBackbone">VisionBackbone</a></b></code>:
+<ul class="hlist">
+<li><code><a title="biobench.registry.VisionBackbone.img_encode" href="registry.html#biobench.registry.VisionBackbone.img_encode">img_encode</a></code></li>
+<li><code><a title="biobench.registry.VisionBackbone.make_img_transform" href="registry.html#biobench.registry.VisionBackbone.make_img_transform">make_img_transform</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
 <dt id="biobench.third_party_models.OpenClip"><code class="flex name class">
 <span>class <span class="ident">OpenClip</span></span>
 <span>(</span><span>ckpt: str, **kwargs)</span>
@@ -142,7 +183,7 @@ class OpenClip(registry.VisionBackbone):
         else:
             arch, ckpt = ckpt.split(&#34;/&#34;)
             clip, self.img_transform = open_clip.create_model_from_pretrained(
-                arch, pretrained=ckpt, cache_dir=get_cache_dir()
+                arch, pretrained=ckpt, cache_dir=helpers.get_cache_dir()
             )
 
         self.model = clip.visual
@@ -182,8 +223,8 @@ For example, to load a ViT-B/16 train on Apple's Data Filtering Networks dataset
 </li>
 </ul>
 </dd>
-<dt id="biobench.third_party_models.TimmVit"><code class="flex name class">
-<span>class <span class="ident">TimmVit</span></span>
+<dt id="biobench.third_party_models.Timm"><code class="flex name class">
+<span>class <span class="ident">Timm</span></span>
 <span>(</span><span>ckpt: str, **kwargs)</span>
 </code></dt>
 <dd>
@@ -192,16 +233,21 @@ For example, to load a ViT-B/16 train on Apple's Data Filtering Networks dataset
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
-class TimmVit(registry.VisionBackbone):
-    &#34;&#34;&#34; &#34;&#34;&#34;
+class Timm(registry.VisionBackbone):
+    &#34;&#34;&#34;
+    Wrapper for models from the Timm (PyTorch Image Models) library.
+
+    This class provides an interface to use any model from the Timm library
+    as a vision backbone in the biobench framework.
+    &#34;&#34;&#34;
 
     # TODO: docs + describe the ckpt format.
     def __init__(self, ckpt: str, **kwargs):
         super().__init__()
         import timm
 
-        err_msg = &#34;You are trying to load a non-ViT checkpoint; the `img_encode()` method assumes `model.forward_features()` will return features with shape (batch, n_patches, dim) which is not true for non-ViT checkpoints.&#34;
-        assert &#34;vit&#34; in ckpt, err_msg
+        self.ckpt = ckpt
+
         self.model = timm.create_model(ckpt, pretrained=True)
 
         data_cfg = timm.data.resolve_data_config(self.model.pretrained_cfg)
@@ -213,19 +259,50 @@ class TimmVit(registry.VisionBackbone):
     def img_encode(
         self, batch: Float[Tensor, &#34;batch 3 width height&#34;]
     ) -&gt; registry.EncodedImgBatch:
-        patches = self.model.forward_features(batch)
-        # Use [CLS] token if it exists, otherwise do a maxpool
-        if self.model.num_prefix_tokens &gt; 0:
-            img = patches[:, 0, ...]
-        else:
-            img = patches.max(axis=1).values
+        feats = self.model.forward_features(batch)
+        if feats.ndim == 4:
+            # This is probably a convnet of some kind, with (batch, dim, width, height)
+            bsz, d, w, h = feats.shape
 
-        # Remove all non-image patches, like the [CLS] token or registers
-        patches = patches[:, self.model.num_prefix_tokens :, ...]
+            # Validate the shape of the features
+            if not (d &gt; w and d &gt; h):
+                raise ValueError(
+                    f&#34;Expected feature dimensions (d={d}) to be larger than spatial dimensions (w={w}, h={h}). This suggests the tensor dimensions may be in an unexpected order.&#34;
+                )
+
+            if w != h:
+                raise ValueError(
+                    f&#34;Expected equal spatial dimensions, but got width={w} and height={h}. Unequal spatial dimensions indicate a mistake in our understanding of the output features from model &#39;{self.ckpt}&#39;.&#34;
+                )
+
+            # Reshape to (batch, patches, dim) format
+            patches = feats.permute(0, 2, 3, 1).reshape(bsz, w * h, d)
+            # TODO: should we only use max pooling?
+            img = patches.max(dim=1).values  # Global max pooling
+        elif feats.ndim == 3:
+            # This is probably a ViT with (batch, patches, dim)
+            bsz, num_patches, d = feats.shape
+            patches = feats
+
+            # For ViT models, we typically use the class token ([CLS]) as the image representation
+            # if it exists, otherwise we do mean pooling over patches
+            if self.model.num_prefix_tokens &gt; 0:
+                img = patches[:, 0]  # Use [CLS] token
+                # Remove prefix tokens (like [CLS]) from patches
+                patches = patches[:, self.model.num_prefix_tokens :]
+            else:
+                img = patches.max(dim=1).values  # Max pooling if no [CLS] token
+        else:
+            raise ValueError(
+                f&#34;Unexpected feature dimension: {feats.ndim}. Expected either 3 (ViT models) or 4 (ConvNet models). Check if the model architecture {self.ckpt} is supported.&#34;
+            )
 
         return registry.EncodedImgBatch(img, patches)</code></pre>
 </details>
-<div class="desc"><p>Initialize internal Module state, shared by both nn.Module and ScriptModule.</p></div>
+<div class="desc"><p>Wrapper for models from the Timm (PyTorch Image Models) library.</p>
+<p>This class provides an interface to use any model from the Timm library
+as a vision backbone in the biobench framework.</p>
+<p>Initialize internal Module state, shared by both nn.Module and ScriptModule.</p></div>
 <h3>Ancestors</h3>
 <ul class="hlist">
 <li><a title="biobench.registry.VisionBackbone" href="registry.html#biobench.registry.VisionBackbone">VisionBackbone</a></li>
@@ -262,11 +339,7 @@ class TorchvisionModel(registry.VisionBackbone):
     def img_encode(
         self, batch: Float[Tensor, &#34;batch 3 width height&#34;]
     ) -&gt; registry.EncodedImgBatch:
-        breakpoint()
-
-    def make_img_transform(self):
-        # Per the docs, each set of weights has its own transform: https://pytorch.org/vision/stable/models.html#using-the-pre-trained-models
-        return self.model.weights.transforms()</code></pre>
+        breakpoint()</code></pre>
 </details>
 <div class="desc"><p>A frozen vision model that embeds batches of images into batches of vectors.</p>
 <p>To add new models to the benchmark, you can simply create a new class that satisfies this interface and register it.
@@ -302,17 +375,19 @@ See <code><a title="biobench.registry" href="registry.html">biobench.registry</a
 </li>
 <li><h3><a href="#header-functions">Functions</a></h3>
 <ul class="">
-<li><code><a title="biobench.third_party_models.get_cache_dir" href="#biobench.third_party_models.get_cache_dir">get_cache_dir</a></code></li>
 <li><code><a title="biobench.third_party_models.get_ssl" href="#biobench.third_party_models.get_ssl">get_ssl</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
 <li>
+<h4><code><a title="biobench.third_party_models.DinoV2" href="#biobench.third_party_models.DinoV2">DinoV2</a></code></h4>
+</li>
+<li>
 <h4><code><a title="biobench.third_party_models.OpenClip" href="#biobench.third_party_models.OpenClip">OpenClip</a></code></h4>
 </li>
 <li>
-<h4><code><a title="biobench.third_party_models.TimmVit" href="#biobench.third_party_models.TimmVit">TimmVit</a></code></h4>
+<h4><code><a title="biobench.third_party_models.Timm" href="#biobench.third_party_models.Timm">Timm</a></code></h4>
 </li>
 <li>
 <h4><code><a title="biobench.third_party_models.TorchvisionModel" href="#biobench.third_party_models.TorchvisionModel">TorchvisionModel</a></code></h4>

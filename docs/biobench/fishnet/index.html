@@ -44,7 +44,7 @@ It contains three benchmarks: fish classification, fish detection, and functiona
 <p>We mainly focus on the third task.
 We train an two-layer MLP on the visual features extracted by different model backbones to predict the presence or absence of 9 different traits.</p>
 <p>If you use this evaluation, be sure to cite the original work:</p>
-<pre><code>@InProceedings{Khan_2023_ICCV,
+<pre><code>@inproceedings{fishnet,
     author    = {Khan, Faizan Farooq and Li, Xiang and Temple, Andrew J. and Elhoseiny, Mohamed},
     title     = {FishNet: A Large-scale Dataset and Benchmark for Fish Recognition, Detection, and Functional Trait Prediction},
     booktitle = {Proceedings of the IEEE/CVF International Conference on Computer Vision (ICCV)},
@@ -70,14 +70,15 @@ We train an two-layer MLP on the visual features extracted by different model ba
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
 <dt id="biobench.fishnet.benchmark"><code class="name flex">
-<span>def <span class="ident">benchmark</span></span>(<span>cfg: <a title="biobench.config.Experiment" href="../config.html#biobench.config.Experiment">Experiment</a>) ‑> tuple[<a title="biobench.config.Model" href="../config.html#biobench.config.Model">Model</a>, <a title="biobench.reporting.Report" href="../reporting.html#biobench.reporting.Report">Report</a>]</span>
+<span>def <span class="ident">benchmark</span></span>(<span>cfg: <a title="biobench.config.Experiment" href="../config.html#biobench.config.Experiment">Experiment</a>) ‑> <a title="biobench.reporting.Report" href="../reporting.html#biobench.reporting.Report">Report</a></span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def benchmark(cfg: config.Experiment) -&gt; tuple[config.Model, reporting.Report]:
+<pre><code class="python">@beartype.beartype
+def benchmark(cfg: config.Experiment) -&gt; reporting.Report:
     &#34;&#34;&#34;
     The FishNet benchmark.
     &#34;&#34;&#34;
@@ -85,61 +86,215 @@ We train an two-layer MLP on the visual features extracted by different model ba
     backbone = registry.load_vision_backbone(cfg.model)
 
     # 2. Get features.
-    train_dataset = get_features(args, backbone, is_train=True)
-    test_dataset = get_features(args, backbone, is_train=False)
+    train_dataset = get_features(cfg, backbone, is_train=True)
+    test_dataset = get_features(cfg, backbone, is_train=False)
 
     # 3. Set up classifier.
-    classifier = init_classifier(train_dataset.dim).to(args.device)
+    classifier = init_clf(train_dataset.dim).to(cfg.device)
 
     # 4. Load datasets for classifier.
     train_loader = torch.utils.data.DataLoader(
-        train_dataset, batch_size=args.batch_size, shuffle=True
+        train_dataset, batch_size=batch_size, shuffle=True
     )
     test_loader = torch.utils.data.DataLoader(
-        test_dataset, batch_size=args.batch_size, shuffle=False
+        test_dataset, batch_size=batch_size, shuffle=False
     )
-    optimizer = torch.optim.Adam(classifier.parameters(), lr=args.learning_rate)
+    optimizer = torch.optim.Adam(classifier.parameters(), lr=learning_rate)
     criterion = torch.nn.BCEWithLogitsLoss()
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.5)
 
     # 5. Fit the classifier.
-    for epoch in range(args.n_epochs):
-        total = 2 if args.debug else len(train_loader)
-        it = iter(train_loader)
-        for b in range(total):
-            features, labels, _ = next(it)
-            features = features.to(args.device)
-            labels = labels.to(args.device, dtype=torch.float)
-            output = classifier(features)
-            loss = criterion(output, labels)
+    it = infinite(train_loader)
+    for step in range(n_steps):
+        features, labels, _ = next(it)
+        features = features.to(cfg.device)
+        labels = labels.to(cfg.device, dtype=torch.float)
+        output = classifier(features)
+        loss = criterion(output, labels)
 
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
         scheduler.step()
 
         # Evaluate the classifier.
-        if (epoch + 1) % args.log_every == 0:
-            examples = evaluate(args, classifier, test_loader)
-            score = calc_macro_f1(examples)
-            logger.info(&#34;Epoch %d/%d: %.3f&#34;, epoch + 1, args.n_epochs, score)
+        if (step + 1) % 1_000 == 0:
+            preds = predict(cfg, classifier, test_loader)
+            logger.info(
+                &#34;Step %d/%d (%.1f%%): %.3f (macro F1)&#34;,
+                step + 1,
+                n_steps,
+                (step + 1) / n_steps * 100,
+                score(preds),
+            )
+    preds = predict(cfg, classifier, test_loader)
 
-    return cfg.model, reporting.Report(
-        &#34;FishNet&#34;, examples, calc_mean_score=calc_macro_f1
-    )</code></pre>
+    return reporting.Report(&#34;fishnet&#34;, preds, cfg)</code></pre>
 </details>
 <div class="desc"><p>The FishNet benchmark.</p></div>
 </dd>
-<dt id="biobench.fishnet.calc_macro_f1"><code class="name flex">
-<span>def <span class="ident">calc_macro_f1</span></span>(<span>preds: list[<a title="biobench.reporting.Prediction" href="../reporting.html#biobench.reporting.Prediction">Prediction</a>]) ‑> float</span>
+<dt id="biobench.fishnet.get_features"><code class="name flex">
+<span>def <span class="ident">get_features</span></span>(<span>cfg: <a title="biobench.config.Experiment" href="../config.html#biobench.config.Experiment">Experiment</a>,<br>backbone: <a title="biobench.registry.VisionBackbone" href="../registry.html#biobench.registry.VisionBackbone">VisionBackbone</a>,<br>*,<br>is_train: bool) ‑> <a title="biobench.fishnet.Features" href="#biobench.fishnet.Features">Features</a></span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def calc_macro_f1(preds: list[reporting.Prediction]) -&gt; float:
+<pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
+@torch.no_grad()
+def get_features(
+    cfg: config.Experiment, backbone: registry.VisionBackbone, *, is_train: bool
+) -&gt; Features:
+    &#34;&#34;&#34;Extract visual features.&#34;&#34;&#34;
+    if not os.path.isdir(cfg.data.fishnet):
+        msg = f&#34;Path &#39;{cfg.data.fishnet}&#39; doesn&#39;t exist. Did you download the FishNet dataset? See the docstring at the top of this file for instructions.&#34;
+        raise ValueError(msg)
+
+    img_transform = backbone.make_img_transform()
+    backbone = torch.compile(backbone.to(cfg.device))
+
+    file = &#34;train.csv&#34; if is_train else &#34;test.csv&#34;
+    dataset = ImageDataset(cfg.data.fishnet, file, transform=img_transform)
+    if is_train and cfg.n_train &gt; 0:
+        i = np.random.default_rng(seed=cfg.seed).choice(
+            len(dataset), cfg.n_train, replace=False, shuffle=False
+        )
+        assert len(i) == cfg.n_train
+        dataset = torch.utils.data.Subset(dataset, i)
+
+    dataloader = torch.utils.data.DataLoader(
+        dataset,
+        batch_size=cfg.batch_size,
+        num_workers=cfg.n_workers,
+        shuffle=False,
+    )
+
+    all_features, all_labels, all_ids = [], [], []
+
+    total = len(dataloader) if not cfg.debug else 2
+    it = iter(dataloader)
+
+    it = iter(dataloader)
+    for b in helpers.progress(range(total), every=10, desc=file):
+        images, labels, ids = next(it)
+        images = images.to(cfg.device)
+
+        features = backbone.img_encode(images).img_features
+        all_features.append(features.cpu())
+        all_labels.append(labels)
+
+        all_ids.extend(ids)
+
+    # Keep the Tensor data type for subsequent training
+    all_features = torch.cat(all_features, dim=0)
+    all_labels = torch.cat(all_labels, dim=0)
+    assert len(all_ids) == len(dataset)
+    logger.info(&#34;Got features for %d images.&#34;, len(all_ids))
+
+    return Features(all_features, all_labels, all_ids)</code></pre>
+</details>
+<div class="desc"><p>Extract visual features.</p></div>
+</dd>
+<dt id="biobench.fishnet.infinite"><code class="name flex">
+<span>def <span class="ident">infinite</span></span>(<span>dataloader)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def infinite(dataloader):
+    &#34;&#34;&#34;Creates an infinite iterator from a dataloader by creating a new iterator each time the previous one is exhausted.
+
+    Args:
+        dataloader: A PyTorch dataloader or similar iterable
+
+    Yields:
+        Batches from the dataloader, indefinitely
+    &#34;&#34;&#34;
+    while True:
+        # Create a fresh iterator from the dataloader
+        it = iter(dataloader)
+        for batch in it:
+            yield batch</code></pre>
+</details>
+<div class="desc"><p>Creates an infinite iterator from a dataloader by creating a new iterator each time the previous one is exhausted.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>dataloader</code></strong></dt>
+<dd>A PyTorch dataloader or similar iterable</dd>
+</dl>
+<h2 id="yields">Yields</h2>
+<p>Batches from the dataloader, indefinitely</p></div>
+</dd>
+<dt id="biobench.fishnet.init_clf"><code class="name flex">
+<span>def <span class="ident">init_clf</span></span>(<span>input_dim: int) ‑> torch.nn.modules.module.Module</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@beartype.beartype
+def init_clf(input_dim: int) -&gt; torch.nn.Module:
+    &#34;&#34;&#34;A simple MLP classifier consistent with the design in FishNet.&#34;&#34;&#34;
+    return torch.nn.Sequential(
+        torch.nn.Linear(input_dim, 512),
+        torch.nn.Dropout(0.5),
+        torch.nn.Linear(512, 9),
+    )</code></pre>
+</details>
+<div class="desc"><p>A simple MLP classifier consistent with the design in FishNet.</p></div>
+</dd>
+<dt id="biobench.fishnet.predict"><code class="name flex">
+<span>def <span class="ident">predict</span></span>(<span>cfg: <a title="biobench.config.Experiment" href="../config.html#biobench.config.Experiment">Experiment</a>,<br>classifier: torch.nn.modules.module.Module,<br>dataloader) ‑> list[<a title="biobench.reporting.Prediction" href="../reporting.html#biobench.reporting.Prediction">Prediction</a>]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@beartype.beartype
+def predict(
+    cfg: config.Experiment, classifier: torch.nn.Module, dataloader
+) -&gt; list[reporting.Prediction]:
+    &#34;&#34;&#34;
+    Evaluates the trained classifier on a test split.
+
+    Returns:
+        List of `reporting.Prediction`s
+    &#34;&#34;&#34;
+    total = 2 if cfg.debug else len(dataloader)
+    it = iter(dataloader)
+    preds = []
+    for b in range(total):
+        features, labels, ids = next(it)
+        features = features.to(cfg.device)
+        labels = labels.numpy()
+        with torch.no_grad():
+            pred_logits = classifier(features)
+        pred_logits = (pred_logits &gt; threshold).cpu().numpy()
+        for id, pred, true in zip(ids, pred_logits, labels):
+            info = {&#34;y_pred&#34;: pred.tolist(), &#34;y_true&#34;: true.tolist()}
+            preds.append(reporting.Prediction(id, (pred == true).mean().item(), info))
+
+    return preds</code></pre>
+</details>
+<div class="desc"><p>Evaluates the trained classifier on a test split.</p>
+<h2 id="returns">Returns</h2>
+<p>List of <code>reporting.Prediction</code>s</p></div>
+</dd>
+<dt id="biobench.fishnet.score"><code class="name flex">
+<span>def <span class="ident">score</span></span>(<span>preds: list[<a title="biobench.reporting.Prediction" href="../reporting.html#biobench.reporting.Prediction">Prediction</a>]) ‑> float</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@beartype.beartype
+def score(preds: list[reporting.Prediction]) -&gt; float:
     &#34;&#34;&#34;
     Calculate the macro-averaged F1 score across all fish trait predictions.
 
@@ -205,218 +360,11 @@ We train an two-layer MLP on the visual features extracted by different model ba
 <h2 id="returns">Returns</h2>
 <p>The macro-averaged F1 score across all 9 traits</p></div>
 </dd>
-<dt id="biobench.fishnet.evaluate"><code class="name flex">
-<span>def <span class="ident">evaluate</span></span>(<span>args: <a title="biobench.fishnet.Args" href="#biobench.fishnet.Args">Args</a>,<br>classifier: torch.nn.modules.module.Module,<br>dataloader) ‑> list[<a title="biobench.reporting.Prediction" href="../reporting.html#biobench.reporting.Prediction">Prediction</a>]</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def evaluate(
-    args: Args, classifier: torch.nn.Module, dataloader
-) -&gt; list[reporting.Prediction]:
-    &#34;&#34;&#34;
-    Evaluates the trained classifier on a test split.
-
-    Returns:
-        a list of Examples.
-    &#34;&#34;&#34;
-    total = 2 if args.debug else len(dataloader)
-    it = iter(dataloader)
-    examples = []
-    for b in range(total):
-        features, labels, ids = next(it)
-        features = features.to(args.device)
-        labels = labels.numpy()
-        with torch.no_grad():
-            pred_logits = classifier(features)
-        pred_logits = (pred_logits &gt; args.threshold).cpu().numpy()
-        for id, pred, true in zip(ids, pred_logits, labels):
-            example = reporting.Prediction(
-                id,
-                float((pred == true).all()),
-                {&#34;y_pred&#34;: pred.tolist(), &#34;y_true&#34;: true.tolist()},
-            )
-            examples.append(example)
-
-    return examples</code></pre>
-</details>
-<div class="desc"><p>Evaluates the trained classifier on a test split.</p>
-<h2 id="returns">Returns</h2>
-<p>a list of Examples.</p></div>
-</dd>
-<dt id="biobench.fishnet.get_features"><code class="name flex">
-<span>def <span class="ident">get_features</span></span>(<span>args: <a title="biobench.fishnet.Args" href="#biobench.fishnet.Args">Args</a>,<br>backbone: <a title="biobench.registry.VisionBackbone" href="../registry.html#biobench.registry.VisionBackbone">VisionBackbone</a>,<br>*,<br>is_train: bool) ‑> <a title="biobench.fishnet.Features" href="#biobench.fishnet.Features">Features</a></span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def get_features(
-    args: Args, backbone: registry.VisionBackbone, *, is_train: bool
-) -&gt; Features:
-    &#34;&#34;&#34;Extract visual features.&#34;&#34;&#34;
-    if not os.path.isdir(args.data):
-        msg = f&#34;Path &#39;{args.data}&#39; doesn&#39;t exist. Did you download the FishNet dataset? See the docstring at the top of this file for instructions. If you did download it, pass the path with &#39;--fishnet-args.data&#39;; see --help for more.&#34;
-        raise ValueError(msg)
-
-    img_transform = backbone.make_img_transform()
-    backbone = torch.compile(backbone.to(args.device))
-
-    file = &#34;train.csv&#34; if is_train else &#34;test.csv&#34;
-    dataset = ImageDataset(args.data, file, transform=img_transform)
-    dataloader = torch.utils.data.DataLoader(
-        dataset,
-        batch_size=args.batch_size,
-        num_workers=args.n_workers,
-        shuffle=True,
-    )
-
-    all_features, all_labels, all_ids = [], [], []
-
-    if args.debug:
-        n = args.batch_size * 2
-        total = 2  # 2 batches
-    elif is_train and args.n_train &gt;= 0:
-        n = args.n_train
-        total = n // args.batch_size + 1
-    else:
-        n = len(dataset)
-        total = len(dataloader)
-
-    it = iter(dataloader)
-    for b in helpers.progress(range(total), every=args.log_every, desc=file):
-        images, labels, ids = next(it)
-        images = images.to(args.device)
-
-        features = backbone.img_encode(images).img_features
-        all_features.append(features.cpu())
-        all_labels.append(labels)
-
-        all_ids.extend(ids)
-
-    # Keep the Tensor data type for subsequent training
-    all_features = torch.cat(all_features, dim=0)[:n]
-    all_labels = torch.cat(all_labels, dim=0)[:n]
-    all_ids = all_ids[:n]
-
-    return Features(all_features, all_labels, all_ids)</code></pre>
-</details>
-<div class="desc"><p>Extract visual features.</p></div>
-</dd>
-<dt id="biobench.fishnet.init_classifier"><code class="name flex">
-<span>def <span class="ident">init_classifier</span></span>(<span>input_dim: int) ‑> torch.nn.modules.module.Module</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def init_classifier(input_dim: int) -&gt; torch.nn.Module:
-    &#34;&#34;&#34;A simple MLP classifier consistent with the design in FishNet.&#34;&#34;&#34;
-    return torch.nn.Sequential(
-        torch.nn.Linear(input_dim, 512),
-        torch.nn.Dropout(0.5),
-        torch.nn.Linear(512, 9),
-    )</code></pre>
-</details>
-<div class="desc"><p>A simple MLP classifier consistent with the design in FishNet.</p></div>
-</dd>
 </dl>
 </section>
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
-<dt id="biobench.fishnet.Args"><code class="flex name class">
-<span>class <span class="ident">Args</span></span>
-<span>(</span><span>data: str = '',<br>batch_size: int = 256,<br>n_workers: int = 4,<br>log_every: int = 10,<br>n_epochs: int = 100,<br>learning_rate: float = 0.0005,<br>threshold: float = 0.5,<br>seed: int = 42,<br>device: str = 'cuda',<br>debug: bool = False,<br>n_train: int = -1)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">@beartype.beartype
-@dataclasses.dataclass(frozen=True)
-class Args:
-    &#34;&#34;&#34;FishNet task arguments.&#34;&#34;&#34;
-
-    data: str = &#34;&#34;
-    &#34;&#34;&#34;dataset directory; where you downloaded this task&#39;s data to.&#34;&#34;&#34;
-    batch_size: int = 256
-    &#34;&#34;&#34;batch size for computer vision model.&#34;&#34;&#34;
-    n_workers: int = 4
-    &#34;&#34;&#34;number of dataloader worker processes.&#34;&#34;&#34;
-    log_every: int = 10
-    &#34;&#34;&#34;how often (number of epochs) to log progress.&#34;&#34;&#34;
-    n_epochs: int = 100
-    &#34;&#34;&#34;How many epochs to train the MLP classifier.&#34;&#34;&#34;
-    learning_rate: float = 5e-4
-    &#34;&#34;&#34;The learning rate for training the MLP classifier.&#34;&#34;&#34;
-    threshold: float = 0.5
-    &#34;&#34;&#34;The threshold to predict &#34;presence&#34; rather than &#34;absence&#34;.&#34;&#34;&#34;
-    seed: int = 42
-    &#34;&#34;&#34;random seed.&#34;&#34;&#34;
-
-    # Computed at runtime.
-    device: str = &#34;cuda&#34;
-    &#34;&#34;&#34;(computed at runtime) which kind of accelerator to use.&#34;&#34;&#34;
-    debug: bool = False
-    &#34;&#34;&#34;(computed at runtime) whether to run in debug mode.&#34;&#34;&#34;
-    n_train: int = -1
-    &#34;&#34;&#34;Number of maximum training samples. Negative number means use all of them.&#34;&#34;&#34;</code></pre>
-</details>
-<div class="desc"><p>FishNet task arguments.</p></div>
-<h3>Instance variables</h3>
-<dl>
-<dt id="biobench.fishnet.Args.batch_size"><code class="name">var <span class="ident">batch_size</span> : int</code></dt>
-<dd>
-<div class="desc"><p>batch size for computer vision model.</p></div>
-</dd>
-<dt id="biobench.fishnet.Args.data"><code class="name">var <span class="ident">data</span> : str</code></dt>
-<dd>
-<div class="desc"><p>dataset directory; where you downloaded this task's data to.</p></div>
-</dd>
-<dt id="biobench.fishnet.Args.debug"><code class="name">var <span class="ident">debug</span> : bool</code></dt>
-<dd>
-<div class="desc"><p>(computed at runtime) whether to run in debug mode.</p></div>
-</dd>
-<dt id="biobench.fishnet.Args.device"><code class="name">var <span class="ident">device</span> : str</code></dt>
-<dd>
-<div class="desc"><p>(computed at runtime) which kind of accelerator to use.</p></div>
-</dd>
-<dt id="biobench.fishnet.Args.learning_rate"><code class="name">var <span class="ident">learning_rate</span> : float</code></dt>
-<dd>
-<div class="desc"><p>The learning rate for training the MLP classifier.</p></div>
-</dd>
-<dt id="biobench.fishnet.Args.log_every"><code class="name">var <span class="ident">log_every</span> : int</code></dt>
-<dd>
-<div class="desc"><p>how often (number of epochs) to log progress.</p></div>
-</dd>
-<dt id="biobench.fishnet.Args.n_epochs"><code class="name">var <span class="ident">n_epochs</span> : int</code></dt>
-<dd>
-<div class="desc"><p>How many epochs to train the MLP classifier.</p></div>
-</dd>
-<dt id="biobench.fishnet.Args.n_train"><code class="name">var <span class="ident">n_train</span> : int</code></dt>
-<dd>
-<div class="desc"><p>Number of maximum training samples. Negative number means use all of them.</p></div>
-</dd>
-<dt id="biobench.fishnet.Args.n_workers"><code class="name">var <span class="ident">n_workers</span> : int</code></dt>
-<dd>
-<div class="desc"><p>number of dataloader worker processes.</p></div>
-</dd>
-<dt id="biobench.fishnet.Args.seed"><code class="name">var <span class="ident">seed</span> : int</code></dt>
-<dd>
-<div class="desc"><p>random seed.</p></div>
-</dd>
-<dt id="biobench.fishnet.Args.threshold"><code class="name">var <span class="ident">threshold</span> : float</code></dt>
-<dd>
-<div class="desc"><p>The threshold to predict "presence" rather than "absence".</p></div>
-</dd>
-</dl>
-</dd>
 <dt id="biobench.fishnet.Features"><code class="flex name class">
 <span>class <span class="ident">Features</span></span>
 <span>(</span><span>x: jaxtyping.Float[Tensor, 'n dim'],<br>y: jaxtyping.Int[Tensor, 'n n_classes'],<br>ids: list[str])</span>
@@ -543,7 +491,7 @@ class ImageDataset(torch.utils.data.Dataset):
         logger.info(&#34;csv file: %s has %d item.&#34;, csv_file, len(self.df))
 
     def __getitem__(
-        self, index: int
+        self, index
     ) -&gt; tuple[Float[Tensor, &#34;3 width height&#34;], Int[Tensor, &#34;9&#34;], str]:
         row_data = self.df.row(index)
         image_name = row_data[self.image_col]
@@ -602,32 +550,17 @@ class ImageDataset(torch.utils.data.Dataset):
 </ul>
 </li>
 <li><h3><a href="#header-functions">Functions</a></h3>
-<ul class="">
+<ul class="two-column">
 <li><code><a title="biobench.fishnet.benchmark" href="#biobench.fishnet.benchmark">benchmark</a></code></li>
-<li><code><a title="biobench.fishnet.calc_macro_f1" href="#biobench.fishnet.calc_macro_f1">calc_macro_f1</a></code></li>
-<li><code><a title="biobench.fishnet.evaluate" href="#biobench.fishnet.evaluate">evaluate</a></code></li>
 <li><code><a title="biobench.fishnet.get_features" href="#biobench.fishnet.get_features">get_features</a></code></li>
-<li><code><a title="biobench.fishnet.init_classifier" href="#biobench.fishnet.init_classifier">init_classifier</a></code></li>
+<li><code><a title="biobench.fishnet.infinite" href="#biobench.fishnet.infinite">infinite</a></code></li>
+<li><code><a title="biobench.fishnet.init_clf" href="#biobench.fishnet.init_clf">init_clf</a></code></li>
+<li><code><a title="biobench.fishnet.predict" href="#biobench.fishnet.predict">predict</a></code></li>
+<li><code><a title="biobench.fishnet.score" href="#biobench.fishnet.score">score</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
-<li>
-<h4><code><a title="biobench.fishnet.Args" href="#biobench.fishnet.Args">Args</a></code></h4>
-<ul class="two-column">
-<li><code><a title="biobench.fishnet.Args.batch_size" href="#biobench.fishnet.Args.batch_size">batch_size</a></code></li>
-<li><code><a title="biobench.fishnet.Args.data" href="#biobench.fishnet.Args.data">data</a></code></li>
-<li><code><a title="biobench.fishnet.Args.debug" href="#biobench.fishnet.Args.debug">debug</a></code></li>
-<li><code><a title="biobench.fishnet.Args.device" href="#biobench.fishnet.Args.device">device</a></code></li>
-<li><code><a title="biobench.fishnet.Args.learning_rate" href="#biobench.fishnet.Args.learning_rate">learning_rate</a></code></li>
-<li><code><a title="biobench.fishnet.Args.log_every" href="#biobench.fishnet.Args.log_every">log_every</a></code></li>
-<li><code><a title="biobench.fishnet.Args.n_epochs" href="#biobench.fishnet.Args.n_epochs">n_epochs</a></code></li>
-<li><code><a title="biobench.fishnet.Args.n_train" href="#biobench.fishnet.Args.n_train">n_train</a></code></li>
-<li><code><a title="biobench.fishnet.Args.n_workers" href="#biobench.fishnet.Args.n_workers">n_workers</a></code></li>
-<li><code><a title="biobench.fishnet.Args.seed" href="#biobench.fishnet.Args.seed">seed</a></code></li>
-<li><code><a title="biobench.fishnet.Args.threshold" href="#biobench.fishnet.Args.threshold">threshold</a></code></li>
-</ul>
-</li>
 <li>
 <h4><code><a title="biobench.fishnet.Features" href="#biobench.fishnet.Features">Features</a></code></h4>
 <ul class="">

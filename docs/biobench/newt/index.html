@@ -73,7 +73,8 @@ We aggregate scores across all 164 tasks.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def benchmark(cfg: config.Experiment) -&gt; reporting.Report:
+<pre><code class="python">@beartype.beartype
+def benchmark(cfg: config.Experiment) -&gt; reporting.Report:
     &#34;&#34;&#34;
     The NeWT benchmark.
     First, get features for all images.
@@ -125,7 +126,9 @@ Third, evaluate the SVM and report results.</p></div>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def get_all_tasks(cfg: config.Experiment) -&gt; collections.abc.Iterator[Task]:
+<pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
+@torch.no_grad()
+def get_all_tasks(cfg: config.Experiment) -&gt; collections.abc.Iterator[Task]:
     &#34;&#34;&#34; &#34;&#34;&#34;
     rng = np.random.default_rng(seed=cfg.seed)
 
@@ -248,7 +251,8 @@ Third, evaluate the SVM and report results.</p></div>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def l2_normalize(
+<pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
+def l2_normalize(
     features: Float[np.ndarray, &#34;batch dim&#34;],
 ) -&gt; Float[np.ndarray, &#34;batch dim&#34;]:
     &#34;&#34;&#34;Normalizes a batch of vectors to have L2 unit norm.&#34;&#34;&#34;
@@ -265,7 +269,8 @@ Third, evaluate the SVM and report results.</p></div>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def sample(rng: np.random.Generator, df: pl.DataFrame, n_train: int) -&gt; pl.DataFrame:
+<pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
+def sample(rng: np.random.Generator, df: pl.DataFrame, n_train: int) -&gt; pl.DataFrame:
     &#34;&#34;&#34;Sample a balanced subset of training data points for each task.
 
     Args:
@@ -340,6 +345,20 @@ Third, evaluate the SVM and report results.</p></div>
 </dl>
 <h2 id="returns">Returns</h2>
 <p>A DataFrame with balanced training samples and all test samples.</p></div>
+</dd>
+<dt id="biobench.newt.score"><code class="name flex">
+<span>def <span class="ident">score</span></span>(<span>preds: list[<a title="biobench.reporting.Prediction" href="../reporting.html#biobench.reporting.Prediction">Prediction</a>]) ‑> float</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@beartype.beartype
+def score(preds: list[reporting.Prediction]) -&gt; float:
+    return reporting.micro_acc(preds)</code></pre>
+</details>
+<div class="desc"></div>
 </dd>
 </dl>
 </section>
@@ -603,12 +622,13 @@ def splits(
 </ul>
 </li>
 <li><h3><a href="#header-functions">Functions</a></h3>
-<ul class="">
+<ul class="two-column">
 <li><code><a title="biobench.newt.benchmark" href="#biobench.newt.benchmark">benchmark</a></code></li>
 <li><code><a title="biobench.newt.get_all_tasks" href="#biobench.newt.get_all_tasks">get_all_tasks</a></code></li>
 <li><code><a title="biobench.newt.init_svc" href="#biobench.newt.init_svc">init_svc</a></code></li>
 <li><code><a title="biobench.newt.l2_normalize" href="#biobench.newt.l2_normalize">l2_normalize</a></code></li>
 <li><code><a title="biobench.newt.sample" href="#biobench.newt.sample">sample</a></code></li>
+<li><code><a title="biobench.newt.score" href="#biobench.newt.score">score</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>

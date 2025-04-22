@@ -75,7 +75,8 @@ I let it run for 10 minutes and it was stable in predicting 60+ minutes, so I se
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def benchmark(cfg: config.Experiment) -&gt; tuple[config.Model, reporting.Report]:
+<pre><code class="python">@beartype.beartype
+def benchmark(cfg: config.Experiment) -&gt; tuple[config.Model, reporting.Report]:
     &#34;&#34;&#34;
     Run the leopard re-ID benchmark. See this module&#39;s documentation for more details.
     &#34;&#34;&#34;
@@ -122,7 +123,9 @@ I let it run for 10 minutes and it was stable in predicting 60+ minutes, so I se
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def get_features(args: Args, backbone: registry.VisionBackbone) -&gt; Features:
+<pre><code class="python">@beartype.beartype
+@torch.no_grad
+def get_features(args: Args, backbone: registry.VisionBackbone) -&gt; Features:
     &#34;&#34;&#34;
     Get a block of features from a vision backbone.
 

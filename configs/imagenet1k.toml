@@ -87,3 +87,26 @@ ckpt = "resnet18.a1_in1k"
 org = "timm"
 ckpt = "resnet50d.a1_in1k"
 
+[[models]]
+org = "aimv2"
+ckpt = "apple/aimv2-large-patch14-224"
+
+[[models]]
+org = "aimv2"
+ckpt = "apple/aimv2-large-patch14-336"
+
+[[models]]
+org = "aimv2"
+ckpt = "apple/aimv2-large-patch14-448"
+
+[[models]]
+org = "aimv2"
+ckpt = "apple/aimv2-huge-patch14-224"
+
+[[models]]
+org = "aimv2"
+ckpt = "apple/aimv2-huge-patch14-336"
+
+[[models]]
+org = "aimv2"
+ckpt = "apple/aimv2-huge-patch14-448"

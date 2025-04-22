@@ -69,14 +69,15 @@ year={2021},
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
 <dt id="biobench.plantnet.benchmark"><code class="name flex">
-<span>def <span class="ident">benchmark</span></span>(<span>cfg: <a title="biobench.config.Experiment" href="../config.html#biobench.config.Experiment">Experiment</a>) ‑> tuple[<a title="biobench.config.Model" href="../config.html#biobench.config.Model">Model</a>, <a title="biobench.reporting.Report" href="../reporting.html#biobench.reporting.Report">Report</a>]</span>
+<span>def <span class="ident">benchmark</span></span>(<span>cfg: <a title="biobench.config.Experiment" href="../config.html#biobench.config.Experiment">Experiment</a>) ‑> <a title="biobench.reporting.Report" href="../reporting.html#biobench.reporting.Report">Report</a></span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def benchmark(cfg: config.Experiment) -&gt; tuple[config.Model, reporting.Report]:
+<pre><code class="python">@beartype.beartype
+def benchmark(cfg: config.Experiment) -&gt; reporting.Report:
     &#34;&#34;&#34;
     Steps:
     1. Get features for all images.
@@ -104,75 +105,49 @@ year={2021},
     true_labels = val_features.y(encoder)
     pred_labels = clf.predict(val_features.x)
 
-    examples = [
+    preds = [
         reporting.Prediction(
-            str(image_id),
+            str(img_id),
             float(pred == true),
             {&#34;y_pred&#34;: pred.item(), &#34;y_true&#34;: true.item()},
         )
-        for image_id, pred, true in zip(
+        for img_id, pred, true in zip(
             helpers.progress(val_features.ids, desc=&#34;Making examples&#34;, every=1_000),
             pred_labels,
             true_labels,
         )
     ]
 
-    report = reporting.Report(&#34;Pl@ntNet&#34;, examples, calc_mean_score=calc_macro_top1)
-    return cfg.model, report</code></pre>
+    return reporting.Report(&#34;plantnet&#34;, preds, cfg)</code></pre>
 </details>
 <div class="desc"><p>Steps:
 1. Get features for all images.
 2. Select lambda using cross validation splits.
 3. Report score on test data.</p></div>
 </dd>
-<dt id="biobench.plantnet.calc_macro_top1"><code class="name flex">
-<span>def <span class="ident">calc_macro_top1</span></span>(<span>examples: list[<a title="biobench.reporting.Prediction" href="../reporting.html#biobench.reporting.Prediction">Prediction</a>]) ‑> float</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def calc_macro_top1(examples: list[reporting.Prediction]) -&gt; float:
-    &#34;&#34;&#34;
-    Macro top-1 accuracy.
-    &#34;&#34;&#34;
-    cls_examples = {}
-    for example in examples:
-        true_cls = example.info[&#34;y_true&#34;]
-        if true_cls not in cls_examples:
-            cls_examples[true_cls] = []
-
-        cls_examples[true_cls].append(example)
-
-    cls_accs = []
-    for examples in cls_examples.values():
-        cls_accs.append(np.mean([example.score for example in examples]))
-    return np.mean(cls_accs).item()</code></pre>
-</details>
-<div class="desc"><p>Macro top-1 accuracy.</p></div>
-</dd>
 <dt id="biobench.plantnet.get_features"><code class="name flex">
-<span>def <span class="ident">get_features</span></span>(<span>args: <a title="biobench.plantnet.Args" href="#biobench.plantnet.Args">Args</a>,<br>backbone: <a title="biobench.registry.VisionBackbone" href="../registry.html#biobench.registry.VisionBackbone">VisionBackbone</a>,<br>*,<br>split: str) ‑> <a title="biobench.plantnet.Features" href="#biobench.plantnet.Features">Features</a></span>
+<span>def <span class="ident">get_features</span></span>(<span>cfg: <a title="biobench.config.Experiment" href="../config.html#biobench.config.Experiment">Experiment</a>,<br>backbone: <a title="biobench.registry.VisionBackbone" href="../registry.html#biobench.registry.VisionBackbone">VisionBackbone</a>,<br>*,<br>split: str) ‑> <a title="biobench.plantnet.Features" href="#biobench.plantnet.Features">Features</a></span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def get_features(
-    args: Args, backbone: registry.VisionBackbone, *, split: str
+<pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
+@torch.no_grad()
+def get_features(
+    cfg: config.Experiment, backbone: registry.VisionBackbone, *, split: str
 ) -&gt; Features:
-    images_dir_path = os.path.join(args.datadir, &#34;images&#34;, split)
+    imgs_dir_path = os.path.join(cfg.data.plantnet, &#34;images&#34;, split)
 
     img_transform = backbone.make_img_transform()
-    backbone = torch.compile(backbone.to(args.device))
+    backbone = torch.compile(backbone.to(cfg.device))
 
-    dataset = Dataset(images_dir_path, img_transform)
+    dataset = Dataset(imgs_dir_path, img_transform)
     dataloader = torch.utils.data.DataLoader(
         dataset,
-        batch_size=args.batch_size,
-        num_workers=args.n_workers,
+        batch_size=cfg.batch_size,
+        num_workers=cfg.n_workers,
         drop_last=False,
         shuffle=False,
         pin_memory=False,
@@ -181,20 +156,17 @@ year={2021},
 
     all_ids, all_features, all_labels = [], [], []
 
-    total = len(dataloader) if not args.debug else 2
+    total = len(dataloader) if not cfg.debug else 2
     it = iter(dataloader)
-    for b in helpers.progress(
-        range(total), every=args.log_every, desc=f&#34;Embed {split}&#34;
-    ):
-        ids, images, labels = next(it)
-        images = images.to(args.device)
+    for b in helpers.progress(range(total), every=10, desc=f&#34;Embed {split}&#34;):
+        ids, imgs, labels = next(it)
+        imgs = imgs.to(cfg.device)
 
         with torch.amp.autocast(&#34;cuda&#34;):
-            features = backbone.img_encode(images).img_features
+            features = backbone.img_encode(imgs).img_features
             all_features.append(features.cpu())
 
         all_ids.extend(ids)
-
         all_labels.extend(labels)
 
     all_features = torch.cat(all_features, axis=0).cpu().numpy()
@@ -206,16 +178,17 @@ year={2021},
 <div class="desc"></div>
 </dd>
 <dt id="biobench.plantnet.init_clf"><code class="name flex">
-<span>def <span class="ident">init_clf</span></span>(<span>args: <a title="biobench.plantnet.Args" href="#biobench.plantnet.Args">Args</a>)</span>
+<span>def <span class="ident">init_clf</span></span>(<span>cfg: <a title="biobench.config.Experiment" href="../config.html#biobench.config.Experiment">Experiment</a>)</span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def init_clf(args: Args):
+<pre><code class="python">@beartype.beartype
+def init_clf(cfg: config.Experiment):
     alpha = np.pow(2.0, np.arange(-15, 11))
-    if args.debug:
+    if cfg.debug:
         alpha = np.pow(2.0, np.arange(-2, 2))
 
     return sklearn.model_selection.HalvingGridSearchCV(
@@ -233,14 +206,8 @@ year={2021},
 </details>
 <div class="desc"></div>
 </dd>
-</dl>
-</section>
-<section>
-<h2 class="section-title" id="header-classes">Classes</h2>
-<dl>
-<dt id="biobench.plantnet.Args"><code class="flex name class">
-<span>class <span class="ident">Args</span></span>
-<span>(</span><span>batch_size: int = 256,<br>n_workers: int = 4,<br>log_every: int = 10,<br>device: str = 'cuda',<br>debug: bool = False,<br>n_train: int = -1)</span>
+<dt id="biobench.plantnet.score"><code class="name flex">
+<span>def <span class="ident">score</span></span>(<span>preds: list[<a title="biobench.reporting.Prediction" href="../reporting.html#biobench.reporting.Prediction">Prediction</a>]) ‑> float</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -248,51 +215,30 @@ year={2021},
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">@beartype.beartype
-@dataclasses.dataclass(frozen=True)
-class Args:
-    batch_size: int = 256
-    &#34;&#34;&#34;batch size for deep model.&#34;&#34;&#34;
-    n_workers: int = 4
-    &#34;&#34;&#34;number of dataloader worker processes.&#34;&#34;&#34;
-    log_every: int = 10
-    &#34;&#34;&#34;how often (number of batches) to log progress.&#34;&#34;&#34;
-    # Computed at runtime.
-    device: str = &#34;cuda&#34;
-    &#34;&#34;&#34;(computed at runtime) which kind of accelerator to use.&#34;&#34;&#34;
-    debug: bool = False
-    &#34;&#34;&#34;(computed at runtime) whether to run in debug mode.&#34;&#34;&#34;
-    n_train: int = -1
-    &#34;&#34;&#34;(computed at runtime) number of maximum training samples. Negative number means use all of them.&#34;&#34;&#34;</code></pre>
+def score(preds: list[reporting.Prediction]) -&gt; float:
+    &#34;&#34;&#34;
+    Macro top-1 accuracy.
+    &#34;&#34;&#34;
+    cls_examples = {}
+    for pred in preds:
+        true_cls = pred.info[&#34;y_true&#34;]
+        if true_cls not in cls_examples:
+            cls_examples[true_cls] = []
+
+        cls_examples[true_cls].append(pred)
+
+    cls_accs = []
+    for examples in cls_examples.values():
+        cls_accs.append(np.mean([example.score for example in examples]))
+    return np.mean(cls_accs).item()</code></pre>
 </details>
-<div class="desc"><p>Args(batch_size: int = 256, n_workers: int = 4, log_every: int = 10, device: str = 'cuda', debug: bool = False, n_train: int = -1)</p></div>
-<h3>Instance variables</h3>
-<dl>
-<dt id="biobench.plantnet.Args.batch_size"><code class="name">var <span class="ident">batch_size</span> : int</code></dt>
-<dd>
-<div class="desc"><p>batch size for deep model.</p></div>
-</dd>
-<dt id="biobench.plantnet.Args.debug"><code class="name">var <span class="ident">debug</span> : bool</code></dt>
-<dd>
-<div class="desc"><p>(computed at runtime) whether to run in debug mode.</p></div>
-</dd>
-<dt id="biobench.plantnet.Args.device"><code class="name">var <span class="ident">device</span> : str</code></dt>
-<dd>
-<div class="desc"><p>(computed at runtime) which kind of accelerator to use.</p></div>
-</dd>
-<dt id="biobench.plantnet.Args.log_every"><code class="name">var <span class="ident">log_every</span> : int</code></dt>
-<dd>
-<div class="desc"><p>how often (number of batches) to log progress.</p></div>
-</dd>
-<dt id="biobench.plantnet.Args.n_train"><code class="name">var <span class="ident">n_train</span> : int</code></dt>
-<dd>
-<div class="desc"><p>(computed at runtime) number of maximum training samples. Negative number means use all of them.</p></div>
-</dd>
-<dt id="biobench.plantnet.Args.n_workers"><code class="name">var <span class="ident">n_workers</span> : int</code></dt>
-<dd>
-<div class="desc"><p>number of dataloader worker processes.</p></div>
+<div class="desc"><p>Macro top-1 accuracy.</p></div>
 </dd>
 </dl>
-</dd>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
 <dt id="biobench.plantnet.Dataset"><code class="flex name class">
 <span>class <span class="ident">Dataset</span></span>
 <span>(</span><span>root: str, transform)</span>
@@ -317,18 +263,18 @@ class Dataset(torch.utils.data.Dataset):
             raise RuntimeError(msg)
 
         for dirpath, dirnames, filenames in os.walk(root):
-            image_class = os.path.relpath(dirpath, root)
+            img_class = os.path.relpath(dirpath, root)
             for filename in filenames:
-                image_id = filename.removesuffix(&#34;.jpg&#34;)
-                image_path = os.path.join(dirpath, filename)
-                self.samples.append((image_id, image_path, image_class))
+                img_id = filename.removesuffix(&#34;.jpg&#34;)
+                img_path = os.path.join(dirpath, filename)
+                self.samples.append((img_id, img_path, img_class))
 
     def __getitem__(self, i: int) -&gt; tuple[str, Float[Tensor, &#34;3 width height&#34;], str]:
-        image_id, image_path, image_class = self.samples[i]
-        image = Image.open(image_path)
+        img_id, img_path, img_class = self.samples[i]
+        img = Image.open(img_path)
         if self.transform is not None:
-            image = self.transform(image)
-        return image_id, image, image_class
+            img = self.transform(img)
+        return img_id, img, img_class
 
     def __len__(self) -&gt; int:
         return len(self.samples)</code></pre>
@@ -440,24 +386,13 @@ class Features:
 <li><h3><a href="#header-functions">Functions</a></h3>
 <ul class="">
 <li><code><a title="biobench.plantnet.benchmark" href="#biobench.plantnet.benchmark">benchmark</a></code></li>
-<li><code><a title="biobench.plantnet.calc_macro_top1" href="#biobench.plantnet.calc_macro_top1">calc_macro_top1</a></code></li>
 <li><code><a title="biobench.plantnet.get_features" href="#biobench.plantnet.get_features">get_features</a></code></li>
 <li><code><a title="biobench.plantnet.init_clf" href="#biobench.plantnet.init_clf">init_clf</a></code></li>
+<li><code><a title="biobench.plantnet.score" href="#biobench.plantnet.score">score</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
-<li>
-<h4><code><a title="biobench.plantnet.Args" href="#biobench.plantnet.Args">Args</a></code></h4>
-<ul class="two-column">
-<li><code><a title="biobench.plantnet.Args.batch_size" href="#biobench.plantnet.Args.batch_size">batch_size</a></code></li>
-<li><code><a title="biobench.plantnet.Args.debug" href="#biobench.plantnet.Args.debug">debug</a></code></li>
-<li><code><a title="biobench.plantnet.Args.device" href="#biobench.plantnet.Args.device">device</a></code></li>
-<li><code><a title="biobench.plantnet.Args.log_every" href="#biobench.plantnet.Args.log_every">log_every</a></code></li>
-<li><code><a title="biobench.plantnet.Args.n_train" href="#biobench.plantnet.Args.n_train">n_train</a></code></li>
-<li><code><a title="biobench.plantnet.Args.n_workers" href="#biobench.plantnet.Args.n_workers">n_workers</a></code></li>
-</ul>
-</li>
 <li>
 <h4><code><a title="biobench.plantnet.Dataset" href="#biobench.plantnet.Dataset">Dataset</a></code></h4>
 <ul class="">

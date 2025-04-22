@@ -54,7 +54,8 @@ el.replaceWith(d);
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def compute_md5(fpath: str):
+<pre><code class="python">@beartype.beartype
+def compute_md5(fpath: str):
     hasher = hashlib.md5()
     with open(fpath, &#34;rb&#34;) as f:
         CHUNK_SIZE = 8 * 1024 * 1024  # 8MB
@@ -72,7 +73,8 @@ el.replaceWith(d);
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def concatenate_files(out: str, animal: str):
+<pre><code class="python">@beartype.beartype
+def concatenate_files(out: str, animal: str):
     logger.info(&#34;Concatenating files for &#39;%s&#39;.&#34;, animal)
 
     part_files = sorted(glob.glob(os.path.join(out, f&#34;{animal}_part_*&#34;)))
@@ -98,7 +100,8 @@ el.replaceWith(d);
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def generate_part_files(animal: str, start: str, end: str) -&gt; list[str]:
+<pre><code class="python">@beartype.beartype
+def generate_part_files(animal: str, start: str, end: str) -&gt; list[str]:
     start_a, start_b = ord(start[0]), ord(start[1])
     end_a, end_b = ord(end[0]), ord(end[1])
     return [
@@ -117,7 +120,8 @@ el.replaceWith(d);
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def main(out: str):
+<pre><code class="python">@beartype.beartype
+def main(out: str):
     animals = [&#34;giraffes&#34;, &#34;zebras_grevys&#34;, &#34;zebras_plains&#34;]
 
     animal_parts_range = {
@@ -188,7 +192,8 @@ el.replaceWith(d);
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def verify_and_extract(out: str, animal: str):
+<pre><code class="python">@beartype.beartype
+def verify_and_extract(out: str, animal: str):
     print(f&#34;Confirming data integrity for {animal}.zip ...&#34;)
     zip_md5 = compute_md5(f&#34;{save_dir}/{dataset_prefix}{animal}.zip&#34;)
 

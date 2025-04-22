@@ -54,7 +54,8 @@ el.replaceWith(d);
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def already_ran(db: sqlite3.Connection, cfg: config.Experiment, task_name: str) -&gt; bool:
+<pre><code class="python">@beartype.beartype
+def already_ran(db: sqlite3.Connection, cfg: config.Experiment, task_name: str) -&gt; bool:
     query = &#34;&#34;&#34;
 SELECT COUNT(*)
 FROM experiments
@@ -78,7 +79,8 @@ AND n_train = ?
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def get_db(cfg: config.Experiment) -&gt; sqlite3.Connection:
+<pre><code class="python">@beartype.beartype
+def get_db(cfg: config.Experiment) -&gt; sqlite3.Connection:
     &#34;&#34;&#34;Get a connection to the reports database.
     Returns:
         a connection to a sqlite3 database.
@@ -131,6 +133,72 @@ AND n_train = ?
 </details>
 <div class="desc"></div>
 </dd>
+<dt id="biobench.reporting.macro_acc"><code class="name flex">
+<span>def <span class="ident">macro_acc</span></span>(<span>preds: list[<a title="biobench.reporting.Prediction" href="#biobench.reporting.Prediction">Prediction</a>]) ‑> float</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@beartype.beartype
+def macro_acc(preds: list[Prediction]) -&gt; float:
+    y_pred = np.array([p.info[&#34;y_pred&#34;] for p in preds])
+    y_true = np.array([p.info[&#34;y_true&#34;] for p in preds])
+    return sklearn.metrics.balanced_accuracy_score(y_true, y_pred)</code></pre>
+</details>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.reporting.macro_f1"><code class="name flex">
+<span>def <span class="ident">macro_f1</span></span>(<span>preds: list[<a title="biobench.reporting.Prediction" href="#biobench.reporting.Prediction">Prediction</a>]) ‑> float</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@beartype.beartype
+def macro_f1(preds: list[Prediction]) -&gt; float:
+    y_pred = np.array([p.info[&#34;y_pred&#34;] for p in preds])
+    y_true = np.array([p.info[&#34;y_true&#34;] for p in preds])
+    return sklearn.metrics.f1_score(
+        y_true, y_pred, average=&#34;macro&#34;, labels=np.unique(y_true)
+    )</code></pre>
+</details>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.reporting.micro_acc"><code class="name flex">
+<span>def <span class="ident">micro_acc</span></span>(<span>preds: list[<a title="biobench.reporting.Prediction" href="#biobench.reporting.Prediction">Prediction</a>]) ‑> float</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@beartype.beartype
+def micro_acc(preds: list[Prediction]) -&gt; float:
+    y_pred = np.array([p.info[&#34;y_pred&#34;] for p in preds])
+    y_true = np.array([p.info[&#34;y_true&#34;] for p in preds])
+    return sklearn.metrics.accuracy_score(y_true, y_pred)</code></pre>
+</details>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.reporting.micro_f1"><code class="name flex">
+<span>def <span class="ident">micro_f1</span></span>(<span>preds: list[<a title="biobench.reporting.Prediction" href="#biobench.reporting.Prediction">Prediction</a>]) ‑> float</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@beartype.beartype
+def micro_f1(preds: list[Prediction]) -&gt; float:
+    y_pred = np.array([p.info[&#34;y_pred&#34;] for p in preds])
+    y_true = np.array([p.info[&#34;y_true&#34;] for p in preds])
+    return sklearn.metrics.f1_score(y_true, y_pred, average=&#34;micro&#34;)</code></pre>
+</details>
+<div class="desc"></div>
+</dd>
 </dl>
 </section>
 <section>
@@ -176,7 +244,7 @@ class Prediction:
 </dd>
 <dt id="biobench.reporting.Report"><code class="flex name class">
 <span>class <span class="ident">Report</span></span>
-<span>(</span><span>task_name: str,<br>predictions: list[<a title="biobench.reporting.Prediction" href="#biobench.reporting.Prediction">Prediction</a>],<br>cfg: <a title="biobench.config.Experiment" href="config.html#biobench.config.Experiment">Experiment</a>,<br>*,<br>splits: dict[str, float] = &lt;factory&gt;,<br>argv: list[str] = &lt;factory&gt;,<br>git_commit: str = 'b5b69b6192f578a9d590059e4c03c342945dd2b8',<br>posix: float = &lt;factory&gt;,<br>gpu_name: str = &lt;factory&gt;,<br>hostname: str = &lt;factory&gt;)</span>
+<span>(</span><span>task_name: str,<br>predictions: list[<a title="biobench.reporting.Prediction" href="#biobench.reporting.Prediction">Prediction</a>],<br>cfg: <a title="biobench.config.Experiment" href="config.html#biobench.config.Experiment">Experiment</a>,<br>*,<br>splits: dict[str, float] = &lt;factory&gt;,<br>argv: list[str] = &lt;factory&gt;,<br>git_commit: str = '8a8bdd9d99d88b7d620651d0bedb602985a6506b',<br>posix: float = &lt;factory&gt;,<br>gpu_name: str = &lt;factory&gt;,<br>hostname: str = &lt;factory&gt;)</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -368,11 +436,15 @@ def write(self, db: sqlite3.Connection) -&gt; None:
 </ul>
 </li>
 <li><h3><a href="#header-functions">Functions</a></h3>
-<ul class="">
+<ul class="two-column">
 <li><code><a title="biobench.reporting.already_ran" href="#biobench.reporting.already_ran">already_ran</a></code></li>
 <li><code><a title="biobench.reporting.get_db" href="#biobench.reporting.get_db">get_db</a></code></li>
 <li><code><a title="biobench.reporting.get_git_hash" href="#biobench.reporting.get_git_hash">get_git_hash</a></code></li>
 <li><code><a title="biobench.reporting.get_gpu_name" href="#biobench.reporting.get_gpu_name">get_gpu_name</a></code></li>
+<li><code><a title="biobench.reporting.macro_acc" href="#biobench.reporting.macro_acc">macro_acc</a></code></li>
+<li><code><a title="biobench.reporting.macro_f1" href="#biobench.reporting.macro_f1">macro_f1</a></code></li>
+<li><code><a title="biobench.reporting.micro_acc" href="#biobench.reporting.micro_acc">micro_acc</a></code></li>
+<li><code><a title="biobench.reporting.micro_f1" href="#biobench.reporting.micro_f1">micro_f1</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>
