@@ -6,16 +6,11 @@ This file is a self‑contained re‑implementation of the encoder used in *V‑
 Key implementation choices
 --------------------------
 1. Most modules are verbatim (or lightly edited for typing/PEP‑8) copies from the upstream repo so that we do *not* depend on the unpublished PyPI package:
-2. "Fake‑video" input pathway exactly like FAIR’s frozen‑image script
-   The official frozen image classification script (https://github.com/facebookresearch/jepa/blob/51c59d518fc63c08464af6de585f78ac0c7ed4d5/evals/image_classification_frozen/eval.py#L451-L455) repeats a still image along the temporal axis before feeding it to the video‑ViT. We reproduce that behaviour with
 
-   ```py
-   x = einops.repeat(batch, "b c h w -> b c f h w", f=self.n_frames)  # (b,3,16,h,w)
-   ```
-
-   so the model sees a 16‑frame clip of identical images.
+2. The official frozen image classification script (https://github.com/facebookresearch/jepa/blob/51c59d518fc63c08464af6de585f78ac0c7ed4d5/evals/image_classification_frozen/eval.py#L451-L455) repeats a still image along the temporal axis before feeding it to the video‑ViT. We reproduce that behaviour with `x = einops.repeat(batch, "b c h w -> b c f h w", f=self.n_frames)` so the model sees a 16‑frame clip of identical images.
 
 3. Checkpoints live at `https://dl.fbaipublicfiles.com/jepa/<ckpt>/<ckpt>.pth.tar`. We download them into an `$CACHE/vjepa` sub‑folder (`download()` helper) to avoid git‑annex or HF dependencies.
+
 4. Only the EMA target encoder (`state["target_encoder"]`) is loaded, mirroring the authors’ evaluation code.  The usual `module.` prefix is stripped so that the state dict matches our local module names.
 
 5. `img_encode()` returns both the full patch grid and a **max‑pooled** global descriptor (`x.max(dim=1).values`).  The attentive classifier used in the paper is *not* re‑implemented here; you can bolt your own head on top of the returned per‑patch features.
@@ -283,7 +278,9 @@ class Attention(torch.nn.Module):
         q, k, v = qkv[0], qkv[1], qkv[2]  # [B, num_heads, N, D]
 
         if self.use_sdpa:
-            with torch.backends.cuda.sdp_kernel():
+            with torch.nn.attention.sdpa_kernel(
+                torch.nn.attention.SDPBackend.EFFICIENT_ATTENTION
+            ):
                 x = torch.nn.functional.scaled_dot_product_attention(
                     q, k, v, dropout_p=self.proj_drop_prob
                 )
