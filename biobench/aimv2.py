@@ -211,6 +211,7 @@ class AIMv2(registry.VisionBackbone):
         state_dict = safetensors.torch.load_file(ckpt_fpath)
         self.load_state_dict(state_dict)
 
+        # most times checkpoints are things like apple/aimv2-large-patch14-224, but there's also checkpoints like apple/aimv2-large-patch14-224-distilled. Figure out how to parse the image size out of the checkpoint name reliably. AI!
         self.size = int(ckpt[-3:])
 
     def forward(self, x: Float[Tensor, "..."]) -> Float[Tensor, "..."]:
