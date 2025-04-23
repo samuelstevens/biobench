@@ -278,13 +278,10 @@ class Attention(torch.nn.Module):
         q, k, v = qkv[0], qkv[1], qkv[2]  # [B, num_heads, N, D]
 
         if self.use_sdpa:
-            with torch.nn.attention.sdpa_kernel(
-                torch.nn.attention.SDPBackend.EFFICIENT_ATTENTION
-            ):
-                x = torch.nn.functional.scaled_dot_product_attention(
-                    q, k, v, dropout_p=self.proj_drop_prob
-                )
-                attn = None
+            x = torch.nn.functional.scaled_dot_product_attention(
+                q, k, v, dropout_p=self.proj_drop_prob
+            )
+            attn = None
         else:
             attn = (q @ k.transpose(-2, -1)) * self.scale  # [B, num_heads, D, D]
             attn = attn.softmax(dim=-1)

@@ -68,6 +68,7 @@ def load_vision_backbone(model_cfg: config.Model) -> VisionBackbone:
     return cls(model_cfg.ckpt)
 
 
+@beartype.beartype
 def register_vision_backbone(model_org: str, cls: type[VisionBackbone]):
     """
     Register a new vision backbone class.

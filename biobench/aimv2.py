@@ -213,7 +213,8 @@ class AIMv2(registry.VisionBackbone):
 
         # Extract image size from checkpoint name using regex
         import re
-        match = re.search(r'patch\d+-(\d+)', ckpt)
+
+        match = re.search(r"patch\d+-(\d+)", ckpt)
         self.size = int(match.group(1)) if match else 224  # Default to 224 if not found
 
     def forward(self, x: Float[Tensor, "..."]) -> Float[Tensor, "..."]:
