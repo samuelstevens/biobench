@@ -190,3 +190,39 @@ class TorchvisionModel(registry.VisionBackbone):
         self, batch: Float[Tensor, "batch 3 width height"]
     ) -> registry.EncodedImgBatch:
         breakpoint()
+
+
+@beartype.beartype
+class SAM2(registry.VisionBackbone):
+    """
+    A very small wrapper around the SAM-2 Hiera backbones exposed by `timm`.
+
+    Design choices:
+
+    * We rely 100 % on `timm` for model construction & weight loading (`timm.create_model("hf_hub:timm/<model_name>", pretrained=True)`).
+    * The image transform is the exact one timm used during pre-training: `data.create_transform(**resolve_data_config(model.pretrained_cfg))`.
+    """
+
+    def __init__(self, ckpt: str, **kwargs):
+        super().__init__()
+        import timm
+
+        self.ckpt = ckpt
+
+        self.model = timm.create_model(f"hf_hub:timm/{ckpt}", pretrained=True)
+
+        self.data_cfg = timm.data.resolve_data_config(self.model.pretrained_cfg)
+
+    def make_img_transform(self):
+        import timm
+
+        return timm.data.create_transform(**self.data_cfg)
+
+    def img_encode(
+        self, batch: Float[Tensor, "batch 3 width height"]
+    ) -> registry.EncodedImgBatch:
+        feats = self.model.forward_features(batch)
+        # Do something here to extract features.
+        breakpoint()
+
+        return registry.EncodedImgBatch(img, patches)
