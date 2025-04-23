@@ -212,7 +212,7 @@ class PatchEmbed3D(torch.nn.Module):
             stride=(tubelet_size, patch_size, patch_size),
         )
 
-    def forward(self, x: Float[Tensor, "B C T H W"]):
+    def forward(self, x):
         B, C, T, H, W = x.shape
         x = self.proj(x).flatten(2).transpose(1, 2)
         return x

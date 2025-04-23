@@ -13,14 +13,14 @@ If you use this work, be sure to cite the original work:
 ```
 """
 
-import collections.abc
-
 import beartype
 import numpy as np
 import sklearn.neighbors
 import torch
 from jaxtyping import Float, Int, jaxtyped
 from torch import Tensor
+
+from . import helpers
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -37,25 +37,6 @@ def l2_normalize(
     """
     norms = np.linalg.norm(features, ord=2, axis=1, keepdims=True)
     return features / norms
-
-
-@beartype.beartype
-def batched_idx(
-    total_size: int, batch_size: int
-) -> collections.abc.Iterator[tuple[int, int]]:
-    """
-    Iterate over (start, end) indices for total_size examples, where end - start is at most batch_size.
-
-    Args:
-        total_size: total number of examples
-        batch_size: maximum distance between the generated indices.
-
-    Returns:
-        A generator of (int, int) tuples that can slice up a list or a tensor.
-    """
-    for start in range(0, total_size, batch_size):
-        stop = min(start + batch_size, total_size)
-        yield start, stop
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -94,7 +75,7 @@ def simpleshot(
     y_test = y_test.to(device)
 
     scores = []
-    for start, stop in batched_idx(len(x_test), batch_size):
+    for start, stop in helpers.batched_idx(len(x_test), batch_size):
         x_batch = x_test[start:stop]
         y_batch = y_test[start:stop]
         distances = torch.linalg.vector_norm(x_batch[:, None] - centroids, axis=2)

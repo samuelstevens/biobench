@@ -172,3 +172,22 @@ def balanced_random_sample(
             selected_indices.extend(additional_indices)
 
     return np.array(selected_indices, dtype=int)
+
+
+@beartype.beartype
+def batched_idx(
+    total_size: int, batch_size: int
+) -> collections.abc.Iterator[tuple[int, int]]:
+    """
+    Iterate over (start, end) indices for total_size examples, where end - start is at most batch_size.
+
+    Args:
+        total_size: total number of examples
+        batch_size: maximum distance between the generated indices.
+
+    Returns:
+        A generator of (int, int) tuples that can slice up a list or a tensor.
+    """
+    for start in range(0, total_size, batch_size):
+        stop = min(start + batch_size, total_size)
+        yield start, stop
