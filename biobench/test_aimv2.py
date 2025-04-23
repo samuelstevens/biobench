@@ -7,7 +7,8 @@ from . import config, helpers, registry
 CKPTS = [
     "apple/aimv2-large-patch14-224",
     "apple/aimv2-large-patch14-224-distilled",
-    "apple/aimv2-1B-patch14-336",
+    "apple/aimv2-1B-patch14-224",
+    "apple/aimv2-large-patch14-448",
 ]
 DTYPE = torch.float32
 ATOL, RTOL = 1e-5, 1e-4

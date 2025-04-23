@@ -1,6 +1,7 @@
 import dataclasses
 import json
 import os
+import re
 
 import beartype
 import requests
@@ -212,7 +213,6 @@ class AIMv2(registry.VisionBackbone):
         self.load_state_dict(state_dict)
 
         # Extract image size from checkpoint name using regex
-        import re
 
         match = re.search(r"patch\d+-(\d+)", ckpt)
         self.size = int(match.group(1)) if match else 224  # Default to 224 if not found
