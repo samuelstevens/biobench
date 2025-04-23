@@ -1,5 +1,7 @@
 # Biology Benchmark (`biobench`)
 
+![Coverage](docs/coverage.svg)
+
 This library is an easy-to-read benchmark for biology-related computer vision tasks.
 
 It aims to make it easy to:
@@ -8,7 +10,7 @@ It aims to make it easy to:
 2. Add new tasks.
 3. Understand meaningful (or not) differences in model performance.
 
-Check out the [docs](https://samuelstevens.me/biobench/) for an interactive leaderboard.
+Check out the [docs](https://samuelstevens.me/biobench/) for an introduction.
 
 ## Getting Started
 

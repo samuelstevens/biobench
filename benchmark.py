@@ -115,11 +115,11 @@ def main(
 
         # Print summary table
         logger.info("Job Summary:")
-        logger.info("%-40s | %-10s | %-5s", "Model", "Train Size", "Count")
-        logger.info("-" * 61)
+        logger.info("%-50s | %-10s | %-5s", "Model", "Train Size", "Count")
+        logger.info("-" * 71)
         for (model, n_train), count in sorted(model_counts.items()):
-            logger.info("%-40s | %-10d | %-5d", model, n_train, count)
-        logger.info("-" * 61)
+            logger.info("%-50s | %10d | %5d", model, n_train, count)
+        logger.info("-" * 71)
         logger.info("Total jobs to run: %d", len(jobs))
         return
 
