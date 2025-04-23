@@ -120,8 +120,7 @@ def main(
         for (model, n_train), count in sorted(model_counts.items()):
             logger.info("%-50s | %10d | %5d", model, n_train, count)
         logger.info("-" * 71)
-        # Include the number of jobs that have already run. AI!
-        logger.info("Total jobs to run: %d", len(jobs))
+        logger.info("Total jobs to run: %d (skipped %d already completed)", len(jobs), n_skipped)
         return
 
     logger.info("Submitted %d jobs (skipped %d).", len(jobs), n_skipped)
