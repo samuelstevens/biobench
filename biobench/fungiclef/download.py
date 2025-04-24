@@ -33,16 +33,22 @@ URLS = {
 
 @dataclasses.dataclass(frozen=True)
 class Args:
-    # Add docstrings to this class like the Args class in newt.py. AI!
+    """Configure download options."""
+
     dir: str = "."
     """Where to save downloaded archives and extract them."""
     chunk_size_kb: int = 1024
     """Download chunk size in KB."""
     download_train_imgs: bool = True
+    """Whether to download training images (DF20) [~6.5GB]."""
     download_val_imgs: bool = True
+    """Whether to download validation and public test images (DF21) [~2.5GB]."""
     download_train_metadata: bool = True
+    """Whether to download training metadata CSV."""
     download_val_metadata: bool = True
+    """Whether to download validation metadata CSV."""
     unzip: bool = True
+    """Whether to extract downloaded archives."""
 
 
 def download_file(name: str, url: str, dest_dir: str, chunk_size: int) -> str:
