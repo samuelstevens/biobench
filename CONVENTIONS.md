@@ -1,5 +1,7 @@
 Imports: e.g. `import numpy as np`, `import polars as pl`, then always refer to `np.`, `pl.` rather than `from X import *`.
 
+Polars instead of Pandas.
+
 Type annotations & runtime checks
 
   - Every public function or class uses `@beartype.beartype`.
