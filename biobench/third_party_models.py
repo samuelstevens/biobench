@@ -2,6 +2,7 @@ import logging
 import os
 
 import beartype
+import einops
 from jaxtyping import Float, jaxtyped
 from torch import Tensor
 
@@ -157,7 +158,7 @@ class DinoV2(registry.VisionBackbone):
 
     def img_encode(
         self, batch: Float[Tensor, "batch 3 width height"]
-    ) -> Float[Tensor, "batch patches dim"]:
+    ) -> registry.EncodedImgBatch:
         dct = self.model.forward_features(batch)
 
         return registry.EncodedImgBatch(
@@ -192,7 +193,7 @@ class TorchvisionModel(registry.VisionBackbone):
         breakpoint()
 
 
-@beartype.beartype
+@jaxtyped(typechecker=beartype.beartype)
 class SAM2(registry.VisionBackbone):
     """
     A very small wrapper around the SAM-2 Hiera backbones exposed by `timm`.
@@ -221,8 +222,6 @@ class SAM2(registry.VisionBackbone):
     def img_encode(
         self, batch: Float[Tensor, "batch 3 width height"]
     ) -> registry.EncodedImgBatch:
-        feats = self.model.forward_features(batch)
-        # Do something here to extract features.
-        breakpoint()
-
-        return registry.EncodedImgBatch(img, patches)
+        x = self.model.forward_features(batch)
+        x = einops.rearrange(x, "b w h d -> b (w h) d")
+        return registry.EncodedImgBatch(x.max(dim=1).values, x)

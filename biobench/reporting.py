@@ -28,8 +28,11 @@ def get_db(cfg: config.Experiment) -> sqlite3.Connection:
     Returns:
         a connection to a sqlite3 database.
     """
-    os.makedirs(cfg.report_to, exist_ok=True)
-    db = sqlite3.connect(os.path.join(cfg.report_to, "reports.sqlite"), autocommit=True)
+    os.makedirs(os.path.expandvars(cfg.report_to), exist_ok=True)
+    db = sqlite3.connect(
+        os.path.join(os.path.expandvars(cfg.report_to), "reports.sqlite"),
+        autocommit=True,
+    )
 
     with open(schema_fpath) as fd:
         schema = fd.read()
@@ -121,12 +124,10 @@ class Report:
         return repr(self)
 
     @beartype.beartype
-    def write(self, db: sqlite3.Connection) -> None:
-        """
-        Saves the report to disk in a machine-readable SQLite format.
+    def write(self) -> None:
+        """Saves the report to disk in a machine-readable SQLite format."""
+        db = get_db(self.cfg)
 
-        Args:
-        """
         preds_stmt = "INSERT INTO predictions(img_id, score, info, experiment_id) VALUES(?, ?, ?, ?)"
         exp_stmt = "INSERT INTO experiments(task_name, model_org, model_ckpt, n_train, exp_cfg, argv, git_commit, posix, gpu_name, hostname) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
         try:

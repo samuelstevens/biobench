@@ -83,6 +83,11 @@ def benchmark(cfg: config.Experiment) -> reporting.Report:
     return reporting.Report("newt", all_preds, cfg)
 
 
+@beartype.beartype
+def score(preds: list[reporting.Prediction]) -> float:
+    return np.mean([p.score for p in preds]).item()
+
+
 @jaxtyped(typechecker=beartype.beartype)
 class Sample(typing.TypedDict):
     """A dictionary representing a single image sample with its metadata.

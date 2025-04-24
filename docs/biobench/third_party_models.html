@@ -109,7 +109,7 @@ class DinoV2(registry.VisionBackbone):
 
     def img_encode(
         self, batch: Float[Tensor, &#34;batch 3 width height&#34;]
-    ) -&gt; Float[Tensor, &#34;batch patches dim&#34;]:
+    ) -&gt; registry.EncodedImgBatch:
         dct = self.model.forward_features(batch)
 
         return registry.EncodedImgBatch(
@@ -207,6 +207,70 @@ class OpenClip(registry.VisionBackbone):
 <p>Checkpoints are in the format <code>&lt;ARCH&gt;/&lt;CKPT&gt;</code>.
 Look at the <a href="https://github.com/mlfoundations/open_clip/blob/main/docs/openclip_results.csv">results file</a> for the pretrained models.
 For example, to load a ViT-B/16 train on Apple's Data Filtering Networks dataset, you would use <code>ViT-B-16/dfn2b</code>.</p>
+<p>Initialize internal Module state, shared by both nn.Module and ScriptModule.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="biobench.registry.VisionBackbone" href="registry.html#biobench.registry.VisionBackbone">VisionBackbone</a></li>
+<li>torch.nn.modules.module.Module</li>
+</ul>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="biobench.registry.VisionBackbone" href="registry.html#biobench.registry.VisionBackbone">VisionBackbone</a></b></code>:
+<ul class="hlist">
+<li><code><a title="biobench.registry.VisionBackbone.img_encode" href="registry.html#biobench.registry.VisionBackbone.img_encode">img_encode</a></code></li>
+<li><code><a title="biobench.registry.VisionBackbone.make_img_transform" href="registry.html#biobench.registry.VisionBackbone.make_img_transform">make_img_transform</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="biobench.third_party_models.SAM2"><code class="flex name class">
+<span>class <span class="ident">SAM2</span></span>
+<span>(</span><span>ckpt: str, **kwargs)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
+class SAM2(registry.VisionBackbone):
+    &#34;&#34;&#34;
+    A very small wrapper around the SAM-2 Hiera backbones exposed by `timm`.
+
+    Design choices:
+
+    * We rely 100 % on `timm` for model construction &amp; weight loading (`timm.create_model(&#34;hf_hub:timm/&lt;model_name&gt;&#34;, pretrained=True)`).
+    * The image transform is the exact one timm used during pre-training: `data.create_transform(**resolve_data_config(model.pretrained_cfg))`.
+    &#34;&#34;&#34;
+
+    def __init__(self, ckpt: str, **kwargs):
+        super().__init__()
+        import timm
+
+        self.ckpt = ckpt
+
+        self.model = timm.create_model(f&#34;hf_hub:timm/{ckpt}&#34;, pretrained=True)
+
+        self.data_cfg = timm.data.resolve_data_config(self.model.pretrained_cfg)
+
+    def make_img_transform(self):
+        import timm
+
+        return timm.data.create_transform(**self.data_cfg)
+
+    def img_encode(
+        self, batch: Float[Tensor, &#34;batch 3 width height&#34;]
+    ) -&gt; registry.EncodedImgBatch:
+        x = self.model.forward_features(batch)
+        x = einops.rearrange(x, &#34;b w h d -&gt; b (w h) d&#34;)
+        return registry.EncodedImgBatch(x.max(dim=1).values, x)</code></pre>
+</details>
+<div class="desc"><p>A very small wrapper around the SAM-2 Hiera backbones exposed by <code>timm</code>.</p>
+<p>Design choices:</p>
+<ul>
+<li>We rely 100 % on <code>timm</code> for model construction &amp; weight loading (<code>timm.create_model("hf_hub:timm/&lt;model_name&gt;", pretrained=True)</code>).</li>
+<li>The image transform is the exact one timm used during pre-training: <code>data.create_transform(**resolve_data_config(model.pretrained_cfg))</code>.</li>
+</ul>
 <p>Initialize internal Module state, shared by both nn.Module and ScriptModule.</p></div>
 <h3>Ancestors</h3>
 <ul class="hlist">
@@ -385,6 +449,9 @@ See <code><a title="biobench.registry" href="registry.html">biobench.registry</a
 </li>
 <li>
 <h4><code><a title="biobench.third_party_models.OpenClip" href="#biobench.third_party_models.OpenClip">OpenClip</a></code></h4>
+</li>
+<li>
+<h4><code><a title="biobench.third_party_models.SAM2" href="#biobench.third_party_models.SAM2">SAM2</a></code></h4>
 </li>
 <li>
 <h4><code><a title="biobench.third_party_models.Timm" href="#biobench.third_party_models.Timm">Timm</a></code></h4>

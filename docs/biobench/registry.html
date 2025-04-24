@@ -96,7 +96,8 @@ def load_vision_backbone(model_cfg: config.Model) -&gt; VisionBackbone:
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def register_vision_backbone(model_org: str, cls: type[VisionBackbone]):
+<pre><code class="python">@beartype.beartype
+def register_vision_backbone(model_org: str, cls: type[VisionBackbone]):
     &#34;&#34;&#34;
     Register a new vision backbone class.
     &#34;&#34;&#34;
@@ -189,6 +190,7 @@ See <code><a title="biobench.registry" href="#biobench.registry">biobench.regist
 <li><a title="biobench.aimv2.AIMv2" href="aimv2.html#biobench.aimv2.AIMv2">AIMv2</a></li>
 <li><a title="biobench.third_party_models.DinoV2" href="third_party_models.html#biobench.third_party_models.DinoV2">DinoV2</a></li>
 <li><a title="biobench.third_party_models.OpenClip" href="third_party_models.html#biobench.third_party_models.OpenClip">OpenClip</a></li>
+<li><a title="biobench.third_party_models.SAM2" href="third_party_models.html#biobench.third_party_models.SAM2">SAM2</a></li>
 <li><a title="biobench.third_party_models.Timm" href="third_party_models.html#biobench.third_party_models.Timm">Timm</a></li>
 <li><a title="biobench.third_party_models.TorchvisionModel" href="third_party_models.html#biobench.third_party_models.TorchvisionModel">TorchvisionModel</a></li>
 <li><a title="biobench.vjepa.VJEPA" href="vjepa.html#biobench.vjepa.VJEPA">VJEPA</a></li>

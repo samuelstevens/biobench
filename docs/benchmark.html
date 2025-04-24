@@ -155,7 +155,9 @@ def main(
         for (model, n_train), count in sorted(model_counts.items()):
             logger.info(&#34;%-50s | %10d | %5d&#34;, model, n_train, count)
         logger.info(&#34;-&#34; * 71)
-        logger.info(&#34;Total jobs to run: %d&#34;, len(jobs))
+        logger.info(
+            &#34;Total jobs to run: %d (skipped %d already completed)&#34;, len(jobs), n_skipped
+        )
         return
 
     logger.info(&#34;Submitted %d jobs (skipped %d).&#34;, len(jobs), n_skipped)
@@ -168,7 +170,7 @@ def main(
             continue
 
         report: reporting.Report = future.result()
-        report.write(db)
+        report.write()
         logger.info(&#34;Finished %d/%d jobs.&#34;, i + 1, len(jobs))
 
     logger.info(&#34;Finished.&#34;)</code></pre>

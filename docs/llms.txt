@@ -832,7 +832,7 @@ def main(
             continue
 
         report: reporting.Report = future.result()
-        report.write(db)
+        report.write()
         logger.info("Finished %d/%d jobs.", i + 1, len(jobs))
 
     logger.info("Finished.")
@@ -6032,7 +6032,7 @@ class DinoV2(registry.VisionBackbone):
 
     def img_encode(
         self, batch: Float[Tensor, "batch 3 width height"]
-    ) -> Float[Tensor, "batch patches dim"]:
+    ) -> registry.EncodedImgBatch:
         dct = self.model.forward_features(batch)
 
         return registry.EncodedImgBatch(
@@ -6067,7 +6067,7 @@ class TorchvisionModel(registry.VisionBackbone):
         breakpoint()
 
 
-@beartype.beartype
+@jaxtyped(typechecker=beartype.beartype)
 class SAM2(registry.VisionBackbone):
     """
     A very small wrapper around the SAM-2 Hiera backbones exposed by `timm`.

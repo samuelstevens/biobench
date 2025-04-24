@@ -1,10 +1,12 @@
 .venv/
-__pycache__
-.aim/
-graphs/
-*.sqlite
+__pycache__/
+
 logs/
+results/
+*.sqlite
+
 .aider*
-datasets/
+.hypothesis/
+
 .env
 .DS_Store

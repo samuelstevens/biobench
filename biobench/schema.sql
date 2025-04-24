@@ -1,7 +1,7 @@
 PRAGMA journal_mode = WAL;   -- Concurrent reads/writes
 PRAGMA synchronous = NORMAL; -- Good balance speed/safety
 PRAGMA foreign_keys = ON;    -- Enforce FK constraints
-PRAGMA busy_timeout = 5000;  -- Wait up to 5000ms before throwing timeout errors
+PRAGMA busy_timeout = 30000;  -- Wait up to 30s before throwing timeout errors
 PRAGMA strict = ON;          -- Enforce strict type checking (SQLite ≥ 3.37)
 PRAGMA encoding = 'UTF-8';   -- Consistent text encoding
 

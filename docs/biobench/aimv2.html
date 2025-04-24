@@ -142,7 +142,10 @@ class AIMv2(registry.VisionBackbone):
         state_dict = safetensors.torch.load_file(ckpt_fpath)
         self.load_state_dict(state_dict)
 
-        self.size = int(ckpt[-3:])
+        # Extract image size from checkpoint name using regex
+
+        match = re.search(r&#34;patch\d+-(\d+)&#34;, ckpt)
+        self.size = int(match.group(1)) if match else 224  # Default to 224 if not found
 
     def forward(self, x: Float[Tensor, &#34;...&#34;]) -&gt; Float[Tensor, &#34;...&#34;]:
         x = self.preprocessor(x)

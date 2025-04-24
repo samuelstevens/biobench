@@ -1,5 +1,6 @@
 docs: fmt
     yek biobench *.py *.md > docs/llms.txt
+    rm -rf docs/biobench docs/benchmark.html
     uv run pdoc3 --force --html --output-dir docs --config latex_math=True biobench benchmark
 
 test: fmt

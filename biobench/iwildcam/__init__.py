@@ -32,14 +32,8 @@ class Features:
 
 
 @beartype.beartype
-class MeanScoreCalculator:
-    def __call__(self, preds: list[reporting.Prediction]) -> float:
-        y_pred = np.array([pred.info["y_pred"] for pred in preds])
-        y_true = np.array([pred.info["y_true"] for pred in preds])
-        score = sklearn.metrics.f1_score(
-            y_true, y_pred, average="macro", labels=np.unique(y_true)
-        )
-        return score.item()
+def score(preds: list[reporting.Prediction]) -> float:
+    return reporting.macro_f1(preds)
 
 
 @beartype.beartype

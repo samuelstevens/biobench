@@ -59,12 +59,8 @@ def md5_of_file(path: str, chunk_size: int = 8192) -> str:
     h = hashlib.md5()
     file_size = os.path.getsize(path)
     with open(path, "rb") as f:
-        with tqdm.tqdm(
-            total=file_size,
-            unit="B",
-            unit_scale=True,
-            desc=f"Calculating MD5 for {os.path.basename(path)}"
-        ) as bar:
+        desc = f"MD5 for {os.path.basename(path)}"
+        with tqdm.tqdm(total=file_size, unit="B", unit_scale=True, desc=desc) as bar:
             for chunk in iter(lambda: f.read(chunk_size), b""):
                 h.update(chunk)
                 bar.update(len(chunk))
@@ -92,7 +88,7 @@ def download_split(name: str, dest_dir: str, chunk_size: int) -> str:
     with (
         open(archive_path, "wb") as f,
         tqdm.tqdm(
-            total=total, unit="B", unit_scale=True, desc=f"Downloading {name}"
+            total=total, unit="B", unit_scale=True, desc=f"download {name}"
         ) as bar,
     ):
         for chunk in r.iter_content(chunk_size=chunk_size):
@@ -111,10 +107,7 @@ def download_split(name: str, dest_dir: str, chunk_size: int) -> str:
 
 def extract_split(archive_path: str, dest_dir: str):
     with tarfile.open(archive_path, "r:gz") as tar:
-        members = tar.getmembers()
-        for m in tqdm.tqdm(
-            members, desc=f"Extracting {os.path.basename(archive_path)}"
-        ):
+        for m in tqdm.tqdm(tar, desc=f"Extracting {os.path.basename(archive_path)}"):
             tar.extract(m, path=dest_dir)
 
 

@@ -1,16 +1,45 @@
 n_train = -1
+report_to = "/local/scratch/$USER/experiments/biobench"
 
 [data]
-newt = "/research/nfs_su_809/workspace/stevens.994/datasets/newt"
-plankton = "/research/nfs_su_809/workspace/stevens.994/datasets/plankton"
-# herbarium19 = "/research/nfs_su_809/workspace/stevens.994/datasets/herbarium19"
+fishnet = "/research/nfs_su_809/workspace/stevens.994/datasets/fishnet"
+herbarium19 = "/research/nfs_su_809/workspace/stevens.994/datasets/herbarium19"
 imagenet1k = "huggingface"
 # inat21 = "/research/nfs_su_809/workspace/stevens.994/datasets/inat21"
 # kabr = "/research/nfs_su_809/workspace/stevens.994/datasets/kabr"
 iwildcam = "/research/nfs_su_809/workspace/stevens.994/datasets/iwildcam"
-# plantnet = "/research/nfs_su_809/workspace/stevens.994/datasets/plantnet"
 # mammalnet = "/research/nfs_su_809/workspace/stevens.994/datasets/mammalnet"
-fishnet = "/research/nfs_su_809/workspace/stevens.994/datasets/fishnet"
+newt = "/research/nfs_su_809/workspace/stevens.994/datasets/newt"
+plankton = "/research/nfs_su_809/workspace/stevens.994/datasets/plankton"
+# plantnet = "/research/nfs_su_809/workspace/stevens.994/datasets/plantnet"
+
+[[models]]
+org = "vjepa"
+ckpt = "vitl16"
+
+[[models]]
+org = "vjepa"
+ckpt = "vith16"
+
+[[models]]
+org = "vjepa"
+ckpt = "vith16-384"
+
+# [[models]]
+# org = "sam2"
+# ckpt = "sam2_hiera_tiny.fb_r896_2pt1"
+
+# [[models]]
+# org = "sam2"
+# ckpt = "sam2_hiera_small.fb_r896_2pt1"
+
+# [[models]]
+# org = "sam2"
+# ckpt = "sam2_hiera_base_plus.fb_r896_2pt1"
+
+# [[models]]
+# org = "sam2"
+# ckpt = "sam2_hiera_large.fb_r896_2pt1"
 
 [[models]]
 org = "open-clip"

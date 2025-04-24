@@ -10,7 +10,7 @@ We train an two-layer MLP on the visual features extracted by different model ba
 If you use this evaluation, be sure to cite the original work:
 
 ```
-@InProceedings{Khan_2023_ICCV,
+@inproceedings{fishnet,
     author    = {Khan, Faizan Farooq and Li, Xiang and Temple, Andrew J. and Elhoseiny, Mohamed},
     title     = {FishNet: A Large-scale Dataset and Benchmark for Fish Recognition, Detection, and Functional Trait Prediction},
     booktitle = {Proceedings of the IEEE/CVF International Conference on Computer Vision (ICCV)},
@@ -29,7 +29,7 @@ import os.path
 import beartype
 import numpy as np
 import polars as pl
-import sklearn
+import sklearn.metrics
 import torch
 from jaxtyping import Float, Int, jaxtyped
 from PIL import Image
@@ -94,7 +94,7 @@ def init_clf(input_dim: int) -> torch.nn.Module:
 
 
 @beartype.beartype
-def calc_macro_f1(preds: list[reporting.Prediction]) -> float:
+def score(preds: list[reporting.Prediction]) -> float:
     """
     Calculate the macro-averaged F1 score across all fish trait predictions.
 
@@ -191,14 +191,14 @@ def benchmark(cfg: config.Experiment) -> reporting.Report:
         # Evaluate the classifier.
         if (step + 1) % 1_000 == 0:
             preds = predict(cfg, classifier, test_loader)
-            score = calc_macro_f1(preds)
             logger.info(
                 "Step %d/%d (%.1f%%): %.3f (macro F1)",
                 step + 1,
                 n_steps,
                 (step + 1) / n_steps * 100,
-                score,
+                score(preds),
             )
+    preds = predict(cfg, classifier, test_loader)
 
     return reporting.Report("fishnet", preds, cfg)
 

@@ -85,8 +85,11 @@ def get_db(cfg: config.Experiment) -&gt; sqlite3.Connection:
     Returns:
         a connection to a sqlite3 database.
     &#34;&#34;&#34;
-    os.makedirs(cfg.report_to, exist_ok=True)
-    db = sqlite3.connect(os.path.join(cfg.report_to, &#34;reports.sqlite&#34;), autocommit=True)
+    os.makedirs(os.path.expandvars(cfg.report_to), exist_ok=True)
+    db = sqlite3.connect(
+        os.path.join(os.path.expandvars(cfg.report_to), &#34;reports.sqlite&#34;),
+        autocommit=True,
+    )
 
     with open(schema_fpath) as fd:
         schema = fd.read()
@@ -143,8 +146,11 @@ def get_db(cfg: config.Experiment) -&gt; sqlite3.Connection:
 </summary>
 <pre><code class="python">@beartype.beartype
 def macro_acc(preds: list[Prediction]) -&gt; float:
-    y_pred = np.array([p.info[&#34;y_pred&#34;] for p in preds])
-    y_true = np.array([p.info[&#34;y_true&#34;] for p in preds])
+    y_pred = np.array([
+        next(p.info[key] for key in (&#34;y_pred&#34;, &#34;pred_y&#34;) if key in p.info)
+        for p in preds
+    ])
+    y_true = np.array([p.info.get(&#34;y_true&#34;, p.info.get(&#34;true_y&#34;)) for p in preds])
     return sklearn.metrics.balanced_accuracy_score(y_true, y_pred)</code></pre>
 </details>
 <div class="desc"></div>
@@ -159,8 +165,11 @@ def macro_acc(preds: list[Prediction]) -&gt; float:
 </summary>
 <pre><code class="python">@beartype.beartype
 def macro_f1(preds: list[Prediction]) -&gt; float:
-    y_pred = np.array([p.info[&#34;y_pred&#34;] for p in preds])
-    y_true = np.array([p.info[&#34;y_true&#34;] for p in preds])
+    y_pred = np.array([
+        next(p.info[key] for key in (&#34;y_pred&#34;, &#34;pred_y&#34;) if key in p.info)
+        for p in preds
+    ])
+    y_true = np.array([p.info.get(&#34;y_true&#34;, p.info.get(&#34;true_y&#34;)) for p in preds])
     return sklearn.metrics.f1_score(
         y_true, y_pred, average=&#34;macro&#34;, labels=np.unique(y_true)
     )</code></pre>
@@ -177,8 +186,11 @@ def macro_f1(preds: list[Prediction]) -&gt; float:
 </summary>
 <pre><code class="python">@beartype.beartype
 def micro_acc(preds: list[Prediction]) -&gt; float:
-    y_pred = np.array([p.info[&#34;y_pred&#34;] for p in preds])
-    y_true = np.array([p.info[&#34;y_true&#34;] for p in preds])
+    y_pred = np.array([
+        next(p.info[key] for key in (&#34;y_pred&#34;, &#34;pred_y&#34;) if key in p.info)
+        for p in preds
+    ])
+    y_true = np.array([p.info.get(&#34;y_true&#34;, p.info.get(&#34;true_y&#34;)) for p in preds])
     return sklearn.metrics.accuracy_score(y_true, y_pred)</code></pre>
 </details>
 <div class="desc"></div>
@@ -193,8 +205,11 @@ def micro_acc(preds: list[Prediction]) -&gt; float:
 </summary>
 <pre><code class="python">@beartype.beartype
 def micro_f1(preds: list[Prediction]) -&gt; float:
-    y_pred = np.array([p.info[&#34;y_pred&#34;] for p in preds])
-    y_true = np.array([p.info[&#34;y_true&#34;] for p in preds])
+    y_pred = np.array([
+        next(p.info[key] for key in (&#34;y_pred&#34;, &#34;pred_y&#34;) if key in p.info)
+        for p in preds
+    ])
+    y_true = np.array([p.info.get(&#34;y_true&#34;, p.info.get(&#34;true_y&#34;)) for p in preds])
     return sklearn.metrics.f1_score(y_true, y_pred, average=&#34;micro&#34;)</code></pre>
 </details>
 <div class="desc"></div>
@@ -244,7 +259,7 @@ class Prediction:
 </dd>
 <dt id="biobench.reporting.Report"><code class="flex name class">
 <span>class <span class="ident">Report</span></span>
-<span>(</span><span>task_name: str,<br>predictions: list[<a title="biobench.reporting.Prediction" href="#biobench.reporting.Prediction">Prediction</a>],<br>cfg: <a title="biobench.config.Experiment" href="config.html#biobench.config.Experiment">Experiment</a>,<br>*,<br>splits: dict[str, float] = &lt;factory&gt;,<br>argv: list[str] = &lt;factory&gt;,<br>git_commit: str = '8a8bdd9d99d88b7d620651d0bedb602985a6506b',<br>posix: float = &lt;factory&gt;,<br>gpu_name: str = &lt;factory&gt;,<br>hostname: str = &lt;factory&gt;)</span>
+<span>(</span><span>task_name: str,<br>predictions: list[<a title="biobench.reporting.Prediction" href="#biobench.reporting.Prediction">Prediction</a>],<br>cfg: <a title="biobench.config.Experiment" href="config.html#biobench.config.Experiment">Experiment</a>,<br>*,<br>splits: dict[str, float] = &lt;factory&gt;,<br>argv: list[str] = &lt;factory&gt;,<br>git_commit: str = '4bda9b5fa6f4f2b85434ce87c8c4e6fb85a839d8',<br>posix: float = &lt;factory&gt;,<br>gpu_name: str = &lt;factory&gt;,<br>hostname: str = &lt;factory&gt;)</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -288,12 +303,10 @@ class Report:
         return repr(self)
 
     @beartype.beartype
-    def write(self, db: sqlite3.Connection) -&gt; None:
-        &#34;&#34;&#34;
-        Saves the report to disk in a machine-readable SQLite format.
+    def write(self) -&gt; None:
+        &#34;&#34;&#34;Saves the report to disk in a machine-readable SQLite format.&#34;&#34;&#34;
+        db = get_db(self.cfg)
 
-        Args:
-        &#34;&#34;&#34;
         preds_stmt = &#34;INSERT INTO predictions(img_id, score, info, experiment_id) VALUES(?, ?, ?, ?)&#34;
         exp_stmt = &#34;INSERT INTO experiments(task_name, model_org, model_ckpt, n_train, exp_cfg, argv, git_commit, posix, gpu_name, hostname) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)&#34;
         try:
@@ -370,7 +383,7 @@ class Report:
 <h3>Methods</h3>
 <dl>
 <dt id="biobench.reporting.Report.write"><code class="name flex">
-<span>def <span class="ident">write</span></span>(<span>self, db: sqlite3.Connection) ‑> None</span>
+<span>def <span class="ident">write</span></span>(<span>self) ‑> None</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -378,12 +391,10 @@ class Report:
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">@beartype.beartype
-def write(self, db: sqlite3.Connection) -&gt; None:
-    &#34;&#34;&#34;
-    Saves the report to disk in a machine-readable SQLite format.
+def write(self) -&gt; None:
+    &#34;&#34;&#34;Saves the report to disk in a machine-readable SQLite format.&#34;&#34;&#34;
+    db = get_db(self.cfg)
 
-    Args:
-    &#34;&#34;&#34;
     preds_stmt = &#34;INSERT INTO predictions(img_id, score, info, experiment_id) VALUES(?, ?, ?, ?)&#34;
     exp_stmt = &#34;INSERT INTO experiments(task_name, model_org, model_ckpt, n_train, exp_cfg, argv, git_commit, posix, gpu_name, hostname) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)&#34;
     try:
@@ -417,8 +428,7 @@ def write(self, db: sqlite3.Connection) -&gt; None:
         logger.critical(&#34;Error writing report for &#39;%s&#39;: %s&#34;, self.task_name, err)
         raise</code></pre>
 </details>
-<div class="desc"><p>Saves the report to disk in a machine-readable SQLite format.</p>
-<p>Args:</p></div>
+<div class="desc"><p>Saves the report to disk in a machine-readable SQLite format.</p></div>
 </dd>
 </dl>
 </dd>

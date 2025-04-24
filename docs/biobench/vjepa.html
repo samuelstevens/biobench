@@ -43,16 +43,15 @@ el.replaceWith(d);
 The design follows the public facebookresearch/jepa reference code but strips it down to the minimum needed for image‑only tasks.</p>
 <h2 id="key-implementation-choices">Key Implementation Choices</h2>
 <ol>
-<li>Most modules are verbatim (or lightly edited for typing/PEP‑8) copies from the upstream repo so that we do <em>not</em> depend on the unpublished PyPI package:</li>
-<li>"Fake‑video" input pathway exactly like FAIR’s frozen‑image script
-The official frozen image classification script (<a href="https://github.com/facebookresearch/jepa/blob/51c59d518fc63c08464af6de585f78ac0c7ed4d5/evals/image_classification_frozen/eval.py#L451-L455">https://github.com/facebookresearch/jepa/blob/51c59d518fc63c08464af6de585f78ac0c7ed4d5/evals/image_classification_frozen/eval.py#L451-L455</a>) repeats a still image along the temporal axis before feeding it to the video‑ViT. We reproduce that behaviour with</li>
-</ol>
-<p><code>py
-x = einops.repeat(batch, "b c h w -&gt; b c f h w", f=self.n_frames)
-# (b,3,16,h,w)</code></p>
-<p>so the model sees a 16‑frame clip of identical images.</p>
-<ol>
-<li>Checkpoints live at <code>https://dl.fbaipublicfiles.com/jepa/&lt;ckpt&gt;/&lt;ckpt&gt;.pth.tar</code>. We download them into an <code>$CACHE/vjepa</code> sub‑folder (<code><a title="biobench.vjepa.download" href="#biobench.vjepa.download">download()</a></code> helper) to avoid git‑annex or HF dependencies.</li>
+<li>
+<p>Most modules are verbatim (or lightly edited for typing/PEP‑8) copies from the upstream repo so that we do <em>not</em> depend on the unpublished PyPI package:</p>
+</li>
+<li>
+<p>The official frozen image classification script (<a href="https://github.com/facebookresearch/jepa/blob/51c59d518fc63c08464af6de585f78ac0c7ed4d5/evals/image_classification_frozen/eval.py#L451-L455">https://github.com/facebookresearch/jepa/blob/51c59d518fc63c08464af6de585f78ac0c7ed4d5/evals/image_classification_frozen/eval.py#L451-L455</a>) repeats a still image along the temporal axis before feeding it to the video‑ViT. We reproduce that behaviour with <code>x = einops.repeat(batch, "b c h w -&gt; b c f h w", f=self.n_frames)</code> so the model sees a 16‑frame clip of identical images.</p>
+</li>
+<li>
+<p>Checkpoints live at <code>https://dl.fbaipublicfiles.com/jepa/&lt;ckpt&gt;/&lt;ckpt&gt;.pth.tar</code>. We download them into an <code>$CACHE/vjepa</code> sub‑folder (<code><a title="biobench.vjepa.download" href="#biobench.vjepa.download">download()</a></code> helper) to avoid git‑annex or HF dependencies.</p>
+</li>
 <li>
 <p>Only the EMA target encoder (<code>state["target_encoder"]</code>) is loaded, mirroring the authors’ evaluation code.
 The usual <code>module.</code> prefix is stripped so that the state dict matches our local module names.</p>
@@ -349,11 +348,10 @@ class Attention(torch.nn.Module):
         q, k, v = qkv[0], qkv[1], qkv[2]  # [B, num_heads, N, D]
 
         if self.use_sdpa:
-            with torch.backends.cuda.sdp_kernel():
-                x = torch.nn.functional.scaled_dot_product_attention(
-                    q, k, v, dropout_p=self.proj_drop_prob
-                )
-                attn = None
+            x = torch.nn.functional.scaled_dot_product_attention(
+                q, k, v, dropout_p=self.proj_drop_prob
+            )
+            attn = None
         else:
             attn = (q @ k.transpose(-2, -1)) * self.scale  # [B, num_heads, D, D]
             attn = attn.softmax(dim=-1)
@@ -416,11 +414,10 @@ evaluation mode.
     q, k, v = qkv[0], qkv[1], qkv[2]  # [B, num_heads, N, D]
 
     if self.use_sdpa:
-        with torch.backends.cuda.sdp_kernel():
-            x = torch.nn.functional.scaled_dot_product_attention(
-                q, k, v, dropout_p=self.proj_drop_prob
-            )
-            attn = None
+        x = torch.nn.functional.scaled_dot_product_attention(
+            q, k, v, dropout_p=self.proj_drop_prob
+        )
+        attn = None
     else:
         attn = (q @ k.transpose(-2, -1)) * self.scale  # [B, num_heads, D, D]
         attn = attn.softmax(dim=-1)
@@ -748,7 +745,7 @@ class PatchEmbed3D(torch.nn.Module):
             stride=(tubelet_size, patch_size, patch_size),
         )
 
-    def forward(self, x: Float[Tensor, &#34;B C T H W&#34;]):
+    def forward(self, x):
         B, C, T, H, W = x.shape
         x = self.proj(x).flatten(2).transpose(1, 2)
         return x</code></pre>
@@ -762,19 +759,27 @@ class PatchEmbed3D(torch.nn.Module):
 <h3>Methods</h3>
 <dl>
 <dt id="biobench.vjepa.PatchEmbed3D.forward"><code class="name flex">
-<span>def <span class="ident">forward</span></span>(<span>self, x: jaxtyping.Float[Tensor, 'B C T H W']) ‑> Callable[..., Any]</span>
+<span>def <span class="ident">forward</span></span>(<span>self, x) ‑> Callable[..., Any]</span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def forward(self, x: Float[Tensor, &#34;B C T H W&#34;]):
+<pre><code class="python">def forward(self, x):
     B, C, T, H, W = x.shape
     x = self.proj(x).flatten(2).transpose(1, 2)
     return x</code></pre>
 </details>
-<div class="desc"></div>
+<div class="desc"><p>Define the computation performed at every call.</p>
+<p>Should be overridden by all subclasses.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Although the recipe for forward pass needs to be defined within
+this function, one should call the :class:<code>Module</code> instance afterwards
+instead of this since the former takes care of running the
+registered hooks while the latter silently ignores them.</p>
+</div></div>
 </dd>
 </dl>
 </dd>

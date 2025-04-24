@@ -86,7 +86,7 @@ def benchmark(cfg: config.Experiment) -&gt; reporting.Report:
     preds = clf.predict(test_feats.x)
     examples = [
         reporting.Prediction(
-            img_id, float(p == t), {&#34;y_pred&#34;: p.item(), &#34;y_true&#34;: p.item()}
+            img_id, float(p == t), {&#34;y_pred&#34;: p.item(), &#34;y_true&#34;: t.item()}
         )
         for img_id, p, t in zip(test_feats.ids, preds, test_feats.y)
     ]

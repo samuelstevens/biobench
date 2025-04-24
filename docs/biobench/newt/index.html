@@ -356,7 +356,7 @@ def sample(rng: np.random.Generator, df: pl.DataFrame, n_train: int) -&gt; pl.Da
 </summary>
 <pre><code class="python">@beartype.beartype
 def score(preds: list[reporting.Prediction]) -&gt; float:
-    return reporting.micro_acc(preds)</code></pre>
+    return np.mean([p.score for p in preds]).item()</code></pre>
 </details>
 <div class="desc"></div>
 </dd>

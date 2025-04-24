@@ -58,6 +58,11 @@ def benchmark(cfg: config.Experiment) -> reporting.Report:
     return reporting.Report("imagenet1k", preds, cfg)
 
 
+@beartype.beartype
+def score(preds: list[reporting.Prediction]) -> float:
+    return reporting.micro_acc(preds)
+
+
 class Transform:
     def __init__(self, img_transform):
         self._img_transform = img_transform
@@ -111,7 +116,7 @@ def get_features(
     total = max(n_workers, math.ceil(len(i) / cfg.batch_size))
     it = iter(dataloader)
     logger.debug("Need to embed %d batches of %d images.", total, cfg.batch_size)
-    for b in helpers.progress(range(total), every=10, desc=f"Embedding {split}"):
+    for b in helpers.progress(range(total), every=10, desc=f"in1k/{split}"):
         batch = next(it)
 
         images = batch["image"].to(cfg.device)

@@ -116,6 +116,11 @@ def benchmark(cfg: config.Experiment) -> reporting.Report:
     return reporting.Report("plankton", preds, cfg)
 
 
+@beartype.beartype
+def score(preds: list[reporting.Prediction]) -> float:
+    return reporting.macro_f1(preds)
+
+
 @jaxtyped(typechecker=beartype.beartype)
 class Sample(typing.TypedDict):
     """A dictionary representing a single image sample with its metadata.

@@ -113,7 +113,7 @@ el.replaceWith(d);
 <dl>
 <dt id="biobench.config.Data"><code class="flex name class">
 <span>class <span class="ident">Data</span></span>
-<span>(</span><span>ages: str = '',<br>beluga: str = '',<br>fishnet: str = '',<br>imagenet1k: str = '',<br>newt: str = '',<br>herbarium19: str = '',<br>inat21: str = '',<br>kabr: str = '',<br>mammalnet: str = '',<br>plantnet: str = '',<br>plankton: str = '',<br>iwildcam: str = '')</span>
+<span>(</span><span>beluga: str = '',<br>fishnet: str = '',<br>imagenet1k: str = '',<br>newt: str = '',<br>herbarium19: str = '',<br>inat21: str = '',<br>kabr: str = '',<br>mammalnet: str = '',<br>plantnet: str = '',<br>plankton: str = '',<br>iwildcam: str = '')</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -123,8 +123,6 @@ el.replaceWith(d);
 <pre><code class="python">@beartype.beartype
 @dataclasses.dataclass(frozen=True)
 class Data:
-    ages: str = &#34;&#34;
-    &#34;&#34;&#34;Data path for the bird age benchmark.&#34;&#34;&#34;
     beluga: str = &#34;&#34;
     &#34;&#34;&#34;Data pathfor the Beluga whale re-ID benchmark.&#34;&#34;&#34;
     fishnet: str = &#34;&#34;
@@ -151,13 +149,9 @@ class Data:
     def to_dict(self) -&gt; dict[str, str]:
         return dataclasses.asdict(self)</code></pre>
 </details>
-<div class="desc"><p>Data(ages: str = '', beluga: str = '', fishnet: str = '', imagenet1k: str = '', newt: str = '', herbarium19: str = '', inat21: str = '', kabr: str = '', mammalnet: str = '', plantnet: str = '', plankton: str = '', iwildcam: str = '')</p></div>
+<div class="desc"><p>Data(beluga: str = '', fishnet: str = '', imagenet1k: str = '', newt: str = '', herbarium19: str = '', inat21: str = '', kabr: str = '', mammalnet: str = '', plantnet: str = '', plankton: str = '', iwildcam: str = '')</p></div>
 <h3>Instance variables</h3>
 <dl>
-<dt id="biobench.config.Data.ages"><code class="name">var <span class="ident">ages</span> : str</code></dt>
-<dd>
-<div class="desc"><p>Data path for the bird age benchmark.</p></div>
-</dd>
 <dt id="biobench.config.Data.beluga"><code class="name">var <span class="ident">beluga</span> : str</code></dt>
 <dd>
 <div class="desc"><p>Data pathfor the Beluga whale re-ID benchmark.</p></div>
@@ -454,7 +448,6 @@ class Model:
 <li>
 <h4><code><a title="biobench.config.Data" href="#biobench.config.Data">Data</a></code></h4>
 <ul class="two-column">
-<li><code><a title="biobench.config.Data.ages" href="#biobench.config.Data.ages">ages</a></code></li>
 <li><code><a title="biobench.config.Data.beluga" href="#biobench.config.Data.beluga">beluga</a></code></li>
 <li><code><a title="biobench.config.Data.fishnet" href="#biobench.config.Data.fishnet">fishnet</a></code></li>
 <li><code><a title="biobench.config.Data.herbarium19" href="#biobench.config.Data.herbarium19">herbarium19</a></code></li>
