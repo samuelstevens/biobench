@@ -34,6 +34,8 @@ Testing style
 >>>> README.md
 # Biology Benchmark (`biobench`)
 
+![Coverage](docs/coverage.svg)
+
 This library is an easy-to-read benchmark for biology-related computer vision tasks.
 
 It aims to make it easy to:
@@ -42,7 +44,7 @@ It aims to make it easy to:
 2. Add new tasks.
 3. Understand meaningful (or not) differences in model performance.
 
-Check out the [docs](https://samuelstevens.me/biobench/) for an interactive leaderboard.
+Check out the [docs](https://samuelstevens.me/biobench/) for an introduction.
 
 ## Getting Started
 
@@ -103,6 +105,16 @@ Because of this, there are two main classes of tasks:
 [Counting insects on sticky insect traps](https://github.com/md-121/yellow-sticky-traps-dataset)
 [Predicting plant stem angle](https://plantvision.unl.edu/datasets/download-panicoid-phenomap-1-dataset/)
 
+>>>> REGRESSIONS.md
+# Regressions
+
+Last checked: 2025-04-24
+
+**All tests passed**
+# Coverage
+
+Coverage: 919/2891 lines (31.8%)
+
 >>>> __init__.py
 """ """
 
@@ -116,6 +128,7 @@ from .registry import list_vision_backbones, register_vision_backbone
 register_vision_backbone("timm", third_party_models.Timm)
 register_vision_backbone("open-clip", third_party_models.OpenClip)
 register_vision_backbone("dinov2", third_party_models.DinoV2)
+register_vision_backbone("sam2", third_party_models.SAM2)
 register_vision_backbone("aimv2", aimv2.AIMv2)
 register_vision_backbone("vjepa", vjepa.VJEPA)
 
@@ -127,262 +140,11 @@ else:
     # Runtime type used by tyro.
     ModelOrg = tyro.extras.literal_type_from_choices(list_vision_backbones())
 
->>>> ages/__init__.py
-"""
-This task measures changes in performance with respect to the stage of life of a bird.
-Specifically, we measure classification accuracy among 11 species in multiple settings:
-
-1. Training images are adult, evaluation images are adult. This is the baseline.
-2. Training images are juvenile, evaluation images are juvenile. Any drop in performance is likely a reflection on pre-training data distribution.
-3. Training images are adult, evaluation images are juvenile. This measures whether model representations are robust to changes in stage of life, which is the opposite of what the original NeWT task measures. We report this number as the primary score.
-
-We use the 11 juvenile vs adult tasks from NeWT, so if you use this task, be sure to cite that work (below).
-We use a multiclass SVM from scikit learn.
-
-To download the original data, follow the instructions in `biobench.newt.download`.
-
-```
-@inproceedings{van2021benchmarking,
-  title={Benchmarking Representation Learning for Natural World Image Collections},
-  author={Van Horn, Grant and Cole, Elijah and Beery, Sara and Wilber, Kimberly and Belongie, Serge and Mac Aodha, Oisin},
-  booktitle={Computer Vision and Pattern Recognition},
-  year={2021}
-}
-```
-"""
-
-import collections.abc
-import dataclasses
-import logging
-import os
-
-import beartype
-import numpy as np
-import polars as pl
-import scipy.stats
-import sklearn.model_selection
-import sklearn.pipeline
-import sklearn.preprocessing
-import sklearn.svm
-import torch
-from jaxtyping import Float, Int, Shaped, jaxtyped
-from PIL import Image
-from torch import Tensor
-
-from .. import config, helpers, registry, reporting
-
-logger = logging.getLogger("ages")
-
-
-@dataclasses.dataclass(frozen=True)
-class ArgsOld:
-    """Ages task arguments."""
-
-    data: str = ""
-    """dataset directory; where you downloaded this task's data to."""
-    batch_size_cv: int = 256
-    """batch size for computer vision model."""
-    n_workers: int = 4
-    """number of dataloader worker processes."""
-    log_every: int = 10
-    """how often (number of batches) to log progress."""
-    seed: int = 42
-    """random seed."""
-
-    # Computed at runtime.
-    device: str = "cuda"
-    """(computed at runtime) which kind of accelerator to use."""
-    debug: bool = False
-    """(computed at runtime) whether to run in debug mode."""
-    n_train: int = -1
-    """Number of maximum training samples. Negative number means use all of them."""
-
-
-@beartype.beartype
-def benchmark(cfg: config.Experiment) -> tuple[config.Model, reporting.Report]:
-    """
-    Run benchmark.
-
-    Args:
-        args: configuration for age task.
-        model_args: args to load vision backbone.
-
-    Returns:
-        A tuple of model_args and the report describing the results.
-    """
-    raise NotImplementedError()
-
-    # 1. Load model
-    backbone = registry.load_vision_backbone(cfg.model)
-
-    # 2. Get features.
-    tasks = get_all_tasks(cfg, backbone)
-
-    # 3. For each task outlined above, evaluate representation quality.
-    splits = {}
-    for name, train, test in tasks:
-        clf = init_clf()
-
-        clf.fit(train.x, train.y)
-        y_pred = clf.predict(test.x)
-        examples = [
-            reporting.Prediction(str(id), float(pred == true), {})
-            for id, pred, true in zip(test.ids, y_pred, test.y)
-        ]
-        test_acc = np.mean(y_pred == test.y)
-        splits[name] = test_acc.item()
-
-    return cfg.model, reporting.Report("Ages", examples, splits=splits)
-
-
-#########
-# CV/ML #
-#########
-
-
-@jaxtyped(typechecker=beartype.beartype)
-class Dataset(torch.utils.data.Dataset):
-    """
-    A dataset that returns `(example id, image tensor, integer label)` tuples.
-    """
-
-    def __init__(self, dir: str, df, transform):
-        self.transform = transform
-        self.image_ids = df.get_column("id").to_list()
-        self.labels = df.get_column("species_label").to_list()
-        self.dir = dir
-
-    def __getitem__(self, i: int) -> tuple[str, Float[Tensor, "3 width height"], int]:
-        image_id = self.image_ids[i]
-        image = Image.open(os.path.join(self.dir, f"{image_id}.jpg"))
-        if self.transform is not None:
-            image = self.transform(image)
-        return image_id, image, self.labels[i]
-
-    def __len__(self) -> int:
-        return len(self.image_ids)
-
-
-@jaxtyped(typechecker=beartype.beartype)
-@dataclasses.dataclass(frozen=True)
-class Features:
-    """Inputs and outputs for a given task."""
-
-    x: Float[np.ndarray, " n dim"]
-    """Input features; from a `biobench.registry.VisionBackbone`."""
-    y: Int[np.ndarray, " n"]
-    """Class label."""
-    ids: Shaped[np.ndarray, " n"]
-    """Array of ids; could be strings, could be ints, etc."""
-
-
-@jaxtyped(typechecker=beartype.beartype)
-@torch.no_grad()
-def get_all_tasks(
-    cfg: config.Experiment, backbone: registry.VisionBackbone
-) -> collections.abc.Iterator[tuple[str, Features, Features]]:
-    """
-    Gets train and test features for all the different tasks being evaluated.
-
-    Args:
-        args: configuration for the ages task.
-        backbone: the particular vision backbone being evaluated.
-
-    Returns:
-        An iterator of (taskname, train features, test features) tuples, one for each task (described in this module's docstring).
-    """
-    labels_csv_name = "newt2021_labels.csv"
-    labels_csv_path = os.path.join(cfg.data.ages, labels_csv_name)
-    images_dir_name = "newt2021_images"
-    images_dir_path = os.path.join(cfg.data.ages, images_dir_name)
-
-    if not os.path.isfile(labels_csv_path):
-        msg = f"Path '{labels_csv_path}' doesn't exist. Did you download the Newt dataset? See the docstring at the top of this file for instructions. If you did download it, pass the path with '--ages-args.data'; see --help for more."
-        raise RuntimeError(msg)
-
-    df = pl.read_csv(labels_csv_path).with_row_index()
-    # Only get tasks about age.
-    df = df.filter(pl.col("task").str.contains("ml_age"))
-    # Add integer label for species (0-indexed).
-    df = df.with_columns(species_label=pl.col("task").rank("dense") - 1)
-
-    img_transform = backbone.make_img_transform()
-    backbone = torch.compile(backbone.to(args.device))
-
-    dataset = Dataset(images_dir_path, df, img_transform)
-    dataloader = torch.utils.data.DataLoader(
-        dataset,
-        batch_size=args.batch_size,
-        num_workers=args.n_workers,
-        drop_last=False,
-        shuffle=False,
-        pin_memory=False,
-        persistent_workers=False,
-    )
-
-    all_features, all_labels, all_ids = [], [], []
-
-    total = len(dataloader) if not args.debug else 2
-    it = iter(dataloader)
-    for b in helpers.progress(range(total), every=args.log_every, desc="Embedding"):
-        ids, images, labels = next(it)
-        images = images.to(args.device)
-
-        with torch.amp.autocast("cuda"):
-            features = backbone.img_encode(images).img_features
-            features = torch.nn.functional.normalize(features, dim=-1)
-            all_features.append(features.cpu())
-
-        all_ids.extend(ids)
-        all_labels.extend(labels)
-
-    all_features = torch.cat(all_features, dim=0).cpu().numpy()
-    all_labels = torch.tensor(all_labels).numpy()
-    all_ids = np.array(all_ids)
-
-    tasks = (("adult", "adult"), ("not_adult", "not_adult"), ("adult", "not_adult"))
-    for train, test in tasks:
-        train_i = (
-            df.select((pl.col("split") == "train") & (pl.col("text_label") == train))
-            .to_numpy()
-            .squeeze()
-        )
-        test_i = (
-            df.select((pl.col("split") == "test") & (pl.col("text_label") == test))
-            .to_numpy()
-            .squeeze()
-        )
-
-        yield (
-            f"{train}/{test}",
-            Features(all_features[train_i], all_labels[train_i], all_ids[train_i]),
-            Features(all_features[test_i], all_labels[test_i], all_ids[test_i]),
-        )
-
-
-def init_clf():
-    """
-    Create a new, randomly initialized SVM with a random hyperparameter search over kernel, C and gamma. It uses only 16 jobs in parallel to prevent overloading the CPUs on a shared machine.
-    """
-    return sklearn.model_selection.RandomizedSearchCV(
-        sklearn.pipeline.make_pipeline(
-            sklearn.preprocessing.StandardScaler(),
-            sklearn.svm.SVC(C=1.0, kernel="rbf"),
-        ),
-        {
-            "svc__C": scipy.stats.loguniform(a=1e-3, b=1e1),
-            "svc__kernel": ["rbf", "linear", "sigmoid", "poly"],
-            "svc__gamma": scipy.stats.loguniform(a=1e-4, b=1e-3),
-        },
-        n_iter=100,
-        n_jobs=16,
-        random_state=42,
-    )
-
 >>>> aimv2.py
 import dataclasses
 import json
 import os
+import re
 
 import beartype
 import requests
@@ -593,7 +355,10 @@ class AIMv2(registry.VisionBackbone):
         state_dict = safetensors.torch.load_file(ckpt_fpath)
         self.load_state_dict(state_dict)
 
-        self.size = int(ckpt[-3:])
+        # Extract image size from checkpoint name using regex
+
+        match = re.search(r"patch\d+-(\d+)", ckpt)
+        self.size = int(match.group(1)) if match else 224  # Default to 224 if not found
 
     def forward(self, x: Float[Tensor, "..."]) -> Float[Tensor, "..."]:
         x = self.preprocessor(x)
@@ -1052,7 +817,9 @@ def main(
         for (model, n_train), count in sorted(model_counts.items()):
             logger.info("%-50s | %10d | %5d", model, n_train, count)
         logger.info("-" * 71)
-        logger.info("Total jobs to run: %d", len(jobs))
+        logger.info(
+            "Total jobs to run: %d (skipped %d already completed)", len(jobs), n_skipped
+        )
         return
 
     logger.info("Submitted %d jobs (skipped %d).", len(jobs), n_skipped)
@@ -1140,8 +907,6 @@ class Model:
 @beartype.beartype
 @dataclasses.dataclass(frozen=True)
 class Data:
-    ages: str = ""
-    """Data path for the bird age benchmark."""
     beluga: str = ""
     """Data pathfor the Beluga whale re-ID benchmark."""
     fishnet: str = ""
@@ -1888,6 +1653,25 @@ def balanced_random_sample(
 
     return np.array(selected_indices, dtype=int)
 
+
+@beartype.beartype
+def batched_idx(
+    total_size: int, batch_size: int
+) -> collections.abc.Iterator[tuple[int, int]]:
+    """
+    Iterate over (start, end) indices for total_size examples, where end - start is at most batch_size.
+
+    Args:
+        total_size: total number of examples
+        batch_size: maximum distance between the generated indices.
+
+    Returns:
+        A generator of (int, int) tuples that can slice up a list or a tensor.
+    """
+    for start in range(0, total_size, batch_size):
+        stop = min(start + batch_size, total_size)
+        yield start, stop
+
 >>>> herbarium19/__init__.py
 """
 Herbarium19: classify specimens into species based on the 2019 FGVC6 competition.
@@ -1971,7 +1755,7 @@ def benchmark(cfg: config.Experiment) -> reporting.Report:
     preds = clf.predict(test_feats.x)
     examples = [
         reporting.Prediction(
-            img_id, float(p == t), {"y_pred": p.item(), "y_true": p.item()}
+            img_id, float(p == t), {"y_pred": p.item(), "y_true": t.item()}
         )
         for img_id, p, t in zip(test_feats.ids, preds, test_feats.y)
     ]
@@ -2317,7 +2101,7 @@ def get_features(
     total = max(n_workers, math.ceil(len(i) / cfg.batch_size))
     it = iter(dataloader)
     logger.debug("Need to embed %d batches of %d images.", total, cfg.batch_size)
-    for b in helpers.progress(range(total), every=10, desc=f"Embedding {split}"):
+    for b in helpers.progress(range(total), every=10, desc=f"in1k/{split}"):
         batch = next(it)
 
         images = batch["image"].to(cfg.device)
@@ -3818,6 +3602,18 @@ Now I want to track
 And I need to try multi-turn prompts as well.
 Then just show me the freaking graphs baby!
 
+# 04/23/2025
+
+Good outline:
+
+Do we need benchmarks? -> Most AI/ML researchers agree yes. There are good studies on the history of bechmark, shared tasks, etc.
+
+Are current benchmarks good enough? -> Not anymore. I show that this is true with the statistical graphs. I give an explanation why by showing images in ImageNet-1K, MS-COCO, ADE20K, iNat21 and the tasks in BioBench.
+
+How should we build new benchmarks?
+* Engineeering why: benchmarks should help us answer new questions about models, goldilocks zone, etc.
+* Science why: benchmarks should drive progress outside of the benchmark task itself.
+
 >>>> mammalnet/__init__.py
 import beartype
 
@@ -3916,7 +3712,7 @@ def benchmark(cfg: config.Experiment) -> reporting.Report:
 
 @beartype.beartype
 def score(preds: list[reporting.Prediction]) -> float:
-    return reporting.micro_acc(preds)
+    return np.mean([p.score for p in preds]).item()
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -5221,6 +5017,7 @@ def load_vision_backbone(model_cfg: config.Model) -> VisionBackbone:
     return cls(model_cfg.ckpt)
 
 
+@beartype.beartype
 def register_vision_backbone(model_org: str, cls: type[VisionBackbone]):
     """
     Register a new vision backbone class.
@@ -5267,8 +5064,11 @@ def get_db(cfg: config.Experiment) -> sqlite3.Connection:
     Returns:
         a connection to a sqlite3 database.
     """
-    os.makedirs(cfg.report_to, exist_ok=True)
-    db = sqlite3.connect(os.path.join(cfg.report_to, "reports.sqlite"), autocommit=True)
+    os.makedirs(os.path.expandvars(cfg.report_to), exist_ok=True)
+    db = sqlite3.connect(
+        os.path.join(os.path.expandvars(cfg.report_to), "reports.sqlite"),
+        autocommit=True,
+    )
 
     with open(schema_fpath) as fd:
         schema = fd.read()
@@ -5360,12 +5160,10 @@ class Report:
         return repr(self)
 
     @beartype.beartype
-    def write(self, db: sqlite3.Connection) -> None:
-        """
-        Saves the report to disk in a machine-readable SQLite format.
+    def write(self) -> None:
+        """Saves the report to disk in a machine-readable SQLite format."""
+        db = get_db(self.cfg)
 
-        Args:
-        """
         preds_stmt = "INSERT INTO predictions(img_id, score, info, experiment_id) VALUES(?, ?, ?, ?)"
         exp_stmt = "INSERT INTO experiments(task_name, model_org, model_ckpt, n_train, exp_cfg, argv, git_commit, posix, gpu_name, hostname) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
         try:
@@ -5402,29 +5200,41 @@ class Report:
 
 @beartype.beartype
 def micro_acc(preds: list[Prediction]) -> float:
-    y_pred = np.array([p.info["y_pred"] for p in preds])
-    y_true = np.array([p.info["y_true"] for p in preds])
+    y_pred = np.array([
+        next(p.info[key] for key in ("y_pred", "pred_y") if key in p.info)
+        for p in preds
+    ])
+    y_true = np.array([p.info.get("y_true", p.info.get("true_y")) for p in preds])
     return sklearn.metrics.accuracy_score(y_true, y_pred)
 
 
 @beartype.beartype
 def macro_acc(preds: list[Prediction]) -> float:
-    y_pred = np.array([p.info["y_pred"] for p in preds])
-    y_true = np.array([p.info["y_true"] for p in preds])
+    y_pred = np.array([
+        next(p.info[key] for key in ("y_pred", "pred_y") if key in p.info)
+        for p in preds
+    ])
+    y_true = np.array([p.info.get("y_true", p.info.get("true_y")) for p in preds])
     return sklearn.metrics.balanced_accuracy_score(y_true, y_pred)
 
 
 @beartype.beartype
 def micro_f1(preds: list[Prediction]) -> float:
-    y_pred = np.array([p.info["y_pred"] for p in preds])
-    y_true = np.array([p.info["y_true"] for p in preds])
+    y_pred = np.array([
+        next(p.info[key] for key in ("y_pred", "pred_y") if key in p.info)
+        for p in preds
+    ])
+    y_true = np.array([p.info.get("y_true", p.info.get("true_y")) for p in preds])
     return sklearn.metrics.f1_score(y_true, y_pred, average="micro")
 
 
 @beartype.beartype
 def macro_f1(preds: list[Prediction]) -> float:
-    y_pred = np.array([p.info["y_pred"] for p in preds])
-    y_true = np.array([p.info["y_true"] for p in preds])
+    y_pred = np.array([
+        next(p.info[key] for key in ("y_pred", "pred_y") if key in p.info)
+        for p in preds
+    ])
+    y_true = np.array([p.info.get("y_true", p.info.get("true_y")) for p in preds])
     return sklearn.metrics.f1_score(
         y_true, y_pred, average="macro", labels=np.unique(y_true)
     )
@@ -5481,7 +5291,7 @@ RED_RGB01 = tuple(c / 256 for c in RED_RGB)
 PRAGMA journal_mode = WAL;   -- Concurrent reads/writes
 PRAGMA synchronous = NORMAL; -- Good balance speed/safety
 PRAGMA foreign_keys = ON;    -- Enforce FK constraints
-PRAGMA busy_timeout = 5000;  -- Wait up to 5000ms before throwing timeout errors
+PRAGMA busy_timeout = 30000;  -- Wait up to 30s before throwing timeout errors
 PRAGMA strict = ON;          -- Enforce strict type checking (SQLite ≥ 3.37)
 PRAGMA encoding = 'UTF-8';   -- Consistent text encoding
 
@@ -5537,14 +5347,14 @@ If you use this work, be sure to cite the original work:
 ```
 """
 
-import collections.abc
-
 import beartype
 import numpy as np
 import sklearn.neighbors
 import torch
 from jaxtyping import Float, Int, jaxtyped
 from torch import Tensor
+
+from . import helpers
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -5561,25 +5371,6 @@ def l2_normalize(
     """
     norms = np.linalg.norm(features, ord=2, axis=1, keepdims=True)
     return features / norms
-
-
-@beartype.beartype
-def batched_idx(
-    total_size: int, batch_size: int
-) -> collections.abc.Iterator[tuple[int, int]]:
-    """
-    Iterate over (start, end) indices for total_size examples, where end - start is at most batch_size.
-
-    Args:
-        total_size: total number of examples
-        batch_size: maximum distance between the generated indices.
-
-    Returns:
-        A generator of (int, int) tuples that can slice up a list or a tensor.
-    """
-    for start in range(0, total_size, batch_size):
-        stop = min(start + batch_size, total_size)
-        yield start, stop
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -5618,7 +5409,7 @@ def simpleshot(
     y_test = y_test.to(device)
 
     scores = []
-    for start, stop in batched_idx(len(x_test), batch_size):
+    for start, stop in helpers.batched_idx(len(x_test), batch_size):
         x_batch = x_test[start:stop]
         y_batch = y_test[start:stop]
         distances = torch.linalg.vector_norm(x_batch[:, None] - centroids, axis=2)
@@ -5638,7 +5429,8 @@ from . import config, helpers, registry
 CKPTS = [
     "apple/aimv2-large-patch14-224",
     "apple/aimv2-large-patch14-224-distilled",
-    "apple/aimv2-1B-patch14-336",
+    "apple/aimv2-1B-patch14-224",
+    "apple/aimv2-large-patch14-448",
 ]
 DTYPE = torch.float32
 ATOL, RTOL = 1e-5, 1e-4
@@ -5682,6 +5474,60 @@ def test_values_close_batch(models):
     b = bio.img_encode(batch).patch_features
     assert torch.allclose(h, b, atol=ATOL, rtol=RTOL)
 
+>>>> test_config.py
+import itertools
+import pathlib
+import textwrap
+
+from . import config
+
+
+def _write_toml(tmp_path: pathlib.Path) -> pathlib.Path:
+    tmp_path.mkdir(exist_ok=True)
+    tmp_file = tmp_path / "grid.toml"
+    tmp_file.write_text(
+        textwrap.dedent(
+            """
+            models = [
+              { org = "timm",      ckpt = "resnet50" },
+              { org = "open-clip", ckpt = "ViT-B-16/openai" },
+            ]
+
+            debug   = [ true, false ]
+            n_train = [ 10, 100 ]
+
+            [data]
+            newt = "/data/newt"
+            """
+        )
+    )
+    return tmp_file
+
+
+def test_load_returns_full_cartesian_product(tmp_path):
+    toml_path = _write_toml(tmp_path)
+    exps = config.load(str(toml_path))
+
+    # --- expected triples ---
+    expected = set(
+        itertools.product(
+            ["timm", "open-clip"],  # model_org
+            [True, False],  # debug
+            [10, 100],  # n_train
+        )
+    )
+
+    # --- actual triples ---
+    got = {(exp.model.org, exp.debug, exp.n_train) for exp in exps}
+
+    assert got == expected, (
+        f"Missing/extra combinations: expected {expected}, got {got}"
+    )
+
+    # data-block propagated
+    for exp in exps:
+        assert exp.data.newt == "/data/newt"
+
 >>>> test_helpers.py
 import collections
 
@@ -5695,8 +5541,23 @@ from jaxtyping import Int, jaxtyped
 from . import helpers
 
 
+@st.composite
+def _labels_and_n(draw):
+    """
+    Helper strategy: (labels array, n) with n <= len(labels) and n >= #classes
+    """
+    labels_list = draw(
+        st.lists(st.integers(min_value=0, max_value=50), min_size=1, max_size=300)
+    )
+    labels = np.array(labels_list, dtype=int)
+    n_classes = len(np.unique(labels))
+    # choose n in [n_classes, len(labels)]
+    n = draw(st.integers(min_value=n_classes, max_value=len(labels)))
+    return labels, n
+
+
 @jaxtyped(typechecker=beartype.beartype)
-def measure_balance(
+def _measure_balance(
     labels: Int[np.ndarray, " n_labels"], indices: Int[np.ndarray, " n"]
 ) -> float:
     """
@@ -5730,6 +5591,53 @@ def measure_balance(
 
     # Return coefficient of variation (0 for perfect balance)
     return std / mean if mean > 0 else 0.0
+
+
+@given(
+    st.text(
+        # printable ASCII (includes '/' ':' we want to scrub)
+        alphabet=st.characters(min_codepoint=32, max_codepoint=126),
+        max_size=100,
+    )
+)
+def test_fs_safe_idempotent_and_clean(random_text):
+    cleaned = helpers.fs_safe(random_text)
+
+    # 1) Forbidden characters removed
+    assert ":" not in cleaned and "/" not in cleaned
+
+    # 2) Idempotent
+    assert helpers.fs_safe(cleaned) == cleaned
+
+
+@given(
+    total=st.integers(min_value=0, max_value=1_000),
+    batch=st.integers(min_value=1, max_value=400),
+)
+def test_batched_idx_covers_range_without_overlap(total, batch):
+    """batched_idx must partition [0,total) into consecutive, non-overlapping spans,
+    each of length ≤ batch."""
+    spans = list(helpers.batched_idx(total, batch))
+
+    # edge-case: nothing to iterate
+    if total == 0:
+        assert spans == []
+        return
+
+    # verify each span and overall coverage
+    covered = []
+    expected_start = 0
+    for start, stop in spans:
+        # bounds & width checks
+        assert 0 <= start < stop <= total
+        assert (stop - start) <= batch
+        # consecutiveness (no gaps/overlap)
+        assert start == expected_start
+        expected_start = stop
+        covered.extend(range(start, stop))
+
+    # spans collectively cover exactly [0, total)
+    assert covered == list(range(total))
 
 
 @given(
@@ -5776,11 +5684,11 @@ def test_class_balance(labels, n):
 
     # Get balanced samples
     balanced_indices = helpers.balanced_random_sample(labels, n)
-    balanced_balance = measure_balance(labels, balanced_indices)
+    balanced_balance = _measure_balance(labels, balanced_indices)
 
     # Get a normal random sample for comparison
     random_indices = np.random.choice(len(labels), min(n, len(labels)), replace=False)
-    random_balance = measure_balance(labels, random_indices)
+    random_balance = _measure_balance(labels, random_indices)
 
     # Check if our balanced sampling is generally better than random
     # Note: This might occasionally fail due to randomness, but should pass most of the time
@@ -5824,6 +5732,29 @@ def test_zero_samples_requested():
     labels = np.array([0, 1, 2, 3], dtype=int)
     indices = helpers.balanced_random_sample(labels, 0)
     assert len(indices) == 0
+
+
+@given(_labels_and_n())
+def test_balanced_random_sample_includes_each_class_when_possible(data):
+    labels, n = data
+    idx = helpers.balanced_random_sample(labels, n)
+    assert set(labels[idx]) == set(np.unique(labels))
+
+
+@given(
+    labels=st.lists(st.integers(min_value=0, max_value=100), min_size=10, max_size=500),
+    n=st.integers(min_value=1, max_value=500),
+)
+def test_balanced_random_sample_never_duplicates_indices(labels, n):
+    """Returned index list must have no duplicates."""
+    labels = np.array(labels, dtype=int)
+    n = min(n, len(labels))  # cap n to dataset size
+
+    idx = helpers.balanced_random_sample(labels, n)
+
+    # uniqueness & length
+    assert len(idx) == len(set(idx))
+    assert len(idx) == n or len(idx) == len(labels)  # handles n>len(labels)
 
 >>>> test_reporting.py
 import math
@@ -5945,6 +5876,7 @@ import logging
 import os
 
 import beartype
+import einops
 from jaxtyping import Float, jaxtyped
 from torch import Tensor
 
@@ -6134,6 +6066,40 @@ class TorchvisionModel(registry.VisionBackbone):
     ) -> registry.EncodedImgBatch:
         breakpoint()
 
+
+@beartype.beartype
+class SAM2(registry.VisionBackbone):
+    """
+    A very small wrapper around the SAM-2 Hiera backbones exposed by `timm`.
+
+    Design choices:
+
+    * We rely 100 % on `timm` for model construction & weight loading (`timm.create_model("hf_hub:timm/<model_name>", pretrained=True)`).
+    * The image transform is the exact one timm used during pre-training: `data.create_transform(**resolve_data_config(model.pretrained_cfg))`.
+    """
+
+    def __init__(self, ckpt: str, **kwargs):
+        super().__init__()
+        import timm
+
+        self.ckpt = ckpt
+
+        self.model = timm.create_model(f"hf_hub:timm/{ckpt}", pretrained=True)
+
+        self.data_cfg = timm.data.resolve_data_config(self.model.pretrained_cfg)
+
+    def make_img_transform(self):
+        import timm
+
+        return timm.data.create_transform(**self.data_cfg)
+
+    def img_encode(
+        self, batch: Float[Tensor, "batch 3 width height"]
+    ) -> registry.EncodedImgBatch:
+        x = self.model.forward_features(batch)
+        x = einops.rearrange(x, "b w h d -> b (w h) d")
+        return registry.EncodedImgBatch(x.max(dim=1).values, x)
+
 >>>> vjepa.py
 """
 # V‑JEPA *frozen‑feature* backbone port
@@ -6143,16 +6109,11 @@ This file is a self‑contained re‑implementation of the encoder used in *V‑
 Key implementation choices
 --------------------------
 1. Most modules are verbatim (or lightly edited for typing/PEP‑8) copies from the upstream repo so that we do *not* depend on the unpublished PyPI package:
-2. "Fake‑video" input pathway exactly like FAIR’s frozen‑image script
-   The official frozen image classification script (https://github.com/facebookresearch/jepa/blob/51c59d518fc63c08464af6de585f78ac0c7ed4d5/evals/image_classification_frozen/eval.py#L451-L455) repeats a still image along the temporal axis before feeding it to the video‑ViT. We reproduce that behaviour with
 
-   ```py
-   x = einops.repeat(batch, "b c h w -> b c f h w", f=self.n_frames)  # (b,3,16,h,w)
-   ```
-
-   so the model sees a 16‑frame clip of identical images.
+2. The official frozen image classification script (https://github.com/facebookresearch/jepa/blob/51c59d518fc63c08464af6de585f78ac0c7ed4d5/evals/image_classification_frozen/eval.py#L451-L455) repeats a still image along the temporal axis before feeding it to the video‑ViT. We reproduce that behaviour with `x = einops.repeat(batch, "b c h w -> b c f h w", f=self.n_frames)` so the model sees a 16‑frame clip of identical images.
 
 3. Checkpoints live at `https://dl.fbaipublicfiles.com/jepa/<ckpt>/<ckpt>.pth.tar`. We download them into an `$CACHE/vjepa` sub‑folder (`download()` helper) to avoid git‑annex or HF dependencies.
+
 4. Only the EMA target encoder (`state["target_encoder"]`) is loaded, mirroring the authors’ evaluation code.  The usual `module.` prefix is stripped so that the state dict matches our local module names.
 
 5. `img_encode()` returns both the full patch grid and a **max‑pooled** global descriptor (`x.max(dim=1).values`).  The attentive classifier used in the paper is *not* re‑implemented here; you can bolt your own head on top of the returned per‑patch features.
@@ -6354,7 +6315,7 @@ class PatchEmbed3D(torch.nn.Module):
             stride=(tubelet_size, patch_size, patch_size),
         )
 
-    def forward(self, x: Float[Tensor, "B C T H W"]):
+    def forward(self, x):
         B, C, T, H, W = x.shape
         x = self.proj(x).flatten(2).transpose(1, 2)
         return x
@@ -6420,11 +6381,10 @@ class Attention(torch.nn.Module):
         q, k, v = qkv[0], qkv[1], qkv[2]  # [B, num_heads, N, D]
 
         if self.use_sdpa:
-            with torch.backends.cuda.sdp_kernel():
-                x = torch.nn.functional.scaled_dot_product_attention(
-                    q, k, v, dropout_p=self.proj_drop_prob
-                )
-                attn = None
+            x = torch.nn.functional.scaled_dot_product_attention(
+                q, k, v, dropout_p=self.proj_drop_prob
+            )
+            attn = None
         else:
             attn = (q @ k.transpose(-2, -1)) * self.scale  # [B, num_heads, D, D]
             attn = attn.softmax(dim=-1)

@@ -28,8 +28,6 @@ class Model:
 @beartype.beartype
 @dataclasses.dataclass(frozen=True)
 class Data:
-    ages: str = ""
-    """Data path for the bird age benchmark."""
     beluga: str = ""
     """Data pathfor the Beluga whale re-ID benchmark."""
     fishnet: str = ""
