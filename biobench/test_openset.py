@@ -1,7 +1,4 @@
-"""Unit tests for MahalanobisOpenSetClassifier.
-
-The file assumes the wrapper lives in ``biobench.utils.openset`` and that its only non‑sklearn dependency is SciPy.  Run with pytest.
-"""
+"""Unit tests for `openset.MahalanobisOpenSetClassifier`."""
 
 import numpy as np
 import pytest

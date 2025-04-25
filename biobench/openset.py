@@ -12,6 +12,19 @@ class MahalanobisOpenSetClassifier(
     """
     Wraps an arbitrary scikit-learn multiclass estimator with a Mahalanobis out-of-distribution detector.  Unknown samples are assigned `unknown_label`.
 
+    @inproceedings{lee2018simple,
+      title = {A Simple Unified Framework for Detecting Out-of-Distribution Samples and Adversarial Attacks},
+      author = {Lee, Kimin and Lee, Kibok and Lee, Honglak and Shin, Jinwoo},
+      year = 2018,
+      booktitle = {Advances in Neural Information Processing Systems},
+      publisher = {Curran Associates, Inc.},
+      volume = 31,
+      pages = {},
+      url = {https://proceedings.neurips.cc/paper_files/paper/2018/file/abdeb6f575ac5c6676b747bca8d09cc2-Paper.pdf},
+      editor = {S. Bengio and H. Wallach and H. Larochelle and K. Grauman and N. Cesa-Bianchi and R. Garnett}
+    }
+
+
     Parameters
     ----------
     base_estimator : scikit-learn estimator
