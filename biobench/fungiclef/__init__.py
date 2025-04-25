@@ -158,12 +158,19 @@ def benchmark(cfg: config.Experiment) -> reporting.Report:
     clf.fit(train_feats.x, train_feats.y)
 
     preds = clf.predict(val_feats.x)
-    # Calculate a set of train and test classes using np.unique and set(), then add a field to the info dict in Prediction that marks whether it is an OOD example (y_true not in train classes). AI!
+    
+    # Identify train and test classes
+    train_classes = set(np.unique(train_feats.y))
+    
     examples = [
         reporting.Prediction(
             img_id,
             float(p == t),
-            {"y_pred": int(p), "y_true": int(t)},
+            {
+                "y_pred": int(p), 
+                "y_true": int(t),
+                "is_ood": t not in train_classes
+            },
         )
         for img_id, p, t in zip(val_feats.ids, preds, val_feats.y)
     ]
