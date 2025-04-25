@@ -146,7 +146,6 @@ def get_features(
     backbone = torch.compile(backbone.to(cfg.device))
     all_features, all_labels, all_ids = [], [], []
 
-    # I don&#39;t do `for ... in dataloader` because early breaks were throwing exceptions.
     total = len(dataloader) if not cfg.debug else 2
     it = iter(dataloader)
     for b in helpers.progress(range(total), every=10):

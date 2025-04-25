@@ -89,10 +89,10 @@ def main(args: Args):
         if not flag:
             continue
         path = download_file(key, url, base_dir, chunk_size)
-        if args.unzip and key.endswith("_images"):
+        if args.unzip and key.endswith("_imgs"):
             extract_file(path, base_dir)
             print(f"Extracted {key} into {base_dir}")
 
 
 if __name__ == "__main__":
-    tyro.cli(main)
+    main(tyro.cli(Args))

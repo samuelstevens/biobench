@@ -158,7 +158,7 @@ def get_features(
 
     total = len(dataloader) if not cfg.debug else 2
     it = iter(dataloader)
-    for b in helpers.progress(range(total), every=10, desc=f&#34;Embed {split}&#34;):
+    for b in helpers.progress(range(total), every=10, desc=f&#34;plnt/{split}&#34;):
         ids, imgs, labels = next(it)
         imgs = imgs.to(cfg.device)
 

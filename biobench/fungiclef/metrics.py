@@ -102,6 +102,13 @@ def psc_esc_cost_score(
 
 
 @beartype.beartype
+def user_loss_score(y_true: np.ndarray, y_pred: np.ndarray) -> float:
+    ce = classification_error(y_true, y_pred)
+    psc = psc_esc_cost_score(y_true, y_pred)
+    return ce + psc
+
+
+@beartype.beartype
 def evaluate_metrics(y_true: np.ndarray, y_pred: np.ndarray) -> dict[str, float]:
     """
     Compute all four FungiCLEF custom metrics plus macro F1.

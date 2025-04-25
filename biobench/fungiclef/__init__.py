@@ -158,19 +158,15 @@ def benchmark(cfg: config.Experiment) -> reporting.Report:
     clf.fit(train_feats.x, train_feats.y)
 
     preds = clf.predict(val_feats.x)
-    
+
     # Identify train and test classes
     train_classes = set(np.unique(train_feats.y))
-    
+
     examples = [
         reporting.Prediction(
             img_id,
             float(p == t),
-            {
-                "y_pred": int(p), 
-                "y_true": int(t),
-                "is_ood": t not in train_classes
-            },
+            {"y_pred": int(p), "y_true": int(t), "ood": t not in train_classes},
         )
         for img_id, p, t in zip(val_feats.ids, preds, val_feats.y)
     ]
@@ -198,3 +194,19 @@ def init_clf(cfg: config.Experiment):
         factor=3,
         random_state=cfg.seed,
     )
+
+
+@beartype.beartype
+def score(preds: list[reporting.Prediction]) -> float:
+    """
+    Return the **User-Focused Loss** used in FungiCLEF:
+        user_loss = classification_error + PSC/ESC cost
+
+    Notes
+    -----
+    * `info['y_true']` and `info['y_pred']` are ints; unknown is –1.
+    * The helper in metrics.py already combines CE and PSC/ESC.
+    """
+    y_true = np.fromiter((p.info["y_true"] for p in preds), dtype=int)
+    y_pred = np.fromiter((p.info["y_pred"] for p in preds), dtype=int)
+    return user_loss_score(y_true, y_pred)

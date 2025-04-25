@@ -181,7 +181,7 @@ def get_features(
     it = iter(dataloader)
 
     all_ids, all_features, all_labels = [], [], []
-    for b in helpers.progress(range(total), every=10, desc=f&#34;Embed {split}&#34;):
+    for b in helpers.progress(range(total), every=10, desc=f&#34;plk/{split}&#34;):
         batch = next(it)
         imgs = batch[&#34;img&#34;].to(cfg.device)
 

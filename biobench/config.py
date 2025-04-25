@@ -32,6 +32,8 @@ class Data:
     """Data pathfor the Beluga whale re-ID benchmark."""
     fishnet: str = ""
     """Data path for the FishNet benchmark."""
+    fungiclef: str = ""
+    """Data path for the FungiCLEF benchmark."""
     imagenet1k: str = ""
     """Data path for the ImageNet-1K benchmark. You can put anything (like 'huggingface') because it is downloaded from HF."""
     newt: str = ""
