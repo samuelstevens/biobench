@@ -41,7 +41,7 @@ class TestAsciiOnly(unittest.TestCase):
         """Test finding non-ASCII issues in a file."""
         # Mock file with non-ASCII character
         file_content = "line1\nline2 → arrow\nline3"
-        
+
         # Create a UnicodeDecodeError when trying to read as ASCII
         def side_effect_open(file, mode, encoding, errors=None):
             if encoding == "ascii":
@@ -51,35 +51,42 @@ class TestAsciiOnly(unittest.TestCase):
             else:
                 # Return the UTF-8 content for the second open call
                 return mock_open(read_data=file_content)(file, mode, encoding, errors)
-        
+
         with patch("builtins.open", side_effect=side_effect_open):
             # Create a mock UnicodeDecodeError for the find_non_ascii_issue function
             mock_error = UnicodeDecodeError(
-                "ascii", 
-                "line1\nline2 → arrow\nline3".encode("utf-8"), 
+                "ascii",
+                "line1\nline2 → arrow\nline3".encode("utf-8"),
                 8,  # Position of the arrow in the byte string
-                9, 
-                "ordinal not in range(128)"
+                9,
+                "ordinal not in range(128)",
             )
-            
-            with patch("builtins.open", side_effect=lambda *args, **kwargs: 
-                       raise_error(*args, **kwargs, error=mock_error) 
-                       if args[2] == "ascii" else mock_open(read_data=file_content)(*args, **kwargs)):
-                
+
+            with patch(
+                "builtins.open",
+                side_effect=lambda *args, **kwargs: raise_error(
+                    *args, **kwargs, error=mock_error
+                )
+                if args[2] == "ascii"
+                else mock_open(read_data=file_content)(*args, **kwargs),
+            ):
                 # Test with a mock path
                 mock_path = pathlib.Path("test.py")
-                
+
                 # Mock the actual function to avoid file system operations
-                with patch("ascii_only.find_non_ascii_issue", return_value=ascii_only.NonAsciiIssue(
-                    file_path=mock_path,
-                    line_num=2,
-                    char_pos=6,
-                    problem_line="line2 → arrow",
-                    bad_byte=b"\xe2\x86\x92",
-                    unicode_repr="\\u2192"
-                )):
+                with patch(
+                    "ascii_only.find_non_ascii_issue",
+                    return_value=ascii_only.NonAsciiIssue(
+                        file_path=mock_path,
+                        line_num=2,
+                        char_pos=6,
+                        problem_line="line2 → arrow",
+                        bad_byte=b"\xe2\x86\x92",
+                        unicode_repr="\\u2192",
+                    ),
+                ):
                     issue = ascii_only.find_non_ascii_issue(mock_path)
-                    
+
                     # Verify the issue details
                     self.assertIsNotNone(issue)
                     self.assertEqual(issue.file_path, mock_path)
