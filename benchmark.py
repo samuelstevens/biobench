@@ -14,7 +14,6 @@ import collections
 import importlib
 import logging
 import os
-import resource
 
 import beartype
 import submitit
@@ -84,7 +83,7 @@ def main(
         for task_name, data_root in cfg.data.to_dict().items():
             # Check that you can get the task_name
             try:
-                module = importlib.import_module(f"biobench.{task_name}")
+                importlib.import_module(f"biobench.{task_name}")
             except ModuleNotFoundError:
                 logger.warning("Could not find task '%s'.", task_name)
                 continue
@@ -98,7 +97,7 @@ def main(
             elif dry_run:
                 jobs.append(cfg)
             else:
-                job = executor.submit(module.benchmark, cfg)
+                job = executor.submit(benchmark_with_mp, task_name, cfg)
                 jobs.append(job)
 
     if dry_run:
@@ -141,10 +140,17 @@ def main(
     logger.info("Finished.")
 
 
-if __name__ == "__main__":
-    soft, hard = resource.getrlimit(resource.RLIMIT_NOFILE)
-    min_nofile = 1024 * 8
-    if soft < min_nofile:
-        resource.setrlimit(resource.RLIMIT_NOFILE, (min_nofile, hard))
+@beartype.beartype
+def benchmark_with_mp(task_name: str, cfg: config.Experiment) -> reporting.Report:
+    import torch.multiprocessing as mp
 
+    helpers.bump_nofile(512)
+    if mp.get_sharing_strategy() != "file_system":
+        mp.set_sharing_strategy("file_system")
+
+    module = importlib.import_module(f"biobench.{task_name}")
+    return module.benchmark(cfg)
+
+
+if __name__ == "__main__":
     tyro.cli(main)

@@ -422,3 +422,15 @@ Now I want to track
 
 And I need to try multi-turn prompts as well.
 Then just show me the freaking graphs baby!
+
+# 04/23/2025
+
+Good outline:
+
+Do we need benchmarks? -> Most AI/ML researchers agree yes. There are good studies on the history of bechmark, shared tasks, etc.
+
+Are current benchmarks good enough? -> Not anymore. I show that this is true with the statistical graphs. I give an explanation why by showing images in ImageNet-1K, MS-COCO, ADE20K, iNat21 and the tasks in BioBench.
+
+How should we build new benchmarks?
+* Engineeering why: benchmarks should help us answer new questions about models, goldilocks zone, etc.
+* Science why: benchmarks should drive progress outside of the benchmark task itself.

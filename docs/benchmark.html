@@ -54,6 +54,27 @@ For example, see <code><a title="biobench.newt.download" href="biobench/newt/dow
 <section>
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
+<dt id="benchmark.benchmark_with_mp"><code class="name flex">
+<span>def <span class="ident">benchmark_with_mp</span></span>(<span>task_name: str,<br>cfg: <a title="biobench.config.Experiment" href="biobench/config.html#biobench.config.Experiment">Experiment</a>) ‑> <a title="biobench.reporting.Report" href="biobench/reporting.html#biobench.reporting.Report">Report</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@beartype.beartype
+def benchmark_with_mp(task_name: str, cfg: config.Experiment) -&gt; reporting.Report:
+    import torch.multiprocessing as mp
+
+    helpers.bump_nofile(512)
+    if mp.get_sharing_strategy() != &#34;file_system&#34;:
+        mp.set_sharing_strategy(&#34;file_system&#34;)
+
+    module = importlib.import_module(f&#34;biobench.{task_name}&#34;)
+    return module.benchmark(cfg)</code></pre>
+</details>
+<div class="desc"></div>
+</dd>
 <dt id="benchmark.main"><code class="name flex">
 <span>def <span class="ident">main</span></span>(<span>cfgs: list[str] = ['configs/neurips.toml'], dry_run: bool = True)</span>
 </code></dt>
@@ -119,7 +140,7 @@ def main(
         for task_name, data_root in cfg.data.to_dict().items():
             # Check that you can get the task_name
             try:
-                module = importlib.import_module(f&#34;biobench.{task_name}&#34;)
+                importlib.import_module(f&#34;biobench.{task_name}&#34;)
             except ModuleNotFoundError:
                 logger.warning(&#34;Could not find task &#39;%s&#39;.&#34;, task_name)
                 continue
@@ -133,7 +154,7 @@ def main(
             elif dry_run:
                 jobs.append(cfg)
             else:
-                job = executor.submit(module.benchmark, cfg)
+                job = executor.submit(benchmark_with_mp, task_name, cfg)
                 jobs.append(job)
 
     if dry_run:
@@ -198,6 +219,7 @@ def main(
 <ul id="index">
 <li><h3><a href="#header-functions">Functions</a></h3>
 <ul class="">
+<li><code><a title="benchmark.benchmark_with_mp" href="#benchmark.benchmark_with_mp">benchmark_with_mp</a></code></li>
 <li><code><a title="benchmark.main" href="#benchmark.main">main</a></code></li>
 </ul>
 </li>

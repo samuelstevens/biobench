@@ -1,35 +1,90 @@
 >>>> CONVENTIONS.md
-Imports: e.g. `import numpy as np`, `import polars as pl`, then always refer to `np.`, `pl.` rather than `from X import *`.
+# Code Style
 
-Type annotations & runtime checks
+- Keep code simple, explicit, typed, test-driven, and ready for automation.
+- Source files are UTF-8 but must contain only ASCII characters. Do not use smart quotes, ellipses, em-dashes, emoji, or other non-ASCII glyphs.
+- Docstrings are a single unwrapped paragraph. Rely on your editor's soft-wrap.
+- Prefer explicit over implicit constructs. No wildcard imports.
 
-  - Every public function or class uses `@beartype.beartype`.
-  - Tensor‑shapes are decorated with `@jaxtyped(typechecker=beartype.beartype)` and static typing via `jaxtyping`.
-  - Data‐holding classes (e.g. `Config`, task `Args`) are `@dataclasses.dataclass(frozen=True)`.
+```python
+import numpy as np
+import polars as pl      # use Polars instead of Pandas
+```
 
-Naming
+Always reference modules by their alias. Never use `from X import *`.
 
-- Classes: `CamelCase` (e.g. `Dataset`, `Args`, `Features`).
-- Functions & variables: `snake_case` (e.g. `download_split`, `md5_of_file`, `chunk_size_kb`).
-- Constants: `UPPER_SNAKE` at module top (e.g. `URLS = {...}`).
+- Decorate every public function or class with `@beartype.beartype`.
+- For tensors, add `@jaxtyped(typechecker=beartype.beartype)` and use `jaxtyping` shapes.
+- Use frozen `@dataclasses.dataclass` for data containers such as `Config` or `Args`.
+- Classes use `CamelCase`, for example `Dataset` or `FeatureExtractor`.
+- Functions and variables use `snake_case`, for example `download_split` or `md5_of_file`.
+- Constants are `UPPER_SNAKE`, defined at module top, for example `URLS = {...}`.
+- File descriptors end in `fd`, for example `log_fd`.
+- File paths end in `_fpath`; directories end in `_dpath`.
+- Constructors follow verb prefixes:
+  - `make_...` returns an object.
+  - `get_...` returns a primitive value such as a string or path.
+  - `setup_...` performs side effects and returns nothing.
 
-Misc
+## Shape-suffix notation
 
-- Use `helpers.progress(...)` for loop progress instead of raw `tqdm`.
-- Module‐level `logger = logging.getLogger(__name__)`, then `logger.info/warning`.
+Attach suffixes to tensor variables to clarify shape:
 
-Download scripts
-- Header block with `/// script` and a `dependencies = [...]` list for self‐documenting prerequisites.
-- Chunked streaming via `requests.get(..., stream=True)` + `tqdm` progress bar.
-- Checksum verification before extraction.
+- B – batch size
+- W – patch grid width
+- H – patch grid height
+- D – feature dimension
+- L – number of latents
+- C – number of classes
 
-File layout & naming
-- One task per folder (`biobench/herbarium19/`) with `download.py` and `__init__.py`.
-- The download script, then the task module implementing `benchmark(cfg)`.
+Example: `acts_BWHD` has shape (batch, width, height, d).
 
-Testing style
-- Pytest with fixtures & parameterization.
-- Hypothesis in helpers tests.
+## Logging and progress bars
+
+```python
+logger = logging.getLogger(__name__)
+logger.info("message")
+
+for x in helpers.progress(dataset):
+    ...
+```
+
+Use `helpers.progress` instead of `tqdm` so that logging is useful in non-interactive contexts (log files, batch jobs, etc).
+
+## 7. Download scripts
+
+- Start each downloader with a header line `/// script` and a `dependencies = [...]` list.
+- Stream with `requests.get(..., stream=True)` and wrap in `tqdm` for progress.
+- Verify checksums before extraction.
+
+## 8. Project layout
+
+Each task lives in its own folder, for example `biobench/herbarium19/`.  
+Inside a task folder:
+
+- `download.py` fetches the dataset.
+- `__init__.py` exposes the task API, including a `benchmark(cfg)` entry point.
+
+## 9. Testing
+
+- Use pytest with fixtures and parameterization.
+- Use Hypothesis for property-based tests, especially in helpers.
+- Mark slow integration tests with `@pytest.mark.slow`.
+
+## 11. Claude Code integration
+
+Create a `CLAUDE.md` in the repo root (or in each sub-project of a monorepo). Claude Code automatically reads it as context. Keep it concise and update it like a prompt. Suggested headings inside `CLAUDE.md`:
+
+```
+# Bash commands
+# Code style
+# Workflow
+# Testing
+# Gotchas
+```
+
+Document new tools or workflows there so teammates inherit them.
+
 
 >>>> README.md
 # Biology Benchmark (`biobench`)
@@ -108,12 +163,12 @@ Because of this, there are two main classes of tasks:
 >>>> REGRESSIONS.md
 # Regressions
 
-Last checked: 2025-04-24
+Last checked: 2025-04-25
 
 **All tests passed**
 # Coverage
 
-Coverage: 919/2891 lines (31.8%)
+Coverage: 1448/3305 lines (43.8%)
 
 >>>> __init__.py
 """ """
@@ -471,34 +526,9 @@ import torchvision.datasets
 from jaxtyping import Float, Shaped, jaxtyped
 from torch import Tensor
 
-from biobench import config, helpers, registry, reporting
+from .. import config, helpers, registry, reporting
 
 logger = logging.getLogger("beluga")
-
-
-@beartype.beartype
-@dataclasses.dataclass(frozen=True)
-class Args:
-    """Configuration for BelugaID task."""
-
-    data: str = ""
-    """dataset directory; where you downloaded this task's data to."""
-    batch_size_cv: int = 256
-    """batch size for computer vision model."""
-    n_workers: int = 8
-    """Number of dataloader workers."""
-    log_every: int = 10
-    """How often to log while getting features."""
-    seed: int = 42
-    """random seed."""
-
-    # Computed at runtime.
-    device: str = "cuda"
-    """(computed at runtime) which kind of accelerator to use."""
-    debug: bool = False
-    """(computed at runtime) whether to run in debug mode."""
-    n_train: int = -1
-    """Number of maximum training samples. Negative number means use all of them."""
 
 
 @beartype.beartype
@@ -518,18 +548,14 @@ def benchmark(cfg: config.Experiment) -> tuple[config.Model, reporting.Report]:
     clf.fit(features.x, y)
     preds = clf.kneighbors(return_distance=False)
 
-    logger.info("Constructing examples.")
     examples = [
         reporting.Prediction(
             str(image_id),
             float(pred == true),
             {"y_pred": pred.item(), "y_true": true.item()},
         )
-        for image_id, pred, true in zip(
-            helpers.progress(features.ids, every=1_000), preds, y
-        )
+        for image_id, pred, true in zip(features.ids, preds, y)
     ]
-    logger.info("%d examples done.", len(examples))
 
     return cfg.model, reporting.Report("BelugaID", examples)
 
@@ -560,7 +586,7 @@ class Features:
 
 @beartype.beartype
 @torch.no_grad
-def get_features(args: Args, backbone: registry.VisionBackbone) -> Features:
+def get_features(cfg: config.Experiment, backbone: registry.VisionBackbone) -> Features:
     """
     Get a block of features from a vision backbone.
 
@@ -588,7 +614,7 @@ def get_features(args: Args, backbone: registry.VisionBackbone) -> Features:
         batch_size=args.batch_size,
         num_workers=args.n_workers,
         drop_last=False,
-        shuffle=True,  # We use dataset.shuffle instead
+        shuffle=False,
         collate_fn=lambda batch: tuple(zip(*batch)),
     )
 
@@ -711,7 +737,6 @@ import collections
 import importlib
 import logging
 import os
-import resource
 
 import beartype
 import submitit
@@ -781,7 +806,7 @@ def main(
         for task_name, data_root in cfg.data.to_dict().items():
             # Check that you can get the task_name
             try:
-                module = importlib.import_module(f"biobench.{task_name}")
+                importlib.import_module(f"biobench.{task_name}")
             except ModuleNotFoundError:
                 logger.warning("Could not find task '%s'.", task_name)
                 continue
@@ -795,7 +820,7 @@ def main(
             elif dry_run:
                 jobs.append(cfg)
             else:
-                job = executor.submit(module.benchmark, cfg)
+                job = executor.submit(benchmark_with_mp, task_name, cfg)
                 jobs.append(job)
 
     if dry_run:
@@ -838,12 +863,19 @@ def main(
     logger.info("Finished.")
 
 
-if __name__ == "__main__":
-    soft, hard = resource.getrlimit(resource.RLIMIT_NOFILE)
-    min_nofile = 1024 * 8
-    if soft < min_nofile:
-        resource.setrlimit(resource.RLIMIT_NOFILE, (min_nofile, hard))
+@beartype.beartype
+def benchmark_with_mp(task_name: str, cfg: config.Experiment) -> reporting.Report:
+    import torch.multiprocessing as mp
 
+    helpers.bump_nofile(512)
+    if mp.get_sharing_strategy() != "file_system":
+        mp.set_sharing_strategy("file_system")
+
+    module = importlib.import_module(f"biobench.{task_name}")
+    return module.benchmark(cfg)
+
+
+if __name__ == "__main__":
     tyro.cli(main)
 
 >>>> confidence-intervals.md
@@ -911,6 +943,8 @@ class Data:
     """Data pathfor the Beluga whale re-ID benchmark."""
     fishnet: str = ""
     """Data path for the FishNet benchmark."""
+    fungiclef: str = ""
+    """Data path for the FungiCLEF benchmark."""
     imagenet1k: str = ""
     """Data path for the ImageNet-1K benchmark. You can put anything (like 'huggingface') because it is downloaded from HF."""
     newt: str = ""
@@ -1302,10 +1336,9 @@ def get_features(
     all_features, all_labels, all_ids = [], [], []
 
     total = len(dataloader) if not cfg.debug else 2
-    it = iter(dataloader)
 
     it = iter(dataloader)
-    for b in helpers.progress(range(total), every=10, desc=file):
+    for b in helpers.progress(range(total), every=10, desc=f"fish/{file}"):
         images, labels, ids = next(it)
         images = images.to(cfg.device)
 
@@ -1477,6 +1510,542 @@ def main(args: Args):
 if __name__ == "__main__":
     main(tyro.cli(Args))
 
+>>>> fungiclef/__init__.py
+"""
+FungiCLEF2023: classify fungal species using Danish Fungi preprocessed images.
+
+Citations:
+```
+@inproceedings{BohemianVRA2023,
+  title={FungiCLEF 2023 challenge evaluation},
+  author={BohemianVRA},
+  booktitle={ImageCLEF},
+  year={2023}
+}
+```
+"""
+
+import dataclasses
+import logging
+import os
+import typing
+
+import beartype
+import numpy as np
+import polars as pl
+import torch
+from jaxtyping import Float, Int, Shaped, jaxtyped
+from PIL import Image
+
+from .. import config, helpers, openset, registry, reporting, simpleshot
+from .metrics import user_loss_score
+
+logger = logging.getLogger("fungiclef")
+
+
+@jaxtyped(typechecker=beartype.beartype)
+@dataclasses.dataclass(frozen=True)
+class Features:
+    x: Float[np.ndarray, "n dim"]
+    y: Int[np.ndarray, " n"]
+    ids: Shaped[np.ndarray, " n"]
+
+
+@beartype.beartype
+class FungiDataset(torch.utils.data.Dataset):
+    def __init__(
+        self,
+        root: str,
+        image_names: np.ndarray,
+        labels: np.ndarray,
+        transform,
+    ):
+        self.root = root
+        self.names = list(image_names)
+        self.labels = labels
+        self.transform = transform
+
+    def __len__(self) -> int:
+        return len(self.names)
+
+    def __getitem__(self, idx: int) -> dict[str, object]:
+        name = self.names[idx]
+        label = int(self.labels[idx])
+        # try exact case, then lowercase
+        p1 = os.path.join(self.root, name)
+        if os.path.exists(p1):
+            path = p1
+        else:
+            p2 = os.path.join(self.root, name.lower())
+            if os.path.exists(p2):
+                path = p2
+                logger.debug("Using lowercase image path for %s", name)
+            else:
+                raise FileNotFoundError(
+                    f"Image '{name}' not found in {self.root} (tried '{p1}', '{p2}')"
+                )
+        img = Image.open(path).convert("RGB")
+        if self.transform:
+            img = self.transform(img)
+        return {"img_id": name, "img": img, "label": label}
+
+
+@beartype.beartype
+def get_features(
+    cfg: config.Experiment,
+    backbone: registry.VisionBackbone,
+    *,
+    split: typing.Literal["train", "val"],
+) -> Features:
+    # read metadata
+    df = pl.read_csv(
+        os.path.join(
+            cfg.data.fungiclef,
+            f"FungiCLEF2023_{split}_metadata_PRODUCTION.csv",
+        )
+    )
+    img_names = df.get_column("image_path").to_numpy()
+    labels = df.get_column("class_id").to_numpy().astype(int)
+
+    # subsample for train
+    if split == "train" and cfg.n_train > 0:
+        idxs = helpers.balanced_random_sample(labels, cfg.n_train)
+        img_names = img_names[idxs]
+        labels = labels[idxs]
+
+    img_dir = os.path.join(
+        cfg.data.fungiclef,
+        "DF20_300" if split == "train" else "DF21_300",
+    )
+    if not os.path.isdir(img_dir):
+        raise RuntimeError(f"Image directory not found: {img_dir}")
+
+    transform = backbone.make_img_transform()
+    dataset = FungiDataset(img_dir, img_names, labels, transform)
+    dataloader = torch.utils.data.DataLoader(
+        dataset,
+        batch_size=cfg.batch_size,
+        shuffle=False,
+        num_workers=cfg.n_workers,
+        pin_memory=True,
+    )
+
+    backbone = torch.compile(backbone.to(cfg.device))
+    feats_list, labs_list, ids_list = [], [], []
+
+    total = len(dataloader) if not cfg.debug else 2
+
+    it = iter(dataloader)
+    for b in helpers.progress(range(total), every=10, desc=f"fungi/{split}"):
+        batch = next(it)
+        imgs = batch["img"].to(cfg.device)
+        with torch.amp.autocast("cuda"):
+            out = backbone.img_encode(imgs).img_features.cpu().numpy()
+        feats_list.append(out)
+        labs_list.append(np.array(batch["label"], dtype=int))
+        ids_list.extend(batch["img_id"])
+
+    x = np.concatenate(feats_list, axis=0)
+    y = np.concatenate(labs_list, axis=0)
+    ids = np.array(ids_list)
+    return Features(x, y, ids)
+
+
+@beartype.beartype
+@torch.no_grad()
+def benchmark(cfg: config.Experiment) -> reporting.Report:
+    backbone = registry.load_vision_backbone(cfg.model)
+    train_feats = get_features(cfg, backbone, split="train", pool=False)
+    val_feats = get_features(cfg, backbone, split="val", pool=True)
+
+    clf = init_clf(cfg)
+    clf = openset.MahalanobisOpenSetClassifier(clf)
+    clf.fit(train_feats.x, train_feats.y)
+
+    preds = clf.predict(val_feats.x)
+
+    # Identify train and test classes
+    train_classes = set(np.unique(train_feats.y))
+
+    examples = [
+        reporting.Prediction(
+            img_id,
+            float(p == t),
+            {"y_pred": int(p), "y_true": int(t), "ood": t not in train_classes},
+        )
+        for img_id, p, t in zip(val_feats.ids, preds, val_feats.y)
+    ]
+    return reporting.Report("fungiclef", examples, cfg)
+
+
+@beartype.beartype
+def init_clf(cfg: config.Experiment):
+    return openset.MahalanobisOpenSetClassifier(
+        simpleshot.SimpleShotClassifier(device="cuda:0")
+    )
+
+
+@beartype.beartype
+def score(preds: list[reporting.Prediction]) -> float:
+    """
+    Return the **User-Focused Loss** used in FungiCLEF:
+        user_loss = classification_error + PSC/ESC cost
+
+    Notes
+    -----
+    * `info['y_true']` and `info['y_pred']` are ints; unknown is –1.
+    * The helper in metrics.py already combines CE and PSC/ESC.
+    """
+    y_true = np.fromiter((p.info["y_true"] for p in preds), dtype=int)
+    y_pred = np.fromiter((p.info["y_pred"] for p in preds), dtype=int)
+    return user_loss_score(y_true, y_pred)
+
+>>>> fungiclef/download.py
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#     "requests",
+#     "tqdm",
+#     "tyro",
+# ]
+# ///
+"""
+Download the FungiCLEF 2023 challenge dataset based on the Danish Fungi 2020 and 2021 preprocessed images and metadata.
+
+Downloads:
+ - Training images (max side size 300px; DF20) [~6.5GB]
+ - Validation + Public Test images (max side size 300px; DF21) [~2.5GB]
+ - Training, Validation, and Public Test metadata CSVs
+"""
+
+import dataclasses
+import os
+import tarfile
+
+import requests
+import tqdm
+import tyro
+
+URLS = {
+    "train_imgs": "http://ptak.felk.cvut.cz/plants/DanishFungiDataset/DF20-300px.tar.gz",
+    "val_imgs": "http://ptak.felk.cvut.cz/plants/DanishFungiDataset/DF21_300px.tar.gz",
+    "train_metadata": "http://ptak.felk.cvut.cz/plants/DanishFungiDataset/FungiCLEF2023_train_metadata_PRODUCTION.csv",
+    "val_metadata": "http://ptak.felk.cvut.cz/plants/DanishFungiDataset/FungiCLEF2023_val_metadata_PRODUCTION.csv",
+}
+
+
+@dataclasses.dataclass(frozen=True)
+class Args:
+    """Configure download options."""
+
+    dir: str = "."
+    """Where to save downloaded archives and extract them."""
+    chunk_size_kb: int = 1024
+    """Download chunk size in KB."""
+    download_train_imgs: bool = True
+    """Whether to download training images (DF20) [~6.5GB]."""
+    download_val_imgs: bool = True
+    """Whether to download validation and public test images (DF21) [~2.5GB]."""
+    download_train_metadata: bool = True
+    """Whether to download training metadata CSV."""
+    download_val_metadata: bool = True
+    """Whether to download validation metadata CSV."""
+    unzip: bool = True
+    """Whether to extract downloaded archives."""
+
+
+def download_file(name: str, url: str, dest_dir: str, chunk_size: int) -> str:
+    os.makedirs(dest_dir, exist_ok=True)
+    filename = os.path.basename(url)
+    dest_path = os.path.join(dest_dir, filename)
+    if os.path.exists(dest_path):
+        print(f"{filename} already exists, skipping download")
+        return dest_path
+    response = requests.get(url, stream=True)
+    response.raise_for_status()
+    total = int(response.headers.get("content-length", 0))
+    with (
+        open(dest_path, "wb") as f,
+        tqdm.tqdm(
+            total=total, unit="B", unit_scale=True, desc=f"Downloading {filename}"
+        ) as bar,
+    ):
+        for chunk in response.iter_content(chunk_size=chunk_size):
+            f.write(chunk)
+            bar.update(len(chunk))
+    return dest_path
+
+
+def extract_file(archive_path: str, dest_dir: str):
+    with tarfile.open(archive_path, "r:gz") as tar:
+        for member in tqdm.tqdm(
+            tar, desc=f"Extracting {os.path.basename(archive_path)}"
+        ):
+            tar.extract(member, path=dest_dir)
+
+
+def main(args: Args):
+    base_dir = args.dir
+    chunk_size = args.chunk_size_kb * 1024
+    for key, url in URLS.items():
+        flag = getattr(args, f"download_{key}")
+        if not flag:
+            continue
+        path = download_file(key, url, base_dir, chunk_size)
+        if args.unzip and key.endswith("_imgs"):
+            extract_file(path, base_dir)
+            print(f"Extracted {key} into {base_dir}")
+
+
+if __name__ == "__main__":
+    main(tyro.cli(Args))
+
+>>>> fungiclef/metrics.py
+"""
+FungiCLEF2023 custom metrics implementation.
+Adapted from BohemianVRA's evaluate.py:
+https://github.com/BohemianVRA/FGVC-Competitions/blob/main/FungiCLEF2023/evaluate.py
+"""
+
+import beartype
+import numpy as np
+import polars as pl
+import sklearn.metrics
+
+# Load poison status via Polars
+_poison_df = pl.read_csv(
+    "http://ptak.felk.cvut.cz/plants/DanishFungiDataset/poison_status_list.csv"
+)
+POISONOUS_SPECIES = (
+    _poison_df.filter(pl.col("poisonous") == 1)
+    .select("class_id")
+    .unique()
+    .to_series()
+    .to_numpy()
+)
+
+
+@beartype.beartype
+def classification_error_with_unknown(
+    y_true: np.ndarray,
+    y_pred: np.ndarray,
+    cost_unknown_mis: float = 10.0,
+    cost_mis_as_unknown: float = 0.1,
+) -> float:
+    """
+    Classification error allowing for an "unknown" class (encoded as -1).
+
+    Args:
+        y_true: ground-truth labels (with -1 for unknown)
+        y_pred: predicted labels (with -1 for unknown)
+        cost_unknown_mis: cost of misclassifying a true unknown as known
+        cost_mis_as_unknown: cost of misclassifying a true known as unknown
+
+    Returns:
+        normalized error rate
+    """
+    is_true_unknown = y_true == -1
+    is_pred_unknown = y_pred == -1
+
+    num_mis_unknown = np.sum(is_true_unknown & ~is_pred_unknown)
+    num_mis_as_unknown = np.sum(~is_true_unknown & is_pred_unknown)
+    num_other = np.sum((y_true != y_pred) & ~is_true_unknown & ~is_pred_unknown)
+    total = y_true.size
+    return (
+        num_other
+        + cost_unknown_mis * num_mis_unknown
+        + cost_mis_as_unknown * num_mis_as_unknown
+    ) / total
+
+
+@beartype.beartype
+def classification_error(y_true: np.ndarray, y_pred: np.ndarray) -> float:
+    """
+    Standard classification error (unknown treated as error equally).
+    """
+    return classification_error_with_unknown(
+        y_true, y_pred, cost_unknown_mis=1.0, cost_mis_as_unknown=1.0
+    )
+
+
+@beartype.beartype
+def num_psc_decisions(y_true: np.ndarray, y_pred: np.ndarray) -> int:
+    """
+    Number of poisonous species incorrectly predicted as non-poisonous.
+    """
+    is_true_poison = np.isin(y_true, POISONOUS_SPECIES)
+    is_pred_poison = np.isin(y_pred, POISONOUS_SPECIES)
+    return int(np.sum(is_true_poison & ~is_pred_poison))
+
+
+@beartype.beartype
+def num_esc_decisions(y_true: np.ndarray, y_pred: np.ndarray) -> int:
+    """
+    Number of non-poisonous species incorrectly predicted as poisonous.
+    """
+    is_true_poison = np.isin(y_true, POISONOUS_SPECIES)
+    is_pred_poison = np.isin(y_pred, POISONOUS_SPECIES)
+    return int(np.sum(~is_true_poison & is_pred_poison))
+
+
+@beartype.beartype
+def psc_esc_cost_score(
+    y_true: np.ndarray,
+    y_pred: np.ndarray,
+    cost_psc: float = 100.0,
+    cost_esc: float = 1.0,
+) -> float:
+    """
+    Weighted cost for poisonousness confusion per sample.
+    """
+    total = y_true.size
+    psc = num_psc_decisions(y_true, y_pred)
+    esc = num_esc_decisions(y_true, y_pred)
+    return (cost_psc * psc + cost_esc * esc) / total
+
+
+@beartype.beartype
+def user_loss_score(y_true: np.ndarray, y_pred: np.ndarray) -> float:
+    ce = classification_error_with_unknown(y_true, y_pred)
+    psc = psc_esc_cost_score(y_true, y_pred)
+    return ce + psc
+
+
+@beartype.beartype
+def evaluate_metrics(y_true: np.ndarray, y_pred: np.ndarray) -> dict[str, float]:
+    """
+    Compute all four FungiCLEF custom metrics plus macro F1.
+
+    Returns:
+        dict with keys:
+            - F1_macro
+            - Classification_Error
+            - PSC_ESC_Cost
+            - User_Focused_Loss
+            - Classification_Error_with_Unknown
+    """
+    f1 = sklearn.metrics.f1_score(y_true, y_pred, average="macro") * 100.0
+    ce = classification_error(y_true, y_pred)
+    psc = psc_esc_cost_score(y_true, y_pred)
+    ce_unk = classification_error_with_unknown(y_true, y_pred)
+    user_loss = ce_unk + psc
+    return {
+        "f1_macro": f1,
+        "ce": ce,
+        "psc_esc_cost": psc,
+        "user_loss": user_loss,
+        "ce_unk": ce_unk,
+    }
+
+>>>> fungiclef/test_metrics.py
+import numpy as np
+import pytest
+from hypothesis import given
+from hypothesis import strategies as st
+
+from . import metrics
+
+
+# Override poisonous species for deterministic testing
+@pytest.fixture(autouse=True)
+def stub_poison(monkeypatch):
+    monkeypatch.setattr(metrics, "POISONOUS_SPECIES", np.array([1, 3]), raising=True)
+
+
+def test_classification_error_all_correct():
+    y = np.array([0, 1, 2, 3])
+    y_pred = y.copy()
+    assert metrics.classification_error(y, y_pred) == 0.0
+    # with unknown costs both = 1 => same
+    assert metrics.classification_error_with_unknown(y, y_pred) == 0.0
+
+
+def test_classification_error_all_wrong():
+    y = np.array([0, 1, 2, 3])
+    y_pred = np.array([4, 5, 6, 7])
+    # all mismatches, cost_unknown_mis=1, cost_mis_as_unknown=1
+    assert metrics.classification_error(y, y_pred) == 1.0
+    # no unknowns => same
+    assert metrics.classification_error_with_unknown(y, y_pred) == 1.0
+
+
+def test_classification_error_with_unknown_edge():
+    y_true = np.array([-1, 10])
+    y_pred = np.array([5, -1])
+    # one true unknown mispredicted (cost 10), one true known predicted unknown (cost 0.1)
+    ce_unk = metrics.classification_error_with_unknown(
+        y_true, y_pred, cost_unknown_mis=10.0, cost_mis_as_unknown=0.1
+    )
+    # (10 + 0.1) / 2 = 5.05
+    assert pytest.approx(ce_unk, abs=1e-6) == 5.05
+    # classification_error uses cost=1,1 => (1 + 1)/2 = 1
+    assert metrics.classification_error(y_true, y_pred) == 1.0
+
+
+def test_num_psc_decisions_and_num_esc_decisions():
+    # with stubbed POISONOUS_SPECIES = [1,3]
+    y_true = np.array([1, 2, 3, 4])
+    y_pred = np.array([2, 3, 4, 1])
+    # true poison at positions 0 and 2; pred poison when pred in [1,3]
+    # pos 0: true poison, pred=2 not poison => PSC
+    # pos 2: true poison, pred=4 not poison => PSC
+    assert metrics.num_psc_decisions(y_true, y_pred) == 2
+    # ESC: non-poison predicted as poison
+    # pos1: true=2 not poison, pred=3 poison => ESC
+    # pos3: true=4 not poison, pred=1 poison => ESC
+    assert metrics.num_esc_decisions(y_true, y_pred) == 2
+
+
+def test_psc_esc_cost_score_default_costs():
+    y_true = np.array([1, 2, 3, 4])
+    y_pred = np.array([2, 3, 4, 1])
+    # PSC=2, ESC=2, cost_psc=100, cost_esc=1 => (200 + 2)/4 = 50.5
+    cost = metrics.psc_esc_cost_score(y_true, y_pred)
+    assert pytest.approx(cost, abs=1e-6) == 50.5
+
+
+def test_evaluate_metrics_basic():
+    # simple balanced case
+    y_true = np.array([0, 1, 2, 3])
+    y_pred = y_true.copy()
+    res = metrics.evaluate_metrics(y_true, y_pred)
+    assert res["f1_macro"] == 100.0
+    assert res["ce"] == 0.0
+    assert res["psc_esc_cost"] == 0.0
+    assert res["user_loss"] == 0.0
+    assert res["ce_unk"] == 0.0
+
+
+def test_all_correct():
+    y = np.arange(5)
+    y_pred = y.copy()
+    assert metrics.classification_error(y, y_pred) == 0.0
+
+
+def test_all_wrong():
+    y = np.arange(5)
+    y_pred = np.arange(5) + 10
+    assert metrics.classification_error(y, y_pred) == 1.0
+
+
+@given(
+    y_true=st.lists(st.integers(min_value=-1, max_value=10), min_size=1, max_size=20),
+    y_pred=st.lists(st.integers(min_value=-1, max_value=10), min_size=1, max_size=20),
+)
+def test_fuzz_raises_or_returns(y_true, y_pred):
+    y_t = np.array(y_true)
+    y_p = np.array(y_pred)
+    try:
+        out = metrics.evaluate_metrics(y_t, y_p)
+        # Expect dict keys and numeric values
+        assert isinstance(out, dict)
+        for k, v in out.items():
+            assert isinstance(k, str)
+            assert isinstance(v, float)
+    except ValueError:
+        # mismatch lengths should raise
+        assert y_t.shape != y_p.shape
+
 >>>> helpers.py
 """
 Useful helpers for more than two tasks that don't fit anywhere else.
@@ -1486,6 +2055,7 @@ import collections
 import collections.abc
 import logging
 import os.path
+import resource
 import time
 
 import beartype
@@ -1672,6 +2242,26 @@ def batched_idx(
         stop = min(start + batch_size, total_size)
         yield start, stop
 
+
+@beartype.beartype
+def bump_nofile(margin: int = 512) -> None:
+    """
+    Make RLIMIT_NOFILE.soft = RLIMIT_NOFILE.hard - margin (if that is higher than the current soft limit).  No change if margin would push soft < 1. Raises RuntimeError if hard ≤ margin.
+    """
+    if margin < 0:
+        raise ValueError("margin must be non-negative")
+
+    soft, hard = resource.getrlimit(resource.RLIMIT_NOFILE)
+
+    if hard <= margin:
+        raise RuntimeError(
+            f"hard limit ({hard}) is <= margin ({margin}); ask an admin to raise the hard limit."
+        )
+
+    target_soft = hard - margin
+    if soft < target_soft:
+        resource.setrlimit(resource.RLIMIT_NOFILE, (target_soft, hard))
+
 >>>> herbarium19/__init__.py
 """
 Herbarium19: classify specimens into species based on the 2019 FGVC6 competition.
@@ -1807,7 +2397,7 @@ def get_features(
     it = iter(dataloader)
 
     all_ids, all_features, all_labels = [], [], []
-    for b in helpers.progress(range(total), every=10, desc=f"embed {split}"):
+    for b in helpers.progress(range(total), every=10, desc=f"hb19/{split}"):
         batch = next(it)
         imgs = batch["img"].to(cfg.device)
 
@@ -1853,7 +2443,7 @@ def init_clf(cfg: config.Experiment):
 >>>> herbarium19/download.py
 # biobench/herbarium19/download.py
 # /// script
-# requires-python = ">=3.11"
+# requires-python = ">=3.12"
 # dependencies = [
 #     "requests",
 #     "tqdm",
@@ -2555,7 +3145,6 @@ def get_features(
     backbone = torch.compile(backbone.to(cfg.device))
     all_features, all_labels, all_ids = [], [], []
 
-    # I don't do `for ... in dataloader` because early breaks were throwing exceptions.
     total = len(dataloader) if not cfg.debug else 2
     it = iter(dataloader)
     for b in helpers.progress(range(total), every=10):
@@ -3870,7 +4459,7 @@ def get_all_tasks(cfg: config.Experiment) -> collections.abc.Iterator[Task]:
     # Need to select just a subset of rows based on cfg.n_train.
     total = len(dataloader) if not cfg.debug else 2
     it = iter(dataloader)
-    for b in helpers.progress(range(total), every=10, desc="embed"):
+    for b in helpers.progress(range(total), every=10, desc="newt"):
         batch = next(it)
         imgs = batch["img"].to(cfg.device)
 
@@ -4101,6 +4690,116 @@ def main(args: Args):
 if __name__ == "__main__":
     main(tyro.cli(Args))
 
+>>>> openset.py
+import beartype
+import numpy as np
+import scipy.stats
+import sklearn.base
+import sklearn.utils.validation
+
+
+@beartype.beartype
+class MahalanobisOpenSetClassifier(
+    sklearn.base.BaseEstimator, sklearn.base.ClassifierMixin
+):
+    """
+    Wraps an arbitrary scikit-learn multiclass estimator with a Mahalanobis out-of-distribution detector.  Unknown samples are assigned `unknown_label`.
+
+    @inproceedings{lee2018simple,
+      title = {A Simple Unified Framework for Detecting Out-of-Distribution Samples and Adversarial Attacks},
+      author = {Lee, Kimin and Lee, Kibok and Lee, Honglak and Shin, Jinwoo},
+      year = 2018,
+      booktitle = {Advances in Neural Information Processing Systems},
+      publisher = {Curran Associates, Inc.},
+      volume = 31,
+      pages = {},
+      url = {https://proceedings.neurips.cc/paper_files/paper/2018/file/abdeb6f575ac5c6676b747bca8d09cc2-Paper.pdf},
+      editor = {S. Bengio and H. Wallach and H. Larochelle and K. Grauman and N. Cesa-Bianchi and R. Garnett}
+    }
+
+
+    Parameters
+    ----------
+    base_estimator : scikit-learn estimator
+        Must implement fit / predict (e.g. a Pipeline with a classifier).
+    alpha : float, default=0.95
+        Confidence level for the chi-squared cutoff; 1-alpha is the tail mass declared OOD.
+    covariance_estimator : {"empirical", "ledoit"}, default="ledoit"
+        Strategy for covariance. "ledoit" is shrinkage‐robust and invertible.
+    unknown_label : int | str, default=-1
+        Label given to detections outside the known set.
+    """
+
+    def __init__(
+        self,
+        base_estimator,
+        alpha: float = 0.95,
+        covariance_estimator: str = "ledoit",
+        unknown_label: int | str = -1,
+    ):
+        self.base_estimator = base_estimator
+        self.alpha = alpha
+        self.covariance_estimator = covariance_estimator
+        self.unknown_label = unknown_label
+
+    # ---------------- #
+    # scikit-learn API #
+    # ---------------- #
+    def fit(self, X, y):
+        X, y = sklearn.utils.validation.check_X_y(X, y, accept_sparse=False)
+        self.classes_ = np.unique(y)
+
+        # 1. fit the wrapped classifier
+        self.clf_ = sklearn.base.clone(self.base_estimator).fit(X, y)
+
+        # 2. compute per-class means
+        self.means_ = np.vstack([X[y == c].mean(axis=0) for c in self.classes_])
+
+        # 3. shared covariance Σ
+        if self.covariance_estimator == "ledoit":
+            cov = sklearn.covariance.LedoitWolf().fit(X)
+            self.Sigma_inv_ = cov.precision_
+        elif self.covariance_estimator == "empirical":
+            Σ = np.cov(X, rowvar=False)
+            self.Sigma_inv_ = np.linalg.pinv(Σ)
+        else:
+            raise ValueError("covariance_estimator must be 'empirical' or 'ledoit'")
+
+        # 4. analytic chi-squared cutoff
+        d = X.shape[1]
+        self.tau_ = scipy.stats.chi2.ppf(self.alpha, df=d)
+        return self
+
+    def predict(self, X):
+        sklearn.utils.validation.check_is_fitted(self, "clf_")
+        X = sklearn.utils.validation.check_array(X, accept_sparse=False)
+
+        # Mahalanobis distance to nearest class mean
+        d2 = self._min_mahala_sq(X)
+        is_in = d2 <= self.tau_
+
+        pred_known = self.clf_.predict(X)
+        pred = np.where(is_in, pred_known, self.unknown_label)
+        return pred
+
+    def decision_function(self, X):
+        """Negative min-Mahalanobis distance (higher = more in-dist)."""
+        sklearn.utils.validation.check_is_fitted(self, "clf_")
+        X = sklearn.utils.validation.check_array(X, accept_sparse=False)
+        return -self._min_mahala_sq(X)
+
+    # ------------------ #
+    # internal utilities #
+    # ------------------ #
+    def _min_mahala_sq(self, X) -> np.ndarray:
+        """
+        Vectorised squared Mahalanobis distance to the *nearest* class mean.
+        """
+        diff = X[:, None, :] - self.means_  # (n, C, d)
+        # (n, C) → min over C → (n,)
+        d2 = np.einsum("ncd,dd,ncd->nc", diff, self.Sigma_inv_, diff).min(axis=1)
+        return d2
+
 >>>> plankton/__init__.py
 """
 Classification of phytoplankton using ridge classifiers.
@@ -4314,7 +5013,7 @@ def get_features(
     it = iter(dataloader)
 
     all_ids, all_features, all_labels = [], [], []
-    for b in helpers.progress(range(total), every=10, desc=f"Embed {split}"):
+    for b in helpers.progress(range(total), every=10, desc=f"plk/{split}"):
         batch = next(it)
         imgs = batch["img"].to(cfg.device)
 
@@ -4627,7 +5326,7 @@ def get_features(
 
     total = len(dataloader) if not cfg.debug else 2
     it = iter(dataloader)
-    for b in helpers.progress(range(total), every=10, desc=f"Embed {split}"):
+    for b in helpers.progress(range(total), every=10, desc=f"plnt/{split}"):
         ids, imgs, labels = next(it)
         imgs = imgs.to(cfg.device)
 
@@ -4840,7 +5539,7 @@ def get_features(args: Args, backbone: registry.VisionBackbone) -> Features:
     total = math.ceil(11984 / args.batch_size) if not args.debug else 2
     it = iter(dataloader)
     logger.debug("Need to embed %d batches of %d images.", total, args.batch_size)
-    for b in helpers.progress(range(total), every=args.log_every, desc="embed"):
+    for b in helpers.progress(range(total), every=args.log_every, desc="rarespecies"):
         batch = next(it)
 
         images = batch["image"].to(args.device)
@@ -5349,18 +6048,68 @@ If you use this work, be sure to cite the original work:
 
 import beartype
 import numpy as np
+import sklearn.base
 import sklearn.neighbors
+import sklearn.utils.validation
 import torch
-from jaxtyping import Float, Int, jaxtyped
-from torch import Tensor
+from jaxtyping import Float, jaxtyped
 
 from . import helpers
 
 
+@beartype.beartype
+class SimpleShotClassifier(sklearn.base.BaseEstimator, sklearn.base.ClassifierMixin):
+    """
+    scikit-learn wrapper for the "normalized nearest-centroid" classifier
+    (a.k.a. SimpleShot, Wang et al. ICCV 2019).
+
+    Parameters
+    ----------
+    device : {'cpu','cuda'} or torch.device, default='cpu'
+        Used only during `predict`; centroids are pushed to this device for fast batched distance computation.
+    """
+
+    def __init__(self, batch_size: int = 2048, device: str | torch.device = "cpu"):
+        self.batch_size = batch_size
+        self.device = torch.device(device)
+
+    def fit(self, X, y):
+        x, y = sklearn.utils.validation.check_X_y(X, y, dtype=np.float32, order="C")
+        # centre the cloud
+        self.x_mean_ = x.mean(axis=0, keepdims=True)
+
+        x = x - self.x_mean_
+        x = l2_normalize(x)
+
+        self.clf_ = sklearn.neighbors.NearestCentroid()
+        self.clf_.fit(x, y)
+        return self
+
+    def predict(self, X):
+        sklearn.utils.validation.check_is_fitted(self, ["clf_", "x_mean_"])
+        x = sklearn.utils.validation.check_array(X, dtype=np.float32, order="C")
+
+        x = x - self.x_mean_
+        x = l2_normalize(x)
+
+        # Do this next step on the GPU to make it fast.
+        # Goes from 1 batch/sec to 77 batch/sec
+        centroids = torch.from_numpy(self.clf_.centroids_).to(self.device)
+        x = x.to(self.device)
+
+        preds = []
+        for start, stop in helpers.batched_idx(len(x), self.batch_size):
+            x_batch = x[start:stop]
+            distances = torch.linalg.vector_norm(x_batch[:, None] - centroids, axis=2)
+            preds.append(torch.argmin(distances, dim=1))
+
+        return np.concatenate(preds, dim=0)
+
+
 @jaxtyped(typechecker=beartype.beartype)
 def l2_normalize(
-    features: Float[Tensor, "n_examples dim"],
-) -> Float[Tensor, "n_examples dim"]:
+    features: Float[np.ndarray, "n_examples dim"],
+) -> Float[np.ndarray, "n_examples dim"]:
     """L2-normalize a batch of features.
 
     Args:
@@ -5371,53 +6120,6 @@ def l2_normalize(
     """
     norms = np.linalg.norm(features, ord=2, axis=1, keepdims=True)
     return features / norms
-
-
-@jaxtyped(typechecker=beartype.beartype)
-def simpleshot(
-    x_train: Float[Tensor, "n_train dim"],
-    y_train: Int[Tensor, " n_train"],
-    x_test: Float[Tensor, "n_test dim"],
-    y_test: Int[Tensor, " n_test"],
-    batch_size: int,
-    device: str,
-) -> Float[Tensor, " n_test"]:
-    """
-    Applies simpleshot to features. Returns the list of scores for x_test.
-
-    Args:
-        ...
-
-    Returns:
-        A tensor of 0/1 scores, one for each test example, only considering exact match.
-    """
-    x_mean = x_train.mean(axis=0, keepdims=True)
-
-    x_train = x_train - x_mean
-    x_train = l2_normalize(x_train)
-
-    x_test = x_test - x_mean
-    x_test = l2_normalize(x_test)
-
-    clf = sklearn.neighbors.NearestCentroid()
-    clf.fit(x_train, y_train)
-
-    # Do this next step on the GPU to make it fast.
-    # Goes from 1 batch/sec to 77 batch/sec
-    centroids = torch.from_numpy(clf.centroids_).to(device)
-    x_test = x_test.to(device)
-    y_test = y_test.to(device)
-
-    scores = []
-    for start, stop in helpers.batched_idx(len(x_test), batch_size):
-        x_batch = x_test[start:stop]
-        y_batch = y_test[start:stop]
-        distances = torch.linalg.vector_norm(x_batch[:, None] - centroids, axis=2)
-        preds = torch.argmin(distances, dim=1)
-
-        scores.append((preds == y_batch).type(torch.float32))
-
-    return torch.cat(scores, axis=0)
 
 >>>> test_aimv2.py
 import pytest
@@ -5756,6 +6458,158 @@ def test_balanced_random_sample_never_duplicates_indices(labels, n):
     assert len(idx) == len(set(idx))
     assert len(idx) == n or len(idx) == len(labels)  # handles n>len(labels)
 
+>>>> test_openset.py
+"""Unit tests for `openset.MahalanobisOpenSetClassifier`."""
+
+import numpy as np
+import pytest
+import sklearn.linear_model
+from hypothesis import given
+from hypothesis import strategies as st
+
+from . import openset
+
+# --------#
+# Helpers #
+# --------#
+
+
+def _simple_classifier():
+    return openset.MahalanobisOpenSetClassifier(
+        base_estimator=sklearn.linear_model.RidgeClassifier(),
+        alpha=0.95,
+        unknown_label=-1,
+    )
+
+
+def _toy_data():
+    """Return a trivially separable 1‑D two‑class dataset."""
+    x = np.array([-2.0, -1.5, -1.0, 1.0, 1.5, 2.0]).reshape(-1, 1)
+    y = np.array([0, 0, 0, 1, 1, 1])
+    return x, y
+
+
+# -----------------------------------------------------------------------------
+# Estimator API test
+# -----------------------------------------------------------------------------
+
+
+def test_estimator_api():
+    clf = _simple_classifier()
+    x, y = _toy_data()
+
+    # scikit‑learn compliance: fit / predict / get_params / set_params
+    assert hasattr(clf, "get_params") and hasattr(clf, "set_params")
+
+    clf.fit(x, y)
+    preds = clf.predict(x)
+
+    # Attributes created by fit
+    for attr in ("clf_", "means_", "Sigma_inv_", "tau_", "classes_"):
+        assert hasattr(clf, attr), f"missing attribute {attr} after fit()"
+
+    # Perfect prediction on training data
+    assert np.array_equal(preds, y)
+
+
+# ----------------------------------------------- #
+# Hypothesis: fuzz for exceptions (fit & predict) #
+# ----------------------------------------------- #
+
+
+@given(
+    n_samples=st.integers(min_value=30, max_value=200),
+    n_features=st.integers(min_value=2, max_value=60),
+    n_classes=st.integers(min_value=2, max_value=40),
+)
+def test_fuzz_no_exceptions(n_samples, n_features, n_classes):
+    rng = np.random.default_rng()
+    x = rng.normal(size=(n_samples, n_features)).astype(np.float32)
+    y = rng.integers(0, n_classes, size=n_samples)
+
+    clf = _simple_classifier()
+    clf.fit(x, y)  # should not raise
+    preds = clf.predict(x)
+
+    assert preds.shape[0] == n_samples
+
+
+# -------------------------------- #
+# Hand‑written deterministic cases #
+# -------------------------------- #
+
+
+@pytest.mark.parametrize(
+    "test_pt, expected",
+    [
+        (np.array([[0.0]]), 0),  # near class‑0 centroid
+        (np.array([[1.2]]), 1),  # near class‑1 centroid
+        (np.array([[100.0]]), -1),  # far away → unknown
+        (np.array([[-50.0]]), -1),  # far other side → unknown
+    ],
+)
+def test_known_vs_unknown(test_pt, expected):
+    x, y = _toy_data()
+    clf = _simple_classifier().fit(x, y)
+    pred = clf.predict(test_pt)[0]
+    assert pred == expected
+
+
+# --------------------------------------------------------------#
+# Property‑based tests that performance is *better than random* #
+# --------------------------------------------------------------#
+
+
+def _make_cluster_data(n_classes=3, pts_per_class=30, d=4, noise=0.05):
+    """Generate tight Gaussian clusters plus a distant OOD cluster."""
+    rng = np.random.default_rng(0)
+    centers = rng.normal(scale=3.0, size=(n_classes, d))
+
+    x_known = []
+    y_known = []
+    for k, c in enumerate(centers):
+        x_known.append(rng.normal(loc=c, scale=noise, size=(pts_per_class, d)))
+        y_known.append(np.full(pts_per_class, k))
+    x_known = np.vstack(x_known)
+    y_known = np.concatenate(y_known)
+
+    # OOD data around a far corner
+    ood_center = np.full(d, 10.0)
+    x_ood = rng.normal(loc=ood_center, scale=noise, size=(pts_per_class, d))
+    y_ood = np.full(pts_per_class, -1)  # unknown label for evaluation
+
+    return (x_known, y_known), (x_ood, y_ood)
+
+
+@pytest.mark.parametrize("seed", [0, 42])
+def test_high_known_accuracy(seed):
+    (x_k, y_k), (x_ood, _) = _make_cluster_data()
+    rng = np.random.default_rng(seed)
+
+    idx = rng.choice(len(x_k), size=60, replace=False)
+    x_train, y_train = x_k[idx], y_k[idx]
+    x_test = np.vstack([x_k, x_ood])
+    y_test = np.concatenate([y_k, np.full(len(x_ood), -1, dtype=y_k.dtype)])
+
+    clf = _simple_classifier().fit(x_train, y_train)
+    preds = clf.predict(x_test)
+
+    # Basic expectations:
+    acc = (preds == y_test).mean()
+    assert acc > 0.8, f"Expected >80 % overall accuracy, got {acc:.2f}"
+
+
+def test_roc_like_property():
+    (x_k, y_k), (x_ood, _) = _make_cluster_data(n_classes=2)
+    x_train, y_train = x_k[:40], y_k[:40]
+    clf = _simple_classifier().fit(x_train, y_train)
+
+    scores = clf.decision_function(np.vstack([x_k, x_ood]))
+
+    # Simple AUC approximation: score separation
+    separation = scores[: len(x_k)].mean() - scores[len(x_k) :].mean()
+    assert separation > 0.5, "Mahalanobis scores should separate ID from OOD"
+
 >>>> test_reporting.py
 import math
 
@@ -5798,6 +6652,46 @@ def test_micro_f1_equals_micro_accuracy(preds):
 
     # Floating math can introduce tiny error, so compare with tolerance
     assert math.isclose(acc, f1, rel_tol=1e-12, abs_tol=1e-12)
+
+>>>> test_smoke.py
+def test_smoke_imports():
+    """Test that all modules can be imported without errors."""
+    import biobench
+    import biobench.aimv2
+    import biobench.config
+    import biobench.fishnet
+    import biobench.fungiclef
+    import biobench.fungiclef.metrics
+    import biobench.helpers
+    import biobench.herbarium19
+    import biobench.inat21
+    import biobench.leopard
+    import biobench.openset
+    import biobench.rarespecies
+    import biobench.registry
+    import biobench.reporting
+    import biobench.simpleshot
+    import biobench.third_party_models
+    import biobench.vjepa
+
+    # Check that key classes/functions exist
+    assert hasattr(biobench.registry, "VisionBackbone")
+    assert hasattr(biobench.config, "Experiment")
+    assert hasattr(biobench.fungiclef, "benchmark")
+
+
+def test_basic_instantiation():
+    """Test that basic objects can be instantiated."""
+    from biobench.config import Data, Experiment, Model
+
+    # Create minimal valid objects
+    model = Model(org="test", ckpt="test")
+    data = Data()
+    experiment = Experiment(model=model, data=data, seed=42)
+
+    # Verify they have expected properties
+    assert experiment.model.org == "test"
+    assert experiment.seed == 42
 
 >>>> test_vjepa.py
 import pytest
