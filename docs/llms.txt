@@ -153,7 +153,7 @@ Last checked: 2025-04-27
 **All tests passed**
 # Coverage
 
-Coverage: 1442/3290 lines (43.8%)
+Coverage: 1899/3304 lines (57.5%)
 
 >>>> __init__.py
 """ """
@@ -1328,7 +1328,7 @@ def get_features(
 
     all_features, all_labels, all_ids = [], [], []
 
-    with helpers.auto_batchsize(cfg, dataloader, probe=probe):
+    with helpers.auto_batch_size(cfg, dataloader, probe=probe):
         total = len(dataloader) if not cfg.debug else 2
         it = iter(dataloader)
         for b in helpers.progress(range(total), every=10, desc=f"fish/{file}"):
@@ -2276,7 +2276,7 @@ def _default_batchsize_schedule(start: int = 2) -> collections.abc.Iterable[int]
 
 @contextlib.contextmanager
 @beartype.beartype
-def auto_batchsize(
+def auto_batch_size(
     cfg: config.Experiment,
     dataloader: torch.utils.data.DataLoader,
     *,
@@ -2351,7 +2351,7 @@ def auto_batchsize(
     gc.collect()  # clears Python refs / fragments
 
     try:
-        yield  # user code runs here with patched batch_size
+        yield ok_bs  # user code runs here with patched batch_size
     finally:
         # always restore original value
         dataloader.batch_sampler.batch_size = orig_bs
@@ -2493,7 +2493,7 @@ def get_features(
             _ = backbone.img_encode(imgs).img_features  # forward only
 
     all_ids, all_features, all_labels = [], [], []
-    with helpers.auto_batchsize(cfg, dataloader, probe=probe):
+    with helpers.auto_batch_size(cfg, dataloader, probe=probe):
         total = len(dataloader) if not cfg.debug else 2
         it = iter(dataloader)
         for b in helpers.progress(range(total), every=10, desc=f"hb19/{split}"):
@@ -2676,9 +2676,11 @@ if __name__ == "__main__":
 import dataclasses
 import logging
 import math
+import warnings
 
 import beartype
 import datasets
+import datasets.formatting.torch_formatter
 import numpy as np
 import sklearn.experimental.enable_halving_search_cv
 import sklearn.linear_model
@@ -2691,6 +2693,13 @@ from jaxtyping import Float, Int, Shaped, jaxtyped
 from biobench import config, helpers, registry, reporting
 
 logger = logging.getLogger("imagenet1k")
+
+warnings.filterwarnings(
+    "ignore",
+    message="To copy construct from a tensor",
+    category=UserWarning,
+    module=datasets.formatting.torch_formatter.__name__,
+)
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -2773,7 +2782,7 @@ def get_features(
         .select(i)
         .to_iterable_dataset(num_shards=n_workers)
         .map(Transform(img_transform))
-        .with_format("torch", columns=["label", "id"])
+        .with_format("torch")
     )
 
     dataloader = torch.utils.data.DataLoader(
@@ -2791,10 +2800,10 @@ def get_features(
         with torch.amp.autocast(cfg.device):
             backbone.img_encode(imgs).img_features
 
-    with helpers.auto_batchsize(cfg, dataloader, probe=probe):
-        total = max(n_workers, math.ceil(len(i) / cfg.batch_size))
+    with helpers.auto_batch_size(cfg, dataloader, probe=probe) as batch_size:
+        total = max(n_workers, math.ceil(len(i) / batch_size))
         it = iter(dataloader)
-        logger.debug("Need to embed %d batches of %d images.", total, cfg.batch_size)
+        logger.debug("Need to embed %d batches of %d images.", total, batch_size)
         for b in helpers.progress(range(total), every=10, desc=f"in1k/{split}"):
             batch = next(it)
 
@@ -4301,8 +4310,7 @@ def get_all_tasks(cfg: config.Experiment) -> collections.abc.Iterator[Task]:
 
     all_features, all_ids = [], []
 
-    # Need to select just a subset of rows based on cfg.n_train.
-    with helpers.auto_batchsize(cfg, dataloader, probe=probe):
+    with helpers.auto_batch_size(cfg, dataloader, probe=probe):
         total = len(dataloader) if not cfg.debug else 2
         it = iter(dataloader)
         for b in helpers.progress(range(total), every=10, desc="newt"):
@@ -4862,7 +4870,7 @@ def get_features(
 
     all_ids, all_features, all_labels = [], [], []
 
-    with helpers.auto_batchsize(cfg, dataloader, probe=probe):
+    with helpers.auto_batch_size(cfg, dataloader, probe=probe):
         total = len(dataloader) if not cfg.debug else 2
         it = iter(dataloader)
         for b in helpers.progress(range(total), every=10, desc=f"plk/{split}"):
@@ -6342,11 +6350,11 @@ def _make_probe(max_ok: int):
     return probe
 
 
-def test_auto_batchsize_ctx_runs_and_restores(dummy_cfg, dataloader):
+def test_auto_batch_size_ctx_runs_and_restores(dummy_cfg, dataloader):
     orig = dataloader.batch_sampler.batch_size
     probe = _make_probe(max_ok=8)  # fail when >8
 
-    with helpers.auto_batchsize(
+    with helpers.auto_batch_size(
         dummy_cfg,
         dataloader,
         probe=probe,
@@ -6365,11 +6373,11 @@ def test_auto_batchsize_ctx_runs_and_restores(dummy_cfg, dataloader):
 @pytest.mark.skipif(
     not torch.cuda.is_available(), reason="only meaningful on a GPU box"
 )
-def test_auto_batchsize_with_gpu(dummy_cfg, dataloader):
+def test_auto_batch_size_with_gpu(dummy_cfg, dataloader):
     """Smoke-test true GPU execution (no artificial OOM)."""
     probe = lambda x: x * 1  # noqa: E731 - trivial forward
 
-    with helpers.auto_batchsize(
+    with helpers.auto_batch_size(
         dummy_cfg,
         dataloader,
         probe=probe,
@@ -6388,7 +6396,7 @@ def test_len_adjusts_with_batch_size(dummy_cfg, dataloader):
 
     probe = _make_probe(max_ok=8)  # tuning will settle on 8
 
-    with helpers.auto_batchsize(
+    with helpers.auto_batch_size(
         dummy_cfg,
         dataloader,
         probe=probe,
@@ -6424,7 +6432,7 @@ def test_invalid_cfg_error_handled(dummy_cfg, dataloader):
     orig = dataloader.batch_sampler.batch_size
     probe = _make_probe_invalid_cfg(max_ok=4)  # fail when >4
 
-    with helpers.auto_batchsize(
+    with helpers.auto_batch_size(
         dummy_cfg,
         dataloader,
         probe=probe,

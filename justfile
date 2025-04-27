@@ -22,6 +22,8 @@ clean:
     rm -f .coverage
     rm -f coverage.json
     rm -f pytest.json
-    rm -rf .hypothesis
-    rm -rf .ruff_cache
-    rm -rf .pytest_cache
+    rm -rf .hypothesis/
+    rm -rf .ruff_cache/
+    rm -rf .pytest_cache/
+    rm -rf results-testing/
+    rm -rf htmlcov/
