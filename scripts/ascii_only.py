@@ -39,14 +39,42 @@ def main(in_paths: list[str]) -> int:
     Returns:
         int: 0 if all files contain only ASCII characters, 1 otherwise.
     """
-    # Change this function/print message to print the line that the non-ascii character is on, along with the actual character, so that it's easier to fix. AI!
     failed = []
     for py in get_python_files(in_paths):
-        txt = py.read_bytes()
         try:
-            txt.decode("ascii")
+            with open(py, 'r', encoding='ascii') as f:
+                for line_num, line in enumerate(f, 1):
+                    pass  # Just checking if any line raises an exception
         except UnicodeDecodeError as e:
-            print(f"{py} contains non-ASCII: {e}")
+            # Get the problematic line and character
+            with open(py, 'r', encoding='utf-8', errors='replace') as f:
+                lines = f.readlines()
+                
+            # Extract error details
+            start = e.start
+            end = e.end
+            bad_byte = e.object[start:end]
+            line_num = 1
+            char_pos = start
+            
+            # Find the line number and character position
+            for i, line in enumerate(lines):
+                if char_pos < len(line):
+                    line_num = i + 1
+                    break
+                char_pos -= len(line)
+            
+            # Get the problematic line
+            problem_line = lines[line_num-1].rstrip('\n')
+            
+            # Create a pointer to the problematic character
+            pointer = ' ' * char_pos + '^'
+            
+            print(f"{py}:{line_num}:{char_pos+1}: Non-ASCII character detected")
+            print(f"  {problem_line}")
+            print(f"  {pointer}")
+            print(f"  Problematic bytes: {bad_byte!r}")
+            
             failed.append(py)
 
     if failed:
