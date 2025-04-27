@@ -13,6 +13,7 @@ types: lint
 
 lint: fmt
     uv run ruff check --fix biobench benchmark.py
+    uv run scripts/ascii_only.py --in-paths benchmark.py biobench/ scripts/ --fix
 
 fmt:
     uv run ruff format --preview .

@@ -2,8 +2,6 @@ import collections.abc
 import dataclasses
 import pathlib
 import sys
-import re
-from typing import Optional
 
 import beartype
 
@@ -47,18 +45,6 @@ mapping = {
     "\u2212": "-",  # minus sign
     # Arrows
     "\u2192": "->",  # right arrow (→)
-    # Scandinavian characters
-    "\u00f6": "o",  # ö
-    "\u00e4": "a",  # ä
-    "\u00c4": "A",  # Ä
-    "\u00d6": "O",  # Ö
-    "\u00e5": "a",  # å
-    "\u00c5": "A",  # Å
-    # Other accented characters
-    "\u00e9": "e",  # é
-    "\u00c9": "E",  # É
-    "\u00fc": "u",  # ü
-    "\u00dc": "U",  # Ü
 }
 
 
@@ -66,14 +52,14 @@ mapping = {
 @dataclasses.dataclass(frozen=True)
 class NonAsciiIssue:
     """Information about a non-ASCII character issue in a file."""
-    
+
     file_path: pathlib.Path
     line_num: int
     char_pos: int
     problem_line: str
     bad_byte: bytes
     unicode_repr: str
-    
+
     def __str__(self) -> str:
         """Format the issue for display."""
         pointer = " " * self.char_pos + "^"
@@ -118,12 +104,12 @@ def get_unicode_escape(bad_byte: bytes) -> str:
 
 
 @beartype.beartype
-def find_non_ascii_issue(py_file: pathlib.Path) -> Optional[NonAsciiIssue]:
+def find_non_ascii_issue(py_file: pathlib.Path) -> NonAsciiIssue | None:
     """Find the first non-ASCII issue in a Python file.
-    
+
     Args:
         py_file: Path to the Python file to check.
-        
+
     Returns:
         NonAsciiIssue if an issue is found, None otherwise.
     """
@@ -153,17 +139,17 @@ def find_non_ascii_issue(py_file: pathlib.Path) -> Optional[NonAsciiIssue]:
 
         # Get the problematic line
         problem_line = lines[line_num - 1].rstrip("\n")
-        
+
         # Get the Unicode escape representation
         unicode_repr = get_unicode_escape(bad_byte)
-        
+
         return NonAsciiIssue(
             file_path=py_file,
             line_num=line_num,
             char_pos=char_pos,
             problem_line=problem_line,
             bad_byte=bad_byte,
-            unicode_repr=unicode_repr
+            unicode_repr=unicode_repr,
         )
 
 
@@ -185,7 +171,7 @@ def main(in_paths: list[str], fix: bool = False) -> int:
 
     for py in get_python_files(in_paths):
         issue = find_non_ascii_issue(py)
-        
+
         if issue:
             # Try to fix the file if requested
             if fix:
