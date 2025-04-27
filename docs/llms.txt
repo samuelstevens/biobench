@@ -8,7 +8,7 @@
 
 ```python
 import numpy as np
-import polars as pl      # use Polars instead of Pandas
+import polars as pl  # use Polars instead of Pandas
 ```
 
 Always reference modules by their alias. Never use `from X import *`.
@@ -51,13 +51,13 @@ for x in helpers.progress(dataset):
 
 Use `helpers.progress` instead of `tqdm` so that logging is useful in non-interactive contexts (log files, batch jobs, etc).
 
-## 7. Download scripts
+# Testing
 
-- Start each downloader with a header line `/// script` and a `dependencies = [...]` list.
-- Stream with `requests.get(..., stream=True)` and wrap in `tqdm` for progress.
-- Verify checksums before extraction.
+- Use pytest with fixtures and parameterization.
+- Use Hypothesis for property-based tests, especially in helpers.
+- Mark slow integration tests with `@pytest.mark.slow`.
 
-## 8. Project layout
+# Project layout
 
 Each task lives in its own folder, for example `biobench/herbarium19/`.  
 Inside a task folder:
@@ -65,26 +65,11 @@ Inside a task folder:
 - `download.py` fetches the dataset.
 - `__init__.py` exposes the task API, including a `benchmark(cfg)` entry point.
 
-## 9. Testing
+## Download scripts
 
-- Use pytest with fixtures and parameterization.
-- Use Hypothesis for property-based tests, especially in helpers.
-- Mark slow integration tests with `@pytest.mark.slow`.
-
-## 11. Claude Code integration
-
-Create a `CLAUDE.md` in the repo root (or in each sub-project of a monorepo). Claude Code automatically reads it as context. Keep it concise and update it like a prompt. Suggested headings inside `CLAUDE.md`:
-
-```
-# Bash commands
-# Code style
-# Workflow
-# Testing
-# Gotchas
-```
-
-Document new tools or workflows there so teammates inherit them.
-
+- Start each downloader with a header line `/// script` and a `dependencies = [...]` list.
+- Stream with `requests.get(..., stream=True)` and wrap in `tqdm` for progress.
+- Verify checksums before extraction.
 
 >>>> README.md
 # Biology Benchmark (`biobench`)
@@ -163,12 +148,12 @@ Because of this, there are two main classes of tasks:
 >>>> REGRESSIONS.md
 # Regressions
 
-Last checked: 2025-04-25
+Last checked: 2025-04-27
 
 **All tests passed**
 # Coverage
 
-Coverage: 1448/3305 lines (43.8%)
+Coverage: 1469/3241 lines (45.3%)
 
 >>>> __init__.py
 """ """
@@ -1693,7 +1678,7 @@ def score(preds: list[reporting.Prediction]) -> float:
 
     Notes
     -----
-    * `info['y_true']` and `info['y_pred']` are ints; unknown is –1.
+    * `info['y_true']` and `info['y_pred']` are ints; unknown is -1.
     * The helper in metrics.py already combines CE and PSC/ESC.
     """
     y_true = np.fromiter((p.info["y_true"] for p in preds), dtype=int)
@@ -2053,14 +2038,20 @@ Useful helpers for more than two tasks that don't fit anywhere else.
 
 import collections
 import collections.abc
+import contextlib
 import logging
 import os.path
 import resource
 import time
+from collections.abc import Iterable
+from typing import Sequence
 
 import beartype
 import numpy as np
+import torch
 from jaxtyping import Int, jaxtyped
+
+from . import config  # already in repo
 
 
 @beartype.beartype
@@ -2246,7 +2237,7 @@ def batched_idx(
 @beartype.beartype
 def bump_nofile(margin: int = 512) -> None:
     """
-    Make RLIMIT_NOFILE.soft = RLIMIT_NOFILE.hard - margin (if that is higher than the current soft limit).  No change if margin would push soft < 1. Raises RuntimeError if hard ≤ margin.
+    Make RLIMIT_NOFILE.soft = RLIMIT_NOFILE.hard - margin (if that is higher than the current soft limit).  No change if margin would push soft < 1. Raises RuntimeError if hard <= margin.
     """
     if margin < 0:
         raise ValueError("margin must be non-negative")
@@ -2261,6 +2252,99 @@ def bump_nofile(margin: int = 512) -> None:
     target_soft = hard - margin
     if soft < target_soft:
         resource.setrlimit(resource.RLIMIT_NOFILE, (target_soft, hard))
+
+
+@beartype.beartype
+def _default_schedule(start: int) -> Iterable[int]:
+    """
+    128, 196, 256, 384, 512, 768, 1024, ... doubling afterwards.
+    Guarantees monotonically increasing values and never repeats *start*.
+    """
+    preset: Sequence[int] = (128, 196, 256, 384, 512, 768, 1024)
+    yield from (bs for bs in preset if bs > start)
+
+    bs = max(preset[-1], start)
+    while True:
+        bs *= 2
+        yield bs
+
+
+@contextlib.contextmanager
+@beartype.beartype
+def best_batch_size(
+    cfg: config.Experiment,
+    dataloader: torch.utils.data.DataLoader,
+    *,
+    probe: collections.abc.Callable[[torch.Tensor], torch.Tensor],
+    schedule: Iterable[int] | None = None,
+):
+    """
+    Context manager that **mutates `dataloader.batch_size` in-place** so you always run with the largest batch that fits GPU RAM.
+
+    Parameters
+    ----------
+    cfg:
+        Usual `Experiment` (only `device` is used).
+    dataloader:
+        The *already constructed* loader you use in your loop. Its `batch_sampler.batch_size` attribute is patched on the fly.
+    probe:
+        A 1-argument callable used to test memory. Typical usage: `lambda x: backbone.img_encode(x).img_features`.
+    schedule:
+        An iterator of candidate batch sizes.  If `None`, use the canonical schedule.
+    """
+    logger = logging.getLogger("var-bsz")
+
+    if dataloader.batch_sampler is None:
+        raise ValueError("dataloader must have a batch_sampler")
+
+    orig_bs = int(dataloader.batch_sampler.batch_size)
+    tried_bs = orig_bs
+    ok_bs = orig_bs
+    schedule_iter = schedule or _default_schedule(orig_bs)
+
+    torch.cuda.empty_cache()  # be nice
+
+    for tried_bs in schedule_iter:
+        # quick sanity: do not create impossible 0-batch situations
+        if tried_bs <= ok_bs:
+            continue
+
+        # patch both public and sampler attrs
+        dataloader.batch_sampler.batch_size = tried_bs
+
+        logger.debug("Trying batch_size=%d", tried_bs)
+
+        # pull ONE mini-batch, send through probe
+        try:
+            batch = next(iter(dataloader))
+            if isinstance(batch, (list, tuple)):
+                images = batch[0]
+            elif isinstance(batch, dict) and "img" in batch:
+                images = batch["img"]
+            else:
+                raise RuntimeError("variable_batch_size: cannot locate images in batch")
+
+            images = images.to(cfg.device, non_blocking=True)
+            with torch.no_grad(), torch.amp.autocast(cfg.device):
+                _ = probe(images)  # forward only; discard output
+
+        except RuntimeError as err:
+            if "out of memory" in str(err).lower():
+                logger.info("OOM at batch_size=%d; reverting to %d", tried_bs, ok_bs)
+                torch.cuda.empty_cache()
+                # restore smaller and stop searching
+                dataloader.batch_sampler.batch_size = ok_bs
+                break
+            raise
+        else:
+            ok_bs = tried_bs
+            logger.debug("batch_size=%d succeeded", ok_bs)
+
+    try:
+        yield  # user code runs here with patched batch_size
+    finally:
+        # always restore original value
+        dataloader.batch_sampler.batch_size = orig_bs
 
 >>>> herbarium19/__init__.py
 """
@@ -3502,269 +3586,6 @@ def aggregate_frames(
     else:
         typing.assert_never(args.frame_agg)
 
->>>> leopard/__init__.py
-"""
-Individual re-identification of African leopards (*Panthera pardus*) using [this LILA BC dataset](https://lila.science/datasets/leopard-id-2022/).
-
-We use a simple but computationally expensive method, first proposed by Andrej Karpathy [in this notebook](https://github.com/karpathy/randomfun/blob/master/knn_vs_svm.ipynb):
-
-1. Embed all images using a vision backbone.
-2. For each image, treat it as a test image and train a new SVC predicting the query image as positive and the other images as negative.
-3. Choose the closest negative image based on the SVC's decision boundary as the returned image.
-4. Give a score of 1.0 if this returned image is the same individual, otherwise 0.0.
-
-Because this method requires training an SVM on every query image, it will train ~6800 SVMs.
-However, this is an embarrassingly parallel task because none of the SVMs depend on each other.
-We use the [joblib](https://joblib.readthedocs.io/en/stable/index.html) library and its `joblib.Parallel` class ([see this guide](https://joblib.readthedocs.io/en/stable/parallel.html)).
-
-With 16 jobs, using multiprocessing, it takes about ~20 minutes on my lab's server.
-With 16 jobs using *threading* it was predicted to take over 80 minutes.
-I let it run for 10 minutes and it was stable in predicting 60+ minutes, so I settled on multiprocessing but with 24 jobs for more speed.
-"""
-
-import dataclasses
-import logging
-import os.path
-
-import beartype
-import joblib
-import numpy as np
-import sklearn.neighbors
-import sklearn.preprocessing
-import torch
-import torchvision.datasets
-from jaxtyping import Float, Shaped, jaxtyped
-from torch import Tensor
-
-from .. import config, helpers, registry, reporting
-
-logger = logging.getLogger("leopard")
-
-
-@beartype.beartype
-@dataclasses.dataclass(frozen=True)
-class Args:
-    """Configuration for Leopard re-ID task."""
-
-    batch_size: int = 256
-    """Batch size for the vision backbone."""
-    n_workers: int = 8
-    """Number of dataloader workers."""
-    log_every: int = 10
-    """How often to log while getting features."""
-    n_jobs: int = 16
-    """How many SVMs to train in parallel."""
-    # Computed at runtime.
-    device: str = "cuda"
-    """(computed at runtime) which kind of accelerator to use."""
-    debug: bool = False
-    """(computed at runtime) whether to run in debug mode."""
-    n_train: int = -1
-    """(computed at runtime) number of maximum training samples. Negative number means use all of them."""
-
-
-@beartype.beartype
-def benchmark(cfg: config.Experiment) -> tuple[config.Model, reporting.Report]:
-    """
-    Run the leopard re-ID benchmark. See this module's documentation for more details.
-    """
-    backbone = registry.load_vision_backbone(cfg.model)
-
-    # Embed all images.
-    features = get_features(cfg, backbone)
-    # Convert string names into integer labels.
-    encoder = sklearn.preprocessing.OrdinalEncoder(dtype=int)
-    y = encoder.fit_transform(features.labels.reshape(-1, 1)).reshape(-1)
-
-    @beartype.beartype
-    def predict(i: int, image_id) -> reporting.Prediction:
-        clf = sklearn.svm.LinearSVC(
-            class_weight="balanced", verbose=False, max_iter=10000, tol=1e-6, C=0.1
-        )
-        svm_y = np.zeros(features.n)
-        svm_y[i] = 1
-        clf.fit(features.x, svm_y)
-        sims = clf.decision_function(features.x)
-        # The top result is always i, but we want the second-best result.
-        pred_i = np.argsort(sims)[1]
-        # TODO: we could also take the top k results and choose the most common.
-        # Something like:
-        #   pred_i = scipy.stats.mode(np.argsort(sims)[1:args.k+1]).mode
-
-        example = reporting.Prediction(str(image_id), float(y[pred_i] == y[i]), {})
-        return example
-
-    examples = joblib.Parallel(n_jobs=cfg.n_jobs)(
-        joblib.delayed(predict)(i, image_id)
-        for i, image_id in enumerate(helpers.progress(features.ids, every=10))
-    )
-
-    return cfg.model, reporting.Report("LeopardID", examples)
-
-
-@jaxtyped(typechecker=beartype.beartype)
-@dataclasses.dataclass(frozen=True)
-class Features:
-    """
-    A block of features.
-
-    Note: In Jax, this could be a tuple of arrays, all with a leading dimension of `n`. Instead, in PyTorch, it's easier to make it its own class. Oh well.
-    """
-
-    x: Float[Tensor, "n dim"]
-    """Input features; from a `biobench.registry.VisionBackbone`."""
-    labels: Shaped[np.ndarray, " n"]
-    """Individual name."""
-    ids: Shaped[np.ndarray, " n"]
-    """Array of image ids."""
-
-    @property
-    def n(self) -> int:
-        return len(self.ids)
-
-
-@beartype.beartype
-@torch.no_grad
-def get_features(args: Args, backbone: registry.VisionBackbone) -> Features:
-    """
-    Get a block of features from a vision backbone.
-
-    Args:
-        args: LeopardID arguments.
-        backbone: visual backbone.
-    """
-    backbone_transform = backbone.make_img_transform()
-    backbone = torch.compile(backbone.to(args.device))
-
-    @jaxtyped(typechecker=beartype.beartype)
-    def sample_transform(
-        img, metadata: list[dict]
-    ) -> tuple[Float[Tensor, "3 w h"], tuple[str, str]]:
-        # tgt is always a list for some reason.
-        metadata = metadata[0]
-        x, y, w, h = metadata["bbox"]
-        img = img.crop((x, y, x + w, y + h))
-        return backbone_transform(img), (metadata["name"], str(metadata["image_id"]))
-
-    if not os.path.isdir(args.datadir):
-        msg = f"Path '{args.datadir}' doesn't exist. Did you download the leopard dataset? See the docstring at the top of this file for instructions. If you did download it, pass the path with '--leopard-args.datadir'; see --help for more."
-        raise ValueError(msg)
-
-    dataset = torchvision.datasets.CocoDetection(
-        os.path.join(args.datadir, "leopard.coco", "images", "train2022"),
-        os.path.join(
-            args.datadir, "leopard.coco", "annotations", "instances_train2022.json"
-        ),
-        transforms=sample_transform,
-    )
-
-    dataloader = torch.utils.data.DataLoader(
-        dataset=dataset,
-        batch_size=args.batch_size,
-        num_workers=args.n_workers,
-        drop_last=False,
-    )
-
-    all_features, all_labels, all_ids = [], [], []
-
-    total = len(dataloader) if not args.debug else 2
-    it = iter(dataloader)
-    for b in helpers.progress(range(total), every=args.log_every, desc="embed"):
-        images, (labels, ids) = next(it)
-        images = images.to(args.device)
-
-        with torch.amp.autocast("cuda"):
-            features = backbone.img_encode(images).img_features
-
-        all_features.append(features.cpu())
-        all_labels.extend(labels)
-        all_ids.extend(ids)
-
-    all_features = torch.cat(all_features, dim=0).cpu()
-    all_labels = np.array(all_labels)
-    all_ids = np.array(all_ids)
-
-    return Features(all_features, all_labels, all_ids)
-
->>>> leopard/download.py
-# /// script
-# requires-python = ">=3.11"
-# dependencies = [
-#     "requests",
-#     "tqdm",
-#     "tyro",
-# ]
-# ///
-"""
-Downloads the leopard re-id dataset from lila.science.
-"""
-
-import dataclasses
-import os
-import tarfile
-
-import requests
-import tqdm
-import tyro
-
-train_url = "http://us-west-2.opendata.source.coop.s3.amazonaws.com/agentmorris/lila-wildlife/wild-me/leopard.coco.tar.gz"
-
-
-@dataclasses.dataclass(frozen=True)
-class Args:
-    """Configuration."""
-
-    dir: str = "."
-    """where to save data."""
-    chunk_size_kb: int = 1
-    """how many KB to download at a time before writing to file."""
-    download: bool = True
-    """whether to download images."""
-    expand: bool = True
-    """whether to expand tarfiles into a folder."""
-
-
-def main(args: Args):
-    """Download and unzip the data."""
-    os.makedirs(args.dir, exist_ok=True)
-
-    chunk_size = int(args.chunk_size_kb * 1024)
-
-    images_tar_path = os.path.join(args.dir, "leopard.coco.tar.gz")
-
-    if args.download:
-        # Download images.
-        r = requests.get(train_url, stream=True)
-        r.raise_for_status()
-
-        t = tqdm.tqdm(
-            total=int(r.headers["content-length"]),
-            unit="B",
-            unit_scale=1,
-            unit_divisor=1024,
-            desc="Downloading images",
-        )
-        with open(images_tar_path, "wb") as fd:
-            for chunk in r.iter_content(chunk_size=chunk_size):
-                fd.write(chunk)
-                t.update(len(chunk))
-        t.close()
-
-        print(f"Downloaded images: {images_tar_path}.")
-
-    if args.expand:
-        with tarfile.open(images_tar_path, "r") as tar:
-            for member in tqdm.tqdm(
-                tar, desc="Extracting images", total=len(tar.getnames())
-            ):
-                tar.extract(member, path=args.dir, filter="data")
-
-        print(f"Extracted images: {args.dir}.")
-
-
-if __name__ == "__main__":
-    main(tyro.cli(Args))
-
 >>>> logbook.md
 # Logbook
 
@@ -4725,7 +4546,7 @@ class MahalanobisOpenSetClassifier(
     alpha : float, default=0.95
         Confidence level for the chi-squared cutoff; 1-alpha is the tail mass declared OOD.
     covariance_estimator : {"empirical", "ledoit"}, default="ledoit"
-        Strategy for covariance. "ledoit" is shrinkage‐robust and invertible.
+        Strategy for covariance. "ledoit" is shrinkage-robust and invertible.
     unknown_label : int | str, default=-1
         Label given to detections outside the known set.
     """
@@ -4755,13 +4576,13 @@ class MahalanobisOpenSetClassifier(
         # 2. compute per-class means
         self.means_ = np.vstack([X[y == c].mean(axis=0) for c in self.classes_])
 
-        # 3. shared covariance Σ
+        # 3. shared covariance
         if self.covariance_estimator == "ledoit":
             cov = sklearn.covariance.LedoitWolf().fit(X)
             self.Sigma_inv_ = cov.precision_
         elif self.covariance_estimator == "empirical":
-            Σ = np.cov(X, rowvar=False)
-            self.Sigma_inv_ = np.linalg.pinv(Σ)
+            cov = np.cov(X, rowvar=False)
+            self.Sigma_inv_ = np.linalg.pinv(cov)
         else:
             raise ValueError("covariance_estimator must be 'empirical' or 'ledoit'")
 
@@ -4796,7 +4617,7 @@ class MahalanobisOpenSetClassifier(
         Vectorised squared Mahalanobis distance to the *nearest* class mean.
         """
         diff = X[:, None, :] - self.means_  # (n, C, d)
-        # (n, C) → min over C → (n,)
+        # (n, C) -> min over C -> (n,)
         d2 = np.einsum("ncd,dd,ncd->nc", diff, self.Sigma_inv_, diff).min(axis=1)
         return d2
 
@@ -4829,7 +4650,7 @@ Training data:
     doi = {10.23728/B2SHARE.ABF913E5A6AD47E6BAA273AE0ED6617A},
     url = {https://b2share.eudat.eu/records/abf913e5a6ad47e6baa273ae0ed6617a},
     author = {Kraft, Kaisa and Velhonoja, Otso and Seppälä, Jukka and Hällfors, Heidi and Suikkanen, Sanna and Ylöstalo, Pasi and Anglès, Sílvia and Kielosto, Sami and Kuosa, Harri and Lehtinen, Sirpa and Oja, Johanna and Tamminen, Timo},
-    keywords = {3.1.21 → Biology → Marine biology, phytoplankton image data set, imaging flow cytometry, Imaging FlowCytobot, IFCB, phytoplankton, Baltic Sea, image data, SYKE, Finnish Environment Institute, Marine Research Centre, Marine Ecological Research Laboratory, plankton image data, FINMARI},
+    keywords = {3.1.21 -> Biology -> Marine biology, phytoplankton image data set, imaging flow cytometry, Imaging FlowCytobot, IFCB, phytoplankton, Baltic Sea, image data, SYKE, Finnish Environment Institute, Marine Research Centre, Marine Ecological Research Laboratory, plankton image data, FINMARI},
     title = {SYKE-plankton_IFCB_2022},
     publisher = {https://b2share.eudat.eu},
     year = {2022},
@@ -4844,7 +4665,7 @@ Evaluation data:
   doi = {10.23728/B2SHARE.7C273B6F409C47E98A868D6517BE3AE3},
   url = {https://b2share.eudat.eu/records/7c273b6f409c47e98a868d6517be3ae3},
   author = {Kraft, Kaisa and Haraguchi, Lumi and Velhonoja, Otso and Seppälä, Jukka},
-  keywords = {3.1.21 → Biology → Marine biology, phytoplankton image data set, imaging flow cytometry, Imaging FlowCytobot, IFCB, Baltic Sea, image data, SYKE, Finnish Environment Institute, Marine Research Centre, Marine Ecological Research Laboratory, plankton image data, FINMARI, phytoplankton},
+  keywords = {3.1.21 -> Biology -> Marine biology, phytoplankton image data set, imaging flow cytometry, Imaging FlowCytobot, IFCB, Baltic Sea, image data, SYKE, Finnish Environment Institute, Marine Research Centre, Marine Ecological Research Laboratory, plankton image data, FINMARI, phytoplankton},
   title = {SYKE-plankton_IFCB_Utö_2021},
   publisher = {https://b2share.eudat.eu},
   year = {2022},
@@ -5131,7 +4952,7 @@ def main(args: Args):
                 zip.extract(member, args.dir)
 
     # Move images to particular split-named folders.
-    val_folder = "phytoplankton_Utö_2021_labeled"
+    val_folder = "phytoplankton_Uto_2021_labeled"
     move(os.path.join(args.dir, val_folder), os.path.join(args.dir, "val"))
     train_folder = "labeled_20201020"
     move(os.path.join(args.dir, train_folder), os.path.join(args.dir, "train"))
@@ -6232,15 +6053,19 @@ def test_load_returns_full_cartesian_product(tmp_path):
 
 >>>> test_helpers.py
 import collections
+import itertools
 
 import beartype
 import hypothesis.extra.numpy as npst
 import numpy as np
+import pytest
+import torch
 from hypothesis import assume, given
 from hypothesis import strategies as st
 from jaxtyping import Int, jaxtyped
+from torch.utils.data import DataLoader, TensorDataset
 
-from . import helpers
+from . import config, helpers
 
 
 @st.composite
@@ -6318,7 +6143,7 @@ def test_fs_safe_idempotent_and_clean(random_text):
 )
 def test_batched_idx_covers_range_without_overlap(total, batch):
     """batched_idx must partition [0,total) into consecutive, non-overlapping spans,
-    each of length ≤ batch."""
+    each of length <= batch."""
     spans = list(helpers.batched_idx(total, batch))
 
     # edge-case: nothing to iterate
@@ -6458,6 +6283,76 @@ def test_balanced_random_sample_never_duplicates_indices(labels, n):
     assert len(idx) == len(set(idx))
     assert len(idx) == n or len(idx) == len(labels)  # handles n>len(labels)
 
+
+@pytest.fixture(scope="session")
+def dummy_cfg():
+    """A minimal Experiment with device picked at runtime."""
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    # only the attrs we touch
+    return config.Experiment(
+        model=config.Model(org="dummy", ckpt="dummy"),
+        device=device,
+    )
+
+
+@pytest.fixture(scope="session")
+def dataloader():
+    # 30 fake RGB images; starting bs = 2
+    data = torch.rand(30, 3, 64, 64)  # small, keeps test fast
+    ds = TensorDataset(data)
+    return DataLoader(ds, batch_size=2, shuffle=False, num_workers=0)
+
+
+def _make_probe(max_ok: int):
+    """
+    Returns a probe that raises a CUDA-style OOM once `x.shape[0] > max_ok`.
+
+    Lets us unit-test logic without allocating real GPU memory.
+    """
+
+    def probe(x: torch.Tensor) -> torch.Tensor:  # noqa: D401
+        if x.shape[0] > max_ok:
+            raise RuntimeError("CUDA out of memory.")  # same substring check
+        return x.mean(dim=0)  # cheap op, correct dtype/device
+
+    return probe
+
+
+def test_best_batch_size_ctx_runs_and_restores(dummy_cfg, dataloader):
+    orig = dataloader.batch_sampler.batch_size
+    probe = _make_probe(max_ok=8)  # fail when >8
+
+    with helpers.best_batch_size(
+        dummy_cfg,
+        dataloader,
+        probe=probe,
+        schedule=(2, 4, 8, 16),  # deterministic
+    ):
+        # context executes arbitrary user code w/out throwing
+        for _ in itertools.islice(dataloader, 3):
+            pass
+        # inside ctx largest successful should be 8
+        assert dataloader.batch_sampler.batch_size == 8
+
+    # after exit, original value restored
+    assert dataloader.batch_sampler.batch_size == orig
+
+
+@pytest.mark.skipif(
+    not torch.cuda.is_available(), reason="only meaningful on a GPU box"
+)
+def test_best_batch_size_with_gpu(dummy_cfg, dataloader):
+    """Smoke-test true GPU execution (no artificial OOM)."""
+    probe = lambda x: x * 1  # noqa: E731 - trivial forward
+
+    with helpers.best_batch_size(
+        dummy_cfg,
+        dataloader,
+        probe=probe,
+        schedule=(2, 4),  # tiny, never OOM
+    ):
+        next(iter(dataloader))  # just ensure no exception
+
 >>>> test_openset.py
 """Unit tests for `openset.MahalanobisOpenSetClassifier`."""
 
@@ -6483,7 +6378,7 @@ def _simple_classifier():
 
 
 def _toy_data():
-    """Return a trivially separable 1‑D two‑class dataset."""
+    """Return a trivially separable 1-D two-class dataset."""
     x = np.array([-2.0, -1.5, -1.0, 1.0, 1.5, 2.0]).reshape(-1, 1)
     y = np.array([0, 0, 0, 1, 1, 1])
     return x, y
@@ -6498,7 +6393,7 @@ def test_estimator_api():
     clf = _simple_classifier()
     x, y = _toy_data()
 
-    # scikit‑learn compliance: fit / predict / get_params / set_params
+    # scikit-learn compliance: fit / predict / get_params / set_params
     assert hasattr(clf, "get_params") and hasattr(clf, "set_params")
 
     clf.fit(x, y)
@@ -6535,17 +6430,17 @@ def test_fuzz_no_exceptions(n_samples, n_features, n_classes):
 
 
 # -------------------------------- #
-# Hand‑written deterministic cases #
+# Hand-written deterministic cases #
 # -------------------------------- #
 
 
 @pytest.mark.parametrize(
     "test_pt, expected",
     [
-        (np.array([[0.0]]), 0),  # near class‑0 centroid
-        (np.array([[1.2]]), 1),  # near class‑1 centroid
-        (np.array([[100.0]]), -1),  # far away → unknown
-        (np.array([[-50.0]]), -1),  # far other side → unknown
+        (np.array([[0.0]]), 0),  # near class-0 centroid
+        (np.array([[1.2]]), 1),  # near class-1 centroid
+        (np.array([[100.0]]), -1),  # far away -> unknown
+        (np.array([[-50.0]]), -1),  # far other side -> unknown
     ],
 )
 def test_known_vs_unknown(test_pt, expected):
@@ -6556,7 +6451,7 @@ def test_known_vs_unknown(test_pt, expected):
 
 
 # --------------------------------------------------------------#
-# Property‑based tests that performance is *better than random* #
+# Property-based tests that performance is *better than random* #
 # --------------------------------------------------------------#
 
 
@@ -6621,10 +6516,10 @@ from . import reporting
 
 @st.composite
 def _prediction_list(draw):
-    """Generate an arbitrary non‑empty list[Prediction] for single‑label multiclass."""
+    """Generate an arbitrary non-empty list[Prediction] for single-label multiclass."""
 
     n = draw(st.integers(min_value=1, max_value=256))
-    # Allow up to 50 distinct class IDs (0‒50) – plenty for the property test.
+    # Allow up to 50 distinct class IDs (0-50) - plenty for the property test.
     y_true = draw(
         st.lists(st.integers(min_value=0, max_value=50), min_size=n, max_size=n)
     )
@@ -6645,7 +6540,7 @@ def _prediction_list(draw):
 
 @given(preds=_prediction_list())
 def test_micro_f1_equals_micro_accuracy(preds):
-    """Micro‑averaged F1 must equal micro accuracy for single‑label data."""
+    """Micro-averaged F1 must equal micro accuracy for single-label data."""
 
     acc = reporting.micro_acc(preds)
     f1 = reporting.micro_f1(preds)
@@ -6665,7 +6560,6 @@ def test_smoke_imports():
     import biobench.helpers
     import biobench.herbarium19
     import biobench.inat21
-    import biobench.leopard
     import biobench.openset
     import biobench.rarespecies
     import biobench.registry
@@ -6996,25 +6890,25 @@ class SAM2(registry.VisionBackbone):
 
 >>>> vjepa.py
 """
-# V‑JEPA *frozen‑feature* backbone port
+# V-JEPA *frozen-feature* backbone port
 
-This file is a self‑contained re‑implementation of the encoder used in *V‑JEPA* (Meta FAIR, 2024) for frozen downstream evaluation.  The design follows the public facebookresearch/jepa reference code but strips it down to the minimum needed for image‑only tasks.
+This file is a self-contained re-implementation of the encoder used in *V-JEPA* (Meta FAIR, 2024) for frozen downstream evaluation. The design follows the public facebookresearch/jepa reference code but strips it down to the minimum needed for image-only tasks.
 
 Key implementation choices
 --------------------------
-1. Most modules are verbatim (or lightly edited for typing/PEP‑8) copies from the upstream repo so that we do *not* depend on the unpublished PyPI package:
+1. Most modules are verbatim (or lightly edited for typing/PEP-8) copies from the upstream repo so that we do *not* depend on the unpublished PyPI package:
 
-2. The official frozen image classification script (https://github.com/facebookresearch/jepa/blob/51c59d518fc63c08464af6de585f78ac0c7ed4d5/evals/image_classification_frozen/eval.py#L451-L455) repeats a still image along the temporal axis before feeding it to the video‑ViT. We reproduce that behaviour with `x = einops.repeat(batch, "b c h w -> b c f h w", f=self.n_frames)` so the model sees a 16‑frame clip of identical images.
+2. The official frozen image classification script (https://github.com/facebookresearch/jepa/blob/51c59d518fc63c08464af6de585f78ac0c7ed4d5/evals/image_classification_frozen/eval.py#L451-L455) repeats a still image along the temporal axis before feeding it to the video-ViT. We reproduce that behaviour with `x = einops.repeat(batch, "b c h w -> b c f h w", f=self.n_frames)` so the model sees a 16-frame clip of identical images.
 
-3. Checkpoints live at `https://dl.fbaipublicfiles.com/jepa/<ckpt>/<ckpt>.pth.tar`. We download them into an `$CACHE/vjepa` sub‑folder (`download()` helper) to avoid git‑annex or HF dependencies.
+3. Checkpoints live at `https://dl.fbaipublicfiles.com/jepa/<ckpt>/<ckpt>.pth.tar`. We download them into an `$CACHE/vjepa` sub-folder (`download()` helper) to avoid git-annex or HF dependencies.
 
-4. Only the EMA target encoder (`state["target_encoder"]`) is loaded, mirroring the authors’ evaluation code.  The usual `module.` prefix is stripped so that the state dict matches our local module names.
+4. Only the EMA target encoder (`state["target_encoder"]`) is loaded, mirroring the authors' evaluation code.  The usual `module.` prefix is stripped so that the state dict matches our local module names.
 
-5. `img_encode()` returns both the full patch grid and a **max‑pooled** global descriptor (`x.max(dim=1).values`).  The attentive classifier used in the paper is *not* re‑implemented here; you can bolt your own head on top of the returned per‑patch features.
+5. `img_encode()` returns both the full patch grid and a **max-pooled** global descriptor (`x.max(dim=1).values`).  The attentive classifier used in the paper is *not* re-implemented here; you can bolt your own head on top of the returned per-patch features.
 
 ## Limitations / divergences from FAIR reference
 
-* No mixed‑precision, distributed training or attentive probe head. This module is encoder‑only.
+* No mixed-precision, distributed training or attentive probe head. This module is encoder-only.
 * Patch/Tubelet shapes are fixed (16x16x2) and `num_frames` is pinned to 16; if you need other variants, expose them through the constructor.
 * Only the three public checkpoints (`vitl16`, `vith16`, `vith16-384`) are supported, but extending to future releases is one line in `__init__`.
 """
