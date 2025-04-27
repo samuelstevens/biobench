@@ -118,11 +118,22 @@ def main(in_paths: list[str], fix: bool = False) -> int:
 
             # Get the Unicode escape representation
             unicode_repr = ""
-            for b in bad_byte:
-                if ord(b) > 127:  # Only process non-ASCII
-                    unicode_repr += f"\\u{ord(b):04x}"
-                else:
-                    unicode_repr += b
+            if isinstance(bad_byte, bytes):
+                # Handle bytes object
+                try:
+                    # Try to decode as UTF-8 to get the character
+                    char = bad_byte.decode('utf-8')
+                    unicode_repr = ''.join(f"\\u{ord(c):04x}" for c in char)
+                except UnicodeDecodeError:
+                    # If we can't decode, just show the byte values
+                    unicode_repr = ''.join(f"\\x{b:02x}" for b in bad_byte)
+            else:
+                # Handle string
+                for c in bad_byte:
+                    if ord(c) > 127:  # Only process non-ASCII
+                        unicode_repr += f"\\u{ord(c):04x}"
+                    else:
+                        unicode_repr += c
 
             print(f"{py}:{line_num}:{char_pos + 1}: Non-ASCII character detected")
             print(f" {problem_line}")
