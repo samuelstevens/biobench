@@ -8,10 +8,10 @@ from . import reporting
 
 @st.composite
 def _prediction_list(draw):
-    """Generate an arbitrary non‑empty list[Prediction] for single‑label multiclass."""
+    """Generate an arbitrary non-empty list[Prediction] for single-label multiclass."""
 
     n = draw(st.integers(min_value=1, max_value=256))
-    # Allow up to 50 distinct class IDs (0‒50) – plenty for the property test.
+    # Allow up to 50 distinct class IDs (0-50) - plenty for the property test.
     y_true = draw(
         st.lists(st.integers(min_value=0, max_value=50), min_size=n, max_size=n)
     )
@@ -32,7 +32,7 @@ def _prediction_list(draw):
 
 @given(preds=_prediction_list())
 def test_micro_f1_equals_micro_accuracy(preds):
-    """Micro‑averaged F1 must equal micro accuracy for single‑label data."""
+    """Micro-averaged F1 must equal micro accuracy for single-label data."""
 
     acc = reporting.micro_acc(preds)
     f1 = reporting.micro_f1(preds)

@@ -16,9 +16,8 @@ from jaxtyping import jaxtyped
 
 from . import config
 
-log_format = "[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s"
-logging.basicConfig(level=logging.INFO, format=log_format)
-logger = logging.getLogger("biobench")
+logger = logging.getLogger(__name__)
+
 schema_fpath = pathlib.Path(__file__).parent / "schema.sql"
 
 

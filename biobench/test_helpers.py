@@ -1,13 +1,18 @@
 import collections
+import itertools
+import math
 
 import beartype
 import hypothesis.extra.numpy as npst
 import numpy as np
+import pytest
+import torch
 from hypothesis import assume, given
 from hypothesis import strategies as st
 from jaxtyping import Int, jaxtyped
+from torch.utils.data import DataLoader, TensorDataset
 
-from . import helpers
+from . import config, helpers
 
 
 @st.composite
@@ -84,8 +89,7 @@ def test_fs_safe_idempotent_and_clean(random_text):
     batch=st.integers(min_value=1, max_value=400),
 )
 def test_batched_idx_covers_range_without_overlap(total, batch):
-    """batched_idx must partition [0,total) into consecutive, non-overlapping spans,
-    each of length ≤ batch."""
+    """batched_idx must partition [0,total) into consecutive, non-overlapping spans, each of length <= batch."""
     spans = list(helpers.batched_idx(total, batch))
 
     # edge-case: nothing to iterate
@@ -224,3 +228,126 @@ def test_balanced_random_sample_never_duplicates_indices(labels, n):
     # uniqueness & length
     assert len(idx) == len(set(idx))
     assert len(idx) == n or len(idx) == len(labels)  # handles n>len(labels)
+
+
+@pytest.fixture(scope="session")
+def dummy_cfg():
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    return config.Experiment(model=config.Model("dummy", "dummy"), device=device)
+
+
+@pytest.fixture(scope="session")
+def dataloader():
+    data = torch.rand(30, 3, 64, 64)  # tiny tensor
+    ds = TensorDataset(data)  # returns tuples (tensor,)
+    return DataLoader(ds, batch_size=2, shuffle=False, num_workers=0)
+
+
+def _make_probe(max_ok: int):
+    """
+    Probe that raises a CUDA-style OOM if the *batch* is larger than `max_ok`.
+    Works on CPU; keeps test independent of real GPU RAM.
+    """
+
+    def probe(batch):
+        imgs = batch[0] if isinstance(batch, (list, tuple)) else batch
+        if imgs.shape[0] > max_ok:
+            raise RuntimeError("CUDA out of memory.")  # substring preserved
+        return imgs.mean()  # cheap op
+
+    return probe
+
+
+def test_auto_batch_size_ctx_runs_and_restores(dummy_cfg, dataloader):
+    orig = dataloader.batch_sampler.batch_size
+    probe = _make_probe(max_ok=8)  # fail when >8
+
+    with helpers.auto_batch_size(
+        dummy_cfg,
+        dataloader,
+        probe=probe,
+        schedule=(2, 4, 8, 16),  # deterministic
+    ):
+        # context executes arbitrary user code w/out throwing
+        for _ in itertools.islice(dataloader, 3):
+            pass
+        # inside ctx largest successful should be 8
+        assert dataloader.batch_sampler.batch_size == 8
+
+    # after exit, original value restored
+    assert dataloader.batch_sampler.batch_size == orig
+
+
+@pytest.mark.skipif(
+    not torch.cuda.is_available(), reason="only meaningful on a GPU box"
+)
+def test_auto_batch_size_with_gpu(dummy_cfg, dataloader):
+    """Smoke-test true GPU execution (no artificial OOM)."""
+    probe = lambda x: x * 1  # noqa: E731 - trivial forward
+
+    with helpers.auto_batch_size(
+        dummy_cfg,
+        dataloader,
+        probe=probe,
+        schedule=(2, 4),  # tiny, never OOM
+    ):
+        next(iter(dataloader))  # just ensure no exception
+
+
+def test_len_adjusts_with_batch_size(dummy_cfg, dataloader):
+    """
+    `len(dataloader)` reflects the tuned batch size inside the CM and restores afterward.
+    """
+    n_samples = len(dataloader.dataset)  # 30
+    orig_bs = dataloader.batch_sampler.batch_size  # 2
+    assert len(dataloader) == math.ceil(n_samples / orig_bs)  # 15
+
+    probe = _make_probe(max_ok=8)  # tuning will settle on 8
+
+    with helpers.auto_batch_size(
+        dummy_cfg,
+        dataloader,
+        probe=probe,
+        schedule=(2, 4, 8, 16),
+    ):
+        tuned_bs = dataloader.batch_sampler.batch_size
+        assert tuned_bs == 8
+
+        inside_len = len(dataloader)
+        assert inside_len == math.ceil(n_samples / tuned_bs)  # 4
+
+    # back to original
+    assert dataloader.batch_sampler.batch_size == orig_bs
+    assert len(dataloader) == math.ceil(n_samples / orig_bs)  # 15
+
+
+def _make_probe_invalid_cfg(max_ok: int):
+    """Probe that mimics timm/efficient-attn 'invalid configuration argument'."""
+
+    def probe(batch):
+        imgs = batch[0]
+        if imgs.shape[0] > max_ok:
+            raise RuntimeError("CUDA error: invalid configuration argument")
+        return imgs.sum()
+
+    return probe
+
+
+def test_invalid_cfg_error_handled(dummy_cfg, dataloader):
+    """
+    Helper treats 'invalid configuration argument' the same as OOM.
+    """
+    orig = dataloader.batch_sampler.batch_size
+    probe = _make_probe_invalid_cfg(max_ok=4)  # fail when >4
+
+    with helpers.auto_batch_size(
+        dummy_cfg,
+        dataloader,
+        probe=probe,
+        schedule=(2, 4, 8),
+    ):
+        # should settle on 4
+        assert dataloader.batch_sampler.batch_size == 4
+
+    # restored afterwards
+    assert dataloader.batch_sampler.batch_size == orig

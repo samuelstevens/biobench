@@ -1,23 +1,23 @@
 """
-# V‑JEPA *frozen‑feature* backbone port
+# V-JEPA *frozen-feature* backbone port
 
-This file is a self‑contained re‑implementation of the encoder used in *V‑JEPA* (Meta FAIR, 2024) for frozen downstream evaluation.  The design follows the public facebookresearch/jepa reference code but strips it down to the minimum needed for image‑only tasks.
+This file is a self-contained re-implementation of the encoder used in *V-JEPA* (Meta FAIR, 2024) for frozen downstream evaluation. The design follows the public facebookresearch/jepa reference code but strips it down to the minimum needed for image-only tasks.
 
 Key implementation choices
 --------------------------
-1. Most modules are verbatim (or lightly edited for typing/PEP‑8) copies from the upstream repo so that we do *not* depend on the unpublished PyPI package:
+1. Most modules are verbatim (or lightly edited for typing/PEP-8) copies from the upstream repo so that we do *not* depend on the unpublished PyPI package:
 
-2. The official frozen image classification script (https://github.com/facebookresearch/jepa/blob/51c59d518fc63c08464af6de585f78ac0c7ed4d5/evals/image_classification_frozen/eval.py#L451-L455) repeats a still image along the temporal axis before feeding it to the video‑ViT. We reproduce that behaviour with `x = einops.repeat(batch, "b c h w -> b c f h w", f=self.n_frames)` so the model sees a 16‑frame clip of identical images.
+2. The official frozen image classification script (https://github.com/facebookresearch/jepa/blob/51c59d518fc63c08464af6de585f78ac0c7ed4d5/evals/image_classification_frozen/eval.py#L451-L455) repeats a still image along the temporal axis before feeding it to the video-ViT. We reproduce that behaviour with `x = einops.repeat(batch, "b c h w -> b c f h w", f=self.n_frames)` so the model sees a 16-frame clip of identical images.
 
-3. Checkpoints live at `https://dl.fbaipublicfiles.com/jepa/<ckpt>/<ckpt>.pth.tar`. We download them into an `$CACHE/vjepa` sub‑folder (`download()` helper) to avoid git‑annex or HF dependencies.
+3. Checkpoints live at `https://dl.fbaipublicfiles.com/jepa/<ckpt>/<ckpt>.pth.tar`. We download them into an `$CACHE/vjepa` sub-folder (`download()` helper) to avoid git-annex or HF dependencies.
 
-4. Only the EMA target encoder (`state["target_encoder"]`) is loaded, mirroring the authors’ evaluation code.  The usual `module.` prefix is stripped so that the state dict matches our local module names.
+4. Only the EMA target encoder (`state["target_encoder"]`) is loaded, mirroring the authors' evaluation code.  The usual `module.` prefix is stripped so that the state dict matches our local module names.
 
-5. `img_encode()` returns both the full patch grid and a **max‑pooled** global descriptor (`x.max(dim=1).values`).  The attentive classifier used in the paper is *not* re‑implemented here; you can bolt your own head on top of the returned per‑patch features.
+5. `img_encode()` returns both the full patch grid and a **max-pooled** global descriptor (`x.max(dim=1).values`).  The attentive classifier used in the paper is *not* re-implemented here; you can bolt your own head on top of the returned per-patch features.
 
 ## Limitations / divergences from FAIR reference
 
-* No mixed‑precision, distributed training or attentive probe head. This module is encoder‑only.
+* No mixed-precision, distributed training or attentive probe head. This module is encoder-only.
 * Patch/Tubelet shapes are fixed (16x16x2) and `num_frames` is pinned to 16; if you need other variants, expose them through the constructor.
 * Only the three public checkpoints (`vitl16`, `vith16`, `vith16-384`) are supported, but extending to future releases is one line in `__init__`.
 """

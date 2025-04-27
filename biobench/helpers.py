@@ -4,13 +4,20 @@ Useful helpers for more than two tasks that don't fit anywhere else.
 
 import collections
 import collections.abc
+import contextlib
+import gc
+import itertools
 import logging
 import os.path
+import resource
 import time
 
 import beartype
 import numpy as np
+import torch
 from jaxtyping import Int, jaxtyped
+
+from . import config
 
 
 @beartype.beartype
@@ -191,3 +198,118 @@ def batched_idx(
     for start in range(0, total_size, batch_size):
         stop = min(start + batch_size, total_size)
         yield start, stop
+
+
+@beartype.beartype
+def bump_nofile(margin: int = 512) -> None:
+    """
+    Make RLIMIT_NOFILE.soft = RLIMIT_NOFILE.hard - margin (if that is higher than the current soft limit).  No change if margin would push soft < 1. Raises RuntimeError if hard <= margin.
+    """
+    if margin < 0:
+        raise ValueError("margin must be non-negative")
+
+    soft, hard = resource.getrlimit(resource.RLIMIT_NOFILE)
+
+    if hard <= margin:
+        raise RuntimeError(
+            f"hard limit ({hard}) is <= margin ({margin}); ask an admin to raise the hard limit."
+        )
+
+    target_soft = hard - margin
+    if soft < target_soft:
+        resource.setrlimit(resource.RLIMIT_NOFILE, (target_soft, hard))
+
+
+@beartype.beartype
+def _default_batchsize_schedule(start: int = 2) -> collections.abc.Iterable[int]:
+    """
+    2, 3, 4, 6, 8, 12, 16, 24, 32, 48, 64, 96, 128, 196, 256, 384, 512, 768, 1024, ...
+    """
+
+    x = start
+    for m in itertools.cycle((3 / 2, 4 / 3)):  # 3/2, 4/3, 3/2, 4/3, ...
+        yield int(x)
+        x *= m
+
+
+@contextlib.contextmanager
+@beartype.beartype
+def auto_batch_size(
+    cfg: config.Experiment,
+    dataloader: torch.utils.data.DataLoader,
+    *,
+    probe: collections.abc.Callable[[torch.Tensor], torch.Tensor],
+    schedule: collections.abc.Iterable[int] | None = None,
+):
+    """
+    Context manager that **mutates `dataloader.batch_size` in-place** so you always run with the largest batch that fits GPU RAM.
+
+    Parameters
+    ----------
+    cfg:
+        Usual `Experiment` (only `device` is used).
+    dataloader:
+        The *already constructed* loader you use in your loop. Its `batch_sampler.batch_size` attribute is patched on the fly.
+    probe:
+        A 1-argument callable used to test memory. Typical usage: `lambda x: backbone.img_encode(x).img_features`.
+    schedule:
+        An iterator of candidate batch sizes.  If `None`, use the canonical schedule.
+    """
+    logger = logging.getLogger("auto-bsz")
+
+    if dataloader.batch_sampler is None:
+        raise ValueError("dataloader must have a batch_sampler")
+
+    orig_bs = int(dataloader.batch_sampler.batch_size)
+    tried_bs = orig_bs
+    ok_bs = orig_bs
+    schedule_iter = schedule or _default_batchsize_schedule(orig_bs)
+
+    torch.cuda.empty_cache()  # be nice
+
+    t_start = time.perf_counter()
+
+    for tried_bs in schedule_iter:
+        # quick sanity: do not create impossible 0-batch situations
+        if tried_bs <= ok_bs:
+            continue
+
+        # patch both public and sampler attrs
+        dataloader.batch_sampler.batch_size = tried_bs
+
+        logger.debug("Trying batch_size=%d", tried_bs)
+
+        # pull ONE mini-batch, send through probe
+        try:
+            batch = next(iter(dataloader))
+            probe(batch)  # forward only; discard output
+
+        except RuntimeError as err:
+            _msg = str(err).lower()
+            oom_signatures = (
+                "out of memory",
+                "cuda error: invalid configuration argument",  # SPM-efficient-attn OOM
+            )
+            if any(sig in _msg for sig in oom_signatures):
+                logger.debug("OOM at batch_size=%d; reverting to %d", tried_bs, ok_bs)
+                torch.cuda.empty_cache()
+                # restore smaller and stop searching
+                dataloader.batch_sampler.batch_size = ok_bs
+                break
+            raise
+        else:
+            ok_bs = tried_bs
+            logger.debug("batch_size=%d succeeded", ok_bs)
+    elapsed = time.perf_counter() - t_start
+    logger.info("Selected batch_size %d after %.2f s", ok_bs, elapsed)
+
+    # Final tidy-up to avoid residual OOMs
+    torch.cuda.empty_cache()
+    torch.cuda.ipc_collect()  # frees cached blocks from other procs
+    gc.collect()  # clears Python refs / fragments
+
+    try:
+        yield ok_bs  # user code runs here with patched batch_size
+    finally:
+        # always restore original value
+        dataloader.batch_sampler.batch_size = orig_bs

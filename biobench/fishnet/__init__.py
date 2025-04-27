@@ -259,21 +259,25 @@ def get_features(
         shuffle=False,
     )
 
+    def probe(batch):
+        imgs = batch["img"].to(cfg.device, non_blocking=True)
+        with torch.amp.autocast(cfg.device):
+            _ = backbone.img_encode(imgs).img_features  # forward only
+
     all_features, all_labels, all_ids = [], [], []
 
-    total = len(dataloader) if not cfg.debug else 2
-    it = iter(dataloader)
+    with helpers.auto_batch_size(cfg, dataloader, probe=probe):
+        total = len(dataloader) if not cfg.debug else 2
+        it = iter(dataloader)
+        for b in helpers.progress(range(total), every=10, desc=f"fish/{file}"):
+            images, labels, ids = next(it)
+            images = images.to(cfg.device)
 
-    it = iter(dataloader)
-    for b in helpers.progress(range(total), every=10, desc=file):
-        images, labels, ids = next(it)
-        images = images.to(cfg.device)
+            features = backbone.img_encode(images).img_features
+            all_features.append(features.cpu())
+            all_labels.append(labels)
 
-        features = backbone.img_encode(images).img_features
-        all_features.append(features.cpu())
-        all_labels.append(labels)
-
-        all_ids.extend(ids)
+            all_ids.extend(ids)
 
     # Keep the Tensor data type for subsequent training
     all_features = torch.cat(all_features, dim=0)

@@ -47,8 +47,8 @@ el.replaceWith(d);
 <section>
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
-<dt id="biobench.helpers.auto_batchsize"><code class="name flex">
-<span>def <span class="ident">auto_batchsize</span></span>(<span>cfg: <a title="biobench.config.Experiment" href="config.html#biobench.config.Experiment">Experiment</a>,<br>dataloader: torch.utils.data.dataloader.DataLoader,<br>*,<br>probe: Callable[[torch.Tensor], torch.Tensor],<br>schedule: collections.abc.Iterable[int] | None = None)</span>
+<dt id="biobench.helpers.auto_batch_size"><code class="name flex">
+<span>def <span class="ident">auto_batch_size</span></span>(<span>cfg: <a title="biobench.config.Experiment" href="config.html#biobench.config.Experiment">Experiment</a>,<br>dataloader: torch.utils.data.dataloader.DataLoader,<br>*,<br>probe: Callable[[torch.Tensor], torch.Tensor],<br>schedule: collections.abc.Iterable[int] | None = None)</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -57,7 +57,7 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">@contextlib.contextmanager
 @beartype.beartype
-def auto_batchsize(
+def auto_batch_size(
     cfg: config.Experiment,
     dataloader: torch.utils.data.DataLoader,
     *,
@@ -132,7 +132,7 @@ def auto_batchsize(
     gc.collect()  # clears Python refs / fragments
 
     try:
-        yield  # user code runs here with patched batch_size
+        yield ok_bs  # user code runs here with patched batch_size
     finally:
         # always restore original value
         dataloader.batch_sampler.batch_size = orig_bs</code></pre>
@@ -452,7 +452,7 @@ class progress:
 </li>
 <li><h3><a href="#header-functions">Functions</a></h3>
 <ul class="">
-<li><code><a title="biobench.helpers.auto_batchsize" href="#biobench.helpers.auto_batchsize">auto_batchsize</a></code></li>
+<li><code><a title="biobench.helpers.auto_batch_size" href="#biobench.helpers.auto_batch_size">auto_batch_size</a></code></li>
 <li><code><a title="biobench.helpers.balanced_random_sample" href="#biobench.helpers.balanced_random_sample">balanced_random_sample</a></code></li>
 <li><code><a title="biobench.helpers.batched_idx" href="#biobench.helpers.batched_idx">batched_idx</a></code></li>
 <li><code><a title="biobench.helpers.bump_nofile" href="#biobench.helpers.bump_nofile">bump_nofile</a></code></li>

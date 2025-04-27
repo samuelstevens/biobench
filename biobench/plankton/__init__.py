@@ -26,7 +26,7 @@ Training data:
     doi = {10.23728/B2SHARE.ABF913E5A6AD47E6BAA273AE0ED6617A},
     url = {https://b2share.eudat.eu/records/abf913e5a6ad47e6baa273ae0ed6617a},
     author = {Kraft, Kaisa and Velhonoja, Otso and Seppälä, Jukka and Hällfors, Heidi and Suikkanen, Sanna and Ylöstalo, Pasi and Anglès, Sílvia and Kielosto, Sami and Kuosa, Harri and Lehtinen, Sirpa and Oja, Johanna and Tamminen, Timo},
-    keywords = {3.1.21 → Biology → Marine biology, phytoplankton image data set, imaging flow cytometry, Imaging FlowCytobot, IFCB, phytoplankton, Baltic Sea, image data, SYKE, Finnish Environment Institute, Marine Research Centre, Marine Ecological Research Laboratory, plankton image data, FINMARI},
+    keywords = {3.1.21 -> Biology -> Marine biology, phytoplankton image data set, imaging flow cytometry, Imaging FlowCytobot, IFCB, phytoplankton, Baltic Sea, image data, SYKE, Finnish Environment Institute, Marine Research Centre, Marine Ecological Research Laboratory, plankton image data, FINMARI},
     title = {SYKE-plankton_IFCB_2022},
     publisher = {https://b2share.eudat.eu},
     year = {2022},
@@ -41,7 +41,7 @@ Evaluation data:
   doi = {10.23728/B2SHARE.7C273B6F409C47E98A868D6517BE3AE3},
   url = {https://b2share.eudat.eu/records/7c273b6f409c47e98a868d6517be3ae3},
   author = {Kraft, Kaisa and Haraguchi, Lumi and Velhonoja, Otso and Seppälä, Jukka},
-  keywords = {3.1.21 → Biology → Marine biology, phytoplankton image data set, imaging flow cytometry, Imaging FlowCytobot, IFCB, Baltic Sea, image data, SYKE, Finnish Environment Institute, Marine Research Centre, Marine Ecological Research Laboratory, plankton image data, FINMARI, phytoplankton},
+  keywords = {3.1.21 -> Biology -> Marine biology, phytoplankton image data set, imaging flow cytometry, Imaging FlowCytobot, IFCB, Baltic Sea, image data, SYKE, Finnish Environment Institute, Marine Research Centre, Marine Ecological Research Laboratory, plankton image data, FINMARI, phytoplankton},
   title = {SYKE-plankton_IFCB_Utö_2021},
   publisher = {https://b2share.eudat.eu},
   year = {2022},
@@ -187,6 +187,8 @@ def get_features(
     images_dir_path = os.path.join(cfg.data.plankton, split)
 
     img_transform = backbone.make_img_transform()
+    backbone = torch.compile(backbone.to(cfg.device))
+
     dataset = Dataset(images_dir_path, img_transform)
 
     if is_train and cfg.n_train > 0:
@@ -204,23 +206,27 @@ def get_features(
         persistent_workers=False,
     )
 
-    backbone = torch.compile(backbone.to(cfg.device))
-
-    total = len(dataloader) if not cfg.debug else 2
-    it = iter(dataloader)
+    def probe(batch):
+        imgs = batch["img"].to(cfg.device, non_blocking=True)
+        with torch.amp.autocast(cfg.device):
+            _ = backbone.img_encode(imgs).img_features  # forward only
 
     all_ids, all_features, all_labels = [], [], []
-    for b in helpers.progress(range(total), every=10, desc=f"Embed {split}"):
-        batch = next(it)
-        imgs = batch["img"].to(cfg.device)
 
-        with torch.amp.autocast("cuda"):
-            features = backbone.img_encode(imgs).img_features
-            all_features.append(features.cpu())
+    with helpers.auto_batch_size(cfg, dataloader, probe=probe):
+        total = len(dataloader) if not cfg.debug else 2
+        it = iter(dataloader)
+        for b in helpers.progress(range(total), every=10, desc=f"plk/{split}"):
+            batch = next(it)
+            imgs = batch["img"].to(cfg.device)
 
-        all_ids.extend(batch["img_id"])
+            with torch.amp.autocast(cfg.device):
+                features = backbone.img_encode(imgs).img_features
+                all_features.append(features.cpu())
 
-        all_labels.extend(batch["label"])
+            all_ids.extend(batch["img_id"])
+
+            all_labels.extend(batch["label"])
 
     all_features = torch.cat(all_features, axis=0).cpu().numpy()
     all_labels = np.array(all_labels)

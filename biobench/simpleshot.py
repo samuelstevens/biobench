@@ -15,18 +15,68 @@ If you use this work, be sure to cite the original work:
 
 import beartype
 import numpy as np
+import sklearn.base
 import sklearn.neighbors
+import sklearn.utils.validation
 import torch
-from jaxtyping import Float, Int, jaxtyped
-from torch import Tensor
+from jaxtyping import Float, jaxtyped
 
 from . import helpers
 
 
+@beartype.beartype
+class SimpleShotClassifier(sklearn.base.BaseEstimator, sklearn.base.ClassifierMixin):
+    """
+    scikit-learn wrapper for the "normalized nearest-centroid" classifier
+    (a.k.a. SimpleShot, Wang et al. ICCV 2019).
+
+    Parameters
+    ----------
+    device : {'cpu','cuda'} or torch.device, default='cpu'
+        Used only during `predict`; centroids are pushed to this device for fast batched distance computation.
+    """
+
+    def __init__(self, batch_size: int = 2048, device: str | torch.device = "cpu"):
+        self.batch_size = batch_size
+        self.device = torch.device(device)
+
+    def fit(self, X, y):
+        x, y = sklearn.utils.validation.check_X_y(X, y, dtype=np.float32, order="C")
+        # centre the cloud
+        self.x_mean_ = x.mean(axis=0, keepdims=True)
+
+        x = x - self.x_mean_
+        x = l2_normalize(x)
+
+        self.clf_ = sklearn.neighbors.NearestCentroid()
+        self.clf_.fit(x, y)
+        return self
+
+    def predict(self, X):
+        sklearn.utils.validation.check_is_fitted(self, ["clf_", "x_mean_"])
+        x = sklearn.utils.validation.check_array(X, dtype=np.float32, order="C")
+
+        x = x - self.x_mean_
+        x = l2_normalize(x)
+
+        # Do this next step on the GPU to make it fast.
+        # Goes from 1 batch/sec to 77 batch/sec
+        centroids = torch.from_numpy(self.clf_.centroids_).to(self.device)
+        x = x.to(self.device)
+
+        preds = []
+        for start, stop in helpers.batched_idx(len(x), self.batch_size):
+            x_batch = x[start:stop]
+            distances = torch.linalg.vector_norm(x_batch[:, None] - centroids, axis=2)
+            preds.append(torch.argmin(distances, dim=1))
+
+        return np.concatenate(preds, dim=0)
+
+
 @jaxtyped(typechecker=beartype.beartype)
 def l2_normalize(
-    features: Float[Tensor, "n_examples dim"],
-) -> Float[Tensor, "n_examples dim"]:
+    features: Float[np.ndarray, "n_examples dim"],
+) -> Float[np.ndarray, "n_examples dim"]:
     """L2-normalize a batch of features.
 
     Args:
@@ -37,50 +87,3 @@ def l2_normalize(
     """
     norms = np.linalg.norm(features, ord=2, axis=1, keepdims=True)
     return features / norms
-
-
-@jaxtyped(typechecker=beartype.beartype)
-def simpleshot(
-    x_train: Float[Tensor, "n_train dim"],
-    y_train: Int[Tensor, " n_train"],
-    x_test: Float[Tensor, "n_test dim"],
-    y_test: Int[Tensor, " n_test"],
-    batch_size: int,
-    device: str,
-) -> Float[Tensor, " n_test"]:
-    """
-    Applies simpleshot to features. Returns the list of scores for x_test.
-
-    Args:
-        ...
-
-    Returns:
-        A tensor of 0/1 scores, one for each test example, only considering exact match.
-    """
-    x_mean = x_train.mean(axis=0, keepdims=True)
-
-    x_train = x_train - x_mean
-    x_train = l2_normalize(x_train)
-
-    x_test = x_test - x_mean
-    x_test = l2_normalize(x_test)
-
-    clf = sklearn.neighbors.NearestCentroid()
-    clf.fit(x_train, y_train)
-
-    # Do this next step on the GPU to make it fast.
-    # Goes from 1 batch/sec to 77 batch/sec
-    centroids = torch.from_numpy(clf.centroids_).to(device)
-    x_test = x_test.to(device)
-    y_test = y_test.to(device)
-
-    scores = []
-    for start, stop in helpers.batched_idx(len(x_test), batch_size):
-        x_batch = x_test[start:stop]
-        y_batch = y_test[start:stop]
-        distances = torch.linalg.vector_norm(x_batch[:, None] - centroids, axis=2)
-        preds = torch.argmin(distances, dim=1)
-
-        scores.append((preds == y_batch).type(torch.float32))
-
-    return torch.cat(scores, axis=0)

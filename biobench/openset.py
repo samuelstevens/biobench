@@ -32,7 +32,7 @@ class MahalanobisOpenSetClassifier(
     alpha : float, default=0.95
         Confidence level for the chi-squared cutoff; 1-alpha is the tail mass declared OOD.
     covariance_estimator : {"empirical", "ledoit"}, default="ledoit"
-        Strategy for covariance. "ledoit" is shrinkage‐robust and invertible.
+        Strategy for covariance. "ledoit" is shrinkage-robust and invertible.
     unknown_label : int | str, default=-1
         Label given to detections outside the known set.
     """
@@ -62,13 +62,13 @@ class MahalanobisOpenSetClassifier(
         # 2. compute per-class means
         self.means_ = np.vstack([X[y == c].mean(axis=0) for c in self.classes_])
 
-        # 3. shared covariance Σ
+        # 3. shared covariance
         if self.covariance_estimator == "ledoit":
             cov = sklearn.covariance.LedoitWolf().fit(X)
             self.Sigma_inv_ = cov.precision_
         elif self.covariance_estimator == "empirical":
-            Σ = np.cov(X, rowvar=False)
-            self.Sigma_inv_ = np.linalg.pinv(Σ)
+            cov = np.cov(X, rowvar=False)
+            self.Sigma_inv_ = np.linalg.pinv(cov)
         else:
             raise ValueError("covariance_estimator must be 'empirical' or 'ledoit'")
 
@@ -103,6 +103,6 @@ class MahalanobisOpenSetClassifier(
         Vectorised squared Mahalanobis distance to the *nearest* class mean.
         """
         diff = X[:, None, :] - self.means_  # (n, C, d)
-        # (n, C) → min over C → (n,)
+        # (n, C) -> min over C -> (n,)
         d2 = np.einsum("ncd,dd,ncd->nc", diff, self.Sigma_inv_, diff).min(axis=1)
         return d2

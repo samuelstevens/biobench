@@ -177,7 +177,7 @@ def get_features(
 
     all_features, all_labels, all_ids = [], [], []
 
-    with helpers.auto_batchsize(cfg, dataloader, probe=probe):
+    with helpers.auto_batch_size(cfg, dataloader, probe=probe):
         total = len(dataloader) if not cfg.debug else 2
         it = iter(dataloader)
         for b in helpers.progress(range(total), every=10, desc=f&#34;fish/{file}&#34;):

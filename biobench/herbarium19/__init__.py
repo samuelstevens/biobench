@@ -128,21 +128,25 @@ def get_features(
 
     backbone = torch.compile(backbone.to(cfg.device))
 
-    total = len(dataloader) if not cfg.debug else 2
-    it = iter(dataloader)
+    def probe(batch):
+        imgs = batch["img"].to(cfg.device, non_blocking=True)
+        with torch.amp.autocast(cfg.device):
+            _ = backbone.img_encode(imgs).img_features  # forward only
 
     all_ids, all_features, all_labels = [], [], []
-    for b in helpers.progress(range(total), every=10, desc=f"embed {split}"):
-        batch = next(it)
-        imgs = batch["img"].to(cfg.device)
+    with helpers.auto_batch_size(cfg, dataloader, probe=probe):
+        total = len(dataloader) if not cfg.debug else 2
+        it = iter(dataloader)
+        for b in helpers.progress(range(total), every=10, desc=f"hb19/{split}"):
+            batch = next(it)
+            imgs = batch["img"].to(cfg.device)
 
-        with torch.amp.autocast("cuda"):
-            features = backbone.img_encode(imgs).img_features
-            all_features.append(features.cpu())
+            with torch.amp.autocast("cuda"):
+                features = backbone.img_encode(imgs).img_features
+                all_features.append(features.cpu())
 
-        all_ids.extend(batch["img_id"])
-
-        all_labels.extend(batch["label"])
+            all_ids.extend(batch["img_id"])
+            all_labels.extend(batch["label"])
 
     all_features = torch.cat(all_features, axis=0).cpu().numpy()
     all_labels = np.array(all_labels)

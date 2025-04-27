@@ -230,7 +230,6 @@ def get_all_tasks(cfg: config.Experiment) -> collections.abc.Iterator[Task]:
 
     dataloader = torch.utils.data.DataLoader(
         dataset,
-        batch_size=cfg.batch_size,
         num_workers=cfg.n_workers,
         drop_last=False,
         shuffle=False,
@@ -238,21 +237,26 @@ def get_all_tasks(cfg: config.Experiment) -> collections.abc.Iterator[Task]:
         persistent_workers=False,
     )
 
+    def probe(batch):
+        imgs = batch["img"].to(cfg.device, non_blocking=True)
+        with torch.amp.autocast(cfg.device):
+            _ = backbone.img_encode(imgs).img_features  # forward only
+
     all_features, all_ids = [], []
 
-    # Need to select just a subset of rows based on cfg.n_train.
-    total = len(dataloader) if not cfg.debug else 2
-    it = iter(dataloader)
-    for b in helpers.progress(range(total), every=10, desc="embed"):
-        batch = next(it)
-        imgs = batch["img"].to(cfg.device)
+    with helpers.auto_batch_size(cfg, dataloader, probe=probe):
+        total = len(dataloader) if not cfg.debug else 2
+        it = iter(dataloader)
+        for b in helpers.progress(range(total), every=10, desc="newt"):
+            batch = next(it)
+            imgs = batch["img"].to(cfg.device)
 
-        with torch.amp.autocast("cuda"):
-            features = backbone.img_encode(imgs).img_features
-            features = torch.nn.functional.normalize(features, dim=-1)
-            all_features.append(features.cpu())
+            with torch.amp.autocast("cuda"):
+                features = backbone.img_encode(imgs).img_features
+                features = torch.nn.functional.normalize(features, dim=-1)
+                all_features.append(features.cpu())
 
-        all_ids.extend(batch["img_id"])
+            all_ids.extend(batch["img_id"])
 
     all_features = torch.cat(all_features, dim=0).cpu()
     all_ids = np.array(all_ids)

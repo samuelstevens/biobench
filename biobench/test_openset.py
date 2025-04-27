@@ -22,7 +22,7 @@ def _simple_classifier():
 
 
 def _toy_data():
-    """Return a trivially separable 1‑D two‑class dataset."""
+    """Return a trivially separable 1-D two-class dataset."""
     x = np.array([-2.0, -1.5, -1.0, 1.0, 1.5, 2.0]).reshape(-1, 1)
     y = np.array([0, 0, 0, 1, 1, 1])
     return x, y
@@ -37,7 +37,7 @@ def test_estimator_api():
     clf = _simple_classifier()
     x, y = _toy_data()
 
-    # scikit‑learn compliance: fit / predict / get_params / set_params
+    # scikit-learn compliance: fit / predict / get_params / set_params
     assert hasattr(clf, "get_params") and hasattr(clf, "set_params")
 
     clf.fit(x, y)
@@ -74,17 +74,17 @@ def test_fuzz_no_exceptions(n_samples, n_features, n_classes):
 
 
 # -------------------------------- #
-# Hand‑written deterministic cases #
+# Hand-written deterministic cases #
 # -------------------------------- #
 
 
 @pytest.mark.parametrize(
     "test_pt, expected",
     [
-        (np.array([[0.0]]), 0),  # near class‑0 centroid
-        (np.array([[1.2]]), 1),  # near class‑1 centroid
-        (np.array([[100.0]]), -1),  # far away → unknown
-        (np.array([[-50.0]]), -1),  # far other side → unknown
+        (np.array([[0.0]]), 0),  # near class-0 centroid
+        (np.array([[1.2]]), 1),  # near class-1 centroid
+        (np.array([[100.0]]), -1),  # far away -> unknown
+        (np.array([[-50.0]]), -1),  # far other side -> unknown
     ],
 )
 def test_known_vs_unknown(test_pt, expected):
@@ -95,7 +95,7 @@ def test_known_vs_unknown(test_pt, expected):
 
 
 # --------------------------------------------------------------#
-# Property‑based tests that performance is *better than random* #
+# Property-based tests that performance is *better than random* #
 # --------------------------------------------------------------#
 
 

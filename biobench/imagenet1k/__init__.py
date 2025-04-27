@@ -3,9 +3,11 @@
 import dataclasses
 import logging
 import math
+import warnings
 
 import beartype
 import datasets
+import datasets.formatting.torch_formatter
 import numpy as np
 import sklearn.experimental.enable_halving_search_cv
 import sklearn.linear_model
@@ -18,6 +20,13 @@ from jaxtyping import Float, Int, Shaped, jaxtyped
 from biobench import config, helpers, registry, reporting
 
 logger = logging.getLogger("imagenet1k")
+
+warnings.filterwarnings(
+    "ignore",
+    message="To copy construct from a tensor",
+    category=UserWarning,
+    module=datasets.formatting.torch_formatter.__name__,
+)
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -113,20 +122,26 @@ def get_features(
 
     all_features, all_labels, all_ids = [], [], []
 
-    total = max(n_workers, math.ceil(len(i) / cfg.batch_size))
-    it = iter(dataloader)
-    logger.debug("Need to embed %d batches of %d images.", total, cfg.batch_size)
-    for b in helpers.progress(range(total), every=10, desc=f"in1k/{split}"):
-        batch = next(it)
+    def probe(batch):
+        imgs = batch["image"].to(cfg.device, non_blocking=True)
+        with torch.amp.autocast(cfg.device):
+            backbone.img_encode(imgs).img_features
 
-        images = batch["image"].to(cfg.device)
+    with helpers.auto_batch_size(cfg, dataloader, probe=probe) as batch_size:
+        total = max(n_workers, math.ceil(len(i) / batch_size))
+        it = iter(dataloader)
+        logger.debug("Need to embed %d batches of %d images.", total, batch_size)
+        for b in helpers.progress(range(total), every=10, desc=f"in1k/{split}"):
+            batch = next(it)
 
-        with torch.amp.autocast("cuda"):
-            features = backbone.img_encode(images).img_features
+            images = batch["image"].to(cfg.device, non_blocking=True)
 
-        all_features.append(features.cpu())
-        all_labels.extend(batch["label"])
-        all_ids.extend(batch["id"])
+            with torch.amp.autocast(cfg.device):
+                features = backbone.img_encode(images).img_features
+
+            all_features.append(features.cpu())
+            all_labels.extend(batch["label"])
+            all_ids.extend(batch["id"])
 
     all_features = torch.cat(all_features, dim=0).cpu().numpy()
     all_ids = np.array(all_ids)

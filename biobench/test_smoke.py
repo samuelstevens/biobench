@@ -2,15 +2,28 @@ def test_smoke_imports():
     """Test that all modules can be imported without errors."""
     import biobench
     import biobench.aimv2
+    import biobench.beluga
+    import biobench.beluga.download
     import biobench.config
     import biobench.fishnet
+    import biobench.fishnet.download
     import biobench.fungiclef
+    import biobench.fungiclef.download
     import biobench.fungiclef.metrics
     import biobench.helpers
     import biobench.herbarium19
+    import biobench.herbarium19.download
     import biobench.inat21
-    import biobench.leopard
+    import biobench.inat21.download
+    import biobench.iwildcam
+    import biobench.iwildcam.download
+    import biobench.newt
+    import biobench.newt.download
     import biobench.openset
+    import biobench.plankton
+    import biobench.plankton.download
+    import biobench.plantnet
+    import biobench.plantnet.download
     import biobench.rarespecies
     import biobench.registry
     import biobench.reporting
