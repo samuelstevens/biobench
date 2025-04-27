@@ -1,12 +1,12 @@
+import collections.abc
 import pathlib
 import sys
-from collections.abc import Iterator
 
 import beartype
 
 
 @beartype.beartype
-def get_python_files(paths: list[str]) -> Iterator[pathlib.Path]:
+def get_python_files(paths: list[str]) -> collections.abc.Iterator[pathlib.Path]:
     """Get all Python files from a list of paths.
 
     If a path is a directory, recursively find all Python files within it. If a path is a file, include it only if it's a Python file.
@@ -39,6 +39,7 @@ def main(in_paths: list[str]) -> int:
     Returns:
         int: 0 if all files contain only ASCII characters, 1 otherwise.
     """
+    # Change this function/print message to print the line that the non-ascii character is on, along with the actual character, so that it's easier to fix. AI!
     failed = []
     for py in get_python_files(in_paths):
         txt = py.read_bytes()
@@ -49,7 +50,7 @@ def main(in_paths: list[str]) -> int:
             failed.append(py)
 
     if failed:
-        return 1
+        return len(failed)
 
     print("All clear: no non-ASCII characters found.", file=sys.stderr)
     return 0
