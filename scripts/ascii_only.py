@@ -136,7 +136,7 @@ def main(in_paths: list[str], fix: bool = False) -> int:
                 # For bytes, we need to decode them properly to get the Unicode code points
                 try:
                     # First try UTF-8 decoding
-                    char = bad_byte.decode('utf-8')
+                    char = bad_byte.decode("utf-8")
                     for c in char:
                         if ord(c) > 127:  # Only process non-ASCII
                             unicode_repr += f"\\u{ord(c):04x}"
@@ -144,7 +144,7 @@ def main(in_paths: list[str], fix: bool = False) -> int:
                             unicode_repr += c
                 except UnicodeDecodeError:
                     # If UTF-8 fails, try Latin-1 which always succeeds
-                    char = bad_byte.decode('latin-1')
+                    char = bad_byte.decode("latin-1")
                     for c in char:
                         if ord(c) > 127:  # Only process non-ASCII
                             unicode_repr += f"\\u{ord(c):04x}"
