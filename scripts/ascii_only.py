@@ -43,6 +43,20 @@ mapping = {
     # Hyphens and dashes that appear in the errors
     "\u2010": "-",  # hyphen
     "\u2212": "-",  # minus sign
+    # Arrows
+    "\u2192": "->",  # right arrow (→)
+    # Scandinavian characters
+    "\u00f6": "o",  # ö
+    "\u00e4": "a",  # ä
+    "\u00c4": "A",  # Ä
+    "\u00d6": "O",  # Ö
+    "\u00e5": "a",  # å
+    "\u00c5": "A",  # Å
+    # Other accented characters
+    "\u00e9": "e",  # é
+    "\u00c9": "E",  # É
+    "\u00fc": "u",  # ü
+    "\u00dc": "U",  # Ü
 }
 
 
@@ -119,14 +133,23 @@ def main(in_paths: list[str], fix: bool = False) -> int:
             # Get the Unicode escape representation
             unicode_repr = ""
             if isinstance(bad_byte, bytes):
-                # Handle bytes object
+                # For bytes, we need to decode them properly to get the Unicode code points
                 try:
-                    # Try to decode as UTF-8 to get the character
+                    # First try UTF-8 decoding
                     char = bad_byte.decode('utf-8')
-                    unicode_repr = ''.join(f"\\u{ord(c):04x}" for c in char)
+                    for c in char:
+                        if ord(c) > 127:  # Only process non-ASCII
+                            unicode_repr += f"\\u{ord(c):04x}"
+                        else:
+                            unicode_repr += c
                 except UnicodeDecodeError:
-                    # If we can't decode, just show the byte values
-                    unicode_repr = ''.join(f"\\x{b:02x}" for b in bad_byte)
+                    # If UTF-8 fails, try Latin-1 which always succeeds
+                    char = bad_byte.decode('latin-1')
+                    for c in char:
+                        if ord(c) > 127:  # Only process non-ASCII
+                            unicode_repr += f"\\u{ord(c):04x}"
+                        else:
+                            unicode_repr += c
             else:
                 # Handle string
                 for c in bad_byte:
