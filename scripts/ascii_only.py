@@ -1,22 +1,22 @@
 import pathlib
 import sys
-import os
+
 import beartype
 
 
 @beartype.beartype
 def get_python_files(paths: list[str]) -> list[pathlib.Path]:
     """Get all Python files from a list of paths.
-    
-    If a path is a directory, recursively find all Python files within it.
-    If a path is a file, include it only if it's a Python file.
-    
+
+    If a path is a directory, recursively find all Python files within it. If a path is a file, include it only if it's a Python file.
+
     Args:
         paths: List of file or directory paths to process.
-        
+
     Returns:
         List of Path objects for Python files.
     """
+    # Change this to a generator that yields paths to reduce total memory usage. Use collections.abc to properly type the signature. AI!
     python_files = []
     for path_str in paths:
         path = pathlib.Path(path_str)
@@ -44,11 +44,11 @@ def main(in_paths: list[str]) -> int:
     failed = []
     for py in get_python_files(in_paths):
         txt = py.read_bytes()
-            try:
-                txt.decode("ascii")
-            except UnicodeDecodeError as e:
-                print(f"{py} contains non-ASCII: {e}")
-                failed.append(py)
+        try:
+            txt.decode("ascii")
+        except UnicodeDecodeError as e:
+            print(f"{py} contains non-ASCII: {e}")
+            failed.append(py)
 
     if failed:
         return 1
