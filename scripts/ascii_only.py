@@ -1,7 +1,9 @@
 import collections.abc
+import dataclasses
 import pathlib
 import sys
 import re
+from typing import Optional
 
 import beartype
 
@@ -61,11 +63,108 @@ mapping = {
 
 
 @beartype.beartype
+@dataclasses.dataclass(frozen=True)
+class NonAsciiIssue:
+    """Information about a non-ASCII character issue in a file."""
+    
+    file_path: pathlib.Path
+    line_num: int
+    char_pos: int
+    problem_line: str
+    bad_byte: bytes
+    unicode_repr: str
+    
+    def __str__(self) -> str:
+        """Format the issue for display."""
+        pointer = " " * self.char_pos + "^"
+        return (
+            f"{self.file_path}:{self.line_num}:{self.char_pos + 1}: Non-ASCII character detected\n"
+            f" {self.problem_line}\n"
+            f" {pointer}\n"
+            f" Problematic bytes: {self.bad_byte!r}\n"
+            f" Unicode escape: {self.unicode_repr}"
+        )
+
+
+@beartype.beartype
 def fix_non_ascii(content: str) -> str:
     """Replace non-ASCII characters with their ASCII equivalents."""
     for non_ascii, ascii_replacement in mapping.items():
         content = content.replace(non_ascii, ascii_replacement)
     return content
+
+
+@beartype.beartype
+def get_unicode_escape(bad_byte: bytes) -> str:
+    """Convert bytes to Unicode escape representation."""
+    unicode_repr = ""
+    try:
+        # First try UTF-8 decoding
+        char = bad_byte.decode("utf-8")
+        for c in char:
+            if ord(c) > 127:  # Only process non-ASCII
+                unicode_repr += f"\\u{ord(c):04x}"
+            else:
+                unicode_repr += c
+    except UnicodeDecodeError:
+        # If UTF-8 fails, try Latin-1 which always succeeds
+        char = bad_byte.decode("latin-1")
+        for c in char:
+            if ord(c) > 127:  # Only process non-ASCII
+                unicode_repr += f"\\u{ord(c):04x}"
+            else:
+                unicode_repr += c
+    return unicode_repr
+
+
+@beartype.beartype
+def find_non_ascii_issue(py_file: pathlib.Path) -> Optional[NonAsciiIssue]:
+    """Find the first non-ASCII issue in a Python file.
+    
+    Args:
+        py_file: Path to the Python file to check.
+        
+    Returns:
+        NonAsciiIssue if an issue is found, None otherwise.
+    """
+    try:
+        with open(py_file, "r", encoding="ascii") as f:
+            for line_num, line in enumerate(f, 1):
+                pass  # Just checking if any line raises an exception
+        return None  # No issues found
+    except UnicodeDecodeError as e:
+        # Get the problematic line and character
+        with open(py_file, "r", encoding="utf-8", errors="replace") as f:
+            lines = f.readlines()
+
+        # Extract error details
+        start = e.start
+        end = e.end
+        bad_byte = e.object[start:end]
+        line_num = 1
+        char_pos = start
+
+        # Find the line number and character position
+        for i, line in enumerate(lines):
+            if char_pos < len(line):
+                line_num = i + 1
+                break
+            char_pos -= len(line)
+
+        # Get the problematic line
+        problem_line = lines[line_num - 1].rstrip("\n")
+        
+        # Get the Unicode escape representation
+        unicode_repr = get_unicode_escape(bad_byte)
+        
+        return NonAsciiIssue(
+            file_path=py_file,
+            line_num=line_num,
+            char_pos=char_pos,
+            problem_line=problem_line,
+            bad_byte=bad_byte,
+            unicode_repr=unicode_repr
+        )
 
 
 @beartype.beartype
@@ -85,32 +184,9 @@ def main(in_paths: list[str], fix: bool = False) -> int:
     fixed = []
 
     for py in get_python_files(in_paths):
-        try:
-            with open(py, "r", encoding="ascii") as f:
-                for line_num, line in enumerate(f, 1):
-                    pass  # Just checking if any line raises an exception
-        except UnicodeDecodeError as e:
-            # Get the problematic line and character
-            with open(py, "r", encoding="utf-8", errors="replace") as f:
-                lines = f.readlines()
-
-            # Extract error details
-            start = e.start
-            end = e.end
-            bad_byte = e.object[start:end]
-            line_num = 1
-            char_pos = start
-
-            # Find the line number and character position
-            for i, line in enumerate(lines):
-                if char_pos < len(line):
-                    line_num = i + 1
-                    break
-                char_pos -= len(line)
-
-            # Get the problematic line
-            problem_line = lines[line_num - 1].rstrip("\n")
-
+        issue = find_non_ascii_issue(py)
+        
+        if issue:
             # Try to fix the file if requested
             if fix:
                 # Read the entire file content
@@ -127,44 +203,9 @@ def main(in_paths: list[str], fix: bool = False) -> int:
                     fixed.append(py)
                     continue  # Skip reporting this file as failed
 
-            # Create a pointer to the problematic character
-            pointer = " " * char_pos + "^"
-
-            # Get the Unicode escape representation
-            unicode_repr = ""
-            if isinstance(bad_byte, bytes):
-                # For bytes, we need to decode them properly to get the Unicode code points
-                try:
-                    # First try UTF-8 decoding
-                    char = bad_byte.decode("utf-8")
-                    for c in char:
-                        if ord(c) > 127:  # Only process non-ASCII
-                            unicode_repr += f"\\u{ord(c):04x}"
-                        else:
-                            unicode_repr += c
-                except UnicodeDecodeError:
-                    # If UTF-8 fails, try Latin-1 which always succeeds
-                    char = bad_byte.decode("latin-1")
-                    for c in char:
-                        if ord(c) > 127:  # Only process non-ASCII
-                            unicode_repr += f"\\u{ord(c):04x}"
-                        else:
-                            unicode_repr += c
-            else:
-                # Handle string
-                for c in bad_byte:
-                    if ord(c) > 127:  # Only process non-ASCII
-                        unicode_repr += f"\\u{ord(c):04x}"
-                    else:
-                        unicode_repr += c
-
-            print(f"{py}:{line_num}:{char_pos + 1}: Non-ASCII character detected")
-            print(f" {problem_line}")
-            print(f" {pointer}")
-            print(f" Problematic bytes: {bad_byte!r}")
-            print(f" Unicode escape: {unicode_repr}")
+            # Print the issue
+            print(issue)
             print()
-
             failed.append(py)
 
     if fixed:

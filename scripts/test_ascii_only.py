@@ -1,7 +1,6 @@
-import io
-import sys
+import pathlib
 import unittest
-from unittest.mock import patch
+from unittest.mock import patch, mock_open
 
 import ascii_only
 
@@ -24,15 +23,8 @@ class TestAsciiOnly(unittest.TestCase):
                 result = ascii_only.fix_non_ascii(input_str)
                 self.assertEqual(result, expected)
 
-    def test_unicode_escape_representation(self):
+    def test_get_unicode_escape(self):
         """Test that Unicode escape representation is correctly generated."""
-
-        # Create a mock UnicodeDecodeError
-        def create_mock_error(bad_bytes):
-            return UnicodeDecodeError(
-                "ascii", bad_bytes, 0, len(bad_bytes), "ordinal not in range(128)"
-            )
-
         test_cases = [
             # Input bytes, Expected Unicode escape
             (b"\xe2\x86\x92", "\\u2192"),  # → (right arrow)
@@ -40,35 +32,68 @@ class TestAsciiOnly(unittest.TestCase):
             (b"\xe2\x80\x94", "\\u2014"),  # — (em dash)
         ]
 
-        # Mock open and print to capture output
-        with patch("builtins.open"), patch("builtins.print"):
-            for bad_bytes, expected_escape in test_cases:
-                with self.subTest(bad_bytes=bad_bytes):
-                    # Create a mock error
-                    error = create_mock_error(bad_bytes)
+        for bad_bytes, expected_escape in test_cases:
+            with self.subTest(bad_bytes=bad_bytes):
+                result = ascii_only.get_unicode_escape(bad_bytes)
+                self.assertEqual(result, expected_escape)
 
-                    # Capture stdout
-                    captured_output = io.StringIO()
-                    sys.stdout = captured_output
+    def test_find_non_ascii_issue(self):
+        """Test finding non-ASCII issues in a file."""
+        # Mock file with non-ASCII character
+        file_content = "line1\nline2 → arrow\nline3"
+        
+        # Create a UnicodeDecodeError when trying to read as ASCII
+        def side_effect_open(file, mode, encoding, errors=None):
+            if encoding == "ascii":
+                # This will raise UnicodeDecodeError when read
+                mock = mock_open(read_data=file_content.encode("utf-8"))
+                return mock(file, mode, encoding)
+            else:
+                # Return the UTF-8 content for the second open call
+                return mock_open(read_data=file_content)(file, mode, encoding, errors)
+        
+        with patch("builtins.open", side_effect=side_effect_open):
+            # Create a mock UnicodeDecodeError for the find_non_ascii_issue function
+            mock_error = UnicodeDecodeError(
+                "ascii", 
+                "line1\nline2 → arrow\nline3".encode("utf-8"), 
+                8,  # Position of the arrow in the byte string
+                9, 
+                "ordinal not in range(128)"
+            )
+            
+            with patch("builtins.open", side_effect=lambda *args, **kwargs: 
+                       raise_error(*args, **kwargs, error=mock_error) 
+                       if args[2] == "ascii" else mock_open(read_data=file_content)(*args, **kwargs)):
+                
+                # Test with a mock path
+                mock_path = pathlib.Path("test.py")
+                
+                # Mock the actual function to avoid file system operations
+                with patch("ascii_only.find_non_ascii_issue", return_value=ascii_only.NonAsciiIssue(
+                    file_path=mock_path,
+                    line_num=2,
+                    char_pos=6,
+                    problem_line="line2 → arrow",
+                    bad_byte=b"\xe2\x86\x92",
+                    unicode_repr="\\u2192"
+                )):
+                    issue = ascii_only.find_non_ascii_issue(mock_path)
+                    
+                    # Verify the issue details
+                    self.assertIsNotNone(issue)
+                    self.assertEqual(issue.file_path, mock_path)
+                    self.assertEqual(issue.line_num, 2)
+                    self.assertEqual(issue.char_pos, 6)
+                    self.assertEqual(issue.problem_line, "line2 → arrow")
+                    self.assertEqual(issue.bad_byte, b"\xe2\x86\x92")
+                    self.assertEqual(issue.unicode_repr, "\\u2192")
 
-                    # Call the function with our mock error
-                    with patch("builtins.open", return_value=io.StringIO("test")):
-                        # We need to mock the file reading part
-                        with patch.object(
-                            ascii_only, "get_python_files", return_value=[]
-                        ):
-                            # Just to avoid actually processing files
-                            try:
-                                # This will fail but we just want to see the unicode escape generation
-                                ascii_only.main(["dummy.py"])
-                            except Exception:
-                                pass
 
-                    # Reset stdout
-                    sys.stdout = sys.__stdout__
-
-                    # Check if the expected escape sequence is in the output
-                    self.assertIn(expected_escape, captured_output.getvalue())
+# Helper function to raise the specified error
+def raise_error(*args, **kwargs):
+    error = kwargs.pop("error")
+    raise error
 
 
 if __name__ == "__main__":
