@@ -1,11 +1,12 @@
 import pathlib
 import sys
+from collections.abc import Iterator
 
 import beartype
 
 
 @beartype.beartype
-def get_python_files(paths: list[str]) -> list[pathlib.Path]:
+def get_python_files(paths: list[str]) -> Iterator[pathlib.Path]:
     """Get all Python files from a list of paths.
 
     If a path is a directory, recursively find all Python files within it. If a path is a file, include it only if it's a Python file.
@@ -14,17 +15,14 @@ def get_python_files(paths: list[str]) -> list[pathlib.Path]:
         paths: List of file or directory paths to process.
 
     Returns:
-        List of Path objects for Python files.
+        Iterator of Path objects for Python files.
     """
-    # Change this to a generator that yields paths to reduce total memory usage. Use collections.abc to properly type the signature. AI!
-    python_files = []
     for path_str in paths:
         path = pathlib.Path(path_str)
         if path.is_dir():
-            python_files.extend(path.rglob("*.py"))
+            yield from path.rglob("*.py")
         elif path.is_file() and path.suffix == ".py":
-            python_files.append(path)
-    return python_files
+            yield path
 
 
 @beartype.beartype
