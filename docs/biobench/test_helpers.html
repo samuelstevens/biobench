@@ -46,6 +46,91 @@ el.replaceWith(d);
 <section>
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
+<dt id="biobench.test_helpers.dataloader"><code class="name flex">
+<span>def <span class="ident">dataloader</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@pytest.fixture(scope=&#34;session&#34;)
+def dataloader():
+    data = torch.rand(30, 3, 64, 64)  # tiny tensor
+    ds = TensorDataset(data)  # returns tuples (tensor,)
+    return DataLoader(ds, batch_size=2, shuffle=False, num_workers=0)</code></pre>
+</details>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.test_helpers.dummy_cfg"><code class="name flex">
+<span>def <span class="ident">dummy_cfg</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@pytest.fixture(scope=&#34;session&#34;)
+def dummy_cfg():
+    device = &#34;cuda&#34; if torch.cuda.is_available() else &#34;cpu&#34;
+    return config.Experiment(model=config.Model(&#34;dummy&#34;, &#34;dummy&#34;), device=device)</code></pre>
+</details>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.test_helpers.test_auto_batchsize_ctx_runs_and_restores"><code class="name flex">
+<span>def <span class="ident">test_auto_batchsize_ctx_runs_and_restores</span></span>(<span>dummy_cfg, dataloader)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_auto_batchsize_ctx_runs_and_restores(dummy_cfg, dataloader):
+    orig = dataloader.batch_sampler.batch_size
+    probe = _make_probe(max_ok=8)  # fail when &gt;8
+
+    with helpers.auto_batchsize(
+        dummy_cfg,
+        dataloader,
+        probe=probe,
+        schedule=(2, 4, 8, 16),  # deterministic
+    ):
+        # context executes arbitrary user code w/out throwing
+        for _ in itertools.islice(dataloader, 3):
+            pass
+        # inside ctx largest successful should be 8
+        assert dataloader.batch_sampler.batch_size == 8
+
+    # after exit, original value restored
+    assert dataloader.batch_sampler.batch_size == orig</code></pre>
+</details>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.test_helpers.test_auto_batchsize_with_gpu"><code class="name flex">
+<span>def <span class="ident">test_auto_batchsize_with_gpu</span></span>(<span>dummy_cfg, dataloader)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@pytest.mark.skipif(
+    not torch.cuda.is_available(), reason=&#34;only meaningful on a GPU box&#34;
+)
+def test_auto_batchsize_with_gpu(dummy_cfg, dataloader):
+    &#34;&#34;&#34;Smoke-test true GPU execution (no artificial OOM).&#34;&#34;&#34;
+    probe = lambda x: x * 1  # noqa: E731 - trivial forward
+
+    with helpers.auto_batchsize(
+        dummy_cfg,
+        dataloader,
+        probe=probe,
+        schedule=(2, 4),  # tiny, never OOM
+    ):
+        next(iter(dataloader))  # just ensure no exception</code></pre>
+</details>
+<div class="desc"><p>Smoke-test true GPU execution (no artificial OOM).</p></div>
+</dd>
 <dt id="biobench.test_helpers.test_balanced_random_sample_includes_each_class_when_possible"><code class="name flex">
 <span>def <span class="ident">test_balanced_random_sample_includes_each_class_when_possible</span></span>(<span>) ‑> None</span>
 </code></dt>
@@ -100,8 +185,7 @@ def test_balanced_random_sample_never_duplicates_indices(labels, n):
     batch=st.integers(min_value=1, max_value=400),
 )
 def test_batched_idx_covers_range_without_overlap(total, batch):
-    &#34;&#34;&#34;batched_idx must partition [0,total) into consecutive, non-overlapping spans,
-    each of length ≤ batch.&#34;&#34;&#34;
+    &#34;&#34;&#34;batched_idx must partition [0,total) into consecutive, non-overlapping spans, each of length &lt;= batch.&#34;&#34;&#34;
     spans = list(helpers.batched_idx(total, batch))
 
     # edge-case: nothing to iterate
@@ -124,8 +208,7 @@ def test_batched_idx_covers_range_without_overlap(total, batch):
     # spans collectively cover exactly [0, total)
     assert covered == list(range(total))</code></pre>
 </details>
-<div class="desc"><p>batched_idx must partition [0,total) into consecutive, non-overlapping spans,
-each of length ≤ batch.</p></div>
+<div class="desc"><p>batched_idx must partition [0,total) into consecutive, non-overlapping spans, each of length &lt;= batch.</p></div>
 </dd>
 <dt id="biobench.test_helpers.test_class_balance"><code class="name flex">
 <span>def <span class="ident">test_class_balance</span></span>(<span>) ‑> None</span>
@@ -243,6 +326,71 @@ def test_fs_safe_idempotent_and_clean(random_text):
 </details>
 <div class="desc"></div>
 </dd>
+<dt id="biobench.test_helpers.test_invalid_cfg_error_handled"><code class="name flex">
+<span>def <span class="ident">test_invalid_cfg_error_handled</span></span>(<span>dummy_cfg, dataloader)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_invalid_cfg_error_handled(dummy_cfg, dataloader):
+    &#34;&#34;&#34;
+    Helper treats &#39;invalid configuration argument&#39; the same as OOM.
+    &#34;&#34;&#34;
+    orig = dataloader.batch_sampler.batch_size
+    probe = _make_probe_invalid_cfg(max_ok=4)  # fail when &gt;4
+
+    with helpers.auto_batchsize(
+        dummy_cfg,
+        dataloader,
+        probe=probe,
+        schedule=(2, 4, 8),
+    ):
+        # should settle on 4
+        assert dataloader.batch_sampler.batch_size == 4
+
+    # restored afterwards
+    assert dataloader.batch_sampler.batch_size == orig</code></pre>
+</details>
+<div class="desc"><p>Helper treats 'invalid configuration argument' the same as OOM.</p></div>
+</dd>
+<dt id="biobench.test_helpers.test_len_adjusts_with_batch_size"><code class="name flex">
+<span>def <span class="ident">test_len_adjusts_with_batch_size</span></span>(<span>dummy_cfg, dataloader)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_len_adjusts_with_batch_size(dummy_cfg, dataloader):
+    &#34;&#34;&#34;
+    `len(dataloader)` reflects the tuned batch size inside the CM and restores afterward.
+    &#34;&#34;&#34;
+    n_samples = len(dataloader.dataset)  # 30
+    orig_bs = dataloader.batch_sampler.batch_size  # 2
+    assert len(dataloader) == math.ceil(n_samples / orig_bs)  # 15
+
+    probe = _make_probe(max_ok=8)  # tuning will settle on 8
+
+    with helpers.auto_batchsize(
+        dummy_cfg,
+        dataloader,
+        probe=probe,
+        schedule=(2, 4, 8, 16),
+    ):
+        tuned_bs = dataloader.batch_sampler.batch_size
+        assert tuned_bs == 8
+
+        inside_len = len(dataloader)
+        assert inside_len == math.ceil(n_samples / tuned_bs)  # 4
+
+    # back to original
+    assert dataloader.batch_sampler.batch_size == orig_bs
+    assert len(dataloader) == math.ceil(n_samples / orig_bs)  # 15</code></pre>
+</details>
+<div class="desc"><p><code>len(<a title="biobench.test_helpers.dataloader" href="#biobench.test_helpers.dataloader">dataloader()</a>)</code> reflects the tuned batch size inside the CM and restores afterward.</p></div>
+</dd>
 <dt id="biobench.test_helpers.test_sample_size_larger_than_dataset"><code class="name flex">
 <span>def <span class="ident">test_sample_size_larger_than_dataset</span></span>(<span>)</span>
 </code></dt>
@@ -326,6 +474,10 @@ def test_fs_safe_idempotent_and_clean(random_text):
 </li>
 <li><h3><a href="#header-functions">Functions</a></h3>
 <ul class="">
+<li><code><a title="biobench.test_helpers.dataloader" href="#biobench.test_helpers.dataloader">dataloader</a></code></li>
+<li><code><a title="biobench.test_helpers.dummy_cfg" href="#biobench.test_helpers.dummy_cfg">dummy_cfg</a></code></li>
+<li><code><a title="biobench.test_helpers.test_auto_batchsize_ctx_runs_and_restores" href="#biobench.test_helpers.test_auto_batchsize_ctx_runs_and_restores">test_auto_batchsize_ctx_runs_and_restores</a></code></li>
+<li><code><a title="biobench.test_helpers.test_auto_batchsize_with_gpu" href="#biobench.test_helpers.test_auto_batchsize_with_gpu">test_auto_batchsize_with_gpu</a></code></li>
 <li><code><a title="biobench.test_helpers.test_balanced_random_sample_includes_each_class_when_possible" href="#biobench.test_helpers.test_balanced_random_sample_includes_each_class_when_possible">test_balanced_random_sample_includes_each_class_when_possible</a></code></li>
 <li><code><a title="biobench.test_helpers.test_balanced_random_sample_never_duplicates_indices" href="#biobench.test_helpers.test_balanced_random_sample_never_duplicates_indices">test_balanced_random_sample_never_duplicates_indices</a></code></li>
 <li><code><a title="biobench.test_helpers.test_batched_idx_covers_range_without_overlap" href="#biobench.test_helpers.test_batched_idx_covers_range_without_overlap">test_batched_idx_covers_range_without_overlap</a></code></li>
@@ -333,6 +485,8 @@ def test_fs_safe_idempotent_and_clean(random_text):
 <li><code><a title="biobench.test_helpers.test_correct_sample_size" href="#biobench.test_helpers.test_correct_sample_size">test_correct_sample_size</a></code></li>
 <li><code><a title="biobench.test_helpers.test_empty_dataset" href="#biobench.test_helpers.test_empty_dataset">test_empty_dataset</a></code></li>
 <li><code><a title="biobench.test_helpers.test_fs_safe_idempotent_and_clean" href="#biobench.test_helpers.test_fs_safe_idempotent_and_clean">test_fs_safe_idempotent_and_clean</a></code></li>
+<li><code><a title="biobench.test_helpers.test_invalid_cfg_error_handled" href="#biobench.test_helpers.test_invalid_cfg_error_handled">test_invalid_cfg_error_handled</a></code></li>
+<li><code><a title="biobench.test_helpers.test_len_adjusts_with_batch_size" href="#biobench.test_helpers.test_len_adjusts_with_batch_size">test_len_adjusts_with_batch_size</a></code></li>
 <li><code><a title="biobench.test_helpers.test_sample_size_larger_than_dataset" href="#biobench.test_helpers.test_sample_size_larger_than_dataset">test_sample_size_larger_than_dataset</a></code></li>
 <li><code><a title="biobench.test_helpers.test_single_class_sampling" href="#biobench.test_helpers.test_single_class_sampling">test_single_class_sampling</a></code></li>
 <li><code><a title="biobench.test_helpers.test_small_sample_size" href="#biobench.test_helpers.test_small_sample_size">test_small_sample_size</a></code></li>

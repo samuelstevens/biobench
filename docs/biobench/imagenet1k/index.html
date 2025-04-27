@@ -120,7 +120,7 @@ def get_features(
         .select(i)
         .to_iterable_dataset(num_shards=n_workers)
         .map(Transform(img_transform))
-        .with_format(&#34;torch&#34;)
+        .with_format(&#34;torch&#34;, columns=[&#34;label&#34;, &#34;id&#34;])
     )
 
     dataloader = torch.utils.data.DataLoader(
@@ -133,20 +133,26 @@ def get_features(
 
     all_features, all_labels, all_ids = [], [], []
 
-    total = max(n_workers, math.ceil(len(i) / cfg.batch_size))
-    it = iter(dataloader)
-    logger.debug(&#34;Need to embed %d batches of %d images.&#34;, total, cfg.batch_size)
-    for b in helpers.progress(range(total), every=10, desc=f&#34;in1k/{split}&#34;):
-        batch = next(it)
+    def probe(batch):
+        imgs = batch[&#34;image&#34;].to(cfg.device, non_blocking=True)
+        with torch.amp.autocast(cfg.device):
+            backbone.img_encode(imgs).img_features
 
-        images = batch[&#34;image&#34;].to(cfg.device)
+    with helpers.auto_batchsize(cfg, dataloader, probe=probe):
+        total = max(n_workers, math.ceil(len(i) / cfg.batch_size))
+        it = iter(dataloader)
+        logger.debug(&#34;Need to embed %d batches of %d images.&#34;, total, cfg.batch_size)
+        for b in helpers.progress(range(total), every=10, desc=f&#34;in1k/{split}&#34;):
+            batch = next(it)
 
-        with torch.amp.autocast(&#34;cuda&#34;):
-            features = backbone.img_encode(images).img_features
+            images = batch[&#34;image&#34;].to(cfg.device, non_blocking=True)
 
-        all_features.append(features.cpu())
-        all_labels.extend(batch[&#34;label&#34;])
-        all_ids.extend(batch[&#34;id&#34;])
+            with torch.amp.autocast(cfg.device):
+                features = backbone.img_encode(images).img_features
+
+            all_features.append(features.cpu())
+            all_labels.extend(batch[&#34;label&#34;])
+            all_ids.extend(batch[&#34;id&#34;])
 
     all_features = torch.cat(all_features, dim=0).cpu().numpy()
     all_ids = np.array(all_ids)

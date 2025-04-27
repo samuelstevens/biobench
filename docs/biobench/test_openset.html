@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
 <meta name="generator" content="pdoc3 0.11.6">
 <title>biobench.test_openset API documentation</title>
-<meta name="description" content="Unit tests for MahalanobisOpenSetClassifier …">
+<meta name="description" content="Unit tests for `openset.MahalanobisOpenSetClassifier`.">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
@@ -38,9 +38,7 @@ el.replaceWith(d);
 <h1 class="title">Module <code>biobench.test_openset</code></h1>
 </header>
 <section id="section-intro">
-<p>Unit tests for MahalanobisOpenSetClassifier.</p>
-<p>The file assumes the wrapper lives in <code>biobench.utils.openset</code> and that its only non‑sklearn dependency is SciPy.
-Run with pytest.</p>
+<p>Unit tests for <code>openset.MahalanobisOpenSetClassifier</code>.</p>
 </section>
 <section>
 </section>
@@ -61,7 +59,7 @@ Run with pytest.</p>
     clf = _simple_classifier()
     x, y = _toy_data()
 
-    # scikit‑learn compliance: fit / predict / get_params / set_params
+    # scikit-learn compliance: fit / predict / get_params / set_params
     assert hasattr(clf, &#34;get_params&#34;) and hasattr(clf, &#34;set_params&#34;)
 
     clf.fit(x, y)
@@ -140,10 +138,10 @@ def test_high_known_accuracy(seed):
 <pre><code class="python">@pytest.mark.parametrize(
     &#34;test_pt, expected&#34;,
     [
-        (np.array([[0.0]]), 0),  # near class‑0 centroid
-        (np.array([[1.2]]), 1),  # near class‑1 centroid
-        (np.array([[100.0]]), -1),  # far away → unknown
-        (np.array([[-50.0]]), -1),  # far other side → unknown
+        (np.array([[0.0]]), 0),  # near class-0 centroid
+        (np.array([[1.2]]), 1),  # near class-1 centroid
+        (np.array([[100.0]]), -1),  # far away -&gt; unknown
+        (np.array([[-50.0]]), -1),  # far other side -&gt; unknown
     ],
 )
 def test_known_vs_unknown(test_pt, expected):

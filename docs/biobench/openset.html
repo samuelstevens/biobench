@@ -64,6 +64,19 @@ class MahalanobisOpenSetClassifier(
     &#34;&#34;&#34;
     Wraps an arbitrary scikit-learn multiclass estimator with a Mahalanobis out-of-distribution detector.  Unknown samples are assigned `unknown_label`.
 
+    @inproceedings{lee2018simple,
+      title = {A Simple Unified Framework for Detecting Out-of-Distribution Samples and Adversarial Attacks},
+      author = {Lee, Kimin and Lee, Kibok and Lee, Honglak and Shin, Jinwoo},
+      year = 2018,
+      booktitle = {Advances in Neural Information Processing Systems},
+      publisher = {Curran Associates, Inc.},
+      volume = 31,
+      pages = {},
+      url = {https://proceedings.neurips.cc/paper_files/paper/2018/file/abdeb6f575ac5c6676b747bca8d09cc2-Paper.pdf},
+      editor = {S. Bengio and H. Wallach and H. Larochelle and K. Grauman and N. Cesa-Bianchi and R. Garnett}
+    }
+
+
     Parameters
     ----------
     base_estimator : scikit-learn estimator
@@ -71,7 +84,7 @@ class MahalanobisOpenSetClassifier(
     alpha : float, default=0.95
         Confidence level for the chi-squared cutoff; 1-alpha is the tail mass declared OOD.
     covariance_estimator : {&#34;empirical&#34;, &#34;ledoit&#34;}, default=&#34;ledoit&#34;
-        Strategy for covariance. &#34;ledoit&#34; is shrinkage‐robust and invertible.
+        Strategy for covariance. &#34;ledoit&#34; is shrinkage-robust and invertible.
     unknown_label : int | str, default=-1
         Label given to detections outside the known set.
     &#34;&#34;&#34;
@@ -101,13 +114,13 @@ class MahalanobisOpenSetClassifier(
         # 2. compute per-class means
         self.means_ = np.vstack([X[y == c].mean(axis=0) for c in self.classes_])
 
-        # 3. shared covariance Σ
+        # 3. shared covariance
         if self.covariance_estimator == &#34;ledoit&#34;:
             cov = sklearn.covariance.LedoitWolf().fit(X)
             self.Sigma_inv_ = cov.precision_
         elif self.covariance_estimator == &#34;empirical&#34;:
-            Σ = np.cov(X, rowvar=False)
-            self.Sigma_inv_ = np.linalg.pinv(Σ)
+            cov = np.cov(X, rowvar=False)
+            self.Sigma_inv_ = np.linalg.pinv(cov)
         else:
             raise ValueError(&#34;covariance_estimator must be &#39;empirical&#39; or &#39;ledoit&#39;&#34;)
 
@@ -142,12 +155,23 @@ class MahalanobisOpenSetClassifier(
         Vectorised squared Mahalanobis distance to the *nearest* class mean.
         &#34;&#34;&#34;
         diff = X[:, None, :] - self.means_  # (n, C, d)
-        # (n, C) → min over C → (n,)
+        # (n, C) -&gt; min over C -&gt; (n,)
         d2 = np.einsum(&#34;ncd,dd,ncd-&gt;nc&#34;, diff, self.Sigma_inv_, diff).min(axis=1)
         return d2</code></pre>
 </details>
 <div class="desc"><p>Wraps an arbitrary scikit-learn multiclass estimator with a Mahalanobis out-of-distribution detector.
 Unknown samples are assigned <code>unknown_label</code>.</p>
+<p>@inproceedings{lee2018simple,
+title = {A Simple Unified Framework for Detecting Out-of-Distribution Samples and Adversarial Attacks},
+author = {Lee, Kimin and Lee, Kibok and Lee, Honglak and Shin, Jinwoo},
+year = 2018,
+booktitle = {Advances in Neural Information Processing Systems},
+publisher = {Curran Associates, Inc.},
+volume = 31,
+pages = {},
+url = {<a href="https://proceedings.neurips.cc/paper_files/paper/2018/file/abdeb6f575ac5c6676b747bca8d09cc2-Paper.pdf},">https://proceedings.neurips.cc/paper_files/paper/2018/file/abdeb6f575ac5c6676b747bca8d09cc2-Paper.pdf},</a>
+editor = {S. Bengio and H. Wallach and H. Larochelle and K. Grauman and N. Cesa-Bianchi and R. Garnett}
+}</p>
 <h2 id="parameters">Parameters</h2>
 <dl>
 <dt><strong><code>base_estimator</code></strong> :&ensp;<code>scikit-learn estimator</code></dt>
@@ -155,7 +179,7 @@ Unknown samples are assigned <code>unknown_label</code>.</p>
 <dt><strong><code>alpha</code></strong> :&ensp;<code>float</code>, default=<code>0.95</code></dt>
 <dd>Confidence level for the chi-squared cutoff; 1-alpha is the tail mass declared OOD.</dd>
 <dt><strong><code>covariance_estimator</code></strong> :&ensp;<code>{"empirical", "ledoit"}</code>, default=<code>"ledoit"</code></dt>
-<dd>Strategy for covariance. "ledoit" is shrinkage‐robust and invertible.</dd>
+<dd>Strategy for covariance. "ledoit" is shrinkage-robust and invertible.</dd>
 <dt><strong><code>unknown_label</code></strong> :&ensp;<code>int | str</code>, default=<code>-1</code></dt>
 <dd>Label given to detections outside the known set.</dd>
 </dl></div>
@@ -202,13 +226,13 @@ Unknown samples are assigned <code>unknown_label</code>.</p>
     # 2. compute per-class means
     self.means_ = np.vstack([X[y == c].mean(axis=0) for c in self.classes_])
 
-    # 3. shared covariance Σ
+    # 3. shared covariance
     if self.covariance_estimator == &#34;ledoit&#34;:
         cov = sklearn.covariance.LedoitWolf().fit(X)
         self.Sigma_inv_ = cov.precision_
     elif self.covariance_estimator == &#34;empirical&#34;:
-        Σ = np.cov(X, rowvar=False)
-        self.Sigma_inv_ = np.linalg.pinv(Σ)
+        cov = np.cov(X, rowvar=False)
+        self.Sigma_inv_ = np.linalg.pinv(cov)
     else:
         raise ValueError(&#34;covariance_estimator must be &#39;empirical&#39; or &#39;ledoit&#39;&#34;)
 

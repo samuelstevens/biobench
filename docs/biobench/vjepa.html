@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
 <meta name="generator" content="pdoc3 0.11.6">
 <title>biobench.vjepa API documentation</title>
-<meta name="description" content="V‑JEPA *frozen‑feature* backbone port …">
+<meta name="description" content="V-JEPA *frozen-feature* backbone port …">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
@@ -38,32 +38,31 @@ el.replaceWith(d);
 <h1 class="title">Module <code>biobench.vjepa</code></h1>
 </header>
 <section id="section-intro">
-<h1 id="vjepa-frozenfeature-backbone-port">V‑JEPA <em>frozen‑feature</em> backbone port</h1>
-<p>This file is a self‑contained re‑implementation of the encoder used in <em>V‑JEPA</em> (Meta FAIR, 2024) for frozen downstream evaluation.
-The design follows the public facebookresearch/jepa reference code but strips it down to the minimum needed for image‑only tasks.</p>
+<h1 id="v-jepa-frozen-feature-backbone-port">V-JEPA <em>frozen-feature</em> backbone port</h1>
+<p>This file is a self-contained re-implementation of the encoder used in <em>V-JEPA</em> (Meta FAIR, 2024) for frozen downstream evaluation. The design follows the public facebookresearch/jepa reference code but strips it down to the minimum needed for image-only tasks.</p>
 <h2 id="key-implementation-choices">Key Implementation Choices</h2>
 <ol>
 <li>
-<p>Most modules are verbatim (or lightly edited for typing/PEP‑8) copies from the upstream repo so that we do <em>not</em> depend on the unpublished PyPI package:</p>
+<p>Most modules are verbatim (or lightly edited for typing/PEP-8) copies from the upstream repo so that we do <em>not</em> depend on the unpublished PyPI package:</p>
 </li>
 <li>
-<p>The official frozen image classification script (<a href="https://github.com/facebookresearch/jepa/blob/51c59d518fc63c08464af6de585f78ac0c7ed4d5/evals/image_classification_frozen/eval.py#L451-L455">https://github.com/facebookresearch/jepa/blob/51c59d518fc63c08464af6de585f78ac0c7ed4d5/evals/image_classification_frozen/eval.py#L451-L455</a>) repeats a still image along the temporal axis before feeding it to the video‑ViT. We reproduce that behaviour with <code>x = einops.repeat(batch, "b c h w -&gt; b c f h w", f=self.n_frames)</code> so the model sees a 16‑frame clip of identical images.</p>
+<p>The official frozen image classification script (<a href="https://github.com/facebookresearch/jepa/blob/51c59d518fc63c08464af6de585f78ac0c7ed4d5/evals/image_classification_frozen/eval.py#L451-L455">https://github.com/facebookresearch/jepa/blob/51c59d518fc63c08464af6de585f78ac0c7ed4d5/evals/image_classification_frozen/eval.py#L451-L455</a>) repeats a still image along the temporal axis before feeding it to the video-ViT. We reproduce that behaviour with <code>x = einops.repeat(batch, "b c h w -&gt; b c f h w", f=self.n_frames)</code> so the model sees a 16-frame clip of identical images.</p>
 </li>
 <li>
-<p>Checkpoints live at <code>https://dl.fbaipublicfiles.com/jepa/&lt;ckpt&gt;/&lt;ckpt&gt;.pth.tar</code>. We download them into an <code>$CACHE/vjepa</code> sub‑folder (<code><a title="biobench.vjepa.download" href="#biobench.vjepa.download">download()</a></code> helper) to avoid git‑annex or HF dependencies.</p>
+<p>Checkpoints live at <code>https://dl.fbaipublicfiles.com/jepa/&lt;ckpt&gt;/&lt;ckpt&gt;.pth.tar</code>. We download them into an <code>$CACHE/vjepa</code> sub-folder (<code><a title="biobench.vjepa.download" href="#biobench.vjepa.download">download()</a></code> helper) to avoid git-annex or HF dependencies.</p>
 </li>
 <li>
-<p>Only the EMA target encoder (<code>state["target_encoder"]</code>) is loaded, mirroring the authors’ evaluation code.
+<p>Only the EMA target encoder (<code>state["target_encoder"]</code>) is loaded, mirroring the authors' evaluation code.
 The usual <code>module.</code> prefix is stripped so that the state dict matches our local module names.</p>
 </li>
 <li>
-<p><code>img_encode()</code> returns both the full patch grid and a <strong>max‑pooled</strong> global descriptor (<code>x.max(dim=1).values</code>).
-The attentive classifier used in the paper is <em>not</em> re‑implemented here; you can bolt your own head on top of the returned per‑patch features.</p>
+<p><code>img_encode()</code> returns both the full patch grid and a <strong>max-pooled</strong> global descriptor (<code>x.max(dim=1).values</code>).
+The attentive classifier used in the paper is <em>not</em> re-implemented here; you can bolt your own head on top of the returned per-patch features.</p>
 </li>
 </ol>
 <h2 id="limitations-divergences-from-fair-reference">Limitations / divergences from FAIR reference</h2>
 <ul>
-<li>No mixed‑precision, distributed training or attentive probe head. This module is encoder‑only.</li>
+<li>No mixed-precision, distributed training or attentive probe head. This module is encoder-only.</li>
 <li>Patch/Tubelet shapes are fixed (16x16x2) and <code>num_frames</code> is pinned to 16; if you need other variants, expose them through the constructor.</li>
 <li>Only the three public checkpoints (<code>vitl16</code>, <code>vith16</code>, <code>vith16-384</code>) are supported, but extending to future releases is one line in <code>__init__</code>.</li>
 </ul>
@@ -1236,7 +1235,7 @@ class VisionTransformer(torch.nn.Module):
 <nav id="sidebar">
 <div class="toc">
 <ul>
-<li><a href="#vjepa-frozenfeature-backbone-port">V‑JEPA frozen‑feature backbone port</a><ul>
+<li><a href="#v-jepa-frozen-feature-backbone-port">V-JEPA frozen-feature backbone port</a><ul>
 <li><a href="#key-implementation-choices">Key implementation choices</a></li>
 <li><a href="#limitations-divergences-from-fair-reference">Limitations / divergences from FAIR reference</a></li>
 </ul>

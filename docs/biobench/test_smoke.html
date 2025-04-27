@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
 <meta name="generator" content="pdoc3 0.11.6">
-<title>benchmark API documentation</title>
-<meta name="description" content="Entrypoint for running all tasks in `biobench` …">
+<title>biobench.test_smoke API documentation</title>
+<meta name="description" content="">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
@@ -35,17 +35,9 @@ el.replaceWith(d);
 <main>
 <article id="content">
 <header>
-<h1 class="title">Module <code>benchmark</code></h1>
+<h1 class="title">Module <code>biobench.test_smoke</code></h1>
 </header>
 <section id="section-intro">
-<p>Entrypoint for running all tasks in <code><a title="biobench" href="biobench/index.html">biobench</a></code>.</p>
-<p>Most of this script is self documenting.
-Run <code>python benchmark.py --help</code> to see all the options.</p>
-<p>Note that you will have to download all the datasets, but each dataset includes its own download script with instructions.
-For example, see <code><a title="biobench.newt.download" href="biobench/newt/download.html">biobench.newt.download</a></code> for an example.</p>
-<h1 id="design">Design</h1>
-<p>biobench is designed to make it easy to add both models and tasks that work with other models and tasks.</p>
-<p>To add a new model, look at <code><a title="biobench.registry" href="biobench/registry.html">biobench.registry</a></code>'s documentation, which includes a tutorial for adding a new model.</p>
 </section>
 <section>
 </section>
@@ -54,159 +46,76 @@ For example, see <code><a title="biobench.newt.download" href="biobench/newt/dow
 <section>
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
-<dt id="benchmark.benchmark_with_mp"><code class="name flex">
-<span>def <span class="ident">benchmark_with_mp</span></span>(<span>task_name: str,<br>cfg: <a title="biobench.config.Experiment" href="biobench/config.html#biobench.config.Experiment">Experiment</a>) ‑> <a title="biobench.reporting.Report" href="biobench/reporting.html#biobench.reporting.Report">Report</a></span>
+<dt id="biobench.test_smoke.test_basic_instantiation"><code class="name flex">
+<span>def <span class="ident">test_basic_instantiation</span></span>(<span>)</span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">@beartype.beartype
-def benchmark_with_mp(task_name: str, cfg: config.Experiment) -&gt; reporting.Report:
-    import torch.multiprocessing as mp
+<pre><code class="python">def test_basic_instantiation():
+    &#34;&#34;&#34;Test that basic objects can be instantiated.&#34;&#34;&#34;
+    from biobench.config import Data, Experiment, Model
 
-    helpers.bump_nofile(512)
-    if mp.get_sharing_strategy() != &#34;file_system&#34;:
-        mp.set_sharing_strategy(&#34;file_system&#34;)
+    # Create minimal valid objects
+    model = Model(org=&#34;test&#34;, ckpt=&#34;test&#34;)
+    data = Data()
+    experiment = Experiment(model=model, data=data, seed=42)
 
-    log_format = &#34;[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s&#34;
-    logging.basicConfig(level=logging.INFO, format=log_format)
-
-    module = importlib.import_module(f&#34;biobench.{task_name}&#34;)
-    return module.benchmark(cfg)</code></pre>
+    # Verify they have expected properties
+    assert experiment.model.org == &#34;test&#34;
+    assert experiment.seed == 42</code></pre>
 </details>
-<div class="desc"></div>
+<div class="desc"><p>Test that basic objects can be instantiated.</p></div>
 </dd>
-<dt id="benchmark.main"><code class="name flex">
-<span>def <span class="ident">main</span></span>(<span>cfgs: list[str] = ['configs/neurips.toml'], dry_run: bool = True)</span>
+<dt id="biobench.test_smoke.test_smoke_imports"><code class="name flex">
+<span>def <span class="ident">test_smoke_imports</span></span>(<span>)</span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">@beartype.beartype
-def main(
-    cfgs: list[str] = [os.path.join(&#34;configs&#34;, &#34;neurips.toml&#34;)], dry_run: bool = True
-):
-    &#34;&#34;&#34;
-    Launch all jobs, using either a local GPU or a Slurm cluster. Then report results and save to disk.
+<pre><code class="python">def test_smoke_imports():
+    &#34;&#34;&#34;Test that all modules can be imported without errors.&#34;&#34;&#34;
+    import biobench
+    import biobench.aimv2
+    import biobench.beluga
+    import biobench.beluga.download
+    import biobench.config
+    import biobench.fishnet
+    import biobench.fishnet.download
+    import biobench.fungiclef
+    import biobench.fungiclef.download
+    import biobench.fungiclef.metrics
+    import biobench.helpers
+    import biobench.herbarium19
+    import biobench.herbarium19.download
+    import biobench.inat21
+    import biobench.inat21.download
+    import biobench.iwildcam
+    import biobench.iwildcam.download
+    import biobench.newt
+    import biobench.newt.download
+    import biobench.openset
+    import biobench.plankton
+    import biobench.plankton.download
+    import biobench.plantnet
+    import biobench.plantnet.download
+    import biobench.rarespecies
+    import biobench.registry
+    import biobench.reporting
+    import biobench.simpleshot
+    import biobench.third_party_models
+    import biobench.vjepa
 
-    Args:
-        cfgs: List of paths to TOML config files.
-        dry_run: If --no-dry-run, actually run experiment.
-    &#34;&#34;&#34;
-    # Load all configs from the provided paths and concatenate them
-    cfgs = [cfg for path in cfgs for cfg in config.load(path)]
-
-    if not cfgs:
-        logger.warning(&#34;No configurations loaded.&#34;)
-        return
-
-    first = cfgs[0]
-    # Verify all configs have consistent execution settings
-    for cfg in cfgs[1:]:
-        if cfg.slurm_acct != first.slurm_acct:
-            raise ValueError(&#34;All configs must have the same slurm_acct&#34;)
-        if cfg.log_to != first.log_to:
-            raise ValueError(&#34;All configs must have the same log_to directory&#34;)
-        if cfg.ssl != first.ssl:
-            raise ValueError(&#34;All configs must have the same ssl setting&#34;)
-
-    # 1. Setup executor.
-    if first.slurm_acct:
-        executor = submitit.SlurmExecutor(folder=first.log_to)
-        executor.update_parameters(
-            time=30,
-            gpus_per_node=1,
-            cpus_per_task=8,
-            stderr_to_stdout=True,
-            partition=&#34;debug&#34;,
-            account=first.slurm_acct,
-        )
-        # See biobench.third_party_models.get_ssl() for a discussion of this variable.
-        if not first.ssl:
-            executor.update_parameters(setup=[&#34;export BIOBENCH_DISABLE_SSL=1&#34;])
-    else:
-        executor = submitit.DebugExecutor(folder=first.log_to)
-        # See biobench.third_party_models.get_ssl() for a discussion of this variable.
-        if not first.ssl:
-            os.environ[&#34;BIOBENCH_DISABLE_SSL&#34;] = &#34;1&#34;
-
-    db = reporting.get_db(first)
-
-    # 2. Run benchmarks.
-    jobs = []
-    n_skipped = 0
-    for cfg in helpers.progress(cfgs, desc=&#34;submitting jobs&#34;):
-        for task_name, data_root in cfg.data.to_dict().items():
-            # Check that you can get the task_name
-            try:
-                importlib.import_module(f&#34;biobench.{task_name}&#34;)
-            except ModuleNotFoundError:
-                logger.warning(&#34;Could not find task &#39;%s&#39;.&#34;, task_name)
-                continue
-
-            if not data_root:
-                continue
-
-            if reporting.already_ran(db, cfg, task_name):
-                n_skipped += 1
-                continue
-            elif dry_run:
-                jobs.append(cfg)
-            else:
-                job = executor.submit(benchmark_with_mp, task_name, cfg)
-                jobs.append(job)
-
-    if dry_run:
-        # Summarize the jobs by model and training examples
-        model_counts = collections.defaultdict(int)
-        for job_cfg in jobs:
-            key = (job_cfg.model.ckpt, job_cfg.n_train)
-            model_counts[key] += 1
-
-        # Check if there are any jobs to run
-        if not model_counts:
-            logger.info(&#34;All jobs have already been completed. Nothing to run.&#34;)
-            return
-
-        # Print summary table
-        logger.info(&#34;Job Summary:&#34;)
-        logger.info(&#34;%-50s | %-10s | %-5s&#34;, &#34;Model&#34;, &#34;Train Size&#34;, &#34;Count&#34;)
-        logger.info(&#34;-&#34; * 71)
-        for (model, n_train), count in sorted(model_counts.items()):
-            logger.info(&#34;%-50s | %10d | %5d&#34;, model, n_train, count)
-        logger.info(&#34;-&#34; * 71)
-        logger.info(
-            &#34;Total jobs to run: %d (skipped %d already completed)&#34;, len(jobs), n_skipped
-        )
-        return
-
-    logger.info(&#34;Submitted %d jobs (skipped %d).&#34;, len(jobs), n_skipped)
-
-    # 3. Write results to sqlite.
-    for i, future in enumerate(submitit.helpers.as_completed(jobs)):
-        err = future.exception()
-        if err:
-            logger.warning(&#34;Error running job: %s: %s&#34;, err, err.__cause__)
-            continue
-
-        report: reporting.Report = future.result()
-        report.write()
-        logger.info(&#34;Finished %d/%d jobs.&#34;, i + 1, len(jobs))
-
-    logger.info(&#34;Finished.&#34;)</code></pre>
+    # Check that key classes/functions exist
+    assert hasattr(biobench.registry, &#34;VisionBackbone&#34;)
+    assert hasattr(biobench.config, &#34;Experiment&#34;)
+    assert hasattr(biobench.fungiclef, &#34;benchmark&#34;)</code></pre>
 </details>
-<div class="desc"><p>Launch all jobs, using either a local GPU or a Slurm cluster. Then report results and save to disk.</p>
-<h2 id="args">Args</h2>
-<dl>
-<dt><strong><code>cfgs</code></strong></dt>
-<dd>List of paths to TOML config files.</dd>
-<dt><strong><code>dry_run</code></strong></dt>
-<dd>If &ndash;no-dry-run, actually run experiment.</dd>
-</dl></div>
+<div class="desc"><p>Test that all modules can be imported without errors.</p></div>
 </dd>
 </dl>
 </section>
@@ -215,15 +124,18 @@ def main(
 </article>
 <nav id="sidebar">
 <div class="toc">
-<ul>
-<li><a href="#design">Design</a></li>
-</ul>
+<ul></ul>
 </div>
 <ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="biobench" href="index.html">biobench</a></code></li>
+</ul>
+</li>
 <li><h3><a href="#header-functions">Functions</a></h3>
 <ul class="">
-<li><code><a title="benchmark.benchmark_with_mp" href="#benchmark.benchmark_with_mp">benchmark_with_mp</a></code></li>
-<li><code><a title="benchmark.main" href="#benchmark.main">main</a></code></li>
+<li><code><a title="biobench.test_smoke.test_basic_instantiation" href="#biobench.test_smoke.test_basic_instantiation">test_basic_instantiation</a></code></li>
+<li><code><a title="biobench.test_smoke.test_smoke_imports" href="#biobench.test_smoke.test_smoke_imports">test_smoke_imports</a></code></li>
 </ul>
 </li>
 </ul>

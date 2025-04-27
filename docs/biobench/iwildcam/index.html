@@ -152,7 +152,7 @@ def get_features(
         imgs, labels, _ = next(it)
         imgs = imgs.to(cfg.device)
 
-        with torch.amp.autocast(&#34;cuda&#34;):
+        with torch.amp.autocast(cfg.device):
             features = backbone.img_encode(imgs).img_features
             all_features.append(features.cpu())
 

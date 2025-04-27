@@ -103,25 +103,21 @@ def benchmark(cfg: config.Experiment) -&gt; tuple[config.Model, reporting.Report
     clf.fit(features.x, y)
     preds = clf.kneighbors(return_distance=False)
 
-    logger.info(&#34;Constructing examples.&#34;)
     examples = [
         reporting.Prediction(
             str(image_id),
             float(pred == true),
             {&#34;y_pred&#34;: pred.item(), &#34;y_true&#34;: true.item()},
         )
-        for image_id, pred, true in zip(
-            helpers.progress(features.ids, every=1_000), preds, y
-        )
+        for image_id, pred, true in zip(features.ids, preds, y)
     ]
-    logger.info(&#34;%d examples done.&#34;, len(examples))
 
     return cfg.model, reporting.Report(&#34;BelugaID&#34;, examples)</code></pre>
 </details>
 <div class="desc"><p>Run the BelugaID benchmark. See this module's documentation for more details.</p></div>
 </dd>
 <dt id="biobench.beluga.get_features"><code class="name flex">
-<span>def <span class="ident">get_features</span></span>(<span>args: <a title="biobench.beluga.Args" href="#biobench.beluga.Args">Args</a>,<br>backbone: <a title="biobench.registry.VisionBackbone" href="../registry.html#biobench.registry.VisionBackbone">VisionBackbone</a>) ‑> <a title="biobench.beluga.Features" href="#biobench.beluga.Features">Features</a></span>
+<span>def <span class="ident">get_features</span></span>(<span>cfg: <a title="biobench.config.Experiment" href="../config.html#biobench.config.Experiment">Experiment</a>,<br>backbone: <a title="biobench.registry.VisionBackbone" href="../registry.html#biobench.registry.VisionBackbone">VisionBackbone</a>) ‑> <a title="biobench.beluga.Features" href="#biobench.beluga.Features">Features</a></span>
 </code></dt>
 <dd>
 <details class="source">
@@ -130,7 +126,7 @@ def benchmark(cfg: config.Experiment) -&gt; tuple[config.Model, reporting.Report
 </summary>
 <pre><code class="python">@beartype.beartype
 @torch.no_grad
-def get_features(args: Args, backbone: registry.VisionBackbone) -&gt; Features:
+def get_features(cfg: config.Experiment, backbone: registry.VisionBackbone) -&gt; Features:
     &#34;&#34;&#34;
     Get a block of features from a vision backbone.
 
@@ -158,7 +154,7 @@ def get_features(args: Args, backbone: registry.VisionBackbone) -&gt; Features:
         batch_size=args.batch_size,
         num_workers=args.n_workers,
         drop_last=False,
-        shuffle=True,  # We use dataset.shuffle instead
+        shuffle=False,
         collate_fn=lambda batch: tuple(zip(*batch)),
     )
 
@@ -200,76 +196,6 @@ def get_features(args: Args, backbone: registry.VisionBackbone) -&gt; Features:
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
-<dt id="biobench.beluga.Args"><code class="flex name class">
-<span>class <span class="ident">Args</span></span>
-<span>(</span><span>data: str = '',<br>batch_size_cv: int = 256,<br>n_workers: int = 8,<br>log_every: int = 10,<br>seed: int = 42,<br>device: str = 'cuda',<br>debug: bool = False,<br>n_train: int = -1)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">@beartype.beartype
-@dataclasses.dataclass(frozen=True)
-class Args:
-    &#34;&#34;&#34;Configuration for BelugaID task.&#34;&#34;&#34;
-
-    data: str = &#34;&#34;
-    &#34;&#34;&#34;dataset directory; where you downloaded this task&#39;s data to.&#34;&#34;&#34;
-    batch_size_cv: int = 256
-    &#34;&#34;&#34;batch size for computer vision model.&#34;&#34;&#34;
-    n_workers: int = 8
-    &#34;&#34;&#34;Number of dataloader workers.&#34;&#34;&#34;
-    log_every: int = 10
-    &#34;&#34;&#34;How often to log while getting features.&#34;&#34;&#34;
-    seed: int = 42
-    &#34;&#34;&#34;random seed.&#34;&#34;&#34;
-
-    # Computed at runtime.
-    device: str = &#34;cuda&#34;
-    &#34;&#34;&#34;(computed at runtime) which kind of accelerator to use.&#34;&#34;&#34;
-    debug: bool = False
-    &#34;&#34;&#34;(computed at runtime) whether to run in debug mode.&#34;&#34;&#34;
-    n_train: int = -1
-    &#34;&#34;&#34;Number of maximum training samples. Negative number means use all of them.&#34;&#34;&#34;</code></pre>
-</details>
-<div class="desc"><p>Configuration for BelugaID task.</p></div>
-<h3>Instance variables</h3>
-<dl>
-<dt id="biobench.beluga.Args.batch_size_cv"><code class="name">var <span class="ident">batch_size_cv</span> : int</code></dt>
-<dd>
-<div class="desc"><p>batch size for computer vision model.</p></div>
-</dd>
-<dt id="biobench.beluga.Args.data"><code class="name">var <span class="ident">data</span> : str</code></dt>
-<dd>
-<div class="desc"><p>dataset directory; where you downloaded this task's data to.</p></div>
-</dd>
-<dt id="biobench.beluga.Args.debug"><code class="name">var <span class="ident">debug</span> : bool</code></dt>
-<dd>
-<div class="desc"><p>(computed at runtime) whether to run in debug mode.</p></div>
-</dd>
-<dt id="biobench.beluga.Args.device"><code class="name">var <span class="ident">device</span> : str</code></dt>
-<dd>
-<div class="desc"><p>(computed at runtime) which kind of accelerator to use.</p></div>
-</dd>
-<dt id="biobench.beluga.Args.log_every"><code class="name">var <span class="ident">log_every</span> : int</code></dt>
-<dd>
-<div class="desc"><p>How often to log while getting features.</p></div>
-</dd>
-<dt id="biobench.beluga.Args.n_train"><code class="name">var <span class="ident">n_train</span> : int</code></dt>
-<dd>
-<div class="desc"><p>Number of maximum training samples. Negative number means use all of them.</p></div>
-</dd>
-<dt id="biobench.beluga.Args.n_workers"><code class="name">var <span class="ident">n_workers</span> : int</code></dt>
-<dd>
-<div class="desc"><p>Number of dataloader workers.</p></div>
-</dd>
-<dt id="biobench.beluga.Args.seed"><code class="name">var <span class="ident">seed</span> : int</code></dt>
-<dd>
-<div class="desc"><p>random seed.</p></div>
-</dd>
-</dl>
-</dd>
 <dt id="biobench.beluga.Features"><code class="flex name class">
 <span>class <span class="ident">Features</span></span>
 <span>(</span><span>x: jaxtyping.Float[Tensor, 'n dim'],<br>labels: jaxtyping.Shaped[ndarray, 'n'],<br>ids: jaxtyping.Shaped[ndarray, 'n'])</span>
@@ -374,19 +300,6 @@ def n(self) -&gt; int:
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
-<li>
-<h4><code><a title="biobench.beluga.Args" href="#biobench.beluga.Args">Args</a></code></h4>
-<ul class="two-column">
-<li><code><a title="biobench.beluga.Args.batch_size_cv" href="#biobench.beluga.Args.batch_size_cv">batch_size_cv</a></code></li>
-<li><code><a title="biobench.beluga.Args.data" href="#biobench.beluga.Args.data">data</a></code></li>
-<li><code><a title="biobench.beluga.Args.debug" href="#biobench.beluga.Args.debug">debug</a></code></li>
-<li><code><a title="biobench.beluga.Args.device" href="#biobench.beluga.Args.device">device</a></code></li>
-<li><code><a title="biobench.beluga.Args.log_every" href="#biobench.beluga.Args.log_every">log_every</a></code></li>
-<li><code><a title="biobench.beluga.Args.n_train" href="#biobench.beluga.Args.n_train">n_train</a></code></li>
-<li><code><a title="biobench.beluga.Args.n_workers" href="#biobench.beluga.Args.n_workers">n_workers</a></code></li>
-<li><code><a title="biobench.beluga.Args.seed" href="#biobench.beluga.Args.seed">seed</a></code></li>
-</ul>
-</li>
 <li>
 <h4><code><a title="biobench.beluga.Features" href="#biobench.beluga.Features">Features</a></code></h4>
 <ul class="">

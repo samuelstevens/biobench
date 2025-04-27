@@ -148,6 +148,9 @@ def benchmark_with_mp(task_name: str, cfg: config.Experiment) -> reporting.Repor
     if mp.get_sharing_strategy() != "file_system":
         mp.set_sharing_strategy("file_system")
 
+    log_format = "[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s"
+    logging.basicConfig(level=logging.INFO, format=log_format)
+
     module = importlib.import_module(f"biobench.{task_name}")
     return module.benchmark(cfg)
 

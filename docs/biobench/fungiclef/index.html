@@ -84,8 +84,8 @@ Adapted from BohemianVRA's evaluate.py:
 @torch.no_grad()
 def benchmark(cfg: config.Experiment) -&gt; reporting.Report:
     backbone = registry.load_vision_backbone(cfg.model)
-    train_feats = get_features(cfg, backbone, split=&#34;train&#34;)
-    val_feats = get_features(cfg, backbone, split=&#34;val&#34;)
+    train_feats = get_features(cfg, backbone, split=&#34;train&#34;, pool=False)
+    val_feats = get_features(cfg, backbone, split=&#34;val&#34;, pool=True)
 
     clf = init_clf(cfg)
     clf = openset.MahalanobisOpenSetClassifier(clf)
@@ -188,24 +188,8 @@ def get_features(
 </summary>
 <pre><code class="python">@beartype.beartype
 def init_clf(cfg: config.Experiment):
-    alphas = np.pow(2.0, np.arange(-15, 5))
-    if cfg.debug:
-        alphas = np.pow(2.0, np.arange(-2, 2))
-    if 0 &lt; cfg.n_train &lt; 2_713 * 5 * 2:
-        return sklearn.linear_model.RidgeClassifier()
-
-    pipe = sklearn.pipeline.make_pipeline(
-        sklearn.preprocessing.StandardScaler(),
-        sklearn.linear_model.RidgeClassifier(1.0),
-    )
-    return sklearn.model_selection.HalvingGridSearchCV(
-        pipe,
-        {&#34;ridgeclassifier__alpha&#34;: alphas},
-        scoring=USER_LOSS_SCORER,
-        n_jobs=16,
-        verbose=2,
-        factor=3,
-        random_state=cfg.seed,
+    return openset.MahalanobisOpenSetClassifier(
+        simpleshot.SimpleShotClassifier(device=&#34;cuda:0&#34;)
     )</code></pre>
 </details>
 <div class="desc"></div>
@@ -226,7 +210,7 @@ def score(preds: list[reporting.Prediction]) -&gt; float:
 
     Notes
     -----
-    * `info[&#39;y_true&#39;]` and `info[&#39;y_pred&#39;]` are ints; unknown is –1.
+    * `info[&#39;y_true&#39;]` and `info[&#39;y_pred&#39;]` are ints; unknown is -1.
     * The helper in metrics.py already combines CE and PSC/ESC.
     &#34;&#34;&#34;
     y_true = np.fromiter((p.info[&#34;y_true&#34;] for p in preds), dtype=int)
@@ -237,7 +221,7 @@ def score(preds: list[reporting.Prediction]) -&gt; float:
 user_loss = classification_error + PSC/ESC cost</p>
 <h2 id="notes">Notes</h2>
 <ul>
-<li><code>info['y_true']</code> and <code>info['y_pred']</code> are ints; unknown is –1.</li>
+<li><code>info['y_true']</code> and <code>info['y_pred']</code> are ints; unknown is -1.</li>
 <li>The helper in metrics.py already combines CE and PSC/ESC.</li>
 </ul></div>
 </dd>

@@ -153,7 +153,7 @@ Last checked: 2025-04-27
 **All tests passed**
 # Coverage
 
-Coverage: 1469/3241 lines (45.3%)
+Coverage: 1442/3290 lines (43.8%)
 
 >>>> __init__.py
 """ """
@@ -856,6 +856,9 @@ def benchmark_with_mp(task_name: str, cfg: config.Experiment) -> reporting.Repor
     if mp.get_sharing_strategy() != "file_system":
         mp.set_sharing_strategy("file_system")
 
+    log_format = "[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s"
+    logging.basicConfig(level=logging.INFO, format=log_format)
+
     module = importlib.import_module(f"biobench.{task_name}")
     return module.benchmark(cfg)
 
@@ -975,8 +978,8 @@ class Experiment:
 
     n_workers: int = 4
     """Number of dataloader workers."""
-    batch_size: int = 256
-    """Batch size."""
+    batch_size: int = 32
+    """Initial batch size to start with for tuning."""
 
     data: Data = dataclasses.field(default_factory=Data)
 
@@ -1318,20 +1321,25 @@ def get_features(
         shuffle=False,
     )
 
+    def probe(batch):
+        imgs = batch["img"].to(cfg.device, non_blocking=True)
+        with torch.amp.autocast(cfg.device):
+            _ = backbone.img_encode(imgs).img_features  # forward only
+
     all_features, all_labels, all_ids = [], [], []
 
-    total = len(dataloader) if not cfg.debug else 2
+    with helpers.auto_batchsize(cfg, dataloader, probe=probe):
+        total = len(dataloader) if not cfg.debug else 2
+        it = iter(dataloader)
+        for b in helpers.progress(range(total), every=10, desc=f"fish/{file}"):
+            images, labels, ids = next(it)
+            images = images.to(cfg.device)
 
-    it = iter(dataloader)
-    for b in helpers.progress(range(total), every=10, desc=f"fish/{file}"):
-        images, labels, ids = next(it)
-        images = images.to(cfg.device)
+            features = backbone.img_encode(images).img_features
+            all_features.append(features.cpu())
+            all_labels.append(labels)
 
-        features = backbone.img_encode(images).img_features
-        all_features.append(features.cpu())
-        all_labels.append(labels)
-
-        all_ids.extend(ids)
+            all_ids.extend(ids)
 
     # Keep the Tensor data type for subsequent training
     all_features = torch.cat(all_features, dim=0)
@@ -2039,19 +2047,19 @@ Useful helpers for more than two tasks that don't fit anywhere else.
 import collections
 import collections.abc
 import contextlib
+import gc
+import itertools
 import logging
 import os.path
 import resource
 import time
-from collections.abc import Iterable
-from typing import Sequence
 
 import beartype
 import numpy as np
 import torch
 from jaxtyping import Int, jaxtyped
 
-from . import config  # already in repo
+from . import config
 
 
 @beartype.beartype
@@ -2255,28 +2263,25 @@ def bump_nofile(margin: int = 512) -> None:
 
 
 @beartype.beartype
-def _default_schedule(start: int) -> Iterable[int]:
+def _default_batchsize_schedule(start: int = 2) -> collections.abc.Iterable[int]:
     """
-    128, 196, 256, 384, 512, 768, 1024, ... doubling afterwards.
-    Guarantees monotonically increasing values and never repeats *start*.
+    2, 3, 4, 6, 8, 12, 16, 24, 32, 48, 64, 96, 128, 196, 256, 384, 512, 768, 1024, ...
     """
-    preset: Sequence[int] = (128, 196, 256, 384, 512, 768, 1024)
-    yield from (bs for bs in preset if bs > start)
 
-    bs = max(preset[-1], start)
-    while True:
-        bs *= 2
-        yield bs
+    x = start
+    for m in itertools.cycle((3 / 2, 4 / 3)):  # 3/2, 4/3, 3/2, 4/3, ...
+        yield int(x)
+        x *= m
 
 
 @contextlib.contextmanager
 @beartype.beartype
-def best_batch_size(
+def auto_batchsize(
     cfg: config.Experiment,
     dataloader: torch.utils.data.DataLoader,
     *,
     probe: collections.abc.Callable[[torch.Tensor], torch.Tensor],
-    schedule: Iterable[int] | None = None,
+    schedule: collections.abc.Iterable[int] | None = None,
 ):
     """
     Context manager that **mutates `dataloader.batch_size` in-place** so you always run with the largest batch that fits GPU RAM.
@@ -2292,7 +2297,7 @@ def best_batch_size(
     schedule:
         An iterator of candidate batch sizes.  If `None`, use the canonical schedule.
     """
-    logger = logging.getLogger("var-bsz")
+    logger = logging.getLogger("auto-bsz")
 
     if dataloader.batch_sampler is None:
         raise ValueError("dataloader must have a batch_sampler")
@@ -2300,9 +2305,11 @@ def best_batch_size(
     orig_bs = int(dataloader.batch_sampler.batch_size)
     tried_bs = orig_bs
     ok_bs = orig_bs
-    schedule_iter = schedule or _default_schedule(orig_bs)
+    schedule_iter = schedule or _default_batchsize_schedule(orig_bs)
 
     torch.cuda.empty_cache()  # be nice
+
+    t_start = time.perf_counter()
 
     for tried_bs in schedule_iter:
         # quick sanity: do not create impossible 0-batch situations
@@ -2317,20 +2324,16 @@ def best_batch_size(
         # pull ONE mini-batch, send through probe
         try:
             batch = next(iter(dataloader))
-            if isinstance(batch, (list, tuple)):
-                images = batch[0]
-            elif isinstance(batch, dict) and "img" in batch:
-                images = batch["img"]
-            else:
-                raise RuntimeError("variable_batch_size: cannot locate images in batch")
-
-            images = images.to(cfg.device, non_blocking=True)
-            with torch.no_grad(), torch.amp.autocast(cfg.device):
-                _ = probe(images)  # forward only; discard output
+            probe(batch)  # forward only; discard output
 
         except RuntimeError as err:
-            if "out of memory" in str(err).lower():
-                logger.info("OOM at batch_size=%d; reverting to %d", tried_bs, ok_bs)
+            _msg = str(err).lower()
+            oom_signatures = (
+                "out of memory",
+                "cuda error: invalid configuration argument",  # SPM-efficient-attn OOM
+            )
+            if any(sig in _msg for sig in oom_signatures):
+                logger.debug("OOM at batch_size=%d; reverting to %d", tried_bs, ok_bs)
                 torch.cuda.empty_cache()
                 # restore smaller and stop searching
                 dataloader.batch_sampler.batch_size = ok_bs
@@ -2339,6 +2342,13 @@ def best_batch_size(
         else:
             ok_bs = tried_bs
             logger.debug("batch_size=%d succeeded", ok_bs)
+    elapsed = time.perf_counter() - t_start
+    logger.info("Selected batch_size %d after %.2f s", ok_bs, elapsed)
+
+    # Final tidy-up to avoid residual OOMs
+    torch.cuda.empty_cache()
+    torch.cuda.ipc_collect()  # frees cached blocks from other procs
+    gc.collect()  # clears Python refs / fragments
 
     try:
         yield  # user code runs here with patched batch_size
@@ -2477,21 +2487,25 @@ def get_features(
 
     backbone = torch.compile(backbone.to(cfg.device))
 
-    total = len(dataloader) if not cfg.debug else 2
-    it = iter(dataloader)
+    def probe(batch):
+        imgs = batch["img"].to(cfg.device, non_blocking=True)
+        with torch.amp.autocast(cfg.device):
+            _ = backbone.img_encode(imgs).img_features  # forward only
 
     all_ids, all_features, all_labels = [], [], []
-    for b in helpers.progress(range(total), every=10, desc=f"hb19/{split}"):
-        batch = next(it)
-        imgs = batch["img"].to(cfg.device)
+    with helpers.auto_batchsize(cfg, dataloader, probe=probe):
+        total = len(dataloader) if not cfg.debug else 2
+        it = iter(dataloader)
+        for b in helpers.progress(range(total), every=10, desc=f"hb19/{split}"):
+            batch = next(it)
+            imgs = batch["img"].to(cfg.device)
 
-        with torch.amp.autocast("cuda"):
-            features = backbone.img_encode(imgs).img_features
-            all_features.append(features.cpu())
+            with torch.amp.autocast("cuda"):
+                features = backbone.img_encode(imgs).img_features
+                all_features.append(features.cpu())
 
-        all_ids.extend(batch["img_id"])
-
-        all_labels.extend(batch["label"])
+            all_ids.extend(batch["img_id"])
+            all_labels.extend(batch["label"])
 
     all_features = torch.cat(all_features, axis=0).cpu().numpy()
     all_labels = np.array(all_labels)
@@ -2759,7 +2773,7 @@ def get_features(
         .select(i)
         .to_iterable_dataset(num_shards=n_workers)
         .map(Transform(img_transform))
-        .with_format("torch")
+        .with_format("torch", columns=["label", "id"])
     )
 
     dataloader = torch.utils.data.DataLoader(
@@ -2772,20 +2786,26 @@ def get_features(
 
     all_features, all_labels, all_ids = [], [], []
 
-    total = max(n_workers, math.ceil(len(i) / cfg.batch_size))
-    it = iter(dataloader)
-    logger.debug("Need to embed %d batches of %d images.", total, cfg.batch_size)
-    for b in helpers.progress(range(total), every=10, desc=f"in1k/{split}"):
-        batch = next(it)
+    def probe(batch):
+        imgs = batch["image"].to(cfg.device, non_blocking=True)
+        with torch.amp.autocast(cfg.device):
+            backbone.img_encode(imgs).img_features
 
-        images = batch["image"].to(cfg.device)
+    with helpers.auto_batchsize(cfg, dataloader, probe=probe):
+        total = max(n_workers, math.ceil(len(i) / cfg.batch_size))
+        it = iter(dataloader)
+        logger.debug("Need to embed %d batches of %d images.", total, cfg.batch_size)
+        for b in helpers.progress(range(total), every=10, desc=f"in1k/{split}"):
+            batch = next(it)
 
-        with torch.amp.autocast("cuda"):
-            features = backbone.img_encode(images).img_features
+            images = batch["image"].to(cfg.device, non_blocking=True)
 
-        all_features.append(features.cpu())
-        all_labels.extend(batch["label"])
-        all_ids.extend(batch["id"])
+            with torch.amp.autocast(cfg.device):
+                features = backbone.img_encode(images).img_features
+
+            all_features.append(features.cpu())
+            all_labels.extend(batch["label"])
+            all_ids.extend(batch["id"])
 
     all_features = torch.cat(all_features, dim=0).cpu().numpy()
     all_ids = np.array(all_ids)
@@ -3235,7 +3255,7 @@ def get_features(
         imgs, labels, _ = next(it)
         imgs = imgs.to(cfg.device)
 
-        with torch.amp.autocast("cuda"):
+        with torch.amp.autocast(cfg.device):
             features = backbone.img_encode(imgs).img_features
             all_features.append(features.cpu())
 
@@ -4267,7 +4287,6 @@ def get_all_tasks(cfg: config.Experiment) -> collections.abc.Iterator[Task]:
 
     dataloader = torch.utils.data.DataLoader(
         dataset,
-        batch_size=cfg.batch_size,
         num_workers=cfg.n_workers,
         drop_last=False,
         shuffle=False,
@@ -4275,21 +4294,27 @@ def get_all_tasks(cfg: config.Experiment) -> collections.abc.Iterator[Task]:
         persistent_workers=False,
     )
 
+    def probe(batch):
+        imgs = batch["img"].to(cfg.device, non_blocking=True)
+        with torch.amp.autocast(cfg.device):
+            _ = backbone.img_encode(imgs).img_features  # forward only
+
     all_features, all_ids = [], []
 
     # Need to select just a subset of rows based on cfg.n_train.
-    total = len(dataloader) if not cfg.debug else 2
-    it = iter(dataloader)
-    for b in helpers.progress(range(total), every=10, desc="newt"):
-        batch = next(it)
-        imgs = batch["img"].to(cfg.device)
+    with helpers.auto_batchsize(cfg, dataloader, probe=probe):
+        total = len(dataloader) if not cfg.debug else 2
+        it = iter(dataloader)
+        for b in helpers.progress(range(total), every=10, desc="newt"):
+            batch = next(it)
+            imgs = batch["img"].to(cfg.device)
 
-        with torch.amp.autocast("cuda"):
-            features = backbone.img_encode(imgs).img_features
-            features = torch.nn.functional.normalize(features, dim=-1)
-            all_features.append(features.cpu())
+            with torch.amp.autocast("cuda"):
+                features = backbone.img_encode(imgs).img_features
+                features = torch.nn.functional.normalize(features, dim=-1)
+                all_features.append(features.cpu())
 
-        all_ids.extend(batch["img_id"])
+            all_ids.extend(batch["img_id"])
 
     all_features = torch.cat(all_features, dim=0).cpu()
     all_ids = np.array(all_ids)
@@ -4811,6 +4836,8 @@ def get_features(
     images_dir_path = os.path.join(cfg.data.plankton, split)
 
     img_transform = backbone.make_img_transform()
+    backbone = torch.compile(backbone.to(cfg.device))
+
     dataset = Dataset(images_dir_path, img_transform)
 
     if is_train and cfg.n_train > 0:
@@ -4828,23 +4855,27 @@ def get_features(
         persistent_workers=False,
     )
 
-    backbone = torch.compile(backbone.to(cfg.device))
-
-    total = len(dataloader) if not cfg.debug else 2
-    it = iter(dataloader)
+    def probe(batch):
+        imgs = batch["img"].to(cfg.device, non_blocking=True)
+        with torch.amp.autocast(cfg.device):
+            _ = backbone.img_encode(imgs).img_features  # forward only
 
     all_ids, all_features, all_labels = [], [], []
-    for b in helpers.progress(range(total), every=10, desc=f"plk/{split}"):
-        batch = next(it)
-        imgs = batch["img"].to(cfg.device)
 
-        with torch.amp.autocast("cuda"):
-            features = backbone.img_encode(imgs).img_features
-            all_features.append(features.cpu())
+    with helpers.auto_batchsize(cfg, dataloader, probe=probe):
+        total = len(dataloader) if not cfg.debug else 2
+        it = iter(dataloader)
+        for b in helpers.progress(range(total), every=10, desc=f"plk/{split}"):
+            batch = next(it)
+            imgs = batch["img"].to(cfg.device)
 
-        all_ids.extend(batch["img_id"])
+            with torch.amp.autocast(cfg.device):
+                features = backbone.img_encode(imgs).img_features
+                all_features.append(features.cpu())
 
-        all_labels.extend(batch["label"])
+            all_ids.extend(batch["img_id"])
+
+            all_labels.extend(batch["label"])
 
     all_features = torch.cat(all_features, axis=0).cpu().numpy()
     all_labels = np.array(all_labels)
@@ -5572,9 +5603,8 @@ from jaxtyping import jaxtyped
 
 from . import config
 
-log_format = "[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s"
-logging.basicConfig(level=logging.INFO, format=log_format)
-logger = logging.getLogger("biobench")
+logger = logging.getLogger(__name__)
+
 schema_fpath = pathlib.Path(__file__).parent / "schema.sql"
 
 
@@ -6054,6 +6084,7 @@ def test_load_returns_full_cartesian_product(tmp_path):
 >>>> test_helpers.py
 import collections
 import itertools
+import math
 
 import beartype
 import hypothesis.extra.numpy as npst
@@ -6142,8 +6173,7 @@ def test_fs_safe_idempotent_and_clean(random_text):
     batch=st.integers(min_value=1, max_value=400),
 )
 def test_batched_idx_covers_range_without_overlap(total, batch):
-    """batched_idx must partition [0,total) into consecutive, non-overlapping spans,
-    each of length <= batch."""
+    """batched_idx must partition [0,total) into consecutive, non-overlapping spans, each of length <= batch."""
     spans = list(helpers.batched_idx(total, batch))
 
     # edge-case: nothing to iterate
@@ -6286,43 +6316,37 @@ def test_balanced_random_sample_never_duplicates_indices(labels, n):
 
 @pytest.fixture(scope="session")
 def dummy_cfg():
-    """A minimal Experiment with device picked at runtime."""
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    # only the attrs we touch
-    return config.Experiment(
-        model=config.Model(org="dummy", ckpt="dummy"),
-        device=device,
-    )
+    return config.Experiment(model=config.Model("dummy", "dummy"), device=device)
 
 
 @pytest.fixture(scope="session")
 def dataloader():
-    # 30 fake RGB images; starting bs = 2
-    data = torch.rand(30, 3, 64, 64)  # small, keeps test fast
-    ds = TensorDataset(data)
+    data = torch.rand(30, 3, 64, 64)  # tiny tensor
+    ds = TensorDataset(data)  # returns tuples (tensor,)
     return DataLoader(ds, batch_size=2, shuffle=False, num_workers=0)
 
 
 def _make_probe(max_ok: int):
     """
-    Returns a probe that raises a CUDA-style OOM once `x.shape[0] > max_ok`.
-
-    Lets us unit-test logic without allocating real GPU memory.
+    Probe that raises a CUDA-style OOM if the *batch* is larger than `max_ok`.
+    Works on CPU; keeps test independent of real GPU RAM.
     """
 
-    def probe(x: torch.Tensor) -> torch.Tensor:  # noqa: D401
-        if x.shape[0] > max_ok:
-            raise RuntimeError("CUDA out of memory.")  # same substring check
-        return x.mean(dim=0)  # cheap op, correct dtype/device
+    def probe(batch):
+        imgs = batch[0] if isinstance(batch, (list, tuple)) else batch
+        if imgs.shape[0] > max_ok:
+            raise RuntimeError("CUDA out of memory.")  # substring preserved
+        return imgs.mean()  # cheap op
 
     return probe
 
 
-def test_best_batch_size_ctx_runs_and_restores(dummy_cfg, dataloader):
+def test_auto_batchsize_ctx_runs_and_restores(dummy_cfg, dataloader):
     orig = dataloader.batch_sampler.batch_size
     probe = _make_probe(max_ok=8)  # fail when >8
 
-    with helpers.best_batch_size(
+    with helpers.auto_batchsize(
         dummy_cfg,
         dataloader,
         probe=probe,
@@ -6341,17 +6365,76 @@ def test_best_batch_size_ctx_runs_and_restores(dummy_cfg, dataloader):
 @pytest.mark.skipif(
     not torch.cuda.is_available(), reason="only meaningful on a GPU box"
 )
-def test_best_batch_size_with_gpu(dummy_cfg, dataloader):
+def test_auto_batchsize_with_gpu(dummy_cfg, dataloader):
     """Smoke-test true GPU execution (no artificial OOM)."""
     probe = lambda x: x * 1  # noqa: E731 - trivial forward
 
-    with helpers.best_batch_size(
+    with helpers.auto_batchsize(
         dummy_cfg,
         dataloader,
         probe=probe,
         schedule=(2, 4),  # tiny, never OOM
     ):
         next(iter(dataloader))  # just ensure no exception
+
+
+def test_len_adjusts_with_batch_size(dummy_cfg, dataloader):
+    """
+    `len(dataloader)` reflects the tuned batch size inside the CM and restores afterward.
+    """
+    n_samples = len(dataloader.dataset)  # 30
+    orig_bs = dataloader.batch_sampler.batch_size  # 2
+    assert len(dataloader) == math.ceil(n_samples / orig_bs)  # 15
+
+    probe = _make_probe(max_ok=8)  # tuning will settle on 8
+
+    with helpers.auto_batchsize(
+        dummy_cfg,
+        dataloader,
+        probe=probe,
+        schedule=(2, 4, 8, 16),
+    ):
+        tuned_bs = dataloader.batch_sampler.batch_size
+        assert tuned_bs == 8
+
+        inside_len = len(dataloader)
+        assert inside_len == math.ceil(n_samples / tuned_bs)  # 4
+
+    # back to original
+    assert dataloader.batch_sampler.batch_size == orig_bs
+    assert len(dataloader) == math.ceil(n_samples / orig_bs)  # 15
+
+
+def _make_probe_invalid_cfg(max_ok: int):
+    """Probe that mimics timm/efficient-attn 'invalid configuration argument'."""
+
+    def probe(batch):
+        imgs = batch[0]
+        if imgs.shape[0] > max_ok:
+            raise RuntimeError("CUDA error: invalid configuration argument")
+        return imgs.sum()
+
+    return probe
+
+
+def test_invalid_cfg_error_handled(dummy_cfg, dataloader):
+    """
+    Helper treats 'invalid configuration argument' the same as OOM.
+    """
+    orig = dataloader.batch_sampler.batch_size
+    probe = _make_probe_invalid_cfg(max_ok=4)  # fail when >4
+
+    with helpers.auto_batchsize(
+        dummy_cfg,
+        dataloader,
+        probe=probe,
+        schedule=(2, 4, 8),
+    ):
+        # should settle on 4
+        assert dataloader.batch_sampler.batch_size == 4
+
+    # restored afterwards
+    assert dataloader.batch_sampler.batch_size == orig
 
 >>>> test_openset.py
 """Unit tests for `openset.MahalanobisOpenSetClassifier`."""
@@ -6553,14 +6636,28 @@ def test_smoke_imports():
     """Test that all modules can be imported without errors."""
     import biobench
     import biobench.aimv2
+    import biobench.beluga
+    import biobench.beluga.download
     import biobench.config
     import biobench.fishnet
+    import biobench.fishnet.download
     import biobench.fungiclef
+    import biobench.fungiclef.download
     import biobench.fungiclef.metrics
     import biobench.helpers
     import biobench.herbarium19
+    import biobench.herbarium19.download
     import biobench.inat21
+    import biobench.inat21.download
+    import biobench.iwildcam
+    import biobench.iwildcam.download
+    import biobench.newt
+    import biobench.newt.download
     import biobench.openset
+    import biobench.plankton
+    import biobench.plankton.download
+    import biobench.plantnet
+    import biobench.plantnet.download
     import biobench.rarespecies
     import biobench.registry
     import biobench.reporting
