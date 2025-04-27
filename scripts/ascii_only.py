@@ -116,10 +116,19 @@ def main(in_paths: list[str], fix: bool = False) -> int:
             # Create a pointer to the problematic character
             pointer = " " * char_pos + "^"
 
+            # Get the Unicode escape representation
+            unicode_repr = ""
+            for b in bad_byte:
+                if ord(b) > 127:  # Only process non-ASCII
+                    unicode_repr += f"\\u{ord(b):04x}"
+                else:
+                    unicode_repr += b
+
             print(f"{py}:{line_num}:{char_pos + 1}: Non-ASCII character detected")
             print(f" {problem_line}")
             print(f" {pointer}")
             print(f" Problematic bytes: {bad_byte!r}")
+            print(f" Unicode escape: {unicode_repr}")
             print()
 
             failed.append(py)
