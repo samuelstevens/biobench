@@ -92,6 +92,24 @@ el.replaceWith(d);
 <div class="desc"><p>Probe that raises a CUDA-style OOM if the <em>batch</em> is larger than <code>max_ok</code>. Works on CPU; keeps test independent of real GPU RAM.</p>
 <p>-1 indicates to never OOM.</p></div>
 </dd>
+<dt id="biobench.test_auto_batch_size.test_backoff_after_flaky_probe"><code class="name flex">
+<span>def <span class="ident">test_backoff_after_flaky_probe</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_backoff_after_flaky_probe():
+    # 8 succeeds then OOMs; helper should fall back to 6.
+    dataloader = make_dataloader(128)
+    with helpers.auto_batch_size(
+        dataloader, probe=_probe_flaky(flake_at=8), schedule=(2, 3, 4, 6, 8, 12, 16)
+    ):
+        assert dataloader.batch_sampler.batch_size == 6</code></pre>
+</details>
+<div class="desc"></div>
+</dd>
 <dt id="biobench.test_auto_batch_size.test_caps_at_dataset_len_generic"><code class="name flex">
 <span>def <span class="ident">test_caps_at_dataset_len_generic</span></span>(<span>)</span>
 </code></dt>
@@ -308,6 +326,7 @@ def test_with_gpu():
 <ul class="">
 <li><code><a title="biobench.test_auto_batch_size.make_dataloader" href="#biobench.test_auto_batch_size.make_dataloader">make_dataloader</a></code></li>
 <li><code><a title="biobench.test_auto_batch_size.make_probe" href="#biobench.test_auto_batch_size.make_probe">make_probe</a></code></li>
+<li><code><a title="biobench.test_auto_batch_size.test_backoff_after_flaky_probe" href="#biobench.test_auto_batch_size.test_backoff_after_flaky_probe">test_backoff_after_flaky_probe</a></code></li>
 <li><code><a title="biobench.test_auto_batch_size.test_caps_at_dataset_len_generic" href="#biobench.test_auto_batch_size.test_caps_at_dataset_len_generic">test_caps_at_dataset_len_generic</a></code></li>
 <li><code><a title="biobench.test_auto_batch_size.test_ctx_runs_and_restores" href="#biobench.test_auto_batch_size.test_ctx_runs_and_restores">test_ctx_runs_and_restores</a></code></li>
 <li><code><a title="biobench.test_auto_batch_size.test_invalid_cfg_error_handled" href="#biobench.test_auto_batch_size.test_invalid_cfg_error_handled">test_invalid_cfg_error_handled</a></code></li>

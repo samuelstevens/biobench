@@ -232,7 +232,7 @@ def _default_batchsize_schedule(start: int = 2) -> collections.abc.Iterable[int]
 
 
 @beartype.beartype
-def _infer_batch_size(batch: object) -> int | None:
+def infer_batch_size(batch: object) -> int | None:
     """
     Return the leading dimension of the *first* tensor found inside `batch`. Works for arbitrary nested structures.
     """
@@ -241,22 +241,22 @@ def _infer_batch_size(batch: object) -> int | None:
 
     if isinstance(batch, (list, tuple)):
         for item in batch:
-            bs = _infer_batch_size(item)
+            bs = infer_batch_size(item)
             if bs is not None:
                 return bs
 
     if isinstance(batch, dict):
         for item in batch.values():
-            bs = _infer_batch_size(item)
+            bs = infer_batch_size(item)
             if bs is not None:
                 return bs
 
     if dataclasses.is_dataclass(batch):
-        return _infer_batch_size(dataclasses.asdict(batch))
+        return infer_batch_size(dataclasses.asdict(batch))
 
     # Fallback: inspect attributes (namedtuple, SimpleNamespace, custom)
     if hasattr(batch, "__dict__"):
-        return _infer_batch_size(vars(batch))
+        return infer_batch_size(vars(batch))
 
     return None
 
@@ -287,31 +287,35 @@ def auto_batch_size(
     if dataloader.batch_sampler is None:
         raise ValueError("dataloader must have a batch_sampler")
 
-    orig_bs = int(dataloader.batch_sampler.batch_size)
-    tried_bs = orig_bs
-    ok_bs = orig_bs
-    schedule_iter = schedule or _default_batchsize_schedule(orig_bs)
+    oom_signatures = (
+        "out of memory",
+        "cuda error: invalid configuration argument",  # SPM-efficient-attn OOM
+    )
+
+    dataloader.batch_sampler.batch_size = min(
+        dataloader.batch_sampler.batch_size, upper
+    )
+
+    orig_bsz = int(dataloader.batch_sampler.batch_size)
+    ok_bsz = orig_bsz
+    good_bszs = [ok_bsz]
+    schedule_iter = schedule or _default_batchsize_schedule(orig_bsz)
 
     torch.cuda.empty_cache()  # be nice
 
     t_start = time.perf_counter()
 
-    for tried_bs in schedule_iter:
-        # honor explicit ceiling
-        if upper is not None and tried_bs > upper:
-            dataloader.batch_sampler.batch_size = upper
-            ok_bs = upper
-            logger.debug("Reached user upper limit=%d", upper)
-            break
-
+    for tried_bsz in schedule_iter:
         # quick sanity: do not create impossible 0-batch situations
-        if tried_bs <= ok_bs:
+        if tried_bsz <= ok_bsz:
             continue
 
-        # patch both public and sampler attrs
-        dataloader.batch_sampler.batch_size = tried_bs
+        if tried_bsz > upper:
+            tried_bsz = upper
 
-        logger.info("Trying batch_size=%d", tried_bs)
+        # patch sampler attr
+        dataloader.batch_sampler.batch_size = tried_bsz
+        logger.info("Trying batch_size=%d", tried_bsz)
 
         # pull ONE mini-batch, send through probe
         try:
@@ -319,45 +323,58 @@ def auto_batch_size(
             probe(batch)  # forward only; discard output
 
             # If the loader produced fewer items than we asked for, we've reached the dataset size — any larger batch will give the same tensor, so stop growing.
-            effective_bs = _infer_batch_size(batch)
-            if effective_bs is None:
+            effective_bsz = infer_batch_size(batch)
+            if effective_bsz is None:
                 raise RuntimeError(
                     "Unable to deduce batch size from probe batch; ensure it contains at least one torch.Tensor."
                 )
-            if effective_bs < tried_bs:
+
+            if effective_bsz < tried_bsz:
                 logger.info(
                     "Dataset exhausted at %d examples (asked for %d); capping batch size.",
-                    effective_bs,
-                    tried_bs,
+                    effective_bsz,
+                    tried_bsz,
                 )
-                ok_bs = effective_bs
-                dataloader.batch_sampler.batch_size = ok_bs
+                ok_bsz = effective_bsz
+                good_bszs.append(ok_bsz)
+                break
+
+            ok_bsz = tried_bsz
+            good_bszs.append(ok_bsz)
+            logger.info("batch_size=%d succeeded", ok_bsz)
+
+            # honor explicit ceiling
+            if upper is not None and ok_bsz >= upper:
+                logger.info("Reached ok_bsz (%d) >= upper (%d)", ok_bsz, upper)
+                ok_bsz = upper
                 break
 
         except RuntimeError as err:
-            _msg = str(err).lower()
-            oom_signatures = (
-                "out of memory",
-                "cuda error: invalid configuration argument",  # SPM-efficient-attn OOM
-            )
-            if any(sig in _msg for sig in oom_signatures):
-                logger.info("OOM at batch_size=%d; reverting to %d", tried_bs, ok_bs)
+            msg = str(err).lower()
+            if any(sig in msg for sig in oom_signatures):
+                logger.info("OOM at batch_size=%d; reverting to %d", tried_bsz, ok_bsz)
                 torch.cuda.empty_cache()
-                # restore smaller and stop searching
-                dataloader.batch_sampler.batch_size = ok_bs
                 break
-            raise
-        else:
-            ok_bs = tried_bs
-            logger.info("batch_size=%d succeeded", ok_bs)
+            else:
+                raise
 
-    # final guard: ensure we never exceed user-provided upper
-    if upper is not None and ok_bs > upper:
-        ok_bs = upper
-        dataloader.batch_sampler.batch_size = ok_bs
+    # (re-)verify ok_bs once more in a clean context
+    while good_bszs:
+        ok_bsz = good_bszs.pop()
+        dataloader.batch_sampler.batch_size = ok_bsz
+        try:
+            batch = next(iter(dataloader))
+            probe(batch)
+            break  # we know ok_bsz is actually good.
+
+        except RuntimeError as err:
+            if any(sig in str(err).lower() for sig in oom_signatures):
+                logger.info("Still OOM at %d; trying previous candidate", ok_bsz)
+            else:
+                raise
 
     elapsed = time.perf_counter() - t_start
-    logger.info("Selected batch_size %d after %.2f s", ok_bs, elapsed)
+    logger.info("Selected batch_size %d after %.2f s", ok_bsz, elapsed)
 
     # Final tidy-up to avoid residual OOMs
     torch.cuda.empty_cache()
@@ -365,7 +382,7 @@ def auto_batch_size(
     gc.collect()  # clears Python refs / fragments
 
     try:
-        yield ok_bs  # user code runs here with patched batch_size
+        yield ok_bsz  # user code runs here with patched batch_size
     finally:
         # always restore original value
-        dataloader.batch_sampler.batch_size = orig_bs
+        dataloader.batch_sampler.batch_size = orig_bsz

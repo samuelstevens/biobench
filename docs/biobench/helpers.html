@@ -81,31 +81,35 @@ def auto_batch_size(
     if dataloader.batch_sampler is None:
         raise ValueError(&#34;dataloader must have a batch_sampler&#34;)
 
-    orig_bs = int(dataloader.batch_sampler.batch_size)
-    tried_bs = orig_bs
-    ok_bs = orig_bs
-    schedule_iter = schedule or _default_batchsize_schedule(orig_bs)
+    oom_signatures = (
+        &#34;out of memory&#34;,
+        &#34;cuda error: invalid configuration argument&#34;,  # SPM-efficient-attn OOM
+    )
+
+    dataloader.batch_sampler.batch_size = min(
+        dataloader.batch_sampler.batch_size, upper
+    )
+
+    orig_bsz = int(dataloader.batch_sampler.batch_size)
+    ok_bsz = orig_bsz
+    good_bszs = [ok_bsz]
+    schedule_iter = schedule or _default_batchsize_schedule(orig_bsz)
 
     torch.cuda.empty_cache()  # be nice
 
     t_start = time.perf_counter()
 
-    for tried_bs in schedule_iter:
-        # honor explicit ceiling
-        if upper is not None and tried_bs &gt; upper:
-            dataloader.batch_sampler.batch_size = upper
-            ok_bs = upper
-            logger.debug(&#34;Reached user upper limit=%d&#34;, upper)
-            break
-
+    for tried_bsz in schedule_iter:
         # quick sanity: do not create impossible 0-batch situations
-        if tried_bs &lt;= ok_bs:
+        if tried_bsz &lt;= ok_bsz:
             continue
 
-        # patch both public and sampler attrs
-        dataloader.batch_sampler.batch_size = tried_bs
+        if tried_bsz &gt; upper:
+            tried_bsz = upper
 
-        logger.info(&#34;Trying batch_size=%d&#34;, tried_bs)
+        # patch sampler attr
+        dataloader.batch_sampler.batch_size = tried_bsz
+        logger.info(&#34;Trying batch_size=%d&#34;, tried_bsz)
 
         # pull ONE mini-batch, send through probe
         try:
@@ -113,45 +117,58 @@ def auto_batch_size(
             probe(batch)  # forward only; discard output
 
             # If the loader produced fewer items than we asked for, we&#39;ve reached the dataset size — any larger batch will give the same tensor, so stop growing.
-            effective_bs = _infer_batch_size(batch)
-            if effective_bs is None:
+            effective_bsz = infer_batch_size(batch)
+            if effective_bsz is None:
                 raise RuntimeError(
                     &#34;Unable to deduce batch size from probe batch; ensure it contains at least one torch.Tensor.&#34;
                 )
-            if effective_bs &lt; tried_bs:
+
+            if effective_bsz &lt; tried_bsz:
                 logger.info(
                     &#34;Dataset exhausted at %d examples (asked for %d); capping batch size.&#34;,
-                    effective_bs,
-                    tried_bs,
+                    effective_bsz,
+                    tried_bsz,
                 )
-                ok_bs = effective_bs
-                dataloader.batch_sampler.batch_size = ok_bs
+                ok_bsz = effective_bsz
+                good_bszs.append(ok_bsz)
+                break
+
+            ok_bsz = tried_bsz
+            good_bszs.append(ok_bsz)
+            logger.info(&#34;batch_size=%d succeeded&#34;, ok_bsz)
+
+            # honor explicit ceiling
+            if upper is not None and ok_bsz &gt;= upper:
+                logger.info(&#34;Reached ok_bsz (%d) &gt;= upper (%d)&#34;, ok_bsz, upper)
+                ok_bsz = upper
                 break
 
         except RuntimeError as err:
-            _msg = str(err).lower()
-            oom_signatures = (
-                &#34;out of memory&#34;,
-                &#34;cuda error: invalid configuration argument&#34;,  # SPM-efficient-attn OOM
-            )
-            if any(sig in _msg for sig in oom_signatures):
-                logger.info(&#34;OOM at batch_size=%d; reverting to %d&#34;, tried_bs, ok_bs)
+            msg = str(err).lower()
+            if any(sig in msg for sig in oom_signatures):
+                logger.info(&#34;OOM at batch_size=%d; reverting to %d&#34;, tried_bsz, ok_bsz)
                 torch.cuda.empty_cache()
-                # restore smaller and stop searching
-                dataloader.batch_sampler.batch_size = ok_bs
                 break
-            raise
-        else:
-            ok_bs = tried_bs
-            logger.info(&#34;batch_size=%d succeeded&#34;, ok_bs)
+            else:
+                raise
 
-    # final guard: ensure we never exceed user-provided upper
-    if upper is not None and ok_bs &gt; upper:
-        ok_bs = upper
-        dataloader.batch_sampler.batch_size = ok_bs
+    # (re-)verify ok_bs once more in a clean context
+    while good_bszs:
+        ok_bsz = good_bszs.pop()
+        dataloader.batch_sampler.batch_size = ok_bsz
+        try:
+            batch = next(iter(dataloader))
+            probe(batch)
+            break  # we know ok_bsz is actually good.
+
+        except RuntimeError as err:
+            if any(sig in str(err).lower() for sig in oom_signatures):
+                logger.info(&#34;Still OOM at %d; trying previous candidate&#34;, ok_bsz)
+            else:
+                raise
 
     elapsed = time.perf_counter() - t_start
-    logger.info(&#34;Selected batch_size %d after %.2f s&#34;, ok_bs, elapsed)
+    logger.info(&#34;Selected batch_size %d after %.2f s&#34;, ok_bsz, elapsed)
 
     # Final tidy-up to avoid residual OOMs
     torch.cuda.empty_cache()
@@ -159,10 +176,10 @@ def auto_batch_size(
     gc.collect()  # clears Python refs / fragments
 
     try:
-        yield ok_bs  # user code runs here with patched batch_size
+        yield ok_bsz  # user code runs here with patched batch_size
     finally:
         # always restore original value
-        dataloader.batch_sampler.batch_size = orig_bs</code></pre>
+        dataloader.batch_sampler.batch_size = orig_bsz</code></pre>
 </details>
 <div class="desc"><p>Context manager that <strong>mutates <code>dataloader.batch_size</code> in-place</strong> so you always run with the largest batch that fits GPU RAM.</p>
 <h2 id="parameters">Parameters</h2>
@@ -347,6 +364,45 @@ def get_cache_dir() -&gt; str:
 </details>
 <div class="desc"></div>
 </dd>
+<dt id="biobench.helpers.infer_batch_size"><code class="name flex">
+<span>def <span class="ident">infer_batch_size</span></span>(<span>batch: object) ‑> int | None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@beartype.beartype
+def infer_batch_size(batch: object) -&gt; int | None:
+    &#34;&#34;&#34;
+    Return the leading dimension of the *first* tensor found inside `batch`. Works for arbitrary nested structures.
+    &#34;&#34;&#34;
+    if isinstance(batch, torch.Tensor):
+        return batch.shape[0]
+
+    if isinstance(batch, (list, tuple)):
+        for item in batch:
+            bs = infer_batch_size(item)
+            if bs is not None:
+                return bs
+
+    if isinstance(batch, dict):
+        for item in batch.values():
+            bs = infer_batch_size(item)
+            if bs is not None:
+                return bs
+
+    if dataclasses.is_dataclass(batch):
+        return infer_batch_size(dataclasses.asdict(batch))
+
+    # Fallback: inspect attributes (namedtuple, SimpleNamespace, custom)
+    if hasattr(batch, &#34;__dict__&#34;):
+        return infer_batch_size(vars(batch))
+
+    return None</code></pre>
+</details>
+<div class="desc"><p>Return the leading dimension of the <em>first</em> tensor found inside <code>batch</code>. Works for arbitrary nested structures.</p></div>
+</dd>
 <dt id="biobench.helpers.write_hparam_sweep_plot"><code class="name flex">
 <span>def <span class="ident">write_hparam_sweep_plot</span></span>(<span>task: str,<br>model: str,<br>clf,<br>x: str = 'param_ridgeclassifier__alpha',<br>y: str = 'mean_test_score') ‑> str</span>
 </code></dt>
@@ -483,6 +539,7 @@ class progress:
 <li><code><a title="biobench.helpers.bump_nofile" href="#biobench.helpers.bump_nofile">bump_nofile</a></code></li>
 <li><code><a title="biobench.helpers.fs_safe" href="#biobench.helpers.fs_safe">fs_safe</a></code></li>
 <li><code><a title="biobench.helpers.get_cache_dir" href="#biobench.helpers.get_cache_dir">get_cache_dir</a></code></li>
+<li><code><a title="biobench.helpers.infer_batch_size" href="#biobench.helpers.infer_batch_size">infer_batch_size</a></code></li>
 <li><code><a title="biobench.helpers.write_hparam_sweep_plot" href="#biobench.helpers.write_hparam_sweep_plot">write_hparam_sweep_plot</a></code></li>
 </ul>
 </li>
