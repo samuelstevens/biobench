@@ -69,7 +69,7 @@ This is not a true, real-world task.</p>
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
 <dt id="biobench.inat21.benchmark"><code class="name flex">
-<span>def <span class="ident">benchmark</span></span>(<span>cfg: <a title="biobench.config.Experiment" href="../config.html#biobench.config.Experiment">Experiment</a>) ‑> tuple[<a title="biobench.config.Model" href="../config.html#biobench.config.Model">Model</a>, <a title="biobench.reporting.Report" href="../reporting.html#biobench.reporting.Report">Report</a>]</span>
+<span>def <span class="ident">benchmark</span></span>(<span>cfg: <a title="biobench.config.Experiment" href="../config.html#biobench.config.Experiment">Experiment</a>) ‑> <a title="biobench.reporting.Report" href="../reporting.html#biobench.reporting.Report">Report</a></span>
 </code></dt>
 <dd>
 <details class="source">
@@ -77,7 +77,7 @@ This is not a true, real-world task.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">@beartype.beartype
-def benchmark(cfg: config.Experiment) -&gt; tuple[config.Model, reporting.Report]:
+def benchmark(cfg: config.Experiment) -&gt; reporting.Report:
     &#34;&#34;&#34;
     Steps:
     1. Get features for all images.
@@ -114,7 +114,7 @@ def benchmark(cfg: config.Experiment) -&gt; tuple[config.Model, reporting.Report
         )
     ]
 
-    return cfg.model, reporting.Report(&#34;iNat21&#34;, examples)</code></pre>
+    return reporting.Report(&#34;iNat21&#34;, examples)</code></pre>
 </details>
 <div class="desc"><p>Steps:
 1. Get features for all images.
@@ -122,7 +122,7 @@ def benchmark(cfg: config.Experiment) -&gt; tuple[config.Model, reporting.Report
 3. Report score on test data.</p></div>
 </dd>
 <dt id="biobench.inat21.get_features"><code class="name flex">
-<span>def <span class="ident">get_features</span></span>(<span>args: <a title="biobench.inat21.Args" href="#biobench.inat21.Args">Args</a>,<br>backbone: <a title="biobench.registry.VisionBackbone" href="../registry.html#biobench.registry.VisionBackbone">VisionBackbone</a>,<br>*,<br>is_train: bool) ‑> <a title="biobench.inat21.Features" href="#biobench.inat21.Features">Features</a></span>
+<span>def <span class="ident">get_features</span></span>(<span>cfg: <a title="biobench.config.Experiment" href="../config.html#biobench.config.Experiment">Experiment</a>,<br>backbone: <a title="biobench.registry.VisionBackbone" href="../registry.html#biobench.registry.VisionBackbone">VisionBackbone</a>,<br>*,<br>is_train: bool) ‑> <a title="biobench.inat21.Features" href="#biobench.inat21.Features">Features</a></span>
 </code></dt>
 <dd>
 <details class="source">
@@ -132,7 +132,7 @@ def benchmark(cfg: config.Experiment) -&gt; tuple[config.Model, reporting.Report
 <pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
 @torch.no_grad()
 def get_features(
-    args: Args, backbone: registry.VisionBackbone, *, is_train: bool
+    cfg: config.Experiment, backbone: registry.VisionBackbone, *, is_train: bool
 ) -&gt; Features:
     img_transform = backbone.make_img_transform()
     backbone = torch.compile(backbone.to(args.device))
@@ -176,7 +176,7 @@ def get_features(
 <div class="desc"></div>
 </dd>
 <dt id="biobench.inat21.init_clf"><code class="name flex">
-<span>def <span class="ident">init_clf</span></span>(<span>args: <a title="biobench.inat21.Args" href="#biobench.inat21.Args">Args</a>)</span>
+<span>def <span class="ident">init_clf</span></span>(<span>cfg: <a title="biobench.config.Experiment" href="../config.html#biobench.config.Experiment">Experiment</a>)</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -184,9 +184,9 @@ def get_features(
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">@beartype.beartype
-def init_clf(args: Args):
+def init_clf(cfg: config.Experiment):
     alpha = np.pow(2.0, np.arange(-15, 5))
-    if args.debug:
+    if cfg.debug:
         alpha = np.pow(2.0, np.arange(-2, 2))
 
     return sklearn.model_selection.HalvingGridSearchCV(
@@ -207,62 +207,6 @@ def init_clf(args: Args):
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
-<dt id="biobench.inat21.Args"><code class="flex name class">
-<span>class <span class="ident">Args</span></span>
-<span>(</span><span>batch_size: int = 256,<br>n_workers: int = 4,<br>log_every: int = 10,<br>device: str = 'cuda',<br>debug: bool = False,<br>n_train: int = -1)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">@beartype.beartype
-@dataclasses.dataclass(frozen=True)
-class Args:
-    batch_size: int = 256
-    &#34;&#34;&#34;batch size for deep model.&#34;&#34;&#34;
-    n_workers: int = 4
-    &#34;&#34;&#34;number of dataloader worker processes.&#34;&#34;&#34;
-    log_every: int = 10
-    &#34;&#34;&#34;how often (number of batches) to log progress.&#34;&#34;&#34;
-
-    # Computed at runtime.
-    device: str = &#34;cuda&#34;
-    &#34;&#34;&#34;(computed at runtime) which kind of accelerator to use.&#34;&#34;&#34;
-    debug: bool = False
-    &#34;&#34;&#34;(computed at runtime) whether to run in debug mode.&#34;&#34;&#34;
-    n_train: int = -1
-    &#34;&#34;&#34;(computed at runtime) number of maximum training samples. Negative number means use all of them.&#34;&#34;&#34;</code></pre>
-</details>
-<div class="desc"><p>Args(batch_size: int = 256, n_workers: int = 4, log_every: int = 10, device: str = 'cuda', debug: bool = False, n_train: int = -1)</p></div>
-<h3>Instance variables</h3>
-<dl>
-<dt id="biobench.inat21.Args.batch_size"><code class="name">var <span class="ident">batch_size</span> : int</code></dt>
-<dd>
-<div class="desc"><p>batch size for deep model.</p></div>
-</dd>
-<dt id="biobench.inat21.Args.debug"><code class="name">var <span class="ident">debug</span> : bool</code></dt>
-<dd>
-<div class="desc"><p>(computed at runtime) whether to run in debug mode.</p></div>
-</dd>
-<dt id="biobench.inat21.Args.device"><code class="name">var <span class="ident">device</span> : str</code></dt>
-<dd>
-<div class="desc"><p>(computed at runtime) which kind of accelerator to use.</p></div>
-</dd>
-<dt id="biobench.inat21.Args.log_every"><code class="name">var <span class="ident">log_every</span> : int</code></dt>
-<dd>
-<div class="desc"><p>how often (number of batches) to log progress.</p></div>
-</dd>
-<dt id="biobench.inat21.Args.n_train"><code class="name">var <span class="ident">n_train</span> : int</code></dt>
-<dd>
-<div class="desc"><p>(computed at runtime) number of maximum training samples. Negative number means use all of them.</p></div>
-</dd>
-<dt id="biobench.inat21.Args.n_workers"><code class="name">var <span class="ident">n_workers</span> : int</code></dt>
-<dd>
-<div class="desc"><p>number of dataloader worker processes.</p></div>
-</dd>
-</dl>
-</dd>
 <dt id="biobench.inat21.Dataset"><code class="flex name class">
 <span>class <span class="ident">Dataset</span></span>
 <span>(</span><span>root: str | pathlib.Path,<br>transform: Callable | None = None,<br>target_transform: Callable | None = None,<br>loader: Callable[[str], Any] = &lt;function default_loader&gt;,<br>is_valid_file: Callable[[str], bool] | None = None,<br>allow_empty: bool = False)</span>
@@ -365,17 +309,6 @@ class Features:
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
-<li>
-<h4><code><a title="biobench.inat21.Args" href="#biobench.inat21.Args">Args</a></code></h4>
-<ul class="two-column">
-<li><code><a title="biobench.inat21.Args.batch_size" href="#biobench.inat21.Args.batch_size">batch_size</a></code></li>
-<li><code><a title="biobench.inat21.Args.debug" href="#biobench.inat21.Args.debug">debug</a></code></li>
-<li><code><a title="biobench.inat21.Args.device" href="#biobench.inat21.Args.device">device</a></code></li>
-<li><code><a title="biobench.inat21.Args.log_every" href="#biobench.inat21.Args.log_every">log_every</a></code></li>
-<li><code><a title="biobench.inat21.Args.n_train" href="#biobench.inat21.Args.n_train">n_train</a></code></li>
-<li><code><a title="biobench.inat21.Args.n_workers" href="#biobench.inat21.Args.n_workers">n_workers</a></code></li>
-</ul>
-</li>
 <li>
 <h4><code><a title="biobench.inat21.Dataset" href="#biobench.inat21.Dataset">Dataset</a></code></h4>
 </li>

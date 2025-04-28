@@ -13,6 +13,7 @@ def test_smoke_imports():
     import biobench.helpers
     import biobench.herbarium19
     import biobench.herbarium19.download
+    import biobench.imagenet1k
     import biobench.inat21
     import biobench.inat21.download
     import biobench.iwildcam

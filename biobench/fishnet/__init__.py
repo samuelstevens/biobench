@@ -260,13 +260,14 @@ def get_features(
     )
 
     def probe(batch):
-        imgs = batch["img"].to(cfg.device, non_blocking=True)
+        imgs, labels, ids = batch
+        imgs = imgs.to(cfg.device, non_blocking=True)
         with torch.amp.autocast(cfg.device):
             _ = backbone.img_encode(imgs).img_features  # forward only
 
     all_features, all_labels, all_ids = [], [], []
 
-    with helpers.auto_batch_size(cfg, dataloader, probe=probe):
+    with helpers.auto_batch_size(dataloader, probe=probe):
         total = len(dataloader) if not cfg.debug else 2
         it = iter(dataloader)
         for b in helpers.progress(range(total), every=10, desc=f"fish/{file}"):

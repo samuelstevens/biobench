@@ -268,7 +268,7 @@ def auto_batch_size(
     *,
     probe: collections.abc.Callable[[torch.Tensor], torch.Tensor],
     schedule: collections.abc.Iterable[int] | None = None,
-    upper: int = 2048,
+    upper: int = 4096,
 ):
     """
     Context manager that **mutates `dataloader.batch_size` in-place** so you always run with the largest batch that fits GPU RAM.
@@ -297,6 +297,13 @@ def auto_batch_size(
     t_start = time.perf_counter()
 
     for tried_bs in schedule_iter:
+        # honor explicit ceiling
+        if upper is not None and tried_bs > upper:
+            dataloader.batch_sampler.batch_size = upper
+            ok_bs = upper
+            logger.debug("Reached user upper limit=%d", upper)
+            break
+
         # quick sanity: do not create impossible 0-batch situations
         if tried_bs <= ok_bs:
             continue
@@ -311,7 +318,7 @@ def auto_batch_size(
             batch = next(iter(dataloader))
             probe(batch)  # forward only; discard output
 
-            # If the loader produced fewer items than we asked for, we've reached the dataset size -- any larger batch will give the same tensor, so stop growing.
+            # If the loader produced fewer items than we asked for, we've reached the dataset size — any larger batch will give the same tensor, so stop growing.
             effective_bs = _infer_batch_size(batch)
             if effective_bs is None:
                 raise RuntimeError(
@@ -343,6 +350,12 @@ def auto_batch_size(
         else:
             ok_bs = tried_bs
             logger.info("batch_size=%d succeeded", ok_bs)
+
+    # final guard: ensure we never exceed user-provided upper
+    if upper is not None and ok_bs > upper:
+        ok_bs = upper
+        dataloader.batch_sampler.batch_size = ok_bs
+
     elapsed = time.perf_counter() - t_start
     logger.info("Selected batch_size %d after %.2f s", ok_bs, elapsed)
 

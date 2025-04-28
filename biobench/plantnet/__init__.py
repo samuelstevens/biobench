@@ -40,24 +40,6 @@ from .. import config, helpers, registry, reporting
 logger = logging.getLogger("plantnet")
 
 
-@beartype.beartype
-@dataclasses.dataclass(frozen=True)
-class Args:
-    batch_size: int = 256
-    """batch size for deep model."""
-    n_workers: int = 4
-    """number of dataloader worker processes."""
-    log_every: int = 10
-    """how often (number of batches) to log progress."""
-    # Computed at runtime.
-    device: str = "cuda"
-    """(computed at runtime) which kind of accelerator to use."""
-    debug: bool = False
-    """(computed at runtime) whether to run in debug mode."""
-    n_train: int = -1
-    """(computed at runtime) number of maximum training samples. Negative number means use all of them."""
-
-
 @jaxtyped(typechecker=beartype.beartype)
 @dataclasses.dataclass(frozen=True)
 class Features:
@@ -70,7 +52,7 @@ class Features:
 
 
 @beartype.beartype
-def benchmark(cfg: config.Experiment) -> tuple[config.Model, reporting.Report]:
+def benchmark(cfg: config.Experiment) -> reporting.Report:
     """
     Steps:
     1. Get features for all images.
@@ -98,39 +80,21 @@ def benchmark(cfg: config.Experiment) -> tuple[config.Model, reporting.Report]:
     true_labels = val_features.y(encoder)
     pred_labels = clf.predict(val_features.x)
 
-    examples = [
+    preds = [
         reporting.Prediction(
-            str(image_id),
+            str(img_id),
             float(pred == true),
             {"y_pred": pred.item(), "y_true": true.item()},
         )
-        for image_id, pred, true in zip(
-            helpers.progress(val_features.ids, desc="Making examples", every=1_000),
-            pred_labels,
-            true_labels,
-        )
+        for img_id, pred, true in zip(val_features.ids, pred_labels, true_labels)
     ]
 
-    report = reporting.Report("Pl@ntNet", examples, calc_mean_score=calc_macro_top1)
-    return cfg.model, report
+    return reporting.Report("plantnet", preds, cfg)
 
 
-def calc_macro_top1(examples: list[reporting.Prediction]) -> float:
-    """
-    Macro top-1 accuracy.
-    """
-    cls_examples = {}
-    for example in examples:
-        true_cls = example.info["y_true"]
-        if true_cls not in cls_examples:
-            cls_examples[true_cls] = []
-
-        cls_examples[true_cls].append(example)
-
-    cls_accs = []
-    for examples in cls_examples.values():
-        cls_accs.append(np.mean([example.score for example in examples]))
-    return np.mean(cls_accs).item()
+@beartype.beartype
+def score(preds: list[reporting.Prediction]) -> float:
+    return reporting.macro_f1(preds)
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -148,18 +112,18 @@ class Dataset(torch.utils.data.Dataset):
             raise RuntimeError(msg)
 
         for dirpath, dirnames, filenames in os.walk(root):
-            image_class = os.path.relpath(dirpath, root)
+            img_class = os.path.relpath(dirpath, root)
             for filename in filenames:
-                image_id = filename.removesuffix(".jpg")
-                image_path = os.path.join(dirpath, filename)
-                self.samples.append((image_id, image_path, image_class))
+                img_id = filename.removesuffix(".jpg")
+                img_path = os.path.join(dirpath, filename)
+                self.samples.append((img_id, img_path, img_class))
 
     def __getitem__(self, i: int) -> tuple[str, Float[Tensor, "3 width height"], str]:
-        image_id, image_path, image_class = self.samples[i]
-        image = Image.open(image_path)
+        img_id, img_path, img_class = self.samples[i]
+        img = Image.open(img_path)
         if self.transform is not None:
-            image = self.transform(image)
-        return image_id, image, image_class
+            img = self.transform(img)
+        return img_id, img, img_class
 
     def __len__(self) -> int:
         return len(self.samples)
@@ -168,18 +132,18 @@ class Dataset(torch.utils.data.Dataset):
 @jaxtyped(typechecker=beartype.beartype)
 @torch.no_grad()
 def get_features(
-    args: Args, backbone: registry.VisionBackbone, *, split: str
+    cfg: config.Experiment, backbone: registry.VisionBackbone, *, split: str
 ) -> Features:
-    images_dir_path = os.path.join(args.datadir, "images", split)
+    imgs_dir_path = os.path.join(cfg.data.plantnet, "images", split)
 
     img_transform = backbone.make_img_transform()
-    backbone = torch.compile(backbone.to(args.device))
+    backbone = torch.compile(backbone.to(cfg.device))
 
-    dataset = Dataset(images_dir_path, img_transform)
+    dataset = Dataset(imgs_dir_path, img_transform)
     dataloader = torch.utils.data.DataLoader(
         dataset,
-        batch_size=args.batch_size,
-        num_workers=args.n_workers,
+        batch_size=cfg.batch_size,
+        num_workers=cfg.n_workers,
         drop_last=False,
         shuffle=False,
         pin_memory=False,
@@ -188,33 +152,42 @@ def get_features(
 
     all_ids, all_features, all_labels = [], [], []
 
-    total = len(dataloader) if not args.debug else 2
-    it = iter(dataloader)
-    for b in helpers.progress(
-        range(total), every=args.log_every, desc=f"Embed {split}"
-    ):
-        ids, images, labels = next(it)
-        images = images.to(args.device)
+    def probe(batch):
+        _, imgs, _ = batch
+        imgs = imgs.to(cfg.device, non_blocking=True)
+        with torch.amp.autocast(cfg.device):
+            backbone.img_encode(imgs).img_features  # forward only
 
-        with torch.amp.autocast("cuda"):
-            features = backbone.img_encode(images).img_features
-            all_features.append(features.cpu())
+    with helpers.auto_batch_size(dataloader, probe=probe):
+        total = len(dataloader) if not cfg.debug else 2
+        it = iter(dataloader)
+        for b in helpers.progress(range(total), every=10, desc=f"plnt/{split}"):
+            ids, imgs, labels = next(it)
+            imgs = imgs.to(cfg.device)
 
-        all_ids.extend(ids)
+            with torch.amp.autocast(cfg.device):
+                features = backbone.img_encode(imgs).img_features
+                all_features.append(features.cpu())
 
-        all_labels.extend(labels)
+            all_ids.extend(ids)
+            all_labels.extend(labels)
 
     all_features = torch.cat(all_features, axis=0).cpu().numpy()
     all_labels = np.array(all_labels)
     all_ids = np.array(all_ids)
 
+    assert len(all_ids) == len(dataset)
+    if cfg.n_train >= 0:
+        assert len(all_ids) == cfg.n_train
+    logger.info("Got features for %d images.", len(all_ids))
+
     return Features(all_features, all_labels, all_ids)
 
 
 @beartype.beartype
-def init_clf(args: Args):
+def init_clf(cfg: config.Experiment):
     alpha = np.pow(2.0, np.arange(-15, 11))
-    if args.debug:
+    if cfg.debug:
         alpha = np.pow(2.0, np.arange(-2, 2))
 
     return sklearn.model_selection.HalvingGridSearchCV(

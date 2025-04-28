@@ -127,7 +127,7 @@ def get_features(
         with torch.amp.autocast(cfg.device):
             backbone.img_encode(imgs).img_features
 
-    with helpers.auto_batch_size(cfg, dataloader, probe=probe) as batch_size:
+    with helpers.auto_batch_size(dataloader, probe=probe) as batch_size:
         total = max(n_workers, math.ceil(len(i) / batch_size))
         it = iter(dataloader)
         logger.debug("Need to embed %d batches of %d images.", total, batch_size)

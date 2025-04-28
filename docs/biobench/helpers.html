@@ -48,7 +48,7 @@ el.replaceWith(d);
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
 <dt id="biobench.helpers.auto_batch_size"><code class="name flex">
-<span>def <span class="ident">auto_batch_size</span></span>(<span>cfg: <a title="biobench.config.Experiment" href="config.html#biobench.config.Experiment">Experiment</a>,<br>dataloader: torch.utils.data.dataloader.DataLoader,<br>*,<br>probe: Callable[[torch.Tensor], torch.Tensor],<br>schedule: collections.abc.Iterable[int] | None = None)</span>
+<span>def <span class="ident">auto_batch_size</span></span>(<span>dataloader: torch.utils.data.dataloader.DataLoader,<br>*,<br>probe: Callable[[torch.Tensor], torch.Tensor],<br>schedule: collections.abc.Iterable[int] | None = None,<br>upper: int = 4096)</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -58,19 +58,17 @@ el.replaceWith(d);
 <pre><code class="python">@contextlib.contextmanager
 @beartype.beartype
 def auto_batch_size(
-    cfg: config.Experiment,
     dataloader: torch.utils.data.DataLoader,
     *,
     probe: collections.abc.Callable[[torch.Tensor], torch.Tensor],
     schedule: collections.abc.Iterable[int] | None = None,
+    upper: int = 4096,
 ):
     &#34;&#34;&#34;
     Context manager that **mutates `dataloader.batch_size` in-place** so you always run with the largest batch that fits GPU RAM.
 
     Parameters
     ----------
-    cfg:
-        Usual `Experiment` (only `device` is used).
     dataloader:
         The *already constructed* loader you use in your loop. Its `batch_sampler.batch_size` attribute is patched on the fly.
     probe:
@@ -93,6 +91,13 @@ def auto_batch_size(
     t_start = time.perf_counter()
 
     for tried_bs in schedule_iter:
+        # honor explicit ceiling
+        if upper is not None and tried_bs &gt; upper:
+            dataloader.batch_sampler.batch_size = upper
+            ok_bs = upper
+            logger.debug(&#34;Reached user upper limit=%d&#34;, upper)
+            break
+
         # quick sanity: do not create impossible 0-batch situations
         if tried_bs &lt;= ok_bs:
             continue
@@ -100,12 +105,28 @@ def auto_batch_size(
         # patch both public and sampler attrs
         dataloader.batch_sampler.batch_size = tried_bs
 
-        logger.debug(&#34;Trying batch_size=%d&#34;, tried_bs)
+        logger.info(&#34;Trying batch_size=%d&#34;, tried_bs)
 
         # pull ONE mini-batch, send through probe
         try:
             batch = next(iter(dataloader))
             probe(batch)  # forward only; discard output
+
+            # If the loader produced fewer items than we asked for, we&#39;ve reached the dataset size — any larger batch will give the same tensor, so stop growing.
+            effective_bs = _infer_batch_size(batch)
+            if effective_bs is None:
+                raise RuntimeError(
+                    &#34;Unable to deduce batch size from probe batch; ensure it contains at least one torch.Tensor.&#34;
+                )
+            if effective_bs &lt; tried_bs:
+                logger.info(
+                    &#34;Dataset exhausted at %d examples (asked for %d); capping batch size.&#34;,
+                    effective_bs,
+                    tried_bs,
+                )
+                ok_bs = effective_bs
+                dataloader.batch_sampler.batch_size = ok_bs
+                break
 
         except RuntimeError as err:
             _msg = str(err).lower()
@@ -114,7 +135,7 @@ def auto_batch_size(
                 &#34;cuda error: invalid configuration argument&#34;,  # SPM-efficient-attn OOM
             )
             if any(sig in _msg for sig in oom_signatures):
-                logger.debug(&#34;OOM at batch_size=%d; reverting to %d&#34;, tried_bs, ok_bs)
+                logger.info(&#34;OOM at batch_size=%d; reverting to %d&#34;, tried_bs, ok_bs)
                 torch.cuda.empty_cache()
                 # restore smaller and stop searching
                 dataloader.batch_sampler.batch_size = ok_bs
@@ -122,7 +143,13 @@ def auto_batch_size(
             raise
         else:
             ok_bs = tried_bs
-            logger.debug(&#34;batch_size=%d succeeded&#34;, ok_bs)
+            logger.info(&#34;batch_size=%d succeeded&#34;, ok_bs)
+
+    # final guard: ensure we never exceed user-provided upper
+    if upper is not None and ok_bs &gt; upper:
+        ok_bs = upper
+        dataloader.batch_sampler.batch_size = ok_bs
+
     elapsed = time.perf_counter() - t_start
     logger.info(&#34;Selected batch_size %d after %.2f s&#34;, ok_bs, elapsed)
 
@@ -139,9 +166,7 @@ def auto_batch_size(
 </details>
 <div class="desc"><p>Context manager that <strong>mutates <code>dataloader.batch_size</code> in-place</strong> so you always run with the largest batch that fits GPU RAM.</p>
 <h2 id="parameters">Parameters</h2>
-<p>cfg:
-Usual <code>Experiment</code> (only <code>device</code> is used).
-dataloader:
+<p>dataloader:
 The <em>already constructed</em> loader you use in your loop. Its <code>batch_sampler.batch_size</code> attribute is patched on the fly.
 probe:
 A 1-argument callable used to test memory. Typical usage: <code>lambda x: backbone.img_encode(x).img_features</code>.

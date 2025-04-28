@@ -111,11 +111,7 @@ def benchmark(cfg: config.Experiment) -&gt; reporting.Report:
             float(pred == true),
             {&#34;y_pred&#34;: pred.item(), &#34;y_true&#34;: true.item()},
         )
-        for img_id, pred, true in zip(
-            helpers.progress(val_features.ids, desc=&#34;Making examples&#34;, every=1_000),
-            pred_labels,
-            true_labels,
-        )
+        for img_id, pred, true in zip(val_features.ids, pred_labels, true_labels)
     ]
 
     return reporting.Report(&#34;plantnet&#34;, preds, cfg)</code></pre>
@@ -156,22 +152,34 @@ def get_features(
 
     all_ids, all_features, all_labels = [], [], []
 
-    total = len(dataloader) if not cfg.debug else 2
-    it = iter(dataloader)
-    for b in helpers.progress(range(total), every=10, desc=f&#34;plnt/{split}&#34;):
-        ids, imgs, labels = next(it)
-        imgs = imgs.to(cfg.device)
+    def probe(batch):
+        _, imgs, _ = batch
+        imgs = imgs.to(cfg.device, non_blocking=True)
+        with torch.amp.autocast(cfg.device):
+            backbone.img_encode(imgs).img_features  # forward only
 
-        with torch.amp.autocast(&#34;cuda&#34;):
-            features = backbone.img_encode(imgs).img_features
-            all_features.append(features.cpu())
+    with helpers.auto_batch_size(dataloader, probe=probe):
+        total = len(dataloader) if not cfg.debug else 2
+        it = iter(dataloader)
+        for b in helpers.progress(range(total), every=10, desc=f&#34;plnt/{split}&#34;):
+            ids, imgs, labels = next(it)
+            imgs = imgs.to(cfg.device)
 
-        all_ids.extend(ids)
-        all_labels.extend(labels)
+            with torch.amp.autocast(cfg.device):
+                features = backbone.img_encode(imgs).img_features
+                all_features.append(features.cpu())
+
+            all_ids.extend(ids)
+            all_labels.extend(labels)
 
     all_features = torch.cat(all_features, axis=0).cpu().numpy()
     all_labels = np.array(all_labels)
     all_ids = np.array(all_ids)
+
+    assert len(all_ids) == len(dataset)
+    if cfg.n_train &gt;= 0:
+        assert len(all_ids) == cfg.n_train
+    logger.info(&#34;Got features for %d images.&#34;, len(all_ids))
 
     return Features(all_features, all_labels, all_ids)</code></pre>
 </details>
@@ -216,23 +224,9 @@ def init_clf(cfg: config.Experiment):
 </summary>
 <pre><code class="python">@beartype.beartype
 def score(preds: list[reporting.Prediction]) -&gt; float:
-    &#34;&#34;&#34;
-    Macro top-1 accuracy.
-    &#34;&#34;&#34;
-    cls_examples = {}
-    for pred in preds:
-        true_cls = pred.info[&#34;y_true&#34;]
-        if true_cls not in cls_examples:
-            cls_examples[true_cls] = []
-
-        cls_examples[true_cls].append(pred)
-
-    cls_accs = []
-    for examples in cls_examples.values():
-        cls_accs.append(np.mean([example.score for example in examples]))
-    return np.mean(cls_accs).item()</code></pre>
+    return reporting.macro_f1(preds)</code></pre>
 </details>
-<div class="desc"><p>Macro top-1 accuracy.</p></div>
+<div class="desc"></div>
 </dd>
 </dl>
 </section>

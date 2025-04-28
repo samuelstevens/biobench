@@ -213,7 +213,7 @@ def get_features(
 
     all_ids, all_features, all_labels = [], [], []
 
-    with helpers.auto_batch_size(cfg, dataloader, probe=probe):
+    with helpers.auto_batch_size(dataloader, probe=probe):
         total = len(dataloader) if not cfg.debug else 2
         it = iter(dataloader)
         for b in helpers.progress(range(total), every=10, desc=f"plk/{split}"):

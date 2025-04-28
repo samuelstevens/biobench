@@ -86,7 +86,8 @@ def get_features(
 
     transform = backbone.make_img_transform()
     if is_train:
-        dataset = dataset.get_subset("train", transform=transform)
+        subset = "train"
+        dataset = dataset.get_subset(subset, transform=transform)
         if cfg.n_train > 0:
             i = helpers.balanced_random_sample(dataset.y_array.numpy(), cfg.n_train)
             assert len(i) == cfg.n_train
@@ -100,7 +101,8 @@ def get_features(
             num_workers=cfg.n_workers,
         )
     else:
-        dataset = dataset.get_subset("test", transform=transform)
+        subset = "test"
+        dataset = dataset.get_subset(subset, transform=transform)
         dataloader = wilds.common.data_loaders.get_eval_loader(
             "standard",
             dataset,
@@ -111,25 +113,31 @@ def get_features(
     backbone = torch.compile(backbone.to(cfg.device))
     all_features, all_labels, all_ids = [], [], []
 
-    # I don't do `for ... in dataloader` because early breaks were throwing exceptions.
-    total = len(dataloader) if not cfg.debug else 2
-    it = iter(dataloader)
-    for b in helpers.progress(range(total), every=10):
-        imgs, labels, _ = next(it)
-        imgs = imgs.to(cfg.device)
+    def probe(batch):
+        imgs, labels, _ = batch
+        imgs = imgs.to(cfg.device, non_blocking=True)
+        with torch.amp.autocast(cfg.device):
+            _ = backbone.img_encode(imgs).img_features
 
-        with torch.amp.autocast("cuda"):
-            features = backbone.img_encode(imgs).img_features
-            all_features.append(features.cpu())
+    with helpers.auto_batch_size(dataloader, probe=probe):
+        total = len(dataloader) if not cfg.debug else 2
+        it = iter(dataloader)
+        for b in helpers.progress(range(total), desc=f"iwildcam/{subset}"):
+            imgs, labels, _ = next(it)
+            imgs = imgs.to(cfg.device)
 
-        all_labels.extend(labels)
+            with torch.amp.autocast(cfg.device):
+                features = backbone.img_encode(imgs).img_features
+                all_features.append(features.cpu())
 
-        ids = (np.arange(len(labels)) + b * cfg.batch_size).astype(str)
-        all_ids.append(ids)
+            all_labels.extend(labels)
+
+            ids = [str(i + len(all_ids)) for i in range(len(labels))]
+            all_ids.extend(ids)
 
     all_features = torch.cat(all_features, axis=0).cpu().numpy()
     all_labels = torch.tensor(all_labels).numpy()
-    all_ids = np.concatenate(all_ids, axis=0)
+    all_ids = np.array(all_ids)
 
     return Features(all_features, all_labels, all_ids)
 

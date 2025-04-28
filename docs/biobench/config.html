@@ -222,7 +222,7 @@ class Data:
 </dd>
 <dt id="biobench.config.Experiment"><code class="flex name class">
 <span>class <span class="ident">Experiment</span></span>
-<span>(</span><span>model: <a title="biobench.config.Model" href="#biobench.config.Model">Model</a>,<br>slurm_acct: str = '',<br>cfg: str = 'configs/neurips.toml',<br>device: Literal['cpu', 'mps', 'cuda'] = 'cuda',<br>debug: bool = False,<br>n_train: int = -1,<br>ssl: bool = True,<br>n_workers: int = 4,<br>batch_size: int = 32,<br>data: <a title="biobench.config.Data" href="#biobench.config.Data">Data</a> = &lt;factory&gt;,<br>report_to: str = './results',<br>log_to: str = './logs',<br>seed: int = 17)</span>
+<span>(</span><span>model: <a title="biobench.config.Model" href="#biobench.config.Model">Model</a>,<br>slurm_acct: str = '',<br>cfg: str = 'configs/neurips.toml',<br>device: Literal['cpu', 'mps', 'cuda'] = 'cuda',<br>debug: bool = False,<br>n_train: int = -1,<br>ssl: bool = True,<br>n_workers: int = 4,<br>batch_size: int = 32,<br>data: <a title="biobench.config.Data" href="#biobench.config.Data">Data</a> = &lt;factory&gt;,<br>report_to: str = './results',<br>log_to: str = './logs',<br>seed: int = 17,<br>verbose: bool = False)</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -262,6 +262,8 @@ class Experiment:
     &#34;&#34;&#34;where to save logs to.&#34;&#34;&#34;
     seed: int = 17
     &#34;&#34;&#34;Random seed.&#34;&#34;&#34;
+    verbose: bool = False
+    &#34;&#34;&#34;DEBUG logging or not.&#34;&#34;&#34;
 
     def to_dict(self) -&gt; dict[str, object]:
         return dataclasses.asdict(self)
@@ -329,6 +331,10 @@ class Experiment:
 <dt id="biobench.config.Experiment.ssl"><code class="name">var <span class="ident">ssl</span> : bool</code></dt>
 <dd>
 <div class="desc"><p>Use SSL when connecting to remote servers to download checkpoints; use &ndash;no-ssl if your machine has certificate issues. See <code><a title="biobench.third_party_models.get_ssl" href="third_party_models.html#biobench.third_party_models.get_ssl">get_ssl()</a></code> for a discussion of how this works.</p></div>
+</dd>
+<dt id="biobench.config.Experiment.verbose"><code class="name">var <span class="ident">verbose</span> : bool</code></dt>
+<dd>
+<div class="desc"><p>DEBUG logging or not.</p></div>
 </dd>
 </dl>
 <h3>Methods</h3>
@@ -487,6 +493,7 @@ class Model:
 <li><code><a title="biobench.config.Experiment.ssl" href="#biobench.config.Experiment.ssl">ssl</a></code></li>
 <li><code><a title="biobench.config.Experiment.to_dict" href="#biobench.config.Experiment.to_dict">to_dict</a></code></li>
 <li><code><a title="biobench.config.Experiment.update" href="#biobench.config.Experiment.update">update</a></code></li>
+<li><code><a title="biobench.config.Experiment.verbose" href="#biobench.config.Experiment.verbose">verbose</a></code></li>
 </ul>
 </li>
 <li>

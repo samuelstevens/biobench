@@ -8,9 +8,6 @@ test: fmt
     uv run coverage-badge -o docs/coverage.svg -f
     uv run scripts/regressions.py
 
-types: lint
-    uv run pyright biobench
-
 lint: fmt
     uv run ruff check --fix biobench benchmark.py
     uv run scripts/ascii_only.py --in-paths benchmark.py biobench/ scripts/ --fix
