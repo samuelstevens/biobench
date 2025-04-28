@@ -160,3 +160,27 @@ def test_upper_below_start_allowed():
         dataloader, probe=make_probe(-1), schedule=(2, 4, 8), upper=1
     ):
         assert dataloader.batch_sampler.batch_size == 1
+
+
+def _probe_flaky(max_once):
+    """First call with given batch size succeeds, second with same size OOMs."""
+    seen = {}
+
+    def inner(batch):
+        bs = helpers._infer_batch_size(batch)
+        seen.setdefault(bs, 0)
+        if seen[bs] >= max_once:
+            raise RuntimeError("CUDA out of memory.")
+        seen[bs] += 1
+        return batch[0].mean()
+
+    return inner
+
+
+def test_backoff_after_flaky_probe():
+    # 8 succeeds then OOMs; helper should fall back to 6.
+    dataloader = make_dataloader(128)
+    with helpers.auto_batch_size(
+        dataloader, probe=_probe_flaky(max_once=1), schedule=(2, 3, 4, 6, 8)
+    ):
+        assert dataloader.batch_sampler.batch_size == 6
