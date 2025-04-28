@@ -18,8 +18,6 @@ import numpy as np
 import torch
 from jaxtyping import Int, jaxtyped
 
-from . import config
-
 
 @beartype.beartype
 def get_cache_dir() -> str:
@@ -266,19 +264,17 @@ def _infer_batch_size(batch: object) -> int | None:
 @contextlib.contextmanager
 @beartype.beartype
 def auto_batch_size(
-    cfg: config.Experiment,
     dataloader: torch.utils.data.DataLoader,
     *,
     probe: collections.abc.Callable[[torch.Tensor], torch.Tensor],
     schedule: collections.abc.Iterable[int] | None = None,
+    upper: int = 2048,
 ):
     """
     Context manager that **mutates `dataloader.batch_size` in-place** so you always run with the largest batch that fits GPU RAM.
 
     Parameters
     ----------
-    cfg:
-        Usual `Experiment` (only `device` is used).
     dataloader:
         The *already constructed* loader you use in your loop. Its `batch_sampler.batch_size` attribute is patched on the fly.
     probe:
@@ -315,7 +311,7 @@ def auto_batch_size(
             batch = next(iter(dataloader))
             probe(batch)  # forward only; discard output
 
-            # If the loader produced fewer items than we asked for, we've reached the dataset size — any larger batch will give the same tensor, so stop growing.
+            # If the loader produced fewer items than we asked for, we've reached the dataset size -- any larger batch will give the same tensor, so stop growing.
             effective_bs = _infer_batch_size(batch)
             if effective_bs is None:
                 raise RuntimeError(

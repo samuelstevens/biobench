@@ -4,7 +4,6 @@ import tomllib
 import typing
 
 import beartype
-import tyro
 
 
 @beartype.beartype
