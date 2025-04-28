@@ -1,6 +1,8 @@
 import collections
 import itertools
 import math
+import threading
+import typing
 
 import beartype
 import hypothesis.extra.numpy as npst
@@ -351,3 +353,49 @@ def test_invalid_cfg_error_handled(dummy_cfg, dataloader):
 
     # restored afterwards
     assert dataloader.batch_sampler.batch_size == orig
+
+
+def _probe_ok(batch):
+    """Dummy probe that never OOMs."""
+    return batch[0].mean()
+
+
+@pytest.fixture(scope="session")
+def small_loader():
+    data = torch.rand(12, 3, 32, 32)  # ← only 12 samples total
+    ds = TensorDataset(data)
+    return DataLoader(ds, batch_size=2, shuffle=False, num_workers=0)
+
+
+def test_auto_batch_size_terminates_on_short_dataset(dummy_cfg, small_loader):
+    """
+    If dataset has < tried batch-size, auto_batch_size must still terminate.
+    """
+
+    def run():
+        with helpers.auto_batch_size(dummy_cfg, small_loader, probe=_probe_ok):
+            pass  # nothing
+
+    t = threading.Thread(target=run, daemon=True)
+    t.start()
+    t.join(timeout=2.0)  # 2-second cap
+    assert not t.is_alive(), "auto_batch_size never terminated on tiny dataset"
+
+
+def test_auto_batch_size_caps_at_dataset_len_generic(dummy_cfg):
+    class Sample(typing.NamedTuple):
+        img: torch.Tensor
+        meta: dict[str, int]
+
+    def _make_dataset(n):
+        data = torch.rand(n, 3, 32, 32)
+        ds = [Sample(img=x, meta={"idx": i}) for i, x in enumerate(data)]
+        return ds
+
+    ds = _make_dataset(12)
+    loader = DataLoader(ds, batch_size=2, shuffle=False, num_workers=0)
+
+    with helpers.auto_batch_size(
+        dummy_cfg, loader, probe=lambda b: b.img.mean(), schedule=(4, 8, 16, 32)
+    ):
+        assert loader.batch_sampler.batch_size == len(ds)  # 12

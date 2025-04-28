@@ -5,6 +5,7 @@ Useful helpers for more than two tasks that don't fit anywhere else.
 import collections
 import collections.abc
 import contextlib
+import dataclasses
 import gc
 import itertools
 import logging
@@ -232,6 +233,36 @@ def _default_batchsize_schedule(start: int = 2) -> collections.abc.Iterable[int]
         x *= m
 
 
+@beartype.beartype
+def _infer_batch_size(batch: object) -> int | None:
+    """
+    Return the leading dimension of the *first* tensor found inside `batch`. Works for arbitrary nested structures.
+    """
+    if isinstance(batch, torch.Tensor):
+        return batch.shape[0]
+
+    if isinstance(batch, (list, tuple)):
+        for item in batch:
+            bs = _infer_batch_size(item)
+            if bs is not None:
+                return bs
+
+    if isinstance(batch, dict):
+        for item in batch.values():
+            bs = _infer_batch_size(item)
+            if bs is not None:
+                return bs
+
+    if dataclasses.is_dataclass(batch):
+        return _infer_batch_size(dataclasses.asdict(batch))
+
+    # Fallback: inspect attributes (namedtuple, SimpleNamespace, custom)
+    if hasattr(batch, "__dict__"):
+        return _infer_batch_size(vars(batch))
+
+    return None
+
+
 @contextlib.contextmanager
 @beartype.beartype
 def auto_batch_size(
@@ -277,12 +308,28 @@ def auto_batch_size(
         # patch both public and sampler attrs
         dataloader.batch_sampler.batch_size = tried_bs
 
-        logger.debug("Trying batch_size=%d", tried_bs)
+        logger.info("Trying batch_size=%d", tried_bs)
 
         # pull ONE mini-batch, send through probe
         try:
             batch = next(iter(dataloader))
             probe(batch)  # forward only; discard output
+
+            # If the loader produced fewer items than we asked for, we've reached the dataset size — any larger batch will give the same tensor, so stop growing.
+            effective_bs = _infer_batch_size(batch)
+            if effective_bs is None:
+                raise RuntimeError(
+                    "Unable to deduce batch size from probe batch; ensure it contains at least one torch.Tensor."
+                )
+            if effective_bs < tried_bs:
+                logger.info(
+                    "Dataset exhausted at %d examples (asked for %d); capping batch size.",
+                    effective_bs,
+                    tried_bs,
+                )
+                ok_bs = effective_bs
+                dataloader.batch_sampler.batch_size = ok_bs
+                break
 
         except RuntimeError as err:
             _msg = str(err).lower()
@@ -291,7 +338,7 @@ def auto_batch_size(
                 "cuda error: invalid configuration argument",  # SPM-efficient-attn OOM
             )
             if any(sig in _msg for sig in oom_signatures):
-                logger.debug("OOM at batch_size=%d; reverting to %d", tried_bs, ok_bs)
+                logger.info("OOM at batch_size=%d; reverting to %d", tried_bs, ok_bs)
                 torch.cuda.empty_cache()
                 # restore smaller and stop searching
                 dataloader.batch_sampler.batch_size = ok_bs
@@ -299,7 +346,7 @@ def auto_batch_size(
             raise
         else:
             ok_bs = tried_bs
-            logger.debug("batch_size=%d succeeded", ok_bs)
+            logger.info("batch_size=%d succeeded", ok_bs)
     elapsed = time.perf_counter() - t_start
     logger.info("Selected batch_size %d after %.2f s", ok_bs, elapsed)
 

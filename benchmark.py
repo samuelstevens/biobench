@@ -21,10 +21,6 @@ import tyro
 
 from biobench import config, helpers, reporting
 
-log_format = "[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s"
-logging.basicConfig(level=logging.INFO, format=log_format)
-logger = logging.getLogger("biobench")
-
 
 @beartype.beartype
 def main(
@@ -41,7 +37,7 @@ def main(
     cfgs = [cfg for path in cfgs for cfg in config.load(path)]
 
     if not cfgs:
-        logger.warning("No configurations loaded.")
+        print("No configurations loaded.")
         return
 
     first = cfgs[0]
@@ -53,6 +49,11 @@ def main(
             raise ValueError("All configs must have the same log_to directory")
         if cfg.ssl != first.ssl:
             raise ValueError("All configs must have the same ssl setting")
+
+    log_format = "[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s"
+    level = logging.DEBUG if cfg.verbose else logging.INFO
+    logging.basicConfig(level=level, format=log_format)
+    logger = logging.getLogger("benchmark.py")
 
     # 1. Setup executor.
     if first.slurm_acct:
@@ -147,9 +148,6 @@ def benchmark_with_mp(task_name: str, cfg: config.Experiment) -> reporting.Repor
     helpers.bump_nofile(512)
     if mp.get_sharing_strategy() != "file_system":
         mp.set_sharing_strategy("file_system")
-
-    log_format = "[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s"
-    logging.basicConfig(level=logging.INFO, format=log_format)
 
     module = importlib.import_module(f"biobench.{task_name}")
     return module.benchmark(cfg)
