@@ -11,7 +11,7 @@ class JobQueue[T]:
     This queue is used to throttle job submissions and track pending jobs.
     """
 
-    def __init__(self, max_size: int):
+    def __init__(self, max_size: int = 10):
         """
         Initialize a new JobQueue with a maximum size.
 
@@ -32,7 +32,7 @@ class JobQueue[T]:
             ValueError: If the queue is already full
         """
         if self.full():
-            raise ValueError("Queue is full")
+            raise RuntimeError("Queue is full")
         self.jobs.append(job)
 
     def pop(self) -> T:

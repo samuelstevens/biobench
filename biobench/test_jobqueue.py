@@ -136,7 +136,7 @@ def test_pop_updates_state():
     for i in range(3):
         q.submit(i)
     _ = q.pop()
-    assert len(q) == 1
+    assert len(q) == 2
     assert q.full() is False
 
 
