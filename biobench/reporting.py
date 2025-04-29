@@ -24,8 +24,12 @@ schema_fpath = pathlib.Path(__file__).parent / "schema.sql"
 @beartype.beartype
 def get_db(cfg: config.Experiment) -> sqlite3.Connection:
     """Get a connection to the reports database.
+    
+    Args:
+        cfg: Experiment configuration
+        
     Returns:
-        a connection to a sqlite3 database.
+        sqlite3.Connection: A connection to the SQLite database
     """
     os.makedirs(os.path.expandvars(cfg.report_to), exist_ok=True)
     helpers.warn_if_nfs(cfg.report_to)
@@ -42,6 +46,16 @@ def get_db(cfg: config.Experiment) -> sqlite3.Connection:
 
 @beartype.beartype
 def already_ran(db: sqlite3.Connection, cfg: config.Experiment, task_name: str) -> bool:
+    """Check if an experiment has already been run.
+    
+    Args:
+        db: SQLite database connection
+        cfg: Experiment configuration
+        task_name: Name of the task to check
+        
+    Returns:
+        bool: True if the experiment has already been run, False otherwise
+    """
     query = """
 SELECT COUNT(*)
 FROM experiments
@@ -56,16 +70,17 @@ AND n_train = ?
     return count > 0
 
 
-# Change these docstrings to google-style docstrings. AI!
 @beartype.beartype
 def is_claimed(db: sqlite3.Connection, cfg: config.Experiment, task_name: str) -> bool:
-    """
-    Check if a run is already claimed by another process.
-
-    Returns
-    -------
-    True   – the run is already claimed
-    False  – the run is not claimed
+    """Check if a run is already claimed by another process.
+    
+    Args:
+        db: SQLite database connection
+        cfg: Experiment configuration
+        task_name: Name of the task to check
+        
+    Returns:
+        bool: True if the run is already claimed, False otherwise
     """
     query = """
     SELECT COUNT(*)
@@ -118,7 +133,13 @@ def claim_run(db: sqlite3.Connection, cfg: config.Experiment, task_name: str) ->
 
 @beartype.beartype
 def release_run(db: sqlite3.Connection, cfg: config.Experiment, task_name: str) -> None:
-    """Delete the coordination row so others may claim again."""
+    """Delete the coordination row so others may claim again.
+    
+    Args:
+        db: SQLite database connection
+        cfg: Experiment configuration
+        task_name: Name of the task to release
+    """
     stmt = """
     DELETE FROM runs
     WHERE task_name=? AND model_org=? AND model_ckpt=? AND n_train=?
@@ -134,8 +155,10 @@ def release_run(db: sqlite3.Connection, cfg: config.Experiment, task_name: str) 
 
 
 def get_git_hash() -> str:
-    """
-    Returns the hash of the current git commit, assuming we are in a git repo.
+    """Returns the hash of the current git commit.
+    
+    Returns:
+        str: The hash of the current git commit, assuming we are in a git repo
     """
     return subprocess.check_output(["git", "rev-parse", "HEAD"]).decode("ascii").strip()
 
