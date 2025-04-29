@@ -58,6 +58,30 @@ AND n_train = ?
 
 
 @beartype.beartype
+def is_claimed(db: sqlite3.Connection, cfg: config.Experiment, task_name: str) -> bool:
+    """
+    Check if a run is already claimed by another process.
+    
+    Returns
+    -------
+    True   – the run is already claimed
+    False  – the run is not claimed
+    """
+    query = """
+    SELECT COUNT(*)
+    FROM runs
+    WHERE task_name = ?
+    AND model_org = ?
+    AND model_ckpt = ?
+    AND n_train = ?
+    """
+    values = (task_name, cfg.model.org, cfg.model.ckpt, cfg.n_train)
+    
+    (count,) = db.execute(query, values).fetchone()
+    return count > 0
+
+
+@beartype.beartype
 def claim_run(db: sqlite3.Connection, cfg: config.Experiment, task_name: str) -> bool:
     """
     Try to claim (task_name, model, n_train).
