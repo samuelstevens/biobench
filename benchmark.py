@@ -78,7 +78,7 @@ def main(
     db = reporting.get_db(first)
 
     # 2. Run benchmarks.
-    job_queue = reporting.JobQueue(max_pending)
+    job_queue = reporting.JobQueue(10)  # Set a reasonable max_size
     counts = collections.defaultdict(int)
     for cfg in helpers.progress(cfgs, desc="submitting jobs"):
         for task_name, data_root in cfg.data.to_dict().items():
@@ -108,11 +108,13 @@ def main(
                     continue
 
             if dry_run:
-                job_queue.append((None, cfg, task_name))
+                counts["pending"] += 1
+                job_queue.submit((None, cfg, task_name))
                 continue
 
             job = executor.submit(worker, task_name, cfg)
             job_queue.submit((job, cfg, task_name))
+            counts["pending"] += 1
 
             # throttle
             while job_queue.full():
@@ -134,7 +136,12 @@ def main(
     if dry_run:
         # Summarize the jobs by model and training examples
         model_counts = collections.defaultdict(int)
-        for _, job_cfg, _ in job_queue:
+        # Convert job_queue to a list to iterate over it
+        jobs_list = []
+        while job_queue:
+            jobs_list.append(job_queue.pop())
+        
+        for _, job_cfg, _ in jobs_list:
             key = (job_cfg.model.ckpt, job_cfg.n_train)
             model_counts[key] += 1
 
@@ -152,12 +159,12 @@ def main(
         logger.info("-" * 71)
         logger.info(
             "Total jobs to run: %d (skipped %d already completed)",
-            len(job_queue),
-            n_skipped,
+            len(jobs_list),
+            counts["done"] + counts["queued"],
         )
         return
 
-    logger.info("Submitted %d jobs (skipped %d).", len(job_queue), n_skipped)
+    logger.info("Submitted %d jobs (skipped %d).", counts["pending"], counts["done"] + counts["queued"])
 
     # 3. Write results to sqlite.
     while job_queue:

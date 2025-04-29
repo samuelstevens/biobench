@@ -185,4 +185,91 @@ def test_reclaim_after_failure(tmp_path):
     assert db.execute("SELECT COUNT(*) FROM runs").fetchone()[0] == 0
 
 
-# Based on the usage of JobQueue in benchmark.py and the minimal API surface, write ten unit tests for JobQueue. Do not attempt to modify JobQueue; we are doing test-driven-development and I want failing tests first. AI!
+import pytest
+
+from biobench.reporting import JobQueue
+
+
+def test_jobqueue_init():
+    """Test that JobQueue initializes with the correct max_size."""
+    queue = JobQueue(5)
+    assert queue.max_size == 5
+    assert len(queue) == 0
+
+
+def test_jobqueue_submit():
+    """Test that submit adds a job to the queue."""
+    queue = JobQueue(5)
+    queue.submit("job1")
+    assert len(queue) == 1
+
+
+def test_jobqueue_pop():
+    """Test that pop removes and returns the oldest job."""
+    queue = JobQueue(5)
+    queue.submit("job1")
+    queue.submit("job2")
+    assert queue.pop() == "job1"
+    assert len(queue) == 1
+
+
+def test_jobqueue_fifo_order():
+    """Test that jobs are returned in FIFO order."""
+    queue = JobQueue(5)
+    jobs = ["job1", "job2", "job3"]
+    for job in jobs:
+        queue.submit(job)
+    
+    for expected_job in jobs:
+        assert queue.pop() == expected_job
+
+
+def test_jobqueue_full():
+    """Test that full() returns True when queue is at max capacity."""
+    queue = JobQueue(2)
+    assert not queue.full()
+    queue.submit("job1")
+    assert not queue.full()
+    queue.submit("job2")
+    assert queue.full()
+
+
+def test_jobqueue_submit_when_full():
+    """Test that submitting to a full queue raises ValueError."""
+    queue = JobQueue(1)
+    queue.submit("job1")
+    with pytest.raises(ValueError, match="Queue is full"):
+        queue.submit("job2")
+
+
+def test_jobqueue_pop_when_empty():
+    """Test that popping from an empty queue raises IndexError."""
+    queue = JobQueue(5)
+    with pytest.raises(IndexError, match="Queue is empty"):
+        queue.pop()
+
+
+def test_jobqueue_bool_conversion():
+    """Test that bool(queue) returns True if queue has jobs, False otherwise."""
+    queue = JobQueue(5)
+    assert not bool(queue)
+    queue.submit("job1")
+    assert bool(queue)
+    queue.pop()
+    assert not bool(queue)
+
+
+def test_jobqueue_with_complex_objects():
+    """Test that JobQueue works with complex objects like tuples."""
+    queue = JobQueue(5)
+    job = (lambda: None, {"config": "value"}, "task_name")
+    queue.submit(job)
+    assert queue.pop() == job
+
+
+def test_jobqueue_max_size_zero():
+    """Test that a JobQueue with max_size=0 is always full."""
+    queue = JobQueue(0)
+    assert queue.full()
+    with pytest.raises(ValueError, match="Queue is full"):
+        queue.submit("job1")
