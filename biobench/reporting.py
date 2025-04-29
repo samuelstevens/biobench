@@ -96,16 +96,18 @@ def is_claimed(db: sqlite3.Connection, cfg: config.Experiment, task_name: str) -
     return count > 0
 
 
-# Update this docstring to google style. AI!
 @beartype.beartype
 def claim_run(db: sqlite3.Connection, cfg: config.Experiment, task_name: str) -> bool:
-    """
-    Try to claim (task_name, model, n_train).
-
-    Returns
-    -------
-    True   - this process inserted the row and now "owns" the run
-    False  - row already existed; another worker has it
+    """Try to claim (task_name, model, n_train).
+    
+    Args:
+        db: SQLite database connection
+        cfg: Experiment configuration
+        task_name: Name of the task to claim
+        
+    Returns:
+        bool: True if this process inserted the row and now "owns" the run,
+              False if row already existed and another worker has it
     """
 
     stmt = """
