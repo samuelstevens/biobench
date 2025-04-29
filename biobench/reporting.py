@@ -24,10 +24,10 @@ schema_fpath = pathlib.Path(__file__).parent / "schema.sql"
 @beartype.beartype
 def get_db(cfg: config.Experiment) -> sqlite3.Connection:
     """Get a connection to the reports database.
-    
+
     Args:
         cfg: Experiment configuration
-        
+
     Returns:
         sqlite3.Connection: A connection to the SQLite database
     """
@@ -47,12 +47,12 @@ def get_db(cfg: config.Experiment) -> sqlite3.Connection:
 @beartype.beartype
 def already_ran(db: sqlite3.Connection, cfg: config.Experiment, task_name: str) -> bool:
     """Check if an experiment has already been run.
-    
+
     Args:
         db: SQLite database connection
         cfg: Experiment configuration
         task_name: Name of the task to check
-        
+
     Returns:
         bool: True if the experiment has already been run, False otherwise
     """
@@ -73,12 +73,12 @@ AND n_train = ?
 @beartype.beartype
 def is_claimed(db: sqlite3.Connection, cfg: config.Experiment, task_name: str) -> bool:
     """Check if a run is already claimed by another process.
-    
+
     Args:
         db: SQLite database connection
         cfg: Experiment configuration
         task_name: Name of the task to check
-        
+
     Returns:
         bool: True if the run is already claimed, False otherwise
     """
@@ -96,6 +96,7 @@ def is_claimed(db: sqlite3.Connection, cfg: config.Experiment, task_name: str) -
     return count > 0
 
 
+# Update this docstring to google style. AI!
 @beartype.beartype
 def claim_run(db: sqlite3.Connection, cfg: config.Experiment, task_name: str) -> bool:
     """
@@ -103,8 +104,8 @@ def claim_run(db: sqlite3.Connection, cfg: config.Experiment, task_name: str) ->
 
     Returns
     -------
-    True   – this process inserted the row and now “owns” the run
-    False  – row already existed; another worker has it
+    True   - this process inserted the row and now "owns" the run
+    False  - row already existed; another worker has it
     """
 
     stmt = """
@@ -128,13 +129,13 @@ def claim_run(db: sqlite3.Connection, cfg: config.Experiment, task_name: str) ->
         db.rollback()
         raise
 
-    return db.total_changes == 1  # 1 row inserted → we won
+    return db.total_changes == 1  # 1 row inserted -> we won
 
 
 @beartype.beartype
 def release_run(db: sqlite3.Connection, cfg: config.Experiment, task_name: str) -> None:
     """Delete the coordination row so others may claim again.
-    
+
     Args:
         db: SQLite database connection
         cfg: Experiment configuration
@@ -156,7 +157,7 @@ def release_run(db: sqlite3.Connection, cfg: config.Experiment, task_name: str) 
 
 def get_git_hash() -> str:
     """Returns the hash of the current git commit.
-    
+
     Returns:
         str: The hash of the current git commit, assuming we are in a git repo
     """
