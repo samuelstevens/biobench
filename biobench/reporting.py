@@ -14,7 +14,7 @@ import numpy as np
 import sklearn.metrics
 from jaxtyping import jaxtyped
 
-from . import config
+from . import config, helpers
 
 logger = logging.getLogger(__name__)
 
@@ -28,10 +28,9 @@ def get_db(cfg: config.Experiment) -> sqlite3.Connection:
         a connection to a sqlite3 database.
     """
     os.makedirs(os.path.expandvars(cfg.report_to), exist_ok=True)
-    db = sqlite3.connect(
-        os.path.join(os.path.expandvars(cfg.report_to), "reports.sqlite"),
-        autocommit=True,
-    )
+    helpers.warn_if_nfs(cfg.report_to)
+    db_fpath = os.path.join(os.path.expandvars(cfg.report_to), "reports.sqlite")
+    db = sqlite3.connect(db_fpath, autocommit=True)
 
     with open(schema_fpath) as fd:
         schema = fd.read()
@@ -55,6 +54,58 @@ AND n_train = ?
 
     (count,) = db.execute(query, values).fetchone()
     return count > 0
+
+
+@beartype.beartype
+def claim_run(db: sqlite3.Connection, cfg: config.Experiment, task_name: str) -> bool:
+    """
+    Try to claim (task_name, model, n_train).
+
+    Returns
+    -------
+    True   – this process inserted the row and now “owns” the run
+    False  – row already existed; another worker has it
+    """
+
+    stmt = """
+    INSERT OR IGNORE INTO runs
+    (task_name, model_org, model_ckpt, n_train, pid, posix)
+    VALUES (?,?,?,?,?,?)
+    """
+    values = (
+        task_name,
+        cfg.model.org,
+        cfg.model.ckpt,
+        cfg.n_train,
+        os.getpid(),
+        time.time(),
+    )
+
+    try:
+        db.execute(stmt, values)
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+
+    return db.total_changes == 1  # 1 row inserted → we won
+
+
+@beartype.beartype
+def release_run(db: sqlite3.Connection, cfg: config.Experiment) -> None:
+    """Delete the coordination row so others may claim again."""
+    stmt = """
+    DELETE FROM runs
+    WHERE task_name=? AND model_org=? AND model_ckpt=? AND n_train=?
+    """
+    values = (task_name, cfg.model.org, cfg.model.ckpt, cfg.n_train)
+
+    try:
+        db.execute(stmt, values)
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
 
 
 def get_git_hash() -> str:
@@ -159,6 +210,19 @@ class Report:
             db.rollback()
             logger.critical("Error writing report for '%s': %s", self.task_name, err)
             raise
+
+
+@beartype.beartype
+class JobQueue[T]:
+    def __init__(self, max_size: int): ...
+
+    def submit(self, job: T) -> None: ...
+
+    def pop(self) -> T: ...
+
+    def full(self) -> bool: ...
+
+    def __len__(self) -> int: ...
 
 
 @beartype.beartype

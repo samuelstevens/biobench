@@ -78,33 +78,63 @@ def main(
     db = reporting.get_db(first)
 
     # 2. Run benchmarks.
-    jobs = []
-    n_skipped = 0
+    job_queue = reporting.JobQueue(max_pending)
+    counts = collections.defaultdict(int)
     for cfg in helpers.progress(cfgs, desc="submitting jobs"):
         for task_name, data_root in cfg.data.to_dict().items():
             # Check that you can get the task_name
             try:
                 importlib.import_module(f"biobench.{task_name}")
             except ModuleNotFoundError:
+                counts["no_code"] += 1
                 logger.warning("Could not find task '%s'.", task_name)
                 continue
 
             if not data_root:
+                counts["no_data"] += 1
                 continue
 
             if reporting.already_ran(db, cfg, task_name):
-                n_skipped += 1
+                counts["done"] += 1
                 continue
-            elif dry_run:
-                jobs.append(cfg)
+
+            if dry_run:
+                if reporting.is_claimed(db, cfg, task_name):
+                    counts["queued"] += 1
+                    continue  # would be skipped
             else:
-                job = executor.submit(benchmark_with_mp, task_name, cfg)
-                jobs.append(job)
+                if not reporting.claim_run(db, cfg, task_name):
+                    counts["queued"] += 1
+                    continue
+
+            if dry_run:
+                job_queue.append((None, cfg, task_name))
+                continue
+
+            job = executor.submit(worker, task_name, cfg)
+            job_queue.submit((job, cfg, task_name))
+
+            # throttle
+            while job_queue.full():
+                job, cfg, task_name = job_queue.pop()
+                try:
+                    report: reporting.Report = job.result()
+                    report.write()
+                    logger.info(
+                        "%s+%s/%s done",
+                        report.task_name,
+                        report.cfg.model.org,
+                        report.cfg.model.ckpt,
+                    )
+                except Exception as err:
+                    logger.warning("Failed: %s", err)
+                finally:
+                    reporting.release_run(db, cfg, task_name)
 
     if dry_run:
         # Summarize the jobs by model and training examples
         model_counts = collections.defaultdict(int)
-        for job_cfg in jobs:
+        for _, job_cfg, _ in job_queue:
             key = (job_cfg.model.ckpt, job_cfg.n_train)
             model_counts[key] += 1
 
@@ -121,33 +151,37 @@ def main(
             logger.info("%-50s | %10d | %5d", model, n_train, count)
         logger.info("-" * 71)
         logger.info(
-            "Total jobs to run: %d (skipped %d already completed)", len(jobs), n_skipped
+            "Total jobs to run: %d (skipped %d already completed)",
+            len(job_queue),
+            n_skipped,
         )
         return
 
-    logger.info("Submitted %d jobs (skipped %d).", len(jobs), n_skipped)
+    logger.info("Submitted %d jobs (skipped %d).", len(job_queue), n_skipped)
 
     # 3. Write results to sqlite.
-    for i, future in enumerate(submitit.helpers.as_completed(jobs)):
-        err = future.exception()
-        if err:
-            logger.warning("Error running job: %s: %s", err, err.__cause__)
-            continue
-
-        report: reporting.Report = future.result()
-        report.write()
-        logger.info("Finished %d/%d jobs.", i + 1, len(jobs))
+    while job_queue:
+        job, cfg, task_name = job_queue.pop()
+        try:
+            report: reporting.Report = job.result()
+            report.write()
+            logger.info(
+                "%s+%s/%s done",
+                report.task_name,
+                report.cfg.model.org,
+                report.cfg.model.ckpt,
+            )
+        except Exception as err:
+            logger.warning("Failed: %s", err)
+        finally:
+            reporting.release_run(db, cfg, task_name)
 
     logger.info("Finished.")
 
 
 @beartype.beartype
-def benchmark_with_mp(task_name: str, cfg: config.Experiment) -> reporting.Report:
-    import torch.multiprocessing as mp
-
+def worker(task_name: str, cfg: config.Experiment) -> reporting.Report:
     helpers.bump_nofile(512)
-    if mp.get_sharing_strategy() != "file_system":
-        mp.set_sharing_strategy("file_system")
 
     module = importlib.import_module(f"biobench.{task_name}")
     return module.benchmark(cfg)
