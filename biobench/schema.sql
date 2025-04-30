@@ -1,9 +1,9 @@
-PRAGMA journal_mode = WAL;   -- Concurrent reads/writes
-PRAGMA synchronous = NORMAL; -- Good balance speed/safety
-PRAGMA foreign_keys = ON;    -- Enforce FK constraints
+PRAGMA journal_mode = WAL;    -- Concurrent reads/writes
+PRAGMA synchronous = NORMAL;  -- Good balance speed/safety
+PRAGMA foreign_keys = ON;     -- Enforce FK constraints
 PRAGMA busy_timeout = 30000;  -- Wait up to 30s before throwing timeout errors
-PRAGMA strict = ON;          -- Enforce strict type checking (SQLite ≥ 3.37)
-PRAGMA encoding = 'UTF-8';   -- Consistent text encoding
+PRAGMA strict = ON;           -- Enforce strict type checking (SQLite ≥ 3.37)
+PRAGMA encoding = 'UTF-8';    -- Consistent text encoding
 
 
 CREATE TABLE IF NOT EXISTS experiments (
@@ -39,4 +39,16 @@ CREATE TABLE IF NOT EXISTS predictions (
 
     PRIMARY KEY (img_id, experiment_id),
     FOREIGN KEY (experiment_id) REFERENCES experiments(id)  ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS runs (
+    task_name TEXT NOT NULL,
+    model_org TEXT NOT NULL,
+    model_ckpt TEXT NOT NULL,
+    n_train INTEGER NOT NULL,
+
+    -- For debugging
+    posix INTEGER NOT NULL,  -- POSIX timestamp
+    pid INTEGER NOT NULL,  -- os.getpid() of the worker
+    PRIMARY KEY (task_name, model_org, model_ckpt, n_train)
 );

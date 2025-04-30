@@ -60,17 +60,18 @@ class SimpleShotClassifier(sklearn.base.BaseEstimator, sklearn.base.ClassifierMi
         x = l2_normalize(x)
 
         # Do this next step on the GPU to make it fast.
-        # Goes from 1 batch/sec to 77 batch/sec
-        centroids = torch.from_numpy(self.clf_.centroids_).to(self.device)
-        x = x.to(self.device)
+        centroids = torch.from_numpy(self.clf_.centroids_).to(
+            self.device, non_blocking=True
+        )
+        x = torch.from_numpy(x).to(self.device, non_blocking=True)
 
         preds = []
         for start, stop in helpers.batched_idx(len(x), self.batch_size):
             x_batch = x[start:stop]
             distances = torch.linalg.vector_norm(x_batch[:, None] - centroids, axis=2)
-            preds.append(torch.argmin(distances, dim=1))
+            preds.append(torch.argmin(distances, dim=1).cpu())
 
-        return np.concatenate(preds, dim=0)
+        return torch.cat(preds, dim=0).numpy()
 
 
 @jaxtyped(typechecker=beartype.beartype)
