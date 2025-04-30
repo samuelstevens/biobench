@@ -26,15 +26,14 @@ def test_register_returns_self_and_is_idempotent():
     *Spec:* `register()` **must** return the same object so callers can write
     `reaper = ClaimReaper(...).register()`.
 
-    It must also be safe to call repeatedly (harmless no-ops) because some
-    launchers may defensively register twice.
+    It must also be safe to call repeatedly (harmless no-ops) because some launchers may defensively register twice.
     """
 
     sink = []
     reaper = ExitHook(lambda claim: sink.append(claim))
 
     assert reaper.register() is reaper  # first call
-    assert reaper.register() is reaper  # second call – still fine
+    assert reaper.register() is reaper  # second call - still fine
 
 
 def test_add_then_discard_accepts_generic_payload():
@@ -53,7 +52,7 @@ def test_add_then_discard_accepts_generic_payload():
 def test_multiple_outstanding_claims_do_not_interfere():
     """
     Adding several distinct claims before discarding them should not trigger
-    internal errors such as “set changed size during iteration”.
+    internal errors such as "set changed size during iteration".
     """
 
     reaper = ExitHook(lambda c: None).register()
@@ -70,7 +69,7 @@ def test_release_run_calls_injected_release_fn():
     """
     `release_run()` is documented as a *thin wrapper* that forwards to the
     injected `release_fn`.  Verify that the exact same claim object reaches the
-    callback once—and only once.
+    callback once--and only once.
     """
 
     hits = []
@@ -90,7 +89,7 @@ def test_add_requires_hashable_claim():
 
     reaper = ExitHook(lambda c: None)
 
-    # list is non-hashable → should blow up
+    # list is non-hashable -> should blow up
     with pytest.raises((TypeError, beartype.roar.BeartypeCallHintParamViolation)):
         reaper.add(["unhashable"])
 
@@ -98,7 +97,7 @@ def test_add_requires_hashable_claim():
 def test_release_run_invokes_callback_exactly_each_time():
     """
     *Behavioural guarantee:* every explicit release_run() call must translate
-    into one—and only one—invocation of the injected release_fn, regardless of
+    into one--and only one--invocation of the injected release_fn, regardless of
     whether the claim was previously added/discarded.
     """
 
@@ -229,7 +228,7 @@ def test_register_calls_atexit(monkeypatch):
 
     monkeypatch.setattr(atexit, "register", _fake_register)
 
-    # construction shouldn't trigger the hook — only .register()
+    # construction shouldn't trigger the hook -- only .register()
     reaper = ExitHook(lambda _: None)
     assert not captured
 
@@ -274,14 +273,14 @@ def test_atexit_handler_releases_all_live_claims(monkeypatch):
 
 def test_lock_prevents_set_mutation_during_massive_adds():
     """
-    A classic failure mode is “set changed size during iteration” when the
+    A classic failure mode is "set changed size during iteration" when the
     signal-handler walks `_claims` while another thread is adding claims.
 
     Strategy
     --------
     * Worker thread continuously adds new claims.
     * Main thread waits a short moment, then calls the SIGINT handler.
-    * If locking is absent we’ll almost certainly trigger the RuntimeError.
+    * If locking is absent we'll almost certainly trigger the RuntimeError.
     * We also check that each claim is released **at most once**.
     """
 
@@ -341,7 +340,7 @@ def test_lock_prevents_set_mutation_during_discards():
     t.join()
 
     # All *remaining* live claims were released once; any discarded before
-    # the handler shouldn’t re-appear, so no duplicates.
+    # the handler shouldn't re-appear, so no duplicates.
     assert len(hits) == len(set(hits))
 
 
@@ -350,7 +349,7 @@ def test_lock_serialises_multiple_concurrent_handlers():
     If two threads invoke the handler almost simultaneously, the internal lock
     must guarantee:
       * no crashes,
-      * each claim released ≤ 1 time,
+      * each claim released <= 1 time,
       * after both finish `_claims` is empty (second call sees nothing).
 
     We mimic this by launching a second thread that calls the SIGTERM handler
@@ -426,7 +425,7 @@ def test_multiple_reapers_each_release_their_own_claims():
 
 def test_discarded_claims_on_one_reaper_do_not_affect_others():
     """
-    If Reaper-1 discards a claim before the signal arrives, only Reaper-2’s
+    If Reaper-1 discards a claim before the signal arrives, only Reaper-2's
     live claim should be released.
     """
 
@@ -450,7 +449,7 @@ def test_discarded_claims_on_one_reaper_do_not_affect_others():
 def test_unregistered_reaper_claims_are_not_released():
     """
     Claims tracked by a *non-registered* ClaimReaper instance must *not* be
-    released when some other Reaper’s handler fires.
+    released when some other Reaper's handler fires.
     """
 
     ghost_hits, live_hits = [], []
@@ -539,6 +538,6 @@ def test_atexit_cleanup_is_idempotent():
 
     # Simulate normal shutdown twice
     captured[0]()  # first call
-    captured[0]()  # second call – should be a no-op
+    captured[0]()  # second call - should be a no-op
 
     assert hits == ["x"]

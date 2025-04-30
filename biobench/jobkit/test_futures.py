@@ -120,7 +120,7 @@ def test_pop_returns_first_finished_payload():
 @pytest.mark.timeout(5)
 def test_pop_recognises_nested_jobs():
     """
-    The queue must scan *nested* payloads (≤ 2 levels, depth-first).
+    The queue must scan *nested* payloads (<= 2 levels, depth-first).
 
     We wrap a finished `FakeJob` inside a tuple along with arbitrary metadata
     and verify that `pop()` still detects completion.
@@ -159,7 +159,7 @@ def test_pop_frees_capacity_for_further_submissions():
 @pytest.mark.timeout(5)
 def test_depth_two_nesting_is_detected():
     """
-    The spec promises a *depth-first scan ≤ 2* levels deep.
+    The spec promises a *depth-first scan <= 2* levels deep.
 
     We wrap a finished job two layers down:  [ ( job ) ].  `pop()` must still
     recognise completion and unblock.
@@ -244,9 +244,9 @@ def test_pop_returns_first_runtime_finish_not_fifo():
     The job that *completes first in wall time* must be returned, regardless
     of insertion order.
 
-    Queue order:  slow(2 s)  →  fast(0.1 s)
+    Queue order:  slow(2 s)  ->  fast(0.1 s)
 
-    Expected: `pop()` blocks ≈0.1 s, returns *fast*.
+    Expected: `pop()` blocks ~0.1 s, returns *fast*.
     """
     slow = DelayedJob(2.0)
     fast = DelayedJob(0.1)
@@ -314,7 +314,7 @@ def test_multiple_done_jobs_in_one_payload_returns_first_depth_first():
     """
     If a single payload contains *several* finished jobs, the queue should treat the first depth-first hit as the trigger.
 
-    We build:  ( doneA , [ doneB ] )  — `pop()` may choose either, but spec allows returning the *payload* not the individual job; ensure dequeueing occurs immediately.
+    We build:  ( doneA , [ doneB ] )  -- `pop()` may choose either, but spec allows returning the *payload* not the individual job; ensure dequeueing occurs immediately.
     """
     a, b = FakeJob(done=True), FakeJob(done=True)
     nested = (a, [b])
