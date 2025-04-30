@@ -201,10 +201,28 @@ class JobQueue[T]:
             for item in obj:
                 if hasattr(item, "done") and callable(item.done) and item.done():
                     return True
+                # Check second level of nesting
+                if isinstance(item, (tuple, list)):
+                    for subitem in item:
+                        if hasattr(subitem, "done") and callable(subitem.done) and subitem.done():
+                            return True
+                elif isinstance(item, dict):
+                    for subitem in item.values():
+                        if hasattr(subitem, "done") and callable(subitem.done) and subitem.done():
+                            return True
         elif isinstance(obj, dict):
             for item in obj.values():
                 if hasattr(item, "done") and callable(item.done) and item.done():
                     return True
+                # Check second level of nesting
+                if isinstance(item, (tuple, list)):
+                    for subitem in item:
+                        if hasattr(subitem, "done") and callable(subitem.done) and subitem.done():
+                            return True
+                elif isinstance(item, dict):
+                    for subitem in item.values():
+                        if hasattr(subitem, "done") and callable(subitem.done) and subitem.done():
+                            return True
                     
         return False
 
