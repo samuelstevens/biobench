@@ -27,18 +27,17 @@ from . import helpers
 @beartype.beartype
 class SimpleShotClassifier(sklearn.base.BaseEstimator, sklearn.base.ClassifierMixin):
     """
-    scikit-learn wrapper for the "normalized nearest-centroid" classifier
-    (a.k.a. SimpleShot, Wang et al. ICCV 2019).
+    scikit-learn wrapper for the "normalized nearest-centroid" classifier (a.k.a. SimpleShot, Wang et al. ICCV 2019).
 
     Parameters
     ----------
-    device : {'cpu','cuda'} or torch.device, default='cpu'
+    device : {'cpu','cuda'}, default='cpu'
         Used only during `predict`; centroids are pushed to this device for fast batched distance computation.
     """
 
-    def __init__(self, batch_size: int = 2048, device: str | torch.device = "cpu"):
+    def __init__(self, batch_size: int = 2048, device: str = "cpu"):
         self.batch_size = batch_size
-        self.device = torch.device(device)
+        self.device = device
 
     def fit(self, X, y):
         x, y = sklearn.utils.validation.check_X_y(X, y, dtype=np.float32, order="C")

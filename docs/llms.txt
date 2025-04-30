@@ -143,13 +143,10 @@ Because of this, there are two main classes of tasks:
 
 Last checked: 2025-04-30
 
-# 2 failing test(s)
-
-- biobench/test_reporting.py::test_reclaim_after_failure
-- biobench/test_reporting.py::test_skip_when_experiment_exists
+**All tests passed**
 # Coverage
 
-Coverage: 2756/4182 lines (65.9%)
+Coverage: 2769/4183 lines (66.2%)
 
 >>>> __init__.py
 """ """
@@ -791,6 +788,11 @@ def main(
             os.environ["BIOBENCH_DISABLE_SSL"] = "1"
 
     db = reporting.get_db(first)
+
+    # Clear old (5 days+) runs.
+    cleared = reporting.clear_stale_claims(db, max_age_hours=24 * 5)
+    logger.info("Cleared %d stale jobs from 'runs' table.", cleared)
+
     job_stats = collections.defaultdict(int)
     model_stats = collections.defaultdict(int)
     fq = jobkit.FutureQueue(max_size=max_pending)
@@ -812,7 +814,7 @@ def main(
         finally:
             exit_hook.discard((cfg, task))
 
-    for cfg in helpers.progress(cfgs, desc="submitting jobs"):
+    for cfg in cfgs:
         for task, data_root in cfg.data.to_dict().items():
             reason = get_skip_reason(db, cfg, task, data_root, dry_run)
             if reason:
@@ -1554,6 +1556,8 @@ import typing
 import beartype
 import numpy as np
 import polars as pl
+import sklearn.pipeline
+import sklearn.preprocessing
 import torch
 from jaxtyping import Float, Int, Shaped, jaxtyped
 from PIL import Image
@@ -1570,45 +1574,52 @@ class Features:
     x: Float[np.ndarray, "n dim"]
     y: Int[np.ndarray, " n"]
     ids: Shaped[np.ndarray, " n"]
+    """image IDs for validation, observation IDs for training."""
 
 
 @beartype.beartype
 class FungiDataset(torch.utils.data.Dataset):
-    def __init__(
-        self,
-        root: str,
-        image_names: np.ndarray,
-        labels: np.ndarray,
-        transform,
-    ):
-        self.root = root
-        self.names = list(image_names)
-        self.labels = labels
+    def __init__(self, csv_fpath: str, img_dpath: str, transform):
+        if not os.path.isdir(img_dpath):
+            raise RuntimeError(f"Image directory not found: {img_dpath}")
+
+        df = pl.read_csv(csv_fpath)
+        self.img_names = df.get_column("image_path").to_numpy()
+        self.labels = df.get_column("class_id").to_numpy().astype(int)
+        self.obs_ids = df.get_column("observationID").to_numpy()
+
+        self.img_dpath = img_dpath
         self.transform = transform
 
     def __len__(self) -> int:
-        return len(self.names)
+        return len(self.img_names)
 
-    def __getitem__(self, idx: int) -> dict[str, object]:
-        name = self.names[idx]
-        label = int(self.labels[idx])
+    def __getitem__(self, idx) -> dict[str, object]:
+        img_name = self.img_names[idx]
+        label = self.labels[idx].item()
         # try exact case, then lowercase
-        p1 = os.path.join(self.root, name)
+        p1 = os.path.join(self.img_dpath, img_name)
         if os.path.exists(p1):
             path = p1
         else:
-            p2 = os.path.join(self.root, name.lower())
+            p2 = os.path.join(self.img_dpath, img_name.lower())
             if os.path.exists(p2):
                 path = p2
-                logger.debug("Using lowercase image path for %s", name)
+                logger.debug("Using lowercase image path for %s", img_name)
             else:
                 raise FileNotFoundError(
-                    f"Image '{name}' not found in {self.root} (tried '{p1}', '{p2}')"
+                    f"Image '{img_name}' not found in {self.img_dpath} (tried '{p1}', '{p2}')"
                 )
         img = Image.open(path).convert("RGB")
         if self.transform:
             img = self.transform(img)
-        return {"img_id": name, "img": img, "label": label}
+
+        return {
+            "img_id": img_name,
+            "img": img,
+            "label": label,
+            "obs_id": self.obs_ids[idx].item(),
+        }
 
 
 @beartype.beartype
@@ -1617,32 +1628,25 @@ def get_features(
     backbone: registry.VisionBackbone,
     *,
     split: typing.Literal["train", "val"],
+    pool: bool,
 ) -> Features:
-    # read metadata
-    df = pl.read_csv(
-        os.path.join(
-            cfg.data.fungiclef,
-            f"FungiCLEF2023_{split}_metadata_PRODUCTION.csv",
-        )
+    transform = backbone.make_img_transform()
+
+    csv_fpath = os.path.join(
+        cfg.data.fungiclef, f"FungiCLEF2023_{split}_metadata_PRODUCTION.csv"
     )
-    img_names = df.get_column("image_path").to_numpy()
-    labels = df.get_column("class_id").to_numpy().astype(int)
 
-    # subsample for train
-    if split == "train" and cfg.n_train > 0:
-        idxs = helpers.balanced_random_sample(labels, cfg.n_train)
-        img_names = img_names[idxs]
-        labels = labels[idxs]
-
-    img_dir = os.path.join(
+    img_dpath = os.path.join(
         cfg.data.fungiclef,
         "DF20_300" if split == "train" else "DF21_300",
     )
-    if not os.path.isdir(img_dir):
-        raise RuntimeError(f"Image directory not found: {img_dir}")
+    dataset = FungiDataset(csv_fpath, img_dpath, transform)
 
-    transform = backbone.make_img_transform()
-    dataset = FungiDataset(img_dir, img_names, labels, transform)
+    # subsample for train
+    if split == "train" and cfg.n_train > 0:
+        idxs = helpers.balanced_random_sample(dataset.labels, cfg.n_train)
+        dataset = torch.utils.data.Subset(dataset, idxs)
+
     dataloader = torch.utils.data.DataLoader(
         dataset,
         batch_size=cfg.batch_size,
@@ -1652,10 +1656,9 @@ def get_features(
     )
 
     backbone = torch.compile(backbone.to(cfg.device))
-    feats_list, labs_list, ids_list = [], [], []
+    feats_list, labs_list, img_ids_list, obs_ids_list = [], [], [], []
 
     total = len(dataloader) if not cfg.debug else 2
-
     it = iter(dataloader)
     for b in helpers.progress(range(total), every=10, desc=f"fungi/{split}"):
         batch = next(it)
@@ -1664,12 +1667,26 @@ def get_features(
             out = backbone.img_encode(imgs).img_features.cpu().numpy()
         feats_list.append(out)
         labs_list.append(np.array(batch["label"], dtype=int))
-        ids_list.extend(batch["img_id"])
+        img_ids_list.extend(batch["img_id"])
+        obs_ids_list.extend(batch["obs_id"])
 
     x = np.concatenate(feats_list, axis=0)
     y = np.concatenate(labs_list, axis=0)
-    ids = np.array(ids_list)
-    return Features(x, y, ids)
+    img_ids = np.array(img_ids_list)
+    obs_ids = np.array(obs_ids_list)
+
+    if pool:
+        # for each unique obs take mean of its image features
+        uniq, inv = np.unique(obs_ids, return_inverse=True)
+        pooled = np.empty((len(uniq), x.shape[1]), dtype=x.dtype)
+        for k, u in enumerate(helpers.progress(uniq, every=10_000, desc="groupby")):
+            pooled[k] = x[inv == k].mean(axis=0)
+        # labels should be identical within an observation
+        pooled_y = np.array([y[inv == k][0] for k in range(len(uniq))], dtype=int)
+        return Features(pooled, pooled_y, uniq)
+
+    # image-level output
+    return Features(x, y, img_ids)
 
 
 @beartype.beartype
@@ -1702,7 +1719,10 @@ def benchmark(cfg: config.Experiment) -> reporting.Report:
 @beartype.beartype
 def init_clf(cfg: config.Experiment):
     return openset.MahalanobisOpenSetClassifier(
-        simpleshot.SimpleShotClassifier(device="cuda:0")
+        sklearn.pipeline.make_pipeline(
+            sklearn.preprocessing.StandardScaler(),
+            simpleshot.SimpleShotClassifier(device="cuda:0"),
+        ),
     )
 
 
@@ -2365,6 +2385,7 @@ def auto_batch_size(
     oom_signatures = (
         "out of memory",
         "cuda error: invalid configuration argument",  # SPM-efficient-attn OOM
+        "expected canuse32bitindexmath(input) && canuse32bitindexmath(output) to be true, but got false.",  # Conv layers with big batch sizes.
     )
 
     dataloader.batch_sampler.batch_size = min(
@@ -4757,6 +4778,11 @@ def benchmark(cfg: config.Experiment) -> reporting.Report:
         for video_id, pred, true in zip(test_features.ids, pred_labels, true_labels)
     ]
     return reporting.Report("kabr", preds, cfg)
+
+
+@beartype.beartype
+def score(preds: list[reporting.Prediction]) -> float:
+    return reporting.macro_f1(preds)
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -7258,6 +7284,25 @@ def release_run(db: sqlite3.Connection, cfg: config.Experiment, task_name: str) 
 
 
 @beartype.beartype
+def clear_stale_claims(db: sqlite3.Connection, *, max_age_hours: int = 72) -> int:
+    """
+    Delete rows in `runs` whose POSIX timestamp is older than `max_age_hours`.
+
+    Returns
+    -------
+    int
+        Number of rows deleted.
+    """
+    if max_age_hours <= 0:
+        raise ValueError("max_age_hours must be positive")
+
+    cutoff = time.time() - max_age_hours * 3600
+    cur = db.execute("DELETE FROM runs WHERE posix < ?", (cutoff,))
+    db.commit()
+    return cur.rowcount
+
+
+@beartype.beartype
 def get_git_hash() -> str:
     """Returns the hash of the current git commit.
 
@@ -7539,18 +7584,17 @@ from . import helpers
 @beartype.beartype
 class SimpleShotClassifier(sklearn.base.BaseEstimator, sklearn.base.ClassifierMixin):
     """
-    scikit-learn wrapper for the "normalized nearest-centroid" classifier
-    (a.k.a. SimpleShot, Wang et al. ICCV 2019).
+    scikit-learn wrapper for the "normalized nearest-centroid" classifier (a.k.a. SimpleShot, Wang et al. ICCV 2019).
 
     Parameters
     ----------
-    device : {'cpu','cuda'} or torch.device, default='cpu'
+    device : {'cpu','cuda'}, default='cpu'
         Used only during `predict`; centroids are pushed to this device for fast batched distance computation.
     """
 
-    def __init__(self, batch_size: int = 2048, device: str | torch.device = "cpu"):
+    def __init__(self, batch_size: int = 2048, device: str = "cpu"):
         self.batch_size = batch_size
-        self.device = torch.device(device)
+        self.device = device
 
     def fit(self, X, y):
         x, y = sklearn.utils.validation.check_X_y(X, y, dtype=np.float32, order="C")
@@ -8287,6 +8331,8 @@ import pathlib
 import sqlite3
 import time
 
+import beartype
+import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
@@ -8334,7 +8380,11 @@ def test_micro_f1_equals_micro_accuracy(preds):
 # Tests for SQLite Reporting #
 ##############################
 
+NOW = 1_700_000_000.0  # fixed "current" time so tests are deterministic
+HOUR = 3600
 
+
+@beartype.beartype
 def make_cfg(tmp_path: pathlib.Path) -> config.Experiment:
     """Return a minimal Experiment that points its report DB inside tmp_path."""
     return config.Experiment(
@@ -8345,7 +8395,8 @@ def make_cfg(tmp_path: pathlib.Path) -> config.Experiment:
     )
 
 
-def insert_dummy_experiment(db: sqlite3.Connection, cfg: config.Experiment, task: str):
+@beartype.beartype
+def _insert_experiment(db: sqlite3.Connection, cfg: config.Experiment, task: str):
     """Directly insert a row into experiments (used to pre-populate scenario 1)."""
     values = (
         task,
@@ -8369,12 +8420,26 @@ def insert_dummy_experiment(db: sqlite3.Connection, cfg: config.Experiment, task
     db.commit()
 
 
+@beartype.beartype
+def _insert_claim(
+    db: sqlite3.Connection, cfg: config.Experiment, task: str, *, age_h: float | int
+):
+    """Insert a claim with `age_h` hours of staleness via claim_run."""
+    # fake the clock *during* the INSERT
+    t0 = time.time
+    time.time = lambda: NOW - age_h * HOUR
+    try:
+        assert reporting.claim_run(db, cfg, task)  # must succeed
+    finally:
+        time.time = t0
+
+
 def test_skip_when_experiment_exists(tmp_path):
     cfg = make_cfg(tmp_path)
     task = "plantnet"
 
     db = reporting.get_db(cfg)
-    insert_dummy_experiment(db, cfg, task)
+    _insert_experiment(db, cfg, task)
 
     assert reporting.already_ran(db, cfg, task) is True
 
@@ -8388,7 +8453,7 @@ def _worker(cfg: config.Experiment, task: str, q, succeed: bool):
     if reporting.claim_run(db, cfg, task):
         time.sleep(20)
         if succeed:
-            insert_dummy_experiment(db, cfg, task)
+            _insert_experiment(db, cfg, task)
             reporting.release_run(db, cfg, task)
             q.put("winner")
         else:
@@ -8463,6 +8528,109 @@ def test_reclaim_after_failure(tmp_path):
     db = reporting.get_db(cfg)
     assert reporting.already_ran(db, cfg, task)
     assert db.execute("SELECT COUNT(*) FROM runs").fetchone()[0] == 0
+
+
+def test_empty_db(tmp_path):
+    cfg = make_cfg(tmp_path)
+    db = reporting.get_db(cfg)
+    assert reporting.clear_stale_claims(db, max_age_hours=72) == 0
+
+
+def test_fresh_kept(tmp_path, monkeypatch):
+    cfg = make_cfg(tmp_path)
+    db = reporting.get_db(cfg)
+    _insert_claim(db, cfg, "task", age_h=5)
+
+    monkeypatch.setattr(time, "time", lambda: NOW)
+    assert reporting.clear_stale_claims(db) == 0
+    assert reporting.is_claimed(db, cfg, "task")
+
+
+def test_stale_removed_and_reclaimable(tmp_path, monkeypatch):
+    cfg = make_cfg(tmp_path)
+    db = reporting.get_db(cfg)
+    _insert_claim(db, cfg, "task", age_h=100)
+
+    # can't claim while it's stale & present
+    assert reporting.is_claimed(db, cfg, "task")
+
+    monkeypatch.setattr(time, "time", lambda: NOW)
+    assert reporting.clear_stale_claims(db) == 1
+    # now slot is free again
+    assert not reporting.is_claimed(db, cfg, "task")
+    assert reporting.claim_run(db, cfg, "task")
+
+
+def test_mixed_rows(tmp_path, monkeypatch):
+    cfg = make_cfg(tmp_path)
+    db = reporting.get_db(cfg)
+    _insert_claim(db, cfg, "task1", age_h=10)
+    _insert_claim(db, cfg, "task2", age_h=90)
+
+    monkeypatch.setattr(time, "time", lambda: NOW)
+    assert reporting.clear_stale_claims(db, max_age_hours=72) == 1
+    assert reporting.is_claimed(db, cfg, "task1")
+    assert not reporting.is_claimed(db, cfg, "task2")
+
+
+@pytest.mark.parametrize("hrs", [71.99, 72.0])
+def test_exact_cutoff_not_deleted(tmp_path, monkeypatch, hrs):
+    cfg = make_cfg(tmp_path)
+    db = reporting.get_db(cfg)
+    _insert_claim(db, cfg, "task", age_h=hrs)
+
+    monkeypatch.setattr(time, "time", lambda: NOW)
+    assert reporting.clear_stale_claims(db) == 0
+    assert reporting.is_claimed(db, cfg, "task")
+
+
+def test_custom_threshold(tmp_path, monkeypatch):
+    cfg = make_cfg(tmp_path)
+    db = reporting.get_db(cfg)
+    _insert_claim(db, cfg, "task", age_h=50)
+
+    monkeypatch.setattr(time, "time", lambda: NOW)
+    assert reporting.clear_stale_claims(db, max_age_hours=45) == 1
+
+
+@pytest.mark.parametrize("bad", [0, -5])
+def test_bad_threshold_raises(tmp_path, bad):
+    cfg = make_cfg(tmp_path)
+    db = reporting.get_db(cfg)
+    with pytest.raises(ValueError):
+        reporting.clear_stale_claims(db, max_age_hours=bad)
+
+
+def test_idempotent(tmp_path, monkeypatch):
+    cfg = make_cfg(tmp_path)
+    db = reporting.get_db(cfg)
+    _insert_claim(db, cfg, "task", age_h=150)
+
+    monkeypatch.setattr(time, "time", lambda: NOW)
+    assert reporting.clear_stale_claims(db) == 1
+    # second pass should remove nothing
+    assert reporting.clear_stale_claims(db) == 0
+
+
+def test_rowcount_exact(tmp_path, monkeypatch):
+    cfg = make_cfg(tmp_path)
+    db = reporting.get_db(cfg)
+    _insert_claim(db, cfg, "task1", age_h=120)
+    _insert_claim(db, cfg, "task2", age_h=130)
+
+    monkeypatch.setattr(time, "time", lambda: NOW)
+    assert reporting.clear_stale_claims(db) == 2
+
+
+def test_future_schema_extra_column(tmp_path, monkeypatch):
+    # add extra column to ensure helper ignores unknown columns
+    cfg = make_cfg(tmp_path)
+    db = reporting.get_db(cfg)
+    db.execute("ALTER TABLE runs ADD COLUMN note TEXT")
+    _insert_claim(db, cfg, "task", age_h=100)
+
+    monkeypatch.setattr(time, "time", lambda: NOW)
+    assert reporting.clear_stale_claims(db) == 1
 
 >>>> test_smoke.py
 def test_smoke_imports():

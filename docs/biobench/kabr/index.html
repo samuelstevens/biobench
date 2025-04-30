@@ -255,6 +255,20 @@ def init_clf(cfg: config.Experiment):
 </details>
 <div class="desc"></div>
 </dd>
+<dt id="biobench.kabr.score"><code class="name flex">
+<span>def <span class="ident">score</span></span>(<span>preds: list[<a title="biobench.reporting.Prediction" href="../reporting.html#biobench.reporting.Prediction">Prediction</a>]) ‑> float</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@beartype.beartype
+def score(preds: list[reporting.Prediction]) -&gt; float:
+    return reporting.macro_f1(preds)</code></pre>
+</details>
+<div class="desc"></div>
+</dd>
 </dl>
 </section>
 <section>
@@ -466,12 +480,13 @@ class Video:
 </ul>
 </li>
 <li><h3><a href="#header-functions">Functions</a></h3>
-<ul class="">
+<ul class="two-column">
 <li><code><a title="biobench.kabr.aggregate_frames" href="#biobench.kabr.aggregate_frames">aggregate_frames</a></code></li>
 <li><code><a title="biobench.kabr.aggregate_labels" href="#biobench.kabr.aggregate_labels">aggregate_labels</a></code></li>
 <li><code><a title="biobench.kabr.benchmark" href="#biobench.kabr.benchmark">benchmark</a></code></li>
 <li><code><a title="biobench.kabr.get_features" href="#biobench.kabr.get_features">get_features</a></code></li>
 <li><code><a title="biobench.kabr.init_clf" href="#biobench.kabr.init_clf">init_clf</a></code></li>
+<li><code><a title="biobench.kabr.score" href="#biobench.kabr.score">score</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>

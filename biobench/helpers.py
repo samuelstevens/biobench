@@ -295,6 +295,7 @@ def auto_batch_size(
     oom_signatures = (
         "out of memory",
         "cuda error: invalid configuration argument",  # SPM-efficient-attn OOM
+        "expected canuse32bitindexmath(input) && canuse32bitindexmath(output) to be true, but got false.",  # Conv layers with big batch sizes.
     )
 
     dataloader.batch_sampler.batch_size = min(

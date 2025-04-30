@@ -158,6 +158,11 @@ def main(
             os.environ[&#34;BIOBENCH_DISABLE_SSL&#34;] = &#34;1&#34;
 
     db = reporting.get_db(first)
+
+    # Clear old (5 days+) runs.
+    cleared = reporting.clear_stale_claims(db, max_age_hours=24 * 5)
+    logger.info(&#34;Cleared %d stale jobs from &#39;runs&#39; table.&#34;, cleared)
+
     job_stats = collections.defaultdict(int)
     model_stats = collections.defaultdict(int)
     fq = jobkit.FutureQueue(max_size=max_pending)
@@ -179,7 +184,7 @@ def main(
         finally:
             exit_hook.discard((cfg, task))
 
-    for cfg in helpers.progress(cfgs, desc=&#34;submitting jobs&#34;):
+    for cfg in cfgs:
         for task, data_root in cfg.data.to_dict().items():
             reason = get_skip_reason(db, cfg, task, data_root, dry_run)
             if reason:

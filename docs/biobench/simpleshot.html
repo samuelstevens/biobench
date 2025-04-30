@@ -94,7 +94,7 @@ def l2_normalize(
 <dl>
 <dt id="biobench.simpleshot.SimpleShotClassifier"><code class="flex name class">
 <span>class <span class="ident">SimpleShotClassifier</span></span>
-<span>(</span><span>batch_size: int = 2048, device: str | torch.device = 'cpu')</span>
+<span>(</span><span>batch_size: int = 2048, device: str = 'cpu')</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -104,18 +104,17 @@ def l2_normalize(
 <pre><code class="python">@beartype.beartype
 class SimpleShotClassifier(sklearn.base.BaseEstimator, sklearn.base.ClassifierMixin):
     &#34;&#34;&#34;
-    scikit-learn wrapper for the &#34;normalized nearest-centroid&#34; classifier
-    (a.k.a. SimpleShot, Wang et al. ICCV 2019).
+    scikit-learn wrapper for the &#34;normalized nearest-centroid&#34; classifier (a.k.a. SimpleShot, Wang et al. ICCV 2019).
 
     Parameters
     ----------
-    device : {&#39;cpu&#39;,&#39;cuda&#39;} or torch.device, default=&#39;cpu&#39;
+    device : {&#39;cpu&#39;,&#39;cuda&#39;}, default=&#39;cpu&#39;
         Used only during `predict`; centroids are pushed to this device for fast batched distance computation.
     &#34;&#34;&#34;
 
-    def __init__(self, batch_size: int = 2048, device: str | torch.device = &#34;cpu&#34;):
+    def __init__(self, batch_size: int = 2048, device: str = &#34;cpu&#34;):
         self.batch_size = batch_size
-        self.device = torch.device(device)
+        self.device = device
 
     def fit(self, X, y):
         x, y = sklearn.utils.validation.check_X_y(X, y, dtype=np.float32, order=&#34;C&#34;)
@@ -150,11 +149,10 @@ class SimpleShotClassifier(sklearn.base.BaseEstimator, sklearn.base.ClassifierMi
 
         return torch.cat(preds, dim=0).numpy()</code></pre>
 </details>
-<div class="desc"><p>scikit-learn wrapper for the "normalized nearest-centroid" classifier
-(a.k.a. SimpleShot, Wang et al. ICCV 2019).</p>
+<div class="desc"><p>scikit-learn wrapper for the "normalized nearest-centroid" classifier (a.k.a. SimpleShot, Wang et al. ICCV 2019).</p>
 <h2 id="parameters">Parameters</h2>
 <dl>
-<dt><strong><code>device</code></strong> :&ensp;<code>{'cpu','cuda'}</code> or <code>torch.device</code>, default=<code>'cpu'</code></dt>
+<dt><strong><code>device</code></strong> :&ensp;<code>{'cpu','cuda'}</code>, default=<code>'cpu'</code></dt>
 <dd>Used only during <code>predict</code>; centroids are pushed to this device for fast batched distance computation.</dd>
 </dl></div>
 <h3>Ancestors</h3>

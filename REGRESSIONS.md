@@ -7,4 +7,4 @@ Last checked: 2025-04-30
 - biobench/test_reporting.py::test_reclaim_after_failure
 # Coverage
 
-Coverage: 2755/4180 lines (65.9%)
+Coverage: 2843/4285 lines (66.3%)

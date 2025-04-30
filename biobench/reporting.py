@@ -159,6 +159,25 @@ def release_run(db: sqlite3.Connection, cfg: config.Experiment, task_name: str) 
 
 
 @beartype.beartype
+def clear_stale_claims(db: sqlite3.Connection, *, max_age_hours: int = 72) -> int:
+    """
+    Delete rows in `runs` whose POSIX timestamp is older than `max_age_hours`.
+
+    Returns
+    -------
+    int
+        Number of rows deleted.
+    """
+    if max_age_hours <= 0:
+        raise ValueError("max_age_hours must be positive")
+
+    cutoff = time.time() - max_age_hours * 3600
+    cur = db.execute("DELETE FROM runs WHERE posix < ?", (cutoff,))
+    db.commit()
+    return cur.rowcount
+
+
+@beartype.beartype
 def get_git_hash() -> str:
     """Returns the hash of the current git commit.
 

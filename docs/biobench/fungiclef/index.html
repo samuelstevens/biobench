@@ -109,7 +109,7 @@ def benchmark(cfg: config.Experiment) -&gt; reporting.Report:
 <div class="desc"></div>
 </dd>
 <dt id="biobench.fungiclef.get_features"><code class="name flex">
-<span>def <span class="ident">get_features</span></span>(<span>cfg: <a title="biobench.config.Experiment" href="../config.html#biobench.config.Experiment">Experiment</a>,<br>backbone: <a title="biobench.registry.VisionBackbone" href="../registry.html#biobench.registry.VisionBackbone">VisionBackbone</a>,<br>*,<br>split: Literal['train', 'val']) ‑> <a title="biobench.fungiclef.Features" href="#biobench.fungiclef.Features">Features</a></span>
+<span>def <span class="ident">get_features</span></span>(<span>cfg: <a title="biobench.config.Experiment" href="../config.html#biobench.config.Experiment">Experiment</a>,<br>backbone: <a title="biobench.registry.VisionBackbone" href="../registry.html#biobench.registry.VisionBackbone">VisionBackbone</a>,<br>*,<br>split: Literal['train', 'val'],<br>pool: bool) ‑> <a title="biobench.fungiclef.Features" href="#biobench.fungiclef.Features">Features</a></span>
 </code></dt>
 <dd>
 <details class="source">
@@ -122,32 +122,25 @@ def get_features(
     backbone: registry.VisionBackbone,
     *,
     split: typing.Literal[&#34;train&#34;, &#34;val&#34;],
+    pool: bool,
 ) -&gt; Features:
-    # read metadata
-    df = pl.read_csv(
-        os.path.join(
-            cfg.data.fungiclef,
-            f&#34;FungiCLEF2023_{split}_metadata_PRODUCTION.csv&#34;,
-        )
+    transform = backbone.make_img_transform()
+
+    csv_fpath = os.path.join(
+        cfg.data.fungiclef, f&#34;FungiCLEF2023_{split}_metadata_PRODUCTION.csv&#34;
     )
-    img_names = df.get_column(&#34;image_path&#34;).to_numpy()
-    labels = df.get_column(&#34;class_id&#34;).to_numpy().astype(int)
 
-    # subsample for train
-    if split == &#34;train&#34; and cfg.n_train &gt; 0:
-        idxs = helpers.balanced_random_sample(labels, cfg.n_train)
-        img_names = img_names[idxs]
-        labels = labels[idxs]
-
-    img_dir = os.path.join(
+    img_dpath = os.path.join(
         cfg.data.fungiclef,
         &#34;DF20_300&#34; if split == &#34;train&#34; else &#34;DF21_300&#34;,
     )
-    if not os.path.isdir(img_dir):
-        raise RuntimeError(f&#34;Image directory not found: {img_dir}&#34;)
+    dataset = FungiDataset(csv_fpath, img_dpath, transform)
 
-    transform = backbone.make_img_transform()
-    dataset = FungiDataset(img_dir, img_names, labels, transform)
+    # subsample for train
+    if split == &#34;train&#34; and cfg.n_train &gt; 0:
+        idxs = helpers.balanced_random_sample(dataset.labels, cfg.n_train)
+        dataset = torch.utils.data.Subset(dataset, idxs)
+
     dataloader = torch.utils.data.DataLoader(
         dataset,
         batch_size=cfg.batch_size,
@@ -157,10 +150,9 @@ def get_features(
     )
 
     backbone = torch.compile(backbone.to(cfg.device))
-    feats_list, labs_list, ids_list = [], [], []
+    feats_list, labs_list, img_ids_list, obs_ids_list = [], [], [], []
 
     total = len(dataloader) if not cfg.debug else 2
-
     it = iter(dataloader)
     for b in helpers.progress(range(total), every=10, desc=f&#34;fungi/{split}&#34;):
         batch = next(it)
@@ -169,12 +161,26 @@ def get_features(
             out = backbone.img_encode(imgs).img_features.cpu().numpy()
         feats_list.append(out)
         labs_list.append(np.array(batch[&#34;label&#34;], dtype=int))
-        ids_list.extend(batch[&#34;img_id&#34;])
+        img_ids_list.extend(batch[&#34;img_id&#34;])
+        obs_ids_list.extend(batch[&#34;obs_id&#34;])
 
     x = np.concatenate(feats_list, axis=0)
     y = np.concatenate(labs_list, axis=0)
-    ids = np.array(ids_list)
-    return Features(x, y, ids)</code></pre>
+    img_ids = np.array(img_ids_list)
+    obs_ids = np.array(obs_ids_list)
+
+    if pool:
+        # for each unique obs take mean of its image features
+        uniq, inv = np.unique(obs_ids, return_inverse=True)
+        pooled = np.empty((len(uniq), x.shape[1]), dtype=x.dtype)
+        for k, u in enumerate(helpers.progress(uniq, every=10_000, desc=&#34;groupby&#34;)):
+            pooled[k] = x[inv == k].mean(axis=0)
+        # labels should be identical within an observation
+        pooled_y = np.array([y[inv == k][0] for k in range(len(uniq))], dtype=int)
+        return Features(pooled, pooled_y, uniq)
+
+    # image-level output
+    return Features(x, y, img_ids)</code></pre>
 </details>
 <div class="desc"></div>
 </dd>
@@ -189,7 +195,10 @@ def get_features(
 <pre><code class="python">@beartype.beartype
 def init_clf(cfg: config.Experiment):
     return openset.MahalanobisOpenSetClassifier(
-        simpleshot.SimpleShotClassifier(device=&#34;cuda:0&#34;)
+        sklearn.pipeline.make_pipeline(
+            sklearn.preprocessing.StandardScaler(),
+            simpleshot.SimpleShotClassifier(device=&#34;cuda:0&#34;),
+        ),
     )</code></pre>
 </details>
 <div class="desc"></div>
@@ -244,14 +253,15 @@ user_loss = classification_error + PSC/ESC cost</p>
 class Features:
     x: Float[np.ndarray, &#34;n dim&#34;]
     y: Int[np.ndarray, &#34; n&#34;]
-    ids: Shaped[np.ndarray, &#34; n&#34;]</code></pre>
+    ids: Shaped[np.ndarray, &#34; n&#34;]
+    &#34;&#34;&#34;image IDs for validation, observation IDs for training.&#34;&#34;&#34;</code></pre>
 </details>
 <div class="desc"><p>Features(x: jaxtyping.Float[ndarray, 'n dim'], y: jaxtyping.Int[ndarray, 'n'], ids: jaxtyping.Shaped[ndarray, 'n'])</p></div>
 <h3>Instance variables</h3>
 <dl>
 <dt id="biobench.fungiclef.Features.ids"><code class="name">var <span class="ident">ids</span> : jaxtyping.Shaped[ndarray, 'n']</code></dt>
 <dd>
-<div class="desc"></div>
+<div class="desc"><p>image IDs for validation, observation IDs for training.</p></div>
 </dd>
 <dt id="biobench.fungiclef.Features.x"><code class="name">var <span class="ident">x</span> : jaxtyping.Float[ndarray, 'n dim']</code></dt>
 <dd>
@@ -265,7 +275,7 @@ class Features:
 </dd>
 <dt id="biobench.fungiclef.FungiDataset"><code class="flex name class">
 <span>class <span class="ident">FungiDataset</span></span>
-<span>(</span><span>root: str, image_names: numpy.ndarray, labels: numpy.ndarray, transform)</span>
+<span>(</span><span>csv_fpath: str, img_dpath: str, transform)</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -274,41 +284,47 @@ class Features:
 </summary>
 <pre><code class="python">@beartype.beartype
 class FungiDataset(torch.utils.data.Dataset):
-    def __init__(
-        self,
-        root: str,
-        image_names: np.ndarray,
-        labels: np.ndarray,
-        transform,
-    ):
-        self.root = root
-        self.names = list(image_names)
-        self.labels = labels
+    def __init__(self, csv_fpath: str, img_dpath: str, transform):
+        if not os.path.isdir(img_dpath):
+            raise RuntimeError(f&#34;Image directory not found: {img_dpath}&#34;)
+
+        df = pl.read_csv(csv_fpath)
+        self.img_names = df.get_column(&#34;image_path&#34;).to_numpy()
+        self.labels = df.get_column(&#34;class_id&#34;).to_numpy().astype(int)
+        self.obs_ids = df.get_column(&#34;observationID&#34;).to_numpy()
+
+        self.img_dpath = img_dpath
         self.transform = transform
 
     def __len__(self) -&gt; int:
-        return len(self.names)
+        return len(self.img_names)
 
-    def __getitem__(self, idx: int) -&gt; dict[str, object]:
-        name = self.names[idx]
-        label = int(self.labels[idx])
+    def __getitem__(self, idx) -&gt; dict[str, object]:
+        img_name = self.img_names[idx]
+        label = self.labels[idx].item()
         # try exact case, then lowercase
-        p1 = os.path.join(self.root, name)
+        p1 = os.path.join(self.img_dpath, img_name)
         if os.path.exists(p1):
             path = p1
         else:
-            p2 = os.path.join(self.root, name.lower())
+            p2 = os.path.join(self.img_dpath, img_name.lower())
             if os.path.exists(p2):
                 path = p2
-                logger.debug(&#34;Using lowercase image path for %s&#34;, name)
+                logger.debug(&#34;Using lowercase image path for %s&#34;, img_name)
             else:
                 raise FileNotFoundError(
-                    f&#34;Image &#39;{name}&#39; not found in {self.root} (tried &#39;{p1}&#39;, &#39;{p2}&#39;)&#34;
+                    f&#34;Image &#39;{img_name}&#39; not found in {self.img_dpath} (tried &#39;{p1}&#39;, &#39;{p2}&#39;)&#34;
                 )
         img = Image.open(path).convert(&#34;RGB&#34;)
         if self.transform:
             img = self.transform(img)
-        return {&#34;img_id&#34;: name, &#34;img&#34;: img, &#34;label&#34;: label}</code></pre>
+
+        return {
+            &#34;img_id&#34;: img_name,
+            &#34;img&#34;: img,
+            &#34;label&#34;: label,
+            &#34;obs_id&#34;: self.obs_ids[idx].item(),
+        }</code></pre>
 </details>
 <div class="desc"><p>An abstract class representing a :class:<code>Dataset</code>.</p>
 <p>All datasets that represent a map from keys to data samples should subclass

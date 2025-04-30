@@ -5,6 +5,8 @@ import pathlib
 import sqlite3
 import time
 
+import beartype
+import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
@@ -52,7 +54,11 @@ def test_micro_f1_equals_micro_accuracy(preds):
 # Tests for SQLite Reporting #
 ##############################
 
+NOW = 1_700_000_000.0  # fixed "current" time so tests are deterministic
+HOUR = 3600
 
+
+@beartype.beartype
 def make_cfg(tmp_path: pathlib.Path) -> config.Experiment:
     """Return a minimal Experiment that points its report DB inside tmp_path."""
     return config.Experiment(
@@ -63,7 +69,8 @@ def make_cfg(tmp_path: pathlib.Path) -> config.Experiment:
     )
 
 
-def insert_dummy_experiment(db: sqlite3.Connection, cfg: config.Experiment, task: str):
+@beartype.beartype
+def _insert_experiment(db: sqlite3.Connection, cfg: config.Experiment, task: str):
     """Directly insert a row into experiments (used to pre-populate scenario 1)."""
     values = (
         task,
@@ -87,12 +94,26 @@ def insert_dummy_experiment(db: sqlite3.Connection, cfg: config.Experiment, task
     db.commit()
 
 
+@beartype.beartype
+def _insert_claim(
+    db: sqlite3.Connection, cfg: config.Experiment, task: str, *, age_h: float | int
+):
+    """Insert a claim with `age_h` hours of staleness via claim_run."""
+    # fake the clock *during* the INSERT
+    t0 = time.time
+    time.time = lambda: NOW - age_h * HOUR
+    try:
+        assert reporting.claim_run(db, cfg, task)  # must succeed
+    finally:
+        time.time = t0
+
+
 def test_skip_when_experiment_exists(tmp_path):
     cfg = make_cfg(tmp_path)
     task = "plantnet"
 
     db = reporting.get_db(cfg)
-    insert_dummy_experiment(db, cfg, task)
+    _insert_experiment(db, cfg, task)
 
     assert reporting.already_ran(db, cfg, task) is True
 
@@ -106,7 +127,7 @@ def _worker(cfg: config.Experiment, task: str, q, succeed: bool):
     if reporting.claim_run(db, cfg, task):
         time.sleep(20)
         if succeed:
-            insert_dummy_experiment(db, cfg, task)
+            _insert_experiment(db, cfg, task)
             reporting.release_run(db, cfg, task)
             q.put("winner")
         else:
@@ -181,3 +202,106 @@ def test_reclaim_after_failure(tmp_path):
     db = reporting.get_db(cfg)
     assert reporting.already_ran(db, cfg, task)
     assert db.execute("SELECT COUNT(*) FROM runs").fetchone()[0] == 0
+
+
+def test_empty_db(tmp_path):
+    cfg = make_cfg(tmp_path)
+    db = reporting.get_db(cfg)
+    assert reporting.clear_stale_claims(db, max_age_hours=72) == 0
+
+
+def test_fresh_kept(tmp_path, monkeypatch):
+    cfg = make_cfg(tmp_path)
+    db = reporting.get_db(cfg)
+    _insert_claim(db, cfg, "task", age_h=5)
+
+    monkeypatch.setattr(time, "time", lambda: NOW)
+    assert reporting.clear_stale_claims(db) == 0
+    assert reporting.is_claimed(db, cfg, "task")
+
+
+def test_stale_removed_and_reclaimable(tmp_path, monkeypatch):
+    cfg = make_cfg(tmp_path)
+    db = reporting.get_db(cfg)
+    _insert_claim(db, cfg, "task", age_h=100)
+
+    # can't claim while it's stale & present
+    assert reporting.is_claimed(db, cfg, "task")
+
+    monkeypatch.setattr(time, "time", lambda: NOW)
+    assert reporting.clear_stale_claims(db) == 1
+    # now slot is free again
+    assert not reporting.is_claimed(db, cfg, "task")
+    assert reporting.claim_run(db, cfg, "task")
+
+
+def test_mixed_rows(tmp_path, monkeypatch):
+    cfg = make_cfg(tmp_path)
+    db = reporting.get_db(cfg)
+    _insert_claim(db, cfg, "task1", age_h=10)
+    _insert_claim(db, cfg, "task2", age_h=90)
+
+    monkeypatch.setattr(time, "time", lambda: NOW)
+    assert reporting.clear_stale_claims(db, max_age_hours=72) == 1
+    assert reporting.is_claimed(db, cfg, "task1")
+    assert not reporting.is_claimed(db, cfg, "task2")
+
+
+@pytest.mark.parametrize("hrs", [71.99, 72.0])
+def test_exact_cutoff_not_deleted(tmp_path, monkeypatch, hrs):
+    cfg = make_cfg(tmp_path)
+    db = reporting.get_db(cfg)
+    _insert_claim(db, cfg, "task", age_h=hrs)
+
+    monkeypatch.setattr(time, "time", lambda: NOW)
+    assert reporting.clear_stale_claims(db) == 0
+    assert reporting.is_claimed(db, cfg, "task")
+
+
+def test_custom_threshold(tmp_path, monkeypatch):
+    cfg = make_cfg(tmp_path)
+    db = reporting.get_db(cfg)
+    _insert_claim(db, cfg, "task", age_h=50)
+
+    monkeypatch.setattr(time, "time", lambda: NOW)
+    assert reporting.clear_stale_claims(db, max_age_hours=45) == 1
+
+
+@pytest.mark.parametrize("bad", [0, -5])
+def test_bad_threshold_raises(tmp_path, bad):
+    cfg = make_cfg(tmp_path)
+    db = reporting.get_db(cfg)
+    with pytest.raises(ValueError):
+        reporting.clear_stale_claims(db, max_age_hours=bad)
+
+
+def test_idempotent(tmp_path, monkeypatch):
+    cfg = make_cfg(tmp_path)
+    db = reporting.get_db(cfg)
+    _insert_claim(db, cfg, "task", age_h=150)
+
+    monkeypatch.setattr(time, "time", lambda: NOW)
+    assert reporting.clear_stale_claims(db) == 1
+    # second pass should remove nothing
+    assert reporting.clear_stale_claims(db) == 0
+
+
+def test_rowcount_exact(tmp_path, monkeypatch):
+    cfg = make_cfg(tmp_path)
+    db = reporting.get_db(cfg)
+    _insert_claim(db, cfg, "task1", age_h=120)
+    _insert_claim(db, cfg, "task2", age_h=130)
+
+    monkeypatch.setattr(time, "time", lambda: NOW)
+    assert reporting.clear_stale_claims(db) == 2
+
+
+def test_future_schema_extra_column(tmp_path, monkeypatch):
+    # add extra column to ensure helper ignores unknown columns
+    cfg = make_cfg(tmp_path)
+    db = reporting.get_db(cfg)
+    db.execute("ALTER TABLE runs ADD COLUMN note TEXT")
+    _insert_claim(db, cfg, "task", age_h=100)
+
+    monkeypatch.setattr(time, "time", lambda: NOW)
+    assert reporting.clear_stale_claims(db) == 1

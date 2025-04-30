@@ -156,6 +156,39 @@ def claim_run(db: sqlite3.Connection, cfg: config.Experiment, task_name: str) -&
 False if row already existed and another worker has it</dd>
 </dl></div>
 </dd>
+<dt id="biobench.reporting.clear_stale_claims"><code class="name flex">
+<span>def <span class="ident">clear_stale_claims</span></span>(<span>db: sqlite3.Connection, *, max_age_hours: int = 72) ‑> int</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@beartype.beartype
+def clear_stale_claims(db: sqlite3.Connection, *, max_age_hours: int = 72) -&gt; int:
+    &#34;&#34;&#34;
+    Delete rows in `runs` whose POSIX timestamp is older than `max_age_hours`.
+
+    Returns
+    -------
+    int
+        Number of rows deleted.
+    &#34;&#34;&#34;
+    if max_age_hours &lt;= 0:
+        raise ValueError(&#34;max_age_hours must be positive&#34;)
+
+    cutoff = time.time() - max_age_hours * 3600
+    cur = db.execute(&#34;DELETE FROM runs WHERE posix &lt; ?&#34;, (cutoff,))
+    db.commit()
+    return cur.rowcount</code></pre>
+</details>
+<div class="desc"><p>Delete rows in <code>runs</code> whose POSIX timestamp is older than <code>max_age_hours</code>.</p>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>int</code></dt>
+<dd>Number of rows deleted.</dd>
+</dl></div>
+</dd>
 <dt id="biobench.reporting.get_db"><code class="name flex">
 <span>def <span class="ident">get_db</span></span>(<span>cfg: <a title="biobench.config.Experiment" href="config.html#biobench.config.Experiment">Experiment</a>) ‑> sqlite3.Connection</span>
 </code></dt>
@@ -455,7 +488,7 @@ class Prediction:
 </dd>
 <dt id="biobench.reporting.Report"><code class="flex name class">
 <span>class <span class="ident">Report</span></span>
-<span>(</span><span>task_name: str,<br>predictions: list[<a title="biobench.reporting.Prediction" href="#biobench.reporting.Prediction">Prediction</a>],<br>cfg: <a title="biobench.config.Experiment" href="config.html#biobench.config.Experiment">Experiment</a>,<br>*,<br>splits: dict[str, float] = &lt;factory&gt;,<br>argv: list[str] = &lt;factory&gt;,<br>git_commit: str = '8046e0550539c15d5fc72f057e0087387b2a4d79',<br>posix: float = &lt;factory&gt;,<br>gpu_name: str = &lt;factory&gt;,<br>hostname: str = &lt;factory&gt;)</span>
+<span>(</span><span>task_name: str,<br>predictions: list[<a title="biobench.reporting.Prediction" href="#biobench.reporting.Prediction">Prediction</a>],<br>cfg: <a title="biobench.config.Experiment" href="config.html#biobench.config.Experiment">Experiment</a>,<br>*,<br>splits: dict[str, float] = &lt;factory&gt;,<br>argv: list[str] = &lt;factory&gt;,<br>git_commit: str = 'af0b78e1ada75bba3c0c55f0f5435143f45648e2',<br>posix: float = &lt;factory&gt;,<br>gpu_name: str = &lt;factory&gt;,<br>hostname: str = &lt;factory&gt;)</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -645,6 +678,7 @@ def write(self) -&gt; None:
 <ul class="two-column">
 <li><code><a title="biobench.reporting.already_ran" href="#biobench.reporting.already_ran">already_ran</a></code></li>
 <li><code><a title="biobench.reporting.claim_run" href="#biobench.reporting.claim_run">claim_run</a></code></li>
+<li><code><a title="biobench.reporting.clear_stale_claims" href="#biobench.reporting.clear_stale_claims">clear_stale_claims</a></code></li>
 <li><code><a title="biobench.reporting.get_db" href="#biobench.reporting.get_db">get_db</a></code></li>
 <li><code><a title="biobench.reporting.get_git_hash" href="#biobench.reporting.get_git_hash">get_git_hash</a></code></li>
 <li><code><a title="biobench.reporting.get_gpu_name" href="#biobench.reporting.get_gpu_name">get_gpu_name</a></code></li>

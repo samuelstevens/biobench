@@ -178,6 +178,11 @@ def benchmark(cfg: config.Experiment) -> reporting.Report:
     return reporting.Report("kabr", preds, cfg)
 
 
+@beartype.beartype
+def score(preds: list[reporting.Prediction]) -> float:
+    return reporting.macro_f1(preds)
+
+
 @jaxtyped(typechecker=beartype.beartype)
 @torch.no_grad()
 def get_features(
