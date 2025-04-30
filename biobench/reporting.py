@@ -57,13 +57,13 @@ def already_ran(db: sqlite3.Connection, cfg: config.Experiment, task_name: str) 
         bool: True if the experiment has already been run, False otherwise
     """
     query = """
-SELECT COUNT(*)
-FROM experiments
-WHERE task_name = ?
-AND model_org = ?
-AND model_ckpt = ?
-AND n_train = ?
-"""
+    SELECT COUNT(*)
+    FROM experiments
+    WHERE task_name = ?
+    AND model_org = ?
+    AND model_ckpt = ?
+    AND n_train = ?
+    """
     values = (task_name, cfg.model.org, cfg.model.ckpt, cfg.n_train)
 
     (count,) = db.execute(query, values).fetchone()
@@ -99,12 +99,12 @@ def is_claimed(db: sqlite3.Connection, cfg: config.Experiment, task_name: str) -
 @beartype.beartype
 def claim_run(db: sqlite3.Connection, cfg: config.Experiment, task_name: str) -> bool:
     """Try to claim (task_name, model, n_train).
-    
+
     Args:
         db: SQLite database connection
         cfg: Experiment configuration
         task_name: Name of the task to claim
-        
+
     Returns:
         bool: True if this process inserted the row and now "owns" the run,
               False if row already existed and another worker has it
@@ -157,6 +157,43 @@ def release_run(db: sqlite3.Connection, cfg: config.Experiment, task_name: str) 
         raise
 
 
+@beartype.beartype
+class JobQueue[T]:
+    def __init__(self, max_size: int):
+        """Create queue. max_size >= 0; 0 => always full."""
+
+    def submit(self, item: T) -> None:
+        """RuntimeError if full()."""
+
+    def pop(self) -> T:
+        """Block until *some* contained Job is done, remove and return its payload."""
+
+    def full(self) -> bool:
+        False
+
+    def __len__(self) -> int:
+        return 0
+
+    def __bool__(self) -> bool:
+        return False
+
+    def __iter__(self): ...  # FIFO order of current contents
+
+
+@beartype.beartype
+class ClaimReaper:
+    def __init__(self, db): ...
+
+    def __len__(self) -> int:
+        return 0
+
+    def add_claim(self, cfg: config.Experiment, task: str): ...
+
+    def register(self) -> "ClaimReaper":
+        return self
+
+
+@beartype.beartype
 def get_git_hash() -> str:
     """Returns the hash of the current git commit.
 
