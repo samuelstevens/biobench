@@ -54,8 +54,8 @@ For example, see <code><a title="biobench.newt.download" href="biobench/newt/dow
 <section>
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
-<dt id="benchmark.benchmark_with_mp"><code class="name flex">
-<span>def <span class="ident">benchmark_with_mp</span></span>(<span>task_name: str,<br>cfg: <a title="biobench.config.Experiment" href="biobench/config.html#biobench.config.Experiment">Experiment</a>) ‑> <a title="biobench.reporting.Report" href="biobench/reporting.html#biobench.reporting.Report">Report</a></span>
+<dt id="benchmark.get_skip_reason"><code class="name flex">
+<span>def <span class="ident">get_skip_reason</span></span>(<span>db,<br>cfg: <a title="biobench.config.Experiment" href="biobench/config.html#biobench.config.Experiment">Experiment</a>,<br>task: str,<br>data_root: str,<br>dry_run: bool) ‑> str | None</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -63,20 +63,30 @@ For example, see <code><a title="biobench.newt.download" href="biobench/newt/dow
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">@beartype.beartype
-def benchmark_with_mp(task_name: str, cfg: config.Experiment) -&gt; reporting.Report:
-    import torch.multiprocessing as mp
+def get_skip_reason(
+    db, cfg: config.Experiment, task: str, data_root: str, dry_run: bool
+) -&gt; str | None:
+    &#34;&#34;&#34;Return a short reason string if we should skip (None -&gt; keep).&#34;&#34;&#34;
+    try:
+        importlib.import_module(f&#34;biobench.{task}&#34;)
+    except ModuleNotFoundError:
+        return &#34;no code&#34;
 
-    helpers.bump_nofile(512)
-    if mp.get_sharing_strategy() != &#34;file_system&#34;:
-        mp.set_sharing_strategy(&#34;file_system&#34;)
+    if not data_root:
+        return &#34;no data&#34;
 
-    module = importlib.import_module(f&#34;biobench.{task_name}&#34;)
-    return module.benchmark(cfg)</code></pre>
+    if reporting.already_ran(db, cfg, task):
+        return &#34;done&#34;
+
+    if reporting.is_claimed(db, cfg, task):
+        return &#34;queued&#34;
+
+    return None</code></pre>
 </details>
-<div class="desc"></div>
+<div class="desc"><p>Return a short reason string if we should skip (None -&gt; keep).</p></div>
 </dd>
 <dt id="benchmark.main"><code class="name flex">
-<span>def <span class="ident">main</span></span>(<span>cfgs: list[str] = ['configs/neurips.toml'], dry_run: bool = True)</span>
+<span>def <span class="ident">main</span></span>(<span>cfgs: list[str] = ['configs/neurips.toml'],<br>dry_run: bool = True,<br>max_pending: int = 8)</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -85,7 +95,9 @@ def benchmark_with_mp(task_name: str, cfg: config.Experiment) -&gt; reporting.Re
 </summary>
 <pre><code class="python">@beartype.beartype
 def main(
-    cfgs: list[str] = [os.path.join(&#34;configs&#34;, &#34;neurips.toml&#34;)], dry_run: bool = True
+    cfgs: list[str] = [os.path.join(&#34;configs&#34;, &#34;neurips.toml&#34;)],
+    dry_run: bool = True,
+    max_pending: int = 8,
 ):
     &#34;&#34;&#34;
     Launch all jobs, using either a local GPU or a Slurm cluster. Then report results and save to disk.
@@ -93,16 +105,20 @@ def main(
     Args:
         cfgs: List of paths to TOML config files.
         dry_run: If --no-dry-run, actually run experiment.
+        max_pending: Number of jobs that can be claimed by any one launcher process.
     &#34;&#34;&#34;
-    # Load all configs from the provided paths and concatenate them
+
+    # Load all configs from the provided paths.
     cfgs = [cfg for path in cfgs for cfg in config.load(path)]
 
     if not cfgs:
         print(&#34;No configurations loaded.&#34;)
         return
 
+    # ------------------------------------------------------
+    # Verify all configs have consistent execution settings.
+    # ------------------------------------------------------
     first = cfgs[0]
-    # Verify all configs have consistent execution settings
     for cfg in cfgs[1:]:
         if cfg.slurm_acct != first.slurm_acct:
             raise ValueError(&#34;All configs must have the same slurm_acct&#34;)
@@ -111,12 +127,17 @@ def main(
         if cfg.ssl != first.ssl:
             raise ValueError(&#34;All configs must have the same ssl setting&#34;)
 
+    # --------------
+    # Setup logging.
+    # --------------
     log_format = &#34;[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s&#34;
     level = logging.DEBUG if cfg.verbose else logging.INFO
     logging.basicConfig(level=level, format=log_format)
     logger = logging.getLogger(&#34;benchmark.py&#34;)
 
-    # 1. Setup executor.
+    # ---------------
+    # Setup executor.
+    # ---------------
     if first.slurm_acct:
         executor = submitit.SlurmExecutor(folder=first.log_to)
         executor.update_parameters(
@@ -137,67 +158,69 @@ def main(
             os.environ[&#34;BIOBENCH_DISABLE_SSL&#34;] = &#34;1&#34;
 
     db = reporting.get_db(first)
+    job_stats = collections.defaultdict(int)
+    model_stats = collections.defaultdict(int)
+    fq = jobkit.FutureQueue(max_size=max_pending)
+    exit_hook = jobkit.ExitHook(
+        lambda args: reporting.release_run(db, *args)
+    ).register()
 
-    # 2. Run benchmarks.
-    jobs = []
-    n_skipped = 0
+    def flush_one():
+        &#34;&#34;&#34;
+        Get the next finished job from queue, blocking if necessary, write the report and relinquish the claim.
+        &#34;&#34;&#34;
+        job, cfg, task = fq.pop()
+        try:
+            report: reporting.Report = job.result()
+            report.write()
+            logger.info(&#34;%s+%s/%s done&#34;, task, cfg.model.org, cfg.model.ckpt)
+        except Exception as err:
+            logger.info(&#34;%s+%s/%s failed: %s&#34;, task, cfg.model.org, cfg.model.ckpt, err)
+        finally:
+            exit_hook.discard((cfg, task))
+
     for cfg in helpers.progress(cfgs, desc=&#34;submitting jobs&#34;):
-        for task_name, data_root in cfg.data.to_dict().items():
-            # Check that you can get the task_name
-            try:
-                importlib.import_module(f&#34;biobench.{task_name}&#34;)
-            except ModuleNotFoundError:
-                logger.warning(&#34;Could not find task &#39;%s&#39;.&#34;, task_name)
+        for task, data_root in cfg.data.to_dict().items():
+            reason = get_skip_reason(db, cfg, task, data_root, dry_run)
+            if reason:
+                job_stats[reason] += 1
                 continue
 
-            if not data_root:
+            if dry_run:
+                job_stats[&#34;todo&#34;] += 1
+                model_stats[cfg.model.ckpt] += 1
+                continue  # no side-effect
+
+            if not reporting.claim_run(db, cfg, task):
+                job_stats[&#34;queued&#34;] += 1  # someone else just grabbed it
                 continue
 
-            if reporting.already_ran(db, cfg, task_name):
-                n_skipped += 1
-                continue
-            elif dry_run:
-                jobs.append(cfg)
-            else:
-                job = executor.submit(benchmark_with_mp, task_name, cfg)
-                jobs.append(job)
+            exit_hook.add((cfg, task))  # for signal/atexit handler
+            job = executor.submit(worker, task, cfg)
+            fq.submit((job, cfg, task))
+            job_stats[&#34;submitted&#34;] += 1
+
+            while fq.full():
+                flush_one()
 
     if dry_run:
-        # Summarize the jobs by model and training examples
-        model_counts = collections.defaultdict(int)
-        for job_cfg in jobs:
-            key = (job_cfg.model.ckpt, job_cfg.n_train)
-            model_counts[key] += 1
-
-        # Check if there are any jobs to run
-        if not model_counts:
-            logger.info(&#34;All jobs have already been completed. Nothing to run.&#34;)
-            return
-
-        # Print summary table
         logger.info(&#34;Job Summary:&#34;)
-        logger.info(&#34;%-50s | %-10s | %-5s&#34;, &#34;Model&#34;, &#34;Train Size&#34;, &#34;Count&#34;)
-        logger.info(&#34;-&#34; * 71)
-        for (model, n_train), count in sorted(model_counts.items()):
-            logger.info(&#34;%-50s | %10d | %5d&#34;, model, n_train, count)
-        logger.info(&#34;-&#34; * 71)
-        logger.info(
-            &#34;Total jobs to run: %d (skipped %d already completed)&#34;, len(jobs), n_skipped
-        )
+        logger.info(&#34;%-20s | %-5s&#34;, &#34;Reason&#34;, &#34;Count&#34;)
+        logger.info(&#34;-&#34; * 31)
+        for reason, count in sorted(job_stats.items()):
+            logger.info(&#34;%-20s | %5d&#34;, reason, count)
+        logger.info(&#34;-&#34; * 31)
+
+        logger.info(&#34;Model Summary:&#34;)
+        logger.info(&#34;%-50s | %-5s&#34;, &#34;Model&#34;, &#34;Count&#34;)
+        logger.info(&#34;-&#34; * 61)
+        for model, count in sorted(model_stats.items()):
+            logger.info(&#34;%-50s | %5d&#34;, model, count)
+        logger.info(&#34;-&#34; * 61)
         return
 
-    logger.info(&#34;Submitted %d jobs (skipped %d).&#34;, len(jobs), n_skipped)
-
-    # 3. Write results to sqlite.
-    for i, future in enumerate(submitit.helpers.as_completed(jobs)):
-        err = future.exception()
-        if err:
-            logger.warning(&#34;Error running job: %s: %s&#34;, err, err.__cause__)
-            continue
-
-        report: reporting.Report = future.result()
-        report.write()
-        logger.info(&#34;Finished %d/%d jobs.&#34;, i + 1, len(jobs))
+    while fq:
+        flush_one()
 
     logger.info(&#34;Finished.&#34;)</code></pre>
 </details>
@@ -208,7 +231,26 @@ def main(
 <dd>List of paths to TOML config files.</dd>
 <dt><strong><code>dry_run</code></strong></dt>
 <dd>If &ndash;no-dry-run, actually run experiment.</dd>
+<dt><strong><code>max_pending</code></strong></dt>
+<dd>Number of jobs that can be claimed by any one launcher process.</dd>
 </dl></div>
+</dd>
+<dt id="benchmark.worker"><code class="name flex">
+<span>def <span class="ident">worker</span></span>(<span>task_name: str,<br>cfg: <a title="biobench.config.Experiment" href="biobench/config.html#biobench.config.Experiment">Experiment</a>) ‑> <a title="biobench.reporting.Report" href="biobench/reporting.html#biobench.reporting.Report">Report</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@beartype.beartype
+def worker(task_name: str, cfg: config.Experiment) -&gt; reporting.Report:
+    helpers.bump_nofile(512)
+
+    module = importlib.import_module(f&#34;biobench.{task_name}&#34;)
+    return module.benchmark(cfg)</code></pre>
+</details>
+<div class="desc"></div>
 </dd>
 </dl>
 </section>
@@ -224,8 +266,9 @@ def main(
 <ul id="index">
 <li><h3><a href="#header-functions">Functions</a></h3>
 <ul class="">
-<li><code><a title="benchmark.benchmark_with_mp" href="#benchmark.benchmark_with_mp">benchmark_with_mp</a></code></li>
+<li><code><a title="benchmark.get_skip_reason" href="#benchmark.get_skip_reason">get_skip_reason</a></code></li>
 <li><code><a title="benchmark.main" href="#benchmark.main">main</a></code></li>
+<li><code><a title="benchmark.worker" href="#benchmark.worker">worker</a></code></li>
 </ul>
 </li>
 </ul>

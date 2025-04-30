@@ -116,7 +116,7 @@ def auto_batch_size(
             batch = next(iter(dataloader))
             probe(batch)  # forward only; discard output
 
-            # If the loader produced fewer items than we asked for, we&#39;ve reached the dataset size — any larger batch will give the same tensor, so stop growing.
+            # If the loader produced fewer items than we asked for, we&#39;ve reached the dataset size -- any larger batch will give the same tensor, so stop growing.
             effective_bsz = infer_batch_size(batch)
             if effective_bsz is None:
                 raise RuntimeError(
@@ -403,6 +403,62 @@ def infer_batch_size(batch: object) -&gt; int | None:
 </details>
 <div class="desc"><p>Return the leading dimension of the <em>first</em> tensor found inside <code>batch</code>. Works for arbitrary nested structures.</p></div>
 </dd>
+<dt id="biobench.helpers.warn_if_nfs"><code class="name flex">
+<span>def <span class="ident">warn_if_nfs</span></span>(<span>path: str | os.PathLike)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@beartype.beartype
+def warn_if_nfs(path: str | os.PathLike):
+    &#34;&#34;&#34;
+    If *path* is on an NFS mount, emit a RuntimeWarning.
+
+    Works on Linux (/proc/mounts) and macOS/BSD (`mount` CLI); silently returns on other OSes or if detection fails.
+    &#34;&#34;&#34;
+    p = pathlib.Path(path).resolve()
+
+    # Linux: /proc/self/mountinfo
+    if sys.platform.startswith(&#34;linux&#34;):
+        try:
+            with open(&#34;/proc/self/mountinfo&#34;) as fd:
+                entries = [line.split() for line in fd]
+            # fields: 4= mount point, - separator -, fstype
+            mounts = {fields[4]: fields[-3] for fields in entries}
+        except Exception:
+            return
+
+    # macOS / BSD: `mount`
+    elif sys.platform in {&#34;darwin&#34;, &#34;freebsd&#34;}:
+        try:
+            out = subprocess.check_output([&#34;mount&#34;, &#34;-p&#34;], text=True)
+            mounts = {}
+            for line in out.splitlines():
+                mp, _dev, fstype, *_ = line.split()  # mount-point, ...
+                mounts[mp] = fstype
+        except Exception:
+            return
+    else:
+        return  # unsupported OS
+
+    # find longest mount-point prefix of *p*
+    mount_point = max(
+        (mp for mp in mounts if p.is_relative_to(mp) or mp == &#34;/&#34;),
+        key=len,
+        default=&#34;/&#34;,
+    )
+    if mounts.get(mount_point) in NFS_TYPES:
+        warnings.warn(
+            f&#34;SQLite database &#39;{path}&#39; appears to be on an NFS mount (fs type: {mounts[mount_point]}). Concurrent writers over NFS can corrupt the journal; consider using a local SSD or tmpfs instead.&#34;,
+            RuntimeWarning,
+            stacklevel=2,
+        )</code></pre>
+</details>
+<div class="desc"><p>If <em>path</em> is on an NFS mount, emit a RuntimeWarning.</p>
+<p>Works on Linux (/proc/mounts) and macOS/BSD (<code>mount</code> CLI); silently returns on other OSes or if detection fails.</p></div>
+</dd>
 <dt id="biobench.helpers.write_hparam_sweep_plot"><code class="name flex">
 <span>def <span class="ident">write_hparam_sweep_plot</span></span>(<span>task: str,<br>model: str,<br>clf,<br>x: str = 'param_ridgeclassifier__alpha',<br>y: str = 'mean_test_score') ‑> str</span>
 </code></dt>
@@ -540,6 +596,7 @@ class progress:
 <li><code><a title="biobench.helpers.fs_safe" href="#biobench.helpers.fs_safe">fs_safe</a></code></li>
 <li><code><a title="biobench.helpers.get_cache_dir" href="#biobench.helpers.get_cache_dir">get_cache_dir</a></code></li>
 <li><code><a title="biobench.helpers.infer_batch_size" href="#biobench.helpers.infer_batch_size">infer_batch_size</a></code></li>
+<li><code><a title="biobench.helpers.warn_if_nfs" href="#biobench.helpers.warn_if_nfs">warn_if_nfs</a></code></li>
 <li><code><a title="biobench.helpers.write_hparam_sweep_plot" href="#biobench.helpers.write_hparam_sweep_plot">write_hparam_sweep_plot</a></code></li>
 </ul>
 </li>

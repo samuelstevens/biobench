@@ -19,12 +19,14 @@ import beartype
 import submitit
 import tyro
 
-from biobench import config, helpers, reporting
+from biobench import config, helpers, jobkit, reporting
 
 
 @beartype.beartype
 def main(
-    cfgs: list[str] = [os.path.join("configs", "neurips.toml")], dry_run: bool = True
+    cfgs: list[str] = [os.path.join("configs", "neurips.toml")],
+    dry_run: bool = True,
+    max_pending: int = 8,
 ):
     """
     Launch all jobs, using either a local GPU or a Slurm cluster. Then report results and save to disk.
@@ -32,16 +34,20 @@ def main(
     Args:
         cfgs: List of paths to TOML config files.
         dry_run: If --no-dry-run, actually run experiment.
+        max_pending: Number of jobs that can be claimed by any one launcher process.
     """
-    # Load all configs from the provided paths and concatenate them
+
+    # Load all configs from the provided paths.
     cfgs = [cfg for path in cfgs for cfg in config.load(path)]
 
     if not cfgs:
         print("No configurations loaded.")
         return
 
+    # ------------------------------------------------------
+    # Verify all configs have consistent execution settings.
+    # ------------------------------------------------------
     first = cfgs[0]
-    # Verify all configs have consistent execution settings
     for cfg in cfgs[1:]:
         if cfg.slurm_acct != first.slurm_acct:
             raise ValueError("All configs must have the same slurm_acct")
@@ -50,12 +56,17 @@ def main(
         if cfg.ssl != first.ssl:
             raise ValueError("All configs must have the same ssl setting")
 
+    # --------------
+    # Setup logging.
+    # --------------
     log_format = "[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s"
     level = logging.DEBUG if cfg.verbose else logging.INFO
     logging.basicConfig(level=level, format=log_format)
     logger = logging.getLogger("benchmark.py")
 
-    # 1. Setup executor.
+    # ---------------
+    # Setup executor.
+    # ---------------
     if first.slurm_acct:
         executor = submitit.SlurmExecutor(folder=first.log_to)
         executor.update_parameters(
@@ -76,112 +87,69 @@ def main(
             os.environ["BIOBENCH_DISABLE_SSL"] = "1"
 
     db = reporting.get_db(first)
+    job_stats = collections.defaultdict(int)
+    model_stats = collections.defaultdict(int)
+    fq = jobkit.FutureQueue(max_size=max_pending)
+    exit_hook = jobkit.ExitHook(
+        lambda args: reporting.release_run(db, *args)
+    ).register()
 
-    # 2. Run benchmarks.
-    job_queue = reporting.JobQueue(10)  # Set a reasonable max_size
-    counts = collections.defaultdict(int)
-    for cfg in helpers.progress(cfgs, desc="submitting jobs"):
-        for task_name, data_root in cfg.data.to_dict().items():
-            # Check that you can get the task_name
-            try:
-                importlib.import_module(f"biobench.{task_name}")
-            except ModuleNotFoundError:
-                counts["no_code"] += 1
-                logger.warning("Could not find task '%s'.", task_name)
-                continue
-
-            if not data_root:
-                counts["no_data"] += 1
-                continue
-
-            if reporting.already_ran(db, cfg, task_name):
-                counts["done"] += 1
-                continue
-
-            if dry_run:
-                if reporting.is_claimed(db, cfg, task_name):
-                    counts["queued"] += 1
-                    continue  # would be skipped
-            else:
-                if not reporting.claim_run(db, cfg, task_name):
-                    counts["queued"] += 1
-                    continue
-
-            if dry_run:
-                counts["pending"] += 1
-                job_queue.submit((None, cfg, task_name))
-                continue
-
-            job = executor.submit(worker, task_name, cfg)
-            job_queue.submit((job, cfg, task_name))
-            counts["pending"] += 1
-
-            # throttle
-            while job_queue.full():
-                job, cfg, task_name = job_queue.pop()
-                try:
-                    report: reporting.Report = job.result()
-                    report.write()
-                    logger.info(
-                        "%s+%s/%s done",
-                        report.task_name,
-                        report.cfg.model.org,
-                        report.cfg.model.ckpt,
-                    )
-                except Exception as err:
-                    logger.warning("Failed: %s", err)
-                finally:
-                    reporting.release_run(db, cfg, task_name)
-
-    if dry_run:
-        # Summarize the jobs by model and training examples
-        model_counts = collections.defaultdict(int)
-        # Convert job_queue to a list to iterate over it
-        jobs_list = []
-        while job_queue:
-            jobs_list.append(job_queue.pop())
-        
-        for _, job_cfg, _ in jobs_list:
-            key = (job_cfg.model.ckpt, job_cfg.n_train)
-            model_counts[key] += 1
-
-        # Check if there are any jobs to run
-        if not model_counts:
-            logger.info("All jobs have already been completed. Nothing to run.")
-            return
-
-        # Print summary table
-        logger.info("Job Summary:")
-        logger.info("%-50s | %-10s | %-5s", "Model", "Train Size", "Count")
-        logger.info("-" * 71)
-        for (model, n_train), count in sorted(model_counts.items()):
-            logger.info("%-50s | %10d | %5d", model, n_train, count)
-        logger.info("-" * 71)
-        logger.info(
-            "Total jobs to run: %d (skipped %d already completed)",
-            len(jobs_list),
-            counts["done"] + counts["queued"],
-        )
-        return
-
-    logger.info("Submitted %d jobs (skipped %d).", counts["pending"], counts["done"] + counts["queued"])
-
-    # 3. Write results to sqlite.
-    while job_queue:
-        job, cfg, task_name = job_queue.pop()
+    def flush_one():
+        """
+        Get the next finished job from queue, blocking if necessary, write the report and relinquish the claim.
+        """
+        job, cfg, task = fq.pop()
         try:
             report: reporting.Report = job.result()
             report.write()
-            logger.info(
-                "%s+%s/%s done",
-                report.task_name,
-                report.cfg.model.org,
-                report.cfg.model.ckpt,
-            )
+            logger.info("%s+%s/%s done", task, cfg.model.org, cfg.model.ckpt)
         except Exception as err:
-            logger.warning("Failed: %s", err)
+            logger.info("%s+%s/%s failed: %s", task, cfg.model.org, cfg.model.ckpt, err)
         finally:
-            reporting.release_run(db, cfg, task_name)
+            exit_hook.discard((cfg, task))
+
+    for cfg in helpers.progress(cfgs, desc="submitting jobs"):
+        for task, data_root in cfg.data.to_dict().items():
+            reason = get_skip_reason(db, cfg, task, data_root, dry_run)
+            if reason:
+                job_stats[reason] += 1
+                continue
+
+            if dry_run:
+                job_stats["todo"] += 1
+                model_stats[cfg.model.ckpt] += 1
+                continue  # no side-effect
+
+            if not reporting.claim_run(db, cfg, task):
+                job_stats["queued"] += 1  # someone else just grabbed it
+                continue
+
+            exit_hook.add((cfg, task))  # for signal/atexit handler
+            job = executor.submit(worker, task, cfg)
+            fq.submit((job, cfg, task))
+            job_stats["submitted"] += 1
+
+            while fq.full():
+                flush_one()
+
+    if dry_run:
+        logger.info("Job Summary:")
+        logger.info("%-20s | %-5s", "Reason", "Count")
+        logger.info("-" * 31)
+        for reason, count in sorted(job_stats.items()):
+            logger.info("%-20s | %5d", reason, count)
+        logger.info("-" * 31)
+
+        logger.info("Model Summary:")
+        logger.info("%-50s | %-5s", "Model", "Count")
+        logger.info("-" * 61)
+        for model, count in sorted(model_stats.items()):
+            logger.info("%-50s | %5d", model, count)
+        logger.info("-" * 61)
+        return
+
+    while fq:
+        flush_one()
 
     logger.info("Finished.")
 
@@ -192,6 +160,28 @@ def worker(task_name: str, cfg: config.Experiment) -> reporting.Report:
 
     module = importlib.import_module(f"biobench.{task_name}")
     return module.benchmark(cfg)
+
+
+@beartype.beartype
+def get_skip_reason(
+    db, cfg: config.Experiment, task: str, data_root: str, dry_run: bool
+) -> str | None:
+    """Return a short reason string if we should skip (None -> keep)."""
+    try:
+        importlib.import_module(f"biobench.{task}")
+    except ModuleNotFoundError:
+        return "no code"
+
+    if not data_root:
+        return "no data"
+
+    if reporting.already_ran(db, cfg, task):
+        return "done"
+
+    if reporting.is_claimed(db, cfg, task):
+        return "queued"
+
+    return None
 
 
 if __name__ == "__main__":

@@ -30,10 +30,10 @@ def test_register_returns_self_and_is_idempotent():
     """
 
     sink = []
-    reaper = ExitHook(lambda claim: sink.append(claim))
+    hook = ExitHook(lambda claim: sink.append(claim))
 
-    assert reaper.register() is reaper  # first call
-    assert reaper.register() is reaper  # second call - still fine
+    assert hook.register() is hook  # first call
+    assert hook.register() is hook  # second call - still fine
 
 
 def test_add_then_discard_accepts_generic_payload():
@@ -42,11 +42,11 @@ def test_add_then_discard_accepts_generic_payload():
     payload the caller chooses.  The easiest non-trivial smoke-test is a tuple.
     """
 
-    reaper = ExitHook(release_fn=lambda c: None).register()
+    hook = ExitHook(release_fn=lambda c: None).register()
 
     claim = ("cfg-xyz", "task-abc")
-    reaper.add(claim)  # should not raise
-    reaper.discard(claim)  # should not raise
+    hook.add(claim)  # should not raise
+    hook.discard(claim)  # should not raise
 
 
 def test_multiple_outstanding_claims_do_not_interfere():
@@ -55,14 +55,14 @@ def test_multiple_outstanding_claims_do_not_interfere():
     internal errors such as "set changed size during iteration".
     """
 
-    reaper = ExitHook(lambda c: None).register()
+    hook = ExitHook(lambda c: None).register()
     claims = [f"job-{i}" for i in range(5)]
 
     for c in claims:
-        reaper.add(c)
+        hook.add(c)
 
     for c in claims:
-        reaper.discard(c)
+        hook.discard(c)
 
 
 def test_release_run_calls_injected_release_fn():
@@ -73,10 +73,10 @@ def test_release_run_calls_injected_release_fn():
     """
 
     hits = []
-    reaper = ExitHook(lambda claim: hits.append(claim))
+    hook = ExitHook(lambda claim: hits.append(claim))
 
     claim = ("id", 7)
-    reaper.release_run(claim)
+    hook.release_run(claim)
 
     assert hits == [claim], "release_fn should have been invoked exactly once"
 
@@ -87,11 +87,11 @@ def test_add_requires_hashable_claim():
     outstanding claims.  A correct implementation therefore raises TypeError.
     """
 
-    reaper = ExitHook(lambda c: None)
+    hook = ExitHook(lambda c: None)
 
     # list is non-hashable -> should blow up
     with pytest.raises((TypeError, beartype.roar.BeartypeCallHintParamViolation)):
-        reaper.add(["unhashable"])
+        hook.add(["unhashable"])
 
 
 def test_release_run_invokes_callback_exactly_each_time():
@@ -102,28 +102,28 @@ def test_release_run_invokes_callback_exactly_each_time():
     """
 
     hits = []
-    reaper = ExitHook(lambda c: hits.append(c)).register()
+    hook = ExitHook(lambda c: hits.append(c)).register()
 
     claim = ("cfg-id-123", "task-foo")
 
     # Claim is active
-    reaper.add(claim)
-    reaper.release_run(claim)
+    hook.add(claim)
+    hook.release_run(claim)
     assert hits == [claim]  # called once
 
     # Claim is no longer tracked
-    reaper.discard(claim)
-    reaper.release_run(claim)
+    hook.discard(claim)
+    hook.release_run(claim)
     assert hits == [claim, claim]  # called again, no extras
 
 
 def test_sigint_releases_all_claims():
     hits = []
     claims = [f"claim-{i}" for i in range(3)]
-    reaper = ExitHook(lambda c: hits.append(c)).register()
+    hook = ExitHook(lambda c: hits.append(c)).register()
 
     for c in claims:
-        reaper.add(c)
+        hook.add(c)
 
     old_handler = signal.getsignal(signal.SIGINT)
     try:
@@ -146,9 +146,9 @@ def test_sigint_handler_releases_all_claims():
     """
 
     hits, claims = [], [f"claim-{i}" for i in range(3)]
-    reaper = ExitHook(lambda c: hits.append(c)).register()
+    hook = ExitHook(lambda c: hits.append(c)).register()
     for c in claims:
-        reaper.add(c)
+        hook.add(c)
 
     handler = signal.getsignal(signal.SIGINT)
     assert callable(handler) and handler not in (signal.SIG_DFL, signal.SIG_IGN), (
@@ -168,9 +168,9 @@ def test_duplicate_add_is_idempotent_under_sigint():
     """
 
     hits, claim = [], ("cfg-42", "task-alpha")
-    reaper = ExitHook(lambda c: hits.append(c)).register()
-    reaper.add(claim)
-    reaper.add(claim)  # duplicate
+    hook = ExitHook(lambda c: hits.append(c)).register()
+    hook.add(claim)
+    hook.add(claim)  # duplicate
 
     handler = signal.getsignal(signal.SIGINT)
     assert callable(handler), "missing SIGINT handler"
@@ -186,11 +186,11 @@ def test_sigterm_handler_releases_only_current_claims():
 
     hits = []
     live1, live2, discarded = "stay-1", "stay-2", "gone-x"
-    reaper = ExitHook(lambda c: hits.append(c)).register()
+    hook = ExitHook(lambda c: hits.append(c)).register()
 
     for c in (live1, live2, discarded):
-        reaper.add(c)
-    reaper.discard(discarded)  # no longer live
+        hook.add(c)
+    hook.discard(discarded)  # no longer live
 
     handler = signal.getsignal(signal.SIGTERM)
     assert callable(handler), "missing SIGTERM handler"
@@ -206,16 +206,15 @@ def test_discard_unknown_claim_is_noop():
     blocks without first checking membership.
     """
 
-    reaper = ExitHook(lambda c: None).register()
+    hook = ExitHook(lambda c: None).register()
 
     # Should silently ignore
-    reaper.discard("non-existent")
+    hook.discard("non-existent")
 
 
 def test_register_calls_atexit(monkeypatch):
     """
-    *Contract*: `register()` must install an atexit hook so that claims are
-    released on normal interpreter shutdown.
+    *Contract*: `register()` must install an atexit hook so that claims are released on normal interpreter shutdown.
 
     We patch `atexit.register` to capture the callback and assert that:
     1) it was invoked exactly once; 2) the registered object is callable.
@@ -229,10 +228,10 @@ def test_register_calls_atexit(monkeypatch):
     monkeypatch.setattr(atexit, "register", _fake_register)
 
     # construction shouldn't trigger the hook -- only .register()
-    reaper = ExitHook(lambda _: None)
+    hook = ExitHook(lambda _: None)
     assert not captured
 
-    reaper.register()
+    hook.register()
     assert len(captured) == 1
     assert callable(captured[0])
 
@@ -258,10 +257,10 @@ def test_atexit_handler_releases_all_live_claims(monkeypatch):
     monkeypatch.setattr(atexit, "register", _capture)
 
     hits = []
-    reaper = ExitHook(lambda c: hits.append(c)).register()
+    hook = ExitHook(lambda c: hits.append(c)).register()
     claims = [("cfg-0", "task-0"), ("cfg-1", "task-1"), ("cfg-2", "task-2")]
     for claim in claims:
-        reaper.add(claim)
+        hook.add(claim)
 
     # Simulate interpreter shutdown
     assert cleanup_fns, "No atexit hook registered"
@@ -285,14 +284,14 @@ def test_lock_prevents_set_mutation_during_massive_adds():
     """
 
     hits: list[str] = []
-    reaper = ExitHook(lambda c: hits.append(c)).register()
+    hook = ExitHook(lambda c: hits.append(c)).register()
 
     stop = threading.Event()
 
     def _producer():
         i = 0
         while not stop.is_set():
-            reaper.add(f"claim-{i}")
+            hook.add(f"claim-{i}")
             i += 1
 
     t = threading.Thread(target=_producer)
@@ -317,16 +316,16 @@ def test_lock_prevents_set_mutation_during_discards():
     """
 
     hits: list[str] = []
-    reaper = ExitHook(lambda c: hits.append(c)).register()
+    hook = ExitHook(lambda c: hits.append(c)).register()
 
     # Pre-populate many claims
     claims = [f"c{i}" for i in range(250)]
     for c in claims:
-        reaper.add(c)
+        hook.add(c)
 
     def _consumer():
         for c in claims:
-            reaper.discard(c)
+            hook.discard(c)
             time.sleep(0.0005)  # keep the race window open
 
     t = threading.Thread(target=_consumer)
@@ -357,11 +356,11 @@ def test_lock_serialises_multiple_concurrent_handlers():
     """
 
     hits: list[tuple[str, str]] = []
-    reaper = ExitHook(lambda c: hits.append(c)).register()
+    hook = ExitHook(lambda c: hits.append(c)).register()
 
     claims = [(f"cfg{i}", f"t{i}") for i in range(100)]
     for c in claims:
-        reaper.add(c)
+        hook.add(c)
 
     handler = signal.getsignal(signal.SIGTERM)
 
@@ -403,10 +402,10 @@ def test_handler_identity_shared_across_instances():
         signal.signal(signal.SIGINT, old)
 
 
-def test_multiple_reapers_each_release_their_own_claims():
+def test_multiple_hooks_each_release_their_own_claims():
     """
     When the shared handler runs, *every* live claim from *every* registered
-    reaper must be released exactly once.
+    hook must be released exactly once.
     """
 
     hits1, hits2 = [], []
@@ -423,9 +422,9 @@ def test_multiple_reapers_each_release_their_own_claims():
     assert hits2 == [claim2]
 
 
-def test_discarded_claims_on_one_reaper_do_not_affect_others():
+def test_discarded_claims_on_one_hook_do_not_affect_others():
     """
-    If Reaper-1 discards a claim before the signal arrives, only Reaper-2's
+    If hook-1 discards a claim before the signal arrives, only hook-2's
     live claim should be released.
     """
 
@@ -446,10 +445,10 @@ def test_discarded_claims_on_one_reaper_do_not_affect_others():
     assert h2 == [stay]
 
 
-def test_unregistered_reaper_claims_are_not_released():
+def test_unregistered_hook_claims_are_not_released():
     """
     Claims tracked by a *non-registered* ClaimReaper instance must *not* be
-    released when some other Reaper's handler fires.
+    released when some other hook's handler fires.
     """
 
     ghost_hits, live_hits = [], []
@@ -485,7 +484,7 @@ def test_handler_is_reentrant_no_duplicate_releases():
 
 def test_can_add_new_claims_after_previous_release():
     """
-    A reaper should remain usable: after its claims are flushed by a signal,
+    A hook should remain usable: after its claims are flushed by a signal,
     callers may add new claims and expect those to be released on the *next*
     signal.
     """
@@ -520,8 +519,7 @@ def test_second_signal_after_empty_claims_is_noop():
 
 def test_atexit_cleanup_is_idempotent():
     """
-    The function registered with `atexit` must clear the claim set so that a
-    second manual call is harmless (re-entrant) and releases nothing new.
+    The function registered with `atexit` must clear the claim set so that a second manual call is harmless (re-entrant) and releases nothing new.
     """
 
     captured = []

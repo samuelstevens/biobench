@@ -7,11 +7,24 @@
 #     "tyro",
 # ]
 # ///
-import concurrent.futures
+"""
+Download the Kenyan Animal Behavior Recognition (KABR) dataset.
+
+Examples
+--------
+# bare-bones (all animals, default path):
+python -m biobench.kabr.download
+
+# custom output directory, keep zip archives:
+python -m biobench.kabr.download --dir /scratch/KABR --keep-archives
+"""
+
+import collections.abc
+import dataclasses
 import glob
 import hashlib
-import logging
-import os
+import os.path
+import pathlib
 import zipfile
 
 import beartype
@@ -19,141 +32,170 @@ import requests
 import tqdm
 import tyro
 
-log_format = "[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s"
-logging.basicConfig(level=logging.INFO, format=log_format)
-logger = logging.getLogger("biobench")
+# --------- #
+# Constants #
+# --------- #
 
-base_url = "https://huggingface.co/datasets/imageomics/KABR/resolve/main/KABR"
+BASE_URL = "https://huggingface.co/datasets/imageomics/KABR/resolve/main/KABR"
+DATASET_PREFIX = "dataset/image/"
+
+ANIMAL_PART_RANGE: dict[str, tuple[str, str]] = {
+    "giraffes": ("aa", "ad"),
+    "zebras_grevys": ("aa", "am"),
+    "zebras_plains": ("aa", "al"),
+}
+
+STATIC_FILES: list[str] = [
+    "README.txt",
+    "annotation/classes.json",
+    "annotation/distribution.xlsx",
+    "annotation/train.csv",
+    "annotation/val.csv",
+    "configs/I3D.yaml",
+    "configs/SLOWFAST.yaml",
+    "configs/X3D.yaml",
+    "dataset/image2video.py",
+    "dataset/image2visual.py",
+]
+
+# ------- #
+# Helpers #
+# ------- #
 
 
 @beartype.beartype
-def generate_part_files(animal: str, start, end) -> list[str]:
-    start_a, start_b = ord(start[0]), ord(start[1])
-    end_a, end_b = ord(end[0]), ord(end[1])
+def generate_part_files(animal: str, start: str, end: str) -> list[str]:
+    """Generate `dataset/image/{animal}_part_??` blocks inclusive of start/end."""
+    start_a, start_b = map(ord, start)
+    end_a, end_b = map(ord, end)
     return [
-        f"{animal}_part_{chr(a)}{chr(b)}"
+        f"{DATASET_PREFIX}{animal}_part_{chr(a)}{chr(b)}"
         for a in range(start_a, end_a + 1)
         for b in range(start_b, end_b + 1)
     ]
 
 
 @beartype.beartype
-def concatenate_files(out: str, animal: str):
-    logger.info("Concatenating files for '%s'.", animal)
-
-    part_files = sorted(glob.glob(os.path.join(out, f"{animal}_part_*")))
-    assert part_files
-    # Concatenate all part files into a single zip file
-    CHUNK_SIZE = 8 * 1024 * 1024  # 8MB
-    with open(os.path.join(out, f"{animal}.zip"), "wb") as f_out:
-        for fpath in part_files:
-            with open(fpath, "rb") as f_in:
-                f_out.write(f_in.read())
-            # Delete part files as they are concatenated
-            os.remove(fpath)
-    logger.info("Archive for '%s' concatenated.", animal)
-
-
-def compute_md5(file_path):
-    hasher = hashlib.md5()
-    with open(file_path, "rb") as f:
-        CHUNK_SIZE = 8 * 1024 * 1024  # 8MB
-        for chunk in iter(lambda: f.read(CHUNK_SIZE), b""):
-            hasher.update(chunk)
-    return hasher.hexdigest()
-
-
-def verify_and_extract(animal):
-    print(f"Confirming data integrity for {animal}.zip ...")
-    zip_md5 = compute_md5(f"{save_dir}/{dataset_prefix}{animal}.zip")
-
-    with open(f"{save_dir}/{dataset_prefix}{animal}_md5.txt", "r") as file:
-        expected_md5 = file.read().strip().split()[0]
-
-    if zip_md5 == expected_md5:
-        print(f"MD5 sum for {animal}.zip is correct.")
-
-        print(f"Extracting {animal}.zip ...")
-        with zipfile.ZipFile(
-            f"{save_dir}/{dataset_prefix}{animal}.zip", "r"
-        ) as zip_ref:
-            zip_ref.extractall(f"{save_dir}/{dataset_prefix}")
-        print(f"{animal}.zip extracted.")
-        print(f"Cleaning up for {animal} ...")
-        os.remove(f"{save_dir}/{dataset_prefix}{animal}.zip")
-        os.remove(f"{save_dir}/{dataset_prefix}{animal}_md5.txt")
-    else:
-        print(
-            f"MD5 sum for {animal}.zip is incorrect. Expected: {expected_md5}, but got: {zip_md5}."
-        )
-        print(
-            "There may be data corruption. Please try to download and reconstruct the data again or reach out to the corresponding authors for assistance."
-        )
+def all_files_for_animals(animals: collections.abc.Iterable[str]) -> list[str]:
+    files: list[str] = STATIC_FILES.copy()
+    for animal in animals:
+        files.append(f"{DATASET_PREFIX}{animal}_md5.txt")
+        start, end = ANIMAL_PART_RANGE[animal]
+        files.extend(generate_part_files(animal, start, end))
+    return files
 
 
 @beartype.beartype
-def main(out: str):
-    animals = ["giraffes", "zebras_grevys", "zebras_plains"]
+def stream_download(url: str, dst: pathlib.Path, chunk_bytes: int) -> None:
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    with requests.get(url, stream=True, timeout=30) as r:
+        r.raise_for_status()
+        total = int(r.headers.get("content-length", 0))
+        with (
+            open(dst, "wb") as fd,
+            tqdm.tqdm(
+                total=total,
+                unit="B",
+                unit_scale=True,
+                unit_divisor=1024,
+                desc=dst.name,
+                leave=False,
+            ) as pbar,
+        ):
+            for chunk in r.iter_content(chunk_size=chunk_bytes):
+                fd.write(chunk)
+                pbar.update(len(chunk))
 
-    animal_parts_range = {
-        "giraffes": ("aa", "ad"),
-        "zebras_grevys": ("aa", "am"),
-        "zebras_plains": ("aa", "al"),
-    }
 
-    # Define the static files that are not dependent on the animals list
-    static_files = [
-        "README.txt",
-        "annotation/classes.json",
-        "annotation/distribution.xlsx",
-        "annotation/train.csv",
-        "annotation/val.csv",
-        "configs/I3D.yaml",
-        "configs/SLOWFAST.yaml",
-        "configs/X3D.yaml",
-        "dataset/image2video.py",
-        "dataset/image2visual.py",
-    ]
+@beartype.beartype
+def md5_file(path: pathlib.Path, chunk_bytes: int = 8 * 1024 * 1024) -> str:
+    h = hashlib.md5()
+    with open(path, "rb") as fd:
+        for block in iter(lambda: fd.read(chunk_bytes), b""):
+            h.update(block)
+    return h.hexdigest()
 
-    # Generate the part files for each animal
-    part_files = [
-        part
-        for animal, (start, end) in animal_parts_range.items()
-        for part in generate_part_files(animal, start, end)
-    ]
 
-    archive_md5_files = [f"{animal}_md5.txt" for animal in animals]
+@beartype.beartype
+@dataclasses.dataclass(frozen=True)
+class Args:
+    dir: pathlib.Path = pathlib.Path("KABR_files")
+    """Where to place downloaded data."""
+    animals: tuple[str, ...] = tuple(ANIMAL_PART_RANGE.keys())
+    """Subset of animals to download."""
+    chunk_size_kb: int = 1024
+    """Stream chunk size in KB."""
+    keep_archives: bool = False
+    """Keep concatenated *.zip files & md5 after extraction."""
+    skip_existing: bool = True
+    """Skip download if file already present on disk."""
 
-    files = static_files + archive_md5_files + part_files
 
-    # Loop through each relative file path
+@beartype.beartype
+def main(args: Args) -> None:
+    files = all_files_for_animals(args.animals)
+    chunk = args.chunk_size_kb * 1024
 
-    logger.info("Downloading the Kenyan Animal Behavior Recognition (KABR) dataset.")
+    print("Downloading KABR ...")
+    for rel in tqdm.tqdm(files, unit="file"):
+        dst = args.dir / rel
+        if args.skip_existing and dst.exists():
+            continue
+        url = f"{BASE_URL}/{rel}"
+        stream_download(url, dst, chunk)
 
-    for i, fname in enumerate(tqdm.tqdm(files)):
-        # Construct the full URL
-        fpath = os.path.join(out, fname)
+    print("Concatenating split archives ...")
+    for animal in args.animals:
+        out_zip = args.dir / f"{DATASET_PREFIX}{animal}.zip"
+        parts = sorted(
+            glob.glob(str(args.dir / f"{DATASET_PREFIX}{animal}_part_*")),
+            key=lambda p: pathlib.Path(p).name,
+        )
+        if out_zip.exists() or not parts:
+            continue
+        total_bytes = sum(os.path.getsize(p) for p in parts)
+        with (
+            open(out_zip, "wb") as dst,
+            tqdm.tqdm(
+                total=total_bytes,
+                unit="B",
+                unit_scale=True,
+                unit_divisor=1024,
+                desc=f"Concat {animal}",
+                leave=False,
+            ) as bar,
+        ):
+            for part in parts:
+                with open(part, "rb") as src:
+                    for chunk in iter(lambda: src.read(8 * 1024 * 1024), b""):
+                        dst.write(chunk)
+                        bar.update(len(chunk))
+                pathlib.Path(part).unlink()
 
-        if os.path.exists(fpath):
-            logger.debug("File '%s' exists. Skipping download.", fpath)
+    print("Validating & extracting ...")
+    for animal in tqdm.tqdm(args.animals, unit="animal"):
+        md5_txt = args.dir / f"{DATASET_PREFIX}{animal}_md5.txt"
+        zip_path = args.dir / f"{DATASET_PREFIX}{animal}.zip"
+        if not md5_txt.exists() or not zip_path.exists():
+            print(f"Skipping {animal} (missing files).")
             continue
 
-        url = f"{base_url}/{fname}"
+        expected = md5_txt.read_text().strip().split()[0]
+        got = md5_file(zip_path)
+        if got != expected:
+            raise RuntimeError(
+                f"MD5 mismatch for {zip_path.name}: {got} (expected {expected})"
+            )
 
-        # Create the necessary directories based on the file path
-        os.makedirs(os.path.join(out, os.path.dirname(fpath)), exist_ok=True)
+        with zipfile.ZipFile(zip_path) as zf:
+            zf.extractall(zip_path.parent)
 
-        # Download the file and save it with the preserved file path
-        response = requests.get(url)
-        with open(fpath, "wb") as file:
-            file.write(response.content)
+        if not args.keep_archives:
+            zip_path.unlink(missing_ok=True)
+            md5_txt.unlink(missing_ok=True)
 
-    with concurrent.futures.ThreadPoolExecutor() as pool:
-        list(pool.map(lambda animal: concatenate_files(out, animal), animals))
-
-    with concurrent.futures.ThreadPoolExecutor() as pool:
-        list(pool.map(verify_and_extract, animals))
+    print(f"Done. Data at: {args.dir}")
 
 
 if __name__ == "__main__":
-    tyro.cli(main)
+    main(tyro.cli(Args))

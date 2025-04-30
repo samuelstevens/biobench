@@ -27,13 +27,6 @@ uv run biobench/newt/download.py --dir ./newt
 
 Download it wherever you want on your own filesystem.
 
-Then run just the NeWT benchmark on all the default models.
-
-```sh
-CUDA_VISIBLE_DEVICES=0 uv run benchmark.py \
-  --newt-run --newt-args.datadir ./newt
-```
-
 ## Why?
 
 **For computational biologists:** biobench gives you an overview of how different models perform on different tasks. If you have a concrete task that you need to solve, you can easily write a script that matches other, existing tasks and then evaluate many different models on your task. If you have an idea of a task, you can find the most similar existing task(s) on the leaderboard and compare model performance.

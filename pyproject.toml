@@ -44,4 +44,5 @@ dev = [
     "hypothesis>=6.130.4",
     "pyinstrument>=5.0.1",
     "transformers>=4.51.3",
+    "pytest-timeout>=2.3.1",
 ]

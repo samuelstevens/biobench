@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
 <meta name="generator" content="pdoc3 0.11.6">
-<title>biobench.test_reporting API documentation</title>
+<title>biobench.kabr.test_download API documentation</title>
 <meta name="description" content="">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
@@ -35,7 +35,7 @@ el.replaceWith(d);
 <main>
 <article id="content">
 <header>
-<h1 class="title">Module <code>biobench.test_reporting</code></h1>
+<h1 class="title">Module <code>biobench.kabr.test_download</code></h1>
 </header>
 <section id="section-intro">
 </section>
@@ -46,179 +46,91 @@ el.replaceWith(d);
 <section>
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
-<dt id="biobench.test_reporting.insert_dummy_experiment"><code class="name flex">
-<span>def <span class="ident">insert_dummy_experiment</span></span>(<span>db: sqlite3.Connection,<br>cfg: <a title="biobench.config.Experiment" href="config.html#biobench.config.Experiment">Experiment</a>,<br>task: str)</span>
+<dt id="biobench.kabr.test_download.test_all_files_for_animals_includes_static_and_md5"><code class="name flex">
+<span>def <span class="ident">test_all_files_for_animals_includes_static_and_md5</span></span>(<span>)</span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def insert_dummy_experiment(db: sqlite3.Connection, cfg: config.Experiment, task: str):
-    &#34;&#34;&#34;Directly insert a row into experiments (used to pre-populate scenario 1).&#34;&#34;&#34;
-    values = (
-        task,
-        cfg.model.org,
-        cfg.model.ckpt,
-        cfg.n_train,
-        json.dumps(cfg.to_dict()),
-        &#34;[]&#34;,
-        &#34;deadbeef&#34;,
-        time.time(),
-        &#34;&#34;,
-        &#34;pytest&#34;,
-    )
-    stmt = &#34;&#34;&#34;
-    INSERT INTO experiments
-    (task_name, model_org, model_ckpt, n_train,
-     exp_cfg, argv, git_commit, posix, gpu_name, hostname)
-    VALUES (?,?,?,?,?,?,?,?,?,?)
-    &#34;&#34;&#34;
-    db.execute(stmt, values)
-    db.commit()</code></pre>
-</details>
-<div class="desc"><p>Directly insert a row into experiments (used to pre-populate scenario 1).</p></div>
-</dd>
-<dt id="biobench.test_reporting.make_cfg"><code class="name flex">
-<span>def <span class="ident">make_cfg</span></span>(<span>tmp_path: pathlib.Path) ‑> <a title="biobench.config.Experiment" href="config.html#biobench.config.Experiment">Experiment</a></span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def make_cfg(tmp_path: pathlib.Path) -&gt; config.Experiment:
-    &#34;&#34;&#34;Return a minimal Experiment that points its report DB inside tmp_path.&#34;&#34;&#34;
-    return config.Experiment(
-        model=config.Model(org=&#34;openai&#34;, ckpt=&#34;ViT-B/16&#34;),
-        n_train=-1,
-        report_to=str(tmp_path),
-        log_to=str(tmp_path / &#34;logs&#34;),
-    )</code></pre>
-</details>
-<div class="desc"><p>Return a minimal Experiment that points its report DB inside tmp_path.</p></div>
-</dd>
-<dt id="biobench.test_reporting.test_micro_f1_equals_micro_accuracy"><code class="name flex">
-<span>def <span class="ident">test_micro_f1_equals_micro_accuracy</span></span>(<span>) ‑> None</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">@given(preds=_prediction_list())
-def test_micro_f1_equals_micro_accuracy(preds):
-    &#34;&#34;&#34;Micro-averaged F1 must equal micro accuracy for single-label data.&#34;&#34;&#34;
-
-    acc = reporting.micro_acc(preds)
-    f1 = reporting.micro_f1(preds)
-
-    # Floating math can introduce tiny error, so compare with tolerance
-    assert math.isclose(acc, f1, rel_tol=1e-12, abs_tol=1e-12)</code></pre>
-</details>
-<div class="desc"><p>Micro-averaged F1 must equal micro accuracy for single-label data.</p></div>
-</dd>
-<dt id="biobench.test_reporting.test_one_winner_many_launchers"><code class="name flex">
-<span>def <span class="ident">test_one_winner_many_launchers</span></span>(<span>tmp_path)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def test_one_winner_many_launchers(tmp_path):
-    cfg = make_cfg(tmp_path)
-    task = &#34;kabr&#34;
-    q = multiprocessing.Queue()
-
-    n_workers = 4
-
-    procs = [
-        multiprocessing.Process(target=_worker, args=(cfg, task, q, True))
-        for _ in range(n_workers)
-    ]
-    for p in procs:
-        p.start()
-    for p in procs:
-        p.join(timeout=WAIT)
-
-    results = [q.get(timeout=WAIT) for _ in range(n_workers)]
-    assert results.count(&#34;winner&#34;) == 1
-    assert results.count(&#34;skip&#34;) == n_workers - 1
-
-    db = reporting.get_db(cfg)
-    # experiments row present
-    assert reporting.already_ran(db, cfg, task)
-    # runs table cleaned up
-    assert db.execute(&#34;SELECT COUNT(*) FROM runs&#34;).fetchone()[0] == 0</code></pre>
+<pre><code class="python">def test_all_files_for_animals_includes_static_and_md5():
+    animals = (&#34;giraffes&#34;,)
+    files = kd.all_files_for_animals(animals)
+    # static + md5 + first part file sanity
+    assert &#34;README.txt&#34; in files
+    assert &#34;dataset/image/giraffes_md5.txt&#34; in files
+    assert &#34;dataset/image/giraffes_part_aa&#34; in files
+    # no duplicates
+    assert len(files) == len(set(files))</code></pre>
 </details>
 <div class="desc"></div>
 </dd>
-<dt id="biobench.test_reporting.test_reclaim_after_failure"><code class="name flex">
-<span>def <span class="ident">test_reclaim_after_failure</span></span>(<span>tmp_path)</span>
+<dt id="biobench.kabr.test_download.test_generate_part_files"><code class="name flex">
+<span>def <span class="ident">test_generate_part_files</span></span>(<span>)</span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def test_reclaim_after_failure(tmp_path):
-    cfg = make_cfg(tmp_path)
-    task = &#34;kabr&#34;
-    q = multiprocessing.Queue()
-
-    n_workers = 4
-
-    # wave 1: one process fails
-    procs1 = [multiprocessing.Process(target=_worker, args=(cfg, task, q, False))]
-    procs1.extend([
-        multiprocessing.Process(target=_worker, args=(cfg, task, q, True))
-        for i in range(n_workers - 1)
-    ])
-    for p in procs1:
-        p.start()
-        time.sleep(0.5)
-    for p in procs1:
-        p.join(timeout=40)
-
-    results1 = [q.get(timeout=40) for _ in range(n_workers)]
-    assert results1.count(&#34;failed&#34;) == 1
-
-    # wave 2: slot should be claimable again
-    procs2 = [
-        multiprocessing.Process(target=_worker, args=(cfg, task, q, True))
-        for _ in range(n_workers)
-    ]
-    for p in procs2:
-        p.start()
-    for p in procs2:
-        p.join(timeout=40)
-
-    results2 = [q.get(timeout=40) for _ in range(n_workers)]
-    assert results2.count(&#34;winner&#34;) == 1
-
-    db = reporting.get_db(cfg)
-    assert reporting.already_ran(db, cfg, task)
-    assert db.execute(&#34;SELECT COUNT(*) FROM runs&#34;).fetchone()[0] == 0</code></pre>
+<pre><code class="python">def test_generate_part_files():
+    out = kd.generate_part_files(&#34;giraffes&#34;, &#34;aa&#34;, &#34;ab&#34;)
+    assert out == [
+        &#34;dataset/image/giraffes_part_aa&#34;,
+        &#34;dataset/image/giraffes_part_ab&#34;,
+    ]</code></pre>
 </details>
 <div class="desc"></div>
 </dd>
-<dt id="biobench.test_reporting.test_skip_when_experiment_exists"><code class="name flex">
-<span>def <span class="ident">test_skip_when_experiment_exists</span></span>(<span>tmp_path)</span>
+<dt id="biobench.kabr.test_download.test_md5_file"><code class="name flex">
+<span>def <span class="ident">test_md5_file</span></span>(<span>tmp_path)</span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def test_skip_when_experiment_exists(tmp_path):
-    cfg = make_cfg(tmp_path)
-    task = &#34;plantnet&#34;
+<pre><code class="python">def test_md5_file(tmp_path):
+    p = tmp_path / &#34;blob.bin&#34;
+    data = b&#34;abc&#34; * 123
+    p.write_bytes(data)
+    expect = hashlib.md5(data).hexdigest()
+    assert kd.md5_file(p) == expect</code></pre>
+</details>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.kabr.test_download.test_stream_download_stub"><code class="name flex">
+<span>def <span class="ident">test_stream_download_stub</span></span>(<span>tmp_path, monkeypatch)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_stream_download_stub(tmp_path, monkeypatch):
+    # prepare fake response
+    payload = b&#34;hello world&#34;
 
-    db = reporting.get_db(cfg)
-    insert_dummy_experiment(db, cfg, task)
+    class FakeResp:
+        headers = {&#34;content-length&#34;: str(len(payload))}
 
-    assert reporting.already_ran(db, cfg, task) is True</code></pre>
+        def iter_content(self, chunk_size):
+            yield payload
+
+        def raise_for_status(self): ...
+
+        # context-manager methods
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc): ...
+
+    monkeypatch.setattr(kd.requests, &#34;get&#34;, lambda *a, **kw: FakeResp())
+    # run
+    dst = tmp_path / &#34;file.bin&#34;
+    kd.stream_download(&#34;http://foo.bar&#34;, dst, 16)
+    assert dst.read_bytes() == payload</code></pre>
 </details>
 <div class="desc"></div>
 </dd>
@@ -234,17 +146,15 @@ def test_micro_f1_equals_micro_accuracy(preds):
 <ul id="index">
 <li><h3>Super-module</h3>
 <ul>
-<li><code><a title="biobench" href="index.html">biobench</a></code></li>
+<li><code><a title="biobench.kabr" href="index.html">biobench.kabr</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-functions">Functions</a></h3>
 <ul class="">
-<li><code><a title="biobench.test_reporting.insert_dummy_experiment" href="#biobench.test_reporting.insert_dummy_experiment">insert_dummy_experiment</a></code></li>
-<li><code><a title="biobench.test_reporting.make_cfg" href="#biobench.test_reporting.make_cfg">make_cfg</a></code></li>
-<li><code><a title="biobench.test_reporting.test_micro_f1_equals_micro_accuracy" href="#biobench.test_reporting.test_micro_f1_equals_micro_accuracy">test_micro_f1_equals_micro_accuracy</a></code></li>
-<li><code><a title="biobench.test_reporting.test_one_winner_many_launchers" href="#biobench.test_reporting.test_one_winner_many_launchers">test_one_winner_many_launchers</a></code></li>
-<li><code><a title="biobench.test_reporting.test_reclaim_after_failure" href="#biobench.test_reporting.test_reclaim_after_failure">test_reclaim_after_failure</a></code></li>
-<li><code><a title="biobench.test_reporting.test_skip_when_experiment_exists" href="#biobench.test_reporting.test_skip_when_experiment_exists">test_skip_when_experiment_exists</a></code></li>
+<li><code><a title="biobench.kabr.test_download.test_all_files_for_animals_includes_static_and_md5" href="#biobench.kabr.test_download.test_all_files_for_animals_includes_static_and_md5">test_all_files_for_animals_includes_static_and_md5</a></code></li>
+<li><code><a title="biobench.kabr.test_download.test_generate_part_files" href="#biobench.kabr.test_download.test_generate_part_files">test_generate_part_files</a></code></li>
+<li><code><a title="biobench.kabr.test_download.test_md5_file" href="#biobench.kabr.test_download.test_md5_file">test_md5_file</a></code></li>
+<li><code><a title="biobench.kabr.test_download.test_stream_download_stub" href="#biobench.kabr.test_download.test_stream_download_stub">test_stream_download_stub</a></code></li>
 </ul>
 </li>
 </ul>

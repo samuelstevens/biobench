@@ -20,43 +20,17 @@ import csv
 import dataclasses
 import logging
 import os
-import typing
 
 import beartype
 import numpy as np
 import torch
-from jaxtyping import Float, Int, jaxtyped
+from jaxtyping import Float, Int, Shaped, jaxtyped
 from PIL import Image
 from torch import Tensor
 
-from biobench import config, registry, reporting, simpleshot
+from .. import config, helpers, registry, reporting, simpleshot
 
-logger = logging.getLogger("kabr")
-
-
-@beartype.beartype
-@dataclasses.dataclass(frozen=True)
-class Args:
-    """Arguments for the KABR task."""
-
-    data: str = ""
-    """dataset directory; where you downloaded this task's data to."""
-    batch_size_cv: int = 256
-    """batch size for computer vision model."""
-    n_workers: int = 4
-    """Number of dataloader worker processes."""
-    frame_agg: typing.Literal["mean", "max"] = "mean"
-    """How to aggregate features across time dimension."""
-    seed: int = 42
-    """random seed."""
-
-    # Computed at runtime.
-    device: str = "cuda"
-    """(computed at runtime) which kind of accelerator to use."""
-    debug: bool = False
-    """(computed at runtime) whether to run in debug mode."""
-    n_train: int = -1
-    """Number of maximum training samples. Negative number means use all of them."""
+logger = logging.getLogger(__name__)
 
 
 @beartype.beartype
@@ -65,6 +39,7 @@ class Video:
     """A single video instance as a sequence of frames."""
 
     video_id: int
+    """Video ID."""
     frames: list[str]
     """Paths to actual frame images."""
     labels: list[int]
@@ -73,6 +48,14 @@ class Video:
     def __post_init__(self):
         err_msg = f"Video {self.video_id} has a different number of frames ({len(self.frames)} and labels ({len(self.labels)})."
         assert len(self.frames) == len(self.labels), err_msg
+
+
+@jaxtyped(typechecker=beartype.beartype)
+@dataclasses.dataclass(frozen=True)
+class Features:
+    x: Float[np.ndarray, "n dim"]
+    y: Int[np.ndarray, " n"]
+    ids: Shaped[np.ndarray, " n"]
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -130,7 +113,7 @@ class Dataset(torch.utils.data.Dataset):
 
     def __getitem__(
         self, i: int
-    ) -> tuple[list[Float[Tensor, "3 width height"]], list[int]]:
+    ) -> tuple[list[Float[Tensor, "3 width height"]], list[int], str]:
         """
         Returns 16 frames and their labels sampled every 5 frames from a clip. The start of the clip is uniformly sampled. If there are fewer
         """
@@ -159,68 +142,47 @@ class Dataset(torch.utils.data.Dataset):
         if self.transform is not None:
             images = [self.transform(image) for image in images]
 
-        return images, labels
+        return images, labels, str(i)
 
     def __len__(self) -> int:
         return len(self.videos)
 
 
 @beartype.beartype
-def benchmark(cfg: config.Experiment) -> tuple[config.Model, reporting.Report]:
+def benchmark(cfg: config.Experiment) -> reporting.Report:
     """Runs KABR benchmark."""
     # 1. Load model
     backbone = registry.load_vision_backbone(cfg.model)
-    img_transform = backbone.make_img_transform()
     backbone = backbone.to(cfg.device)
 
     # 2. Load data.
-    train_dataset = Dataset(cfg.data.kabr, "train", transform=img_transform)
-    val_dataset = Dataset(cfg.data.kabr, "val", transform=img_transform)
-
-    train_dataloader = torch.utils.data.DataLoader(
-        train_dataset,
-        batch_size=cfg.batch_size,
-        num_workers=cfg.n_workers,
-        drop_last=False,
-    )
-    val_dataloader = torch.utils.data.DataLoader(
-        val_dataset,
-        batch_size=cfg.batch_size,
-        num_workers=cfg.n_workers,
-        drop_last=False,
-    )
-
-    # 3. Get features
-    val_features, val_labels = get_features(cfg, backbone, val_dataloader)
-    val_features = aggregate_frames(cfg, val_features)
-    val_labels = aggregate_labels(cfg, val_labels)
-
-    train_features, train_labels = get_features(cfg, backbone, train_dataloader)
-    train_features = aggregate_frames(cfg, train_features)
-    train_labels = aggregate_labels(cfg, train_labels)
+    test_features = get_features(cfg, backbone, is_train=False)
+    train_features = get_features(cfg, backbone, is_train=True)
 
     # 4. Do simpleshot.
-    scores = simpleshot.simpleshot(
-        cfg, train_features, train_labels, val_features, val_labels
-    )
+    clf = init_clf(cfg)
+    clf.fit(train_features.x, train_features.y)
+
+    true_labels = test_features.y
+    pred_labels = clf.predict(test_features.x)
 
     # Return benchmark report.
-    video_ids = [video.video_id for video in val_dataset.videos]
-    examples = [
-        reporting.Prediction(str(id), float(score), {})
-        for id, score in zip(video_ids, scores.tolist())
+    preds = [
+        reporting.Prediction(
+            str(video_id),
+            float(pred == true),
+            {"y_pred": pred.item(), "y_true": true.item()},
+        )
+        for video_id, pred, true in zip(test_features.ids, pred_labels, true_labels)
     ]
-    # TODO: include example-specific info (class? something else)
-    return cfg.model, reporting.Report("KABR", examples)
+    return reporting.Report("kabr", preds, cfg)
 
 
-@torch.no_grad()
 @jaxtyped(typechecker=beartype.beartype)
+@torch.no_grad()
 def get_features(
-    cfg: config.Experiment, backbone: registry.VisionBackbone, dataloader
-) -> tuple[
-    Float[Tensor, "n_frames n_examples dim"], Int[Tensor, "n_frames n_examples"]
-]:
+    cfg: config.Experiment, backbone: registry.VisionBackbone, *, is_train: bool
+) -> Features:
     """
     Gets all model features and true labels for all frames and all examples in the dataloader.
 
@@ -234,38 +196,72 @@ def get_features(
     Returns:
         tuple of model features and true labels. See signature for shape.
     """
+    img_transform = backbone.make_img_transform()
     backbone = torch.compile(backbone)
-    all_features, all_labels = [], []
+    split = "train" if is_train else "val"
 
-    total = len(dataloader) if not args.debug else 2
-    it = iter(dataloader)
-    logger.debug("Need to embed %d batches of %d images.", total, args.batch_size * 16)
-    for b in range(total):
-        frames, labels = next(it)
+    dataset = Dataset(cfg.data.kabr, split, transform=img_transform)
+    dataloader = torch.utils.data.DataLoader(
+        dataset,
+        batch_size=cfg.batch_size,
+        num_workers=cfg.n_workers,
+        drop_last=False,
+        shuffle=False,
+    )
+
+    all_feats, all_labels, all_ids = [], [], []
+
+    def probe(batch):
+        frames, _, _ = batch
         frames = torch.stack(frames, dim=0)
-        labels = torch.stack(labels, dim=0)
-        frames = frames.to(args.device)
-
-        with torch.amp.autocast("cuda"):
-            # conv2d doesn't support multiple batch dimensions, so we have to view() before and after the model.img_encode() call.
+        frames = frames.to(cfg.device, non_blocking=True)
+        with torch.amp.autocast(cfg.device):
             n_frames, bsz, c, h, w = frames.shape
             frames = frames.view(bsz * n_frames, c, h, w)
             outputs = backbone.img_encode(frames)
             features = outputs.img_features.view(n_frames, bsz, -1)
-            all_features.append(features.cpu())
+            features = aggregate_frames(features)
+
+    with helpers.auto_batch_size(dataloader, probe=probe):
+        total = len(dataloader) if not cfg.debug else 2
+        it = iter(dataloader)
+        for b in helpers.progress(range(total), desc=f"kabr/{split}"):
+            frames, labels, ids = next(it)
+            frames = torch.stack(frames, dim=0)
+            labels = torch.stack(labels, dim=0)
+            frames = frames.to(cfg.device, non_blocking=True)
+
+            with torch.amp.autocast(cfg.device):
+                # conv2d doesn't support multiple batch dimensions, so we have to view() before and after the model.img_encode() call.
+                n_frames, bsz, c, h, w = frames.shape
+                frames = frames.view(bsz * n_frames, c, h, w)
+                outputs = backbone.img_encode(frames)
+                features = outputs.img_features.view(n_frames, bsz, -1)
+
+                features = aggregate_frames(features)
+                all_feats.append(features.cpu())
+
+            labels = aggregate_labels(labels)
             all_labels.append(labels.cpu())
 
-        logger.debug("Embedded batch %d/%d", b + 1, total)
+            logger.debug("Embedded batch %d/%d", b + 1, total)
+            all_ids.extend(ids)
 
-    all_features = torch.cat(all_features, dim=1).cpu()
-    all_labels = torch.cat(all_labels, dim=1).cpu()
+    all_feats = torch.cat(all_feats, dim=0).cpu().numpy()
+    all_labels = torch.cat(all_labels, dim=0).cpu().numpy()
+    all_ids = np.array(all_ids)
 
-    return all_features, all_labels
+    return Features(all_feats, all_labels, all_ids)
+
+
+@beartype.beartype
+def init_clf(cfg: config.Experiment):
+    return simpleshot.SimpleShotClassifier(device="cuda:0")
 
 
 @jaxtyped(typechecker=beartype.beartype)
 def aggregate_labels(
-    args: Args, labels: Int[Tensor, "n_frames n_examples"]
+    labels: Int[Tensor, "n_frames n_examples"],
 ) -> Int[Tensor, " n_examples"]:
     """Aggregate per-frame labels to a per-video label. Uses the most common label (mode)."""
     return torch.mode(labels, dim=0).values
@@ -273,11 +269,6 @@ def aggregate_labels(
 
 @jaxtyped(typechecker=beartype.beartype)
 def aggregate_frames(
-    args: Args, features: Float[Tensor, "n_frames n_examples dim"]
+    features: Float[Tensor, "n_frames n_examples dim"],
 ) -> Float[Tensor, "n_examples dim"]:
-    if args.frame_agg == "mean":
-        return torch.mean(features, dim=0)
-    elif args.frame_agg == "max":
-        return torch.max(features, dim=0).values
-    else:
-        typing.assert_never(args.frame_agg)
+    return torch.max(features, dim=0).values

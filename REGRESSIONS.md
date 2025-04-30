@@ -1,8 +1,11 @@
 # Regressions
 
-Last checked: 2025-04-28
+Last checked: 2025-04-30
 
-**All tests passed**
+# 2 failing test(s)
+
+- biobench/test_reporting.py::test_reclaim_after_failure
+- biobench/test_reporting.py::test_skip_when_experiment_exists
 # Coverage
 
-Coverage: 1997/3391 lines (58.9%)
+Coverage: 2756/4182 lines (65.9%)

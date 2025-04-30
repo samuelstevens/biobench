@@ -56,20 +56,105 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">@beartype.beartype
 def already_ran(db: sqlite3.Connection, cfg: config.Experiment, task_name: str) -&gt; bool:
+    &#34;&#34;&#34;Check if an experiment has already been run.
+
+    Args:
+        db: SQLite database connection
+        cfg: Experiment configuration
+        task_name: Name of the task to check
+
+    Returns:
+        bool: True if the experiment has already been run, False otherwise
+    &#34;&#34;&#34;
     query = &#34;&#34;&#34;
-SELECT COUNT(*)
-FROM experiments
-WHERE task_name = ?
-AND model_org = ?
-AND model_ckpt = ?
-AND n_train = ?
-&#34;&#34;&#34;
+    SELECT COUNT(*)
+    FROM experiments
+    WHERE task_name = ?
+    AND model_org = ?
+    AND model_ckpt = ?
+    AND n_train = ?
+    &#34;&#34;&#34;
     values = (task_name, cfg.model.org, cfg.model.ckpt, cfg.n_train)
 
     (count,) = db.execute(query, values).fetchone()
     return count &gt; 0</code></pre>
 </details>
-<div class="desc"></div>
+<div class="desc"><p>Check if an experiment has already been run.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>db</code></strong></dt>
+<dd>SQLite database connection</dd>
+<dt><strong><code>cfg</code></strong></dt>
+<dd>Experiment configuration</dd>
+<dt><strong><code>task_name</code></strong></dt>
+<dd>Name of the task to check</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>bool</code></dt>
+<dd>True if the experiment has already been run, False otherwise</dd>
+</dl></div>
+</dd>
+<dt id="biobench.reporting.claim_run"><code class="name flex">
+<span>def <span class="ident">claim_run</span></span>(<span>db: sqlite3.Connection,<br>cfg: <a title="biobench.config.Experiment" href="config.html#biobench.config.Experiment">Experiment</a>,<br>task_name: str) ‑> bool</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@beartype.beartype
+def claim_run(db: sqlite3.Connection, cfg: config.Experiment, task_name: str) -&gt; bool:
+    &#34;&#34;&#34;Try to claim (task_name, model, n_train).
+
+    Args:
+        db: SQLite database connection
+        cfg: Experiment configuration
+        task_name: Name of the task to claim
+
+    Returns:
+        bool: True if this process inserted the row and now &#34;owns&#34; the run,
+              False if row already existed and another worker has it
+    &#34;&#34;&#34;
+
+    stmt = &#34;&#34;&#34;
+    INSERT OR IGNORE INTO runs
+    (task_name, model_org, model_ckpt, n_train, pid, posix)
+    VALUES (?,?,?,?,?,?)
+    &#34;&#34;&#34;
+    values = (
+        task_name,
+        cfg.model.org,
+        cfg.model.ckpt,
+        cfg.n_train,
+        os.getpid(),
+        time.time(),
+    )
+
+    try:
+        cur = db.execute(stmt, values)
+        db.commit()
+        return cur.rowcount == 1  # 1 row inserted -&gt; we won
+    except Exception:
+        db.rollback()
+        raise</code></pre>
+</details>
+<div class="desc"><p>Try to claim (task_name, model, n_train).</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>db</code></strong></dt>
+<dd>SQLite database connection</dd>
+<dt><strong><code>cfg</code></strong></dt>
+<dd>Experiment configuration</dd>
+<dt><strong><code>task_name</code></strong></dt>
+<dd>Name of the task to claim</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>bool</code></dt>
+<dd>True if this process inserted the row and now "owns" the run,
+False if row already existed and another worker has it</dd>
+</dl></div>
 </dd>
 <dt id="biobench.reporting.get_db"><code class="name flex">
 <span>def <span class="ident">get_db</span></span>(<span>cfg: <a title="biobench.config.Experiment" href="config.html#biobench.config.Experiment">Experiment</a>) ‑> sqlite3.Connection</span>
@@ -82,14 +167,17 @@ AND n_train = ?
 <pre><code class="python">@beartype.beartype
 def get_db(cfg: config.Experiment) -&gt; sqlite3.Connection:
     &#34;&#34;&#34;Get a connection to the reports database.
+
+    Args:
+        cfg: Experiment configuration
+
     Returns:
-        a connection to a sqlite3 database.
+        sqlite3.Connection: A connection to the SQLite database
     &#34;&#34;&#34;
     os.makedirs(os.path.expandvars(cfg.report_to), exist_ok=True)
-    db = sqlite3.connect(
-        os.path.join(os.path.expandvars(cfg.report_to), &#34;reports.sqlite&#34;),
-        autocommit=True,
-    )
+    helpers.warn_if_nfs(cfg.report_to)
+    db_fpath = os.path.join(os.path.expandvars(cfg.report_to), &#34;reports.sqlite&#34;)
+    db = sqlite3.connect(db_fpath, autocommit=True)
 
     with open(schema_fpath) as fd:
         schema = fd.read()
@@ -99,8 +187,16 @@ def get_db(cfg: config.Experiment) -&gt; sqlite3.Connection:
     return db</code></pre>
 </details>
 <div class="desc"><p>Get a connection to the reports database.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>cfg</code></strong></dt>
+<dd>Experiment configuration</dd>
+</dl>
 <h2 id="returns">Returns</h2>
-<p>a connection to a sqlite3 database.</p></div>
+<dl>
+<dt><code>sqlite3.Connection</code></dt>
+<dd>A connection to the SQLite database</dd>
+</dl></div>
 </dd>
 <dt id="biobench.reporting.get_git_hash"><code class="name flex">
 <span>def <span class="ident">get_git_hash</span></span>(<span>) ‑> str</span>
@@ -110,13 +206,21 @@ def get_db(cfg: config.Experiment) -&gt; sqlite3.Connection:
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def get_git_hash() -&gt; str:
-    &#34;&#34;&#34;
-    Returns the hash of the current git commit, assuming we are in a git repo.
+<pre><code class="python">@beartype.beartype
+def get_git_hash() -&gt; str:
+    &#34;&#34;&#34;Returns the hash of the current git commit.
+
+    Returns:
+        str: The hash of the current git commit, assuming we are in a git repo
     &#34;&#34;&#34;
     return subprocess.check_output([&#34;git&#34;, &#34;rev-parse&#34;, &#34;HEAD&#34;]).decode(&#34;ascii&#34;).strip()</code></pre>
 </details>
-<div class="desc"><p>Returns the hash of the current git commit, assuming we are in a git repo.</p></div>
+<div class="desc"><p>Returns the hash of the current git commit.</p>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>str</code></dt>
+<dd>The hash of the current git commit, assuming we are in a git repo</dd>
+</dl></div>
 </dd>
 <dt id="biobench.reporting.get_gpu_name"><code class="name flex">
 <span>def <span class="ident">get_gpu_name</span></span>(<span>) ‑> str</span>
@@ -135,6 +239,55 @@ def get_db(cfg: config.Experiment) -&gt; sqlite3.Connection:
         return &#34;&#34;</code></pre>
 </details>
 <div class="desc"></div>
+</dd>
+<dt id="biobench.reporting.is_claimed"><code class="name flex">
+<span>def <span class="ident">is_claimed</span></span>(<span>db: sqlite3.Connection,<br>cfg: <a title="biobench.config.Experiment" href="config.html#biobench.config.Experiment">Experiment</a>,<br>task_name: str) ‑> bool</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@beartype.beartype
+def is_claimed(db: sqlite3.Connection, cfg: config.Experiment, task_name: str) -&gt; bool:
+    &#34;&#34;&#34;Check if a run is already claimed by another process.
+
+    Args:
+        db: SQLite database connection
+        cfg: Experiment configuration
+        task_name: Name of the task to check
+
+    Returns:
+        bool: True if the run is already claimed, False otherwise
+    &#34;&#34;&#34;
+    query = &#34;&#34;&#34;
+    SELECT COUNT(*)
+    FROM runs
+    WHERE task_name = ?
+    AND model_org = ?
+    AND model_ckpt = ?
+    AND n_train = ?
+    &#34;&#34;&#34;
+    values = (task_name, cfg.model.org, cfg.model.ckpt, cfg.n_train)
+
+    (count,) = db.execute(query, values).fetchone()
+    return count &gt; 0</code></pre>
+</details>
+<div class="desc"><p>Check if a run is already claimed by another process.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>db</code></strong></dt>
+<dd>SQLite database connection</dd>
+<dt><strong><code>cfg</code></strong></dt>
+<dd>Experiment configuration</dd>
+<dt><strong><code>task_name</code></strong></dt>
+<dd>Name of the task to check</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>bool</code></dt>
+<dd>True if the run is already claimed, False otherwise</dd>
+</dl></div>
 </dd>
 <dt id="biobench.reporting.macro_acc"><code class="name flex">
 <span>def <span class="ident">macro_acc</span></span>(<span>preds: list[<a title="biobench.reporting.Prediction" href="#biobench.reporting.Prediction">Prediction</a>]) ‑> float</span>
@@ -214,6 +367,49 @@ def micro_f1(preds: list[Prediction]) -&gt; float:
 </details>
 <div class="desc"></div>
 </dd>
+<dt id="biobench.reporting.release_run"><code class="name flex">
+<span>def <span class="ident">release_run</span></span>(<span>db: sqlite3.Connection,<br>cfg: <a title="biobench.config.Experiment" href="config.html#biobench.config.Experiment">Experiment</a>,<br>task_name: str) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@beartype.beartype
+def release_run(db: sqlite3.Connection, cfg: config.Experiment, task_name: str) -&gt; None:
+    &#34;&#34;&#34;Delete the coordination row so others may claim again.
+
+    Args:
+        db: SQLite database connection
+        cfg: Experiment configuration
+        task_name: Name of the task to release
+    &#34;&#34;&#34;
+    stmt = &#34;&#34;&#34;
+    DELETE FROM runs
+    WHERE task_name=? AND model_org=? AND model_ckpt=? AND n_train=?
+    &#34;&#34;&#34;
+    values = (task_name, cfg.model.org, cfg.model.ckpt, cfg.n_train)
+    logger.info(&#34;Releasing claim on (%s, %s, %s, %d)&#34;, *values)
+
+    try:
+        db.execute(stmt, values)
+        db.commit()
+        logger.info(&#34;Released claim on (%s, %s, %s, %d)&#34;, *values)
+    except Exception:
+        db.rollback()
+        raise</code></pre>
+</details>
+<div class="desc"><p>Delete the coordination row so others may claim again.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>db</code></strong></dt>
+<dd>SQLite database connection</dd>
+<dt><strong><code>cfg</code></strong></dt>
+<dd>Experiment configuration</dd>
+<dt><strong><code>task_name</code></strong></dt>
+<dd>Name of the task to release</dd>
+</dl></div>
+</dd>
 </dl>
 </section>
 <section>
@@ -259,7 +455,7 @@ class Prediction:
 </dd>
 <dt id="biobench.reporting.Report"><code class="flex name class">
 <span>class <span class="ident">Report</span></span>
-<span>(</span><span>task_name: str,<br>predictions: list[<a title="biobench.reporting.Prediction" href="#biobench.reporting.Prediction">Prediction</a>],<br>cfg: <a title="biobench.config.Experiment" href="config.html#biobench.config.Experiment">Experiment</a>,<br>*,<br>splits: dict[str, float] = &lt;factory&gt;,<br>argv: list[str] = &lt;factory&gt;,<br>git_commit: str = '62d375493637ee7b865e536aa0804f7b50047454',<br>posix: float = &lt;factory&gt;,<br>gpu_name: str = &lt;factory&gt;,<br>hostname: str = &lt;factory&gt;)</span>
+<span>(</span><span>task_name: str,<br>predictions: list[<a title="biobench.reporting.Prediction" href="#biobench.reporting.Prediction">Prediction</a>],<br>cfg: <a title="biobench.config.Experiment" href="config.html#biobench.config.Experiment">Experiment</a>,<br>*,<br>splits: dict[str, float] = &lt;factory&gt;,<br>argv: list[str] = &lt;factory&gt;,<br>git_commit: str = '8046e0550539c15d5fc72f057e0087387b2a4d79',<br>posix: float = &lt;factory&gt;,<br>gpu_name: str = &lt;factory&gt;,<br>hostname: str = &lt;factory&gt;)</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -448,13 +644,16 @@ def write(self) -&gt; None:
 <li><h3><a href="#header-functions">Functions</a></h3>
 <ul class="two-column">
 <li><code><a title="biobench.reporting.already_ran" href="#biobench.reporting.already_ran">already_ran</a></code></li>
+<li><code><a title="biobench.reporting.claim_run" href="#biobench.reporting.claim_run">claim_run</a></code></li>
 <li><code><a title="biobench.reporting.get_db" href="#biobench.reporting.get_db">get_db</a></code></li>
 <li><code><a title="biobench.reporting.get_git_hash" href="#biobench.reporting.get_git_hash">get_git_hash</a></code></li>
 <li><code><a title="biobench.reporting.get_gpu_name" href="#biobench.reporting.get_gpu_name">get_gpu_name</a></code></li>
+<li><code><a title="biobench.reporting.is_claimed" href="#biobench.reporting.is_claimed">is_claimed</a></code></li>
 <li><code><a title="biobench.reporting.macro_acc" href="#biobench.reporting.macro_acc">macro_acc</a></code></li>
 <li><code><a title="biobench.reporting.macro_f1" href="#biobench.reporting.macro_f1">macro_f1</a></code></li>
 <li><code><a title="biobench.reporting.micro_acc" href="#biobench.reporting.micro_acc">micro_acc</a></code></li>
 <li><code><a title="biobench.reporting.micro_f1" href="#biobench.reporting.micro_f1">micro_f1</a></code></li>
+<li><code><a title="biobench.reporting.release_run" href="#biobench.reporting.release_run">release_run</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>

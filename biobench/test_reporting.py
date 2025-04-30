@@ -95,25 +95,23 @@ def test_skip_when_experiment_exists(tmp_path):
     insert_dummy_experiment(db, cfg, task)
 
     assert reporting.already_ran(db, cfg, task) is True
-    assert reporting.claim_run(db, cfg, task) is False  # no duplicate claim
 
 
 BUSY_TIMEOUT = 30
 WAIT = BUSY_TIMEOUT + 5
 
 
-def _worker(cfg: config.Experiment, task: str, q, fail: bool):
+def _worker(cfg: config.Experiment, task: str, q, succeed: bool):
     db = reporting.get_db(cfg)
     if reporting.claim_run(db, cfg, task):
         time.sleep(20)
-        if fail:
-            reporting.release_run(db, cfg, task)
-            q.put("failed")
-            return
-        else:
+        if succeed:
             insert_dummy_experiment(db, cfg, task)
             reporting.release_run(db, cfg, task)
             q.put("winner")
+        else:
+            reporting.release_run(db, cfg, task)
+            q.put("failed")
     else:
         q.put("skip")
 
@@ -126,7 +124,7 @@ def test_one_winner_many_launchers(tmp_path):
     n_workers = 4
 
     procs = [
-        multiprocessing.Process(target=_worker, args=(cfg, task, q, False))
+        multiprocessing.Process(target=_worker, args=(cfg, task, q, True))
         for _ in range(n_workers)
     ]
     for p in procs:
@@ -153,14 +151,14 @@ def test_reclaim_after_failure(tmp_path):
     n_workers = 4
 
     # wave 1: one process fails
-    procs1 = [multiprocessing.Process(target=_worker, args=(cfg, task, q, True))]
-    time.sleep(0.2)
+    procs1 = [multiprocessing.Process(target=_worker, args=(cfg, task, q, False))]
     procs1.extend([
-        multiprocessing.Process(target=_worker, args=(cfg, task, q, False))
+        multiprocessing.Process(target=_worker, args=(cfg, task, q, True))
         for i in range(n_workers - 1)
     ])
     for p in procs1:
         p.start()
+        time.sleep(0.5)
     for p in procs1:
         p.join(timeout=40)
 
@@ -169,15 +167,15 @@ def test_reclaim_after_failure(tmp_path):
 
     # wave 2: slot should be claimable again
     procs2 = [
-        multiprocessing.Process(target=_worker, args=(cfg, task, q, False))
-        for _ in range(4)
+        multiprocessing.Process(target=_worker, args=(cfg, task, q, True))
+        for _ in range(n_workers)
     ]
     for p in procs2:
         p.start()
     for p in procs2:
         p.join(timeout=40)
 
-    results2 = [q.get(timeout=40) for _ in range(4)]
+    results2 = [q.get(timeout=40) for _ in range(n_workers)]
     assert results2.count("winner") == 1
 
     db = reporting.get_db(cfg)

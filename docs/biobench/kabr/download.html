@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+<meta name="generator" content="pdoc3 0.11.6">
+<title>biobench.kabr.download API documentation</title>
+<meta name="description" content="Download the Kenyan Animal Behavior Recognition (KABR) dataset …">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script type="text/x-mathjax-config">MathJax.Hub.Config({ tex2jax: { inlineMath: [ ['$','$'], ["\\(","\\)"] ], processEscapes: true } });</script>
+<script async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS_CHTML" integrity="sha256-kZafAc6mZvK3W3v1pHOcUix30OHQN6pU/NO2oFkqZVw=" crossorigin></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => {
+hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+hljs.highlightAll();
+/* Collapse source docstrings */
+setTimeout(() => {
+[...document.querySelectorAll('.hljs.language-python > .hljs-string')]
+.filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
+.forEach(el => {
+let d = document.createElement('details');
+d.classList.add('hljs-string');
+d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
+el.replaceWith(d);
+});
+}, 100);
+})</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>biobench.kabr.download</code></h1>
+</header>
+<section id="section-intro">
+<p>Download the Kenyan Animal Behavior Recognition (KABR) dataset.</p>
+<h2 id="examples">Examples</h2>
+<h1 id="bare-bones-all-animals-default-path">bare-bones (all animals, default path):</h1>
+<p>python -m biobench.kabr.download</p>
+<h1 id="custom-output-directory-keep-zip-archives">custom output directory, keep zip archives:</h1>
+<p>python -m biobench.kabr.download &ndash;dir /scratch/KABR &ndash;keep-archives</p>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-functions">Functions</h2>
+<dl>
+<dt id="biobench.kabr.download.all_files_for_animals"><code class="name flex">
+<span>def <span class="ident">all_files_for_animals</span></span>(<span>animals: Iterable[str]) ‑> list[str]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@beartype.beartype
+def all_files_for_animals(animals: collections.abc.Iterable[str]) -&gt; list[str]:
+    files: list[str] = STATIC_FILES.copy()
+    for animal in animals:
+        files.append(f&#34;{DATASET_PREFIX}{animal}_md5.txt&#34;)
+        start, end = ANIMAL_PART_RANGE[animal]
+        files.extend(generate_part_files(animal, start, end))
+    return files</code></pre>
+</details>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.kabr.download.generate_part_files"><code class="name flex">
+<span>def <span class="ident">generate_part_files</span></span>(<span>animal: str, start: str, end: str) ‑> list[str]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@beartype.beartype
+def generate_part_files(animal: str, start: str, end: str) -&gt; list[str]:
+    &#34;&#34;&#34;Generate `dataset/image/{animal}_part_??` blocks inclusive of start/end.&#34;&#34;&#34;
+    start_a, start_b = map(ord, start)
+    end_a, end_b = map(ord, end)
+    return [
+        f&#34;{DATASET_PREFIX}{animal}_part_{chr(a)}{chr(b)}&#34;
+        for a in range(start_a, end_a + 1)
+        for b in range(start_b, end_b + 1)
+    ]</code></pre>
+</details>
+<div class="desc"><p>Generate <code>dataset/image/{animal}_part_??</code> blocks inclusive of start/end.</p></div>
+</dd>
+<dt id="biobench.kabr.download.main"><code class="name flex">
+<span>def <span class="ident">main</span></span>(<span>args: <a title="biobench.kabr.download.Args" href="#biobench.kabr.download.Args">Args</a>) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@beartype.beartype
+def main(args: Args) -&gt; None:
+    files = all_files_for_animals(args.animals)
+    chunk = args.chunk_size_kb * 1024
+
+    print(&#34;Downloading KABR ...&#34;)
+    for rel in tqdm.tqdm(files, unit=&#34;file&#34;):
+        dst = args.dir / rel
+        if args.skip_existing and dst.exists():
+            continue
+        url = f&#34;{BASE_URL}/{rel}&#34;
+        stream_download(url, dst, chunk)
+
+    print(&#34;Concatenating split archives ...&#34;)
+    for animal in args.animals:
+        out_zip = args.dir / f&#34;{DATASET_PREFIX}{animal}.zip&#34;
+        parts = sorted(
+            glob.glob(str(args.dir / f&#34;{DATASET_PREFIX}{animal}_part_*&#34;)),
+            key=lambda p: pathlib.Path(p).name,
+        )
+        if out_zip.exists() or not parts:
+            continue
+        total_bytes = sum(os.path.getsize(p) for p in parts)
+        with (
+            open(out_zip, &#34;wb&#34;) as dst,
+            tqdm.tqdm(
+                total=total_bytes,
+                unit=&#34;B&#34;,
+                unit_scale=True,
+                unit_divisor=1024,
+                desc=f&#34;Concat {animal}&#34;,
+                leave=False,
+            ) as bar,
+        ):
+            for part in parts:
+                with open(part, &#34;rb&#34;) as src:
+                    for chunk in iter(lambda: src.read(8 * 1024 * 1024), b&#34;&#34;):
+                        dst.write(chunk)
+                        bar.update(len(chunk))
+                pathlib.Path(part).unlink()
+
+    print(&#34;Validating &amp; extracting ...&#34;)
+    for animal in tqdm.tqdm(args.animals, unit=&#34;animal&#34;):
+        md5_txt = args.dir / f&#34;{DATASET_PREFIX}{animal}_md5.txt&#34;
+        zip_path = args.dir / f&#34;{DATASET_PREFIX}{animal}.zip&#34;
+        if not md5_txt.exists() or not zip_path.exists():
+            print(f&#34;Skipping {animal} (missing files).&#34;)
+            continue
+
+        expected = md5_txt.read_text().strip().split()[0]
+        got = md5_file(zip_path)
+        if got != expected:
+            raise RuntimeError(
+                f&#34;MD5 mismatch for {zip_path.name}: {got} (expected {expected})&#34;
+            )
+
+        with zipfile.ZipFile(zip_path) as zf:
+            zf.extractall(zip_path.parent)
+
+        if not args.keep_archives:
+            zip_path.unlink(missing_ok=True)
+            md5_txt.unlink(missing_ok=True)
+
+    print(f&#34;Done. Data at: {args.dir}&#34;)</code></pre>
+</details>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.kabr.download.md5_file"><code class="name flex">
+<span>def <span class="ident">md5_file</span></span>(<span>path: pathlib.Path, chunk_bytes: int = 8388608) ‑> str</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@beartype.beartype
+def md5_file(path: pathlib.Path, chunk_bytes: int = 8 * 1024 * 1024) -&gt; str:
+    h = hashlib.md5()
+    with open(path, &#34;rb&#34;) as fd:
+        for block in iter(lambda: fd.read(chunk_bytes), b&#34;&#34;):
+            h.update(block)
+    return h.hexdigest()</code></pre>
+</details>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.kabr.download.stream_download"><code class="name flex">
+<span>def <span class="ident">stream_download</span></span>(<span>url: str, dst: pathlib.Path, chunk_bytes: int) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@beartype.beartype
+def stream_download(url: str, dst: pathlib.Path, chunk_bytes: int) -&gt; None:
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    with requests.get(url, stream=True, timeout=30) as r:
+        r.raise_for_status()
+        total = int(r.headers.get(&#34;content-length&#34;, 0))
+        with (
+            open(dst, &#34;wb&#34;) as fd,
+            tqdm.tqdm(
+                total=total,
+                unit=&#34;B&#34;,
+                unit_scale=True,
+                unit_divisor=1024,
+                desc=dst.name,
+                leave=False,
+            ) as pbar,
+        ):
+            for chunk in r.iter_content(chunk_size=chunk_bytes):
+                fd.write(chunk)
+                pbar.update(len(chunk))</code></pre>
+</details>
+<div class="desc"></div>
+</dd>
+</dl>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="biobench.kabr.download.Args"><code class="flex name class">
+<span>class <span class="ident">Args</span></span>
+<span>(</span><span>dir: pathlib.Path = PosixPath('KABR_files'),<br>animals: tuple[str, ...] = ('giraffes', 'zebras_grevys', 'zebras_plains'),<br>chunk_size_kb: int = 1024,<br>keep_archives: bool = False,<br>skip_existing: bool = True)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@beartype.beartype
+@dataclasses.dataclass(frozen=True)
+class Args:
+    dir: pathlib.Path = pathlib.Path(&#34;KABR_files&#34;)
+    &#34;&#34;&#34;Where to place downloaded data.&#34;&#34;&#34;
+    animals: tuple[str, ...] = tuple(ANIMAL_PART_RANGE.keys())
+    &#34;&#34;&#34;Subset of animals to download.&#34;&#34;&#34;
+    chunk_size_kb: int = 1024
+    &#34;&#34;&#34;Stream chunk size in KB.&#34;&#34;&#34;
+    keep_archives: bool = False
+    &#34;&#34;&#34;Keep concatenated *.zip files &amp; md5 after extraction.&#34;&#34;&#34;
+    skip_existing: bool = True
+    &#34;&#34;&#34;Skip download if file already present on disk.&#34;&#34;&#34;</code></pre>
+</details>
+<div class="desc"><p>Args(dir: pathlib.Path = PosixPath('KABR_files'), animals: tuple[str, &hellip;] = ('giraffes', 'zebras_grevys', 'zebras_plains'), chunk_size_kb: int = 1024, keep_archives: bool = False, skip_existing: bool = True)</p></div>
+<h3>Instance variables</h3>
+<dl>
+<dt id="biobench.kabr.download.Args.animals"><code class="name">var <span class="ident">animals</span> : tuple[str, ...]</code></dt>
+<dd>
+<div class="desc"><p>Subset of animals to download.</p></div>
+</dd>
+<dt id="biobench.kabr.download.Args.chunk_size_kb"><code class="name">var <span class="ident">chunk_size_kb</span> : int</code></dt>
+<dd>
+<div class="desc"><p>Stream chunk size in KB.</p></div>
+</dd>
+<dt id="biobench.kabr.download.Args.dir"><code class="name">var <span class="ident">dir</span> : pathlib.Path</code></dt>
+<dd>
+<div class="desc"><p>Where to place downloaded data.</p></div>
+</dd>
+<dt id="biobench.kabr.download.Args.keep_archives"><code class="name">var <span class="ident">keep_archives</span> : bool</code></dt>
+<dd>
+<div class="desc"><p>Keep concatenated *.zip files &amp; md5 after extraction.</p></div>
+</dd>
+<dt id="biobench.kabr.download.Args.skip_existing"><code class="name">var <span class="ident">skip_existing</span> : bool</code></dt>
+<dd>
+<div class="desc"><p>Skip download if file already present on disk.</p></div>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<div class="toc">
+<ul>
+<li><a href="#examples">Examples</a></li>
+<li><a href="#bare-bones-all-animals-default-path">bare-bones (all animals, default path):</a></li>
+<li><a href="#custom-output-directory-keep-zip-archives">custom output directory, keep zip archives:</a></li>
+</ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="biobench.kabr" href="index.html">biobench.kabr</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-functions">Functions</a></h3>
+<ul class="">
+<li><code><a title="biobench.kabr.download.all_files_for_animals" href="#biobench.kabr.download.all_files_for_animals">all_files_for_animals</a></code></li>
+<li><code><a title="biobench.kabr.download.generate_part_files" href="#biobench.kabr.download.generate_part_files">generate_part_files</a></code></li>
+<li><code><a title="biobench.kabr.download.main" href="#biobench.kabr.download.main">main</a></code></li>
+<li><code><a title="biobench.kabr.download.md5_file" href="#biobench.kabr.download.md5_file">md5_file</a></code></li>
+<li><code><a title="biobench.kabr.download.stream_download" href="#biobench.kabr.download.stream_download">stream_download</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="biobench.kabr.download.Args" href="#biobench.kabr.download.Args">Args</a></code></h4>
+<ul class="">
+<li><code><a title="biobench.kabr.download.Args.animals" href="#biobench.kabr.download.Args.animals">animals</a></code></li>
+<li><code><a title="biobench.kabr.download.Args.chunk_size_kb" href="#biobench.kabr.download.Args.chunk_size_kb">chunk_size_kb</a></code></li>
+<li><code><a title="biobench.kabr.download.Args.dir" href="#biobench.kabr.download.Args.dir">dir</a></code></li>
+<li><code><a title="biobench.kabr.download.Args.keep_archives" href="#biobench.kabr.download.Args.keep_archives">keep_archives</a></code></li>
+<li><code><a title="biobench.kabr.download.Args.skip_existing" href="#biobench.kabr.download.Args.skip_existing">skip_existing</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
+</footer>
+</body>
+</html>

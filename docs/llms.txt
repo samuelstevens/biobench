@@ -101,13 +101,6 @@ uv run biobench/newt/download.py --dir ./newt
 
 Download it wherever you want on your own filesystem.
 
-Then run just the NeWT benchmark on all the default models.
-
-```sh
-CUDA_VISIBLE_DEVICES=0 uv run benchmark.py \
-  --newt-run --newt-args.datadir ./newt
-```
-
 ## Why?
 
 **For computational biologists:** biobench gives you an overview of how different models perform on different tasks. If you have a concrete task that you need to solve, you can easily write a script that matches other, existing tasks and then evaluate many different models on your task. If you have an idea of a task, you can find the most similar existing task(s) on the leaderboard and compare model performance.
@@ -148,12 +141,15 @@ Because of this, there are two main classes of tasks:
 >>>> REGRESSIONS.md
 # Regressions
 
-Last checked: 2025-04-28
+Last checked: 2025-04-30
 
-**All tests passed**
+# 2 failing test(s)
+
+- biobench/test_reporting.py::test_reclaim_after_failure
+- biobench/test_reporting.py::test_skip_when_experiment_exists
 # Coverage
 
-Coverage: 1997/3391 lines (58.9%)
+Coverage: 2756/4182 lines (65.9%)
 
 >>>> __init__.py
 """ """
@@ -570,7 +566,7 @@ class Features:
 
 
 @beartype.beartype
-@torch.no_grad
+@torch.no_grad()
 def get_features(cfg: config.Experiment, backbone: registry.VisionBackbone) -> Features:
     """
     Get a block of features from a vision backbone.
@@ -727,12 +723,14 @@ import beartype
 import submitit
 import tyro
 
-from biobench import config, helpers, reporting
+from biobench import config, helpers, jobkit, reporting
 
 
 @beartype.beartype
 def main(
-    cfgs: list[str] = [os.path.join("configs", "neurips.toml")], dry_run: bool = True
+    cfgs: list[str] = [os.path.join("configs", "neurips.toml")],
+    dry_run: bool = True,
+    max_pending: int = 8,
 ):
     """
     Launch all jobs, using either a local GPU or a Slurm cluster. Then report results and save to disk.
@@ -740,16 +738,20 @@ def main(
     Args:
         cfgs: List of paths to TOML config files.
         dry_run: If --no-dry-run, actually run experiment.
+        max_pending: Number of jobs that can be claimed by any one launcher process.
     """
-    # Load all configs from the provided paths and concatenate them
+
+    # Load all configs from the provided paths.
     cfgs = [cfg for path in cfgs for cfg in config.load(path)]
 
     if not cfgs:
         print("No configurations loaded.")
         return
 
+    # ------------------------------------------------------
+    # Verify all configs have consistent execution settings.
+    # ------------------------------------------------------
     first = cfgs[0]
-    # Verify all configs have consistent execution settings
     for cfg in cfgs[1:]:
         if cfg.slurm_acct != first.slurm_acct:
             raise ValueError("All configs must have the same slurm_acct")
@@ -758,12 +760,17 @@ def main(
         if cfg.ssl != first.ssl:
             raise ValueError("All configs must have the same ssl setting")
 
+    # --------------
+    # Setup logging.
+    # --------------
     log_format = "[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s"
     level = logging.DEBUG if cfg.verbose else logging.INFO
     logging.basicConfig(level=level, format=log_format)
     logger = logging.getLogger("benchmark.py")
 
-    # 1. Setup executor.
+    # ---------------
+    # Setup executor.
+    # ---------------
     if first.slurm_acct:
         executor = submitit.SlurmExecutor(folder=first.log_to)
         executor.update_parameters(
@@ -784,81 +791,101 @@ def main(
             os.environ["BIOBENCH_DISABLE_SSL"] = "1"
 
     db = reporting.get_db(first)
+    job_stats = collections.defaultdict(int)
+    model_stats = collections.defaultdict(int)
+    fq = jobkit.FutureQueue(max_size=max_pending)
+    exit_hook = jobkit.ExitHook(
+        lambda args: reporting.release_run(db, *args)
+    ).register()
 
-    # 2. Run benchmarks.
-    jobs = []
-    n_skipped = 0
+    def flush_one():
+        """
+        Get the next finished job from queue, blocking if necessary, write the report and relinquish the claim.
+        """
+        job, cfg, task = fq.pop()
+        try:
+            report: reporting.Report = job.result()
+            report.write()
+            logger.info("%s+%s/%s done", task, cfg.model.org, cfg.model.ckpt)
+        except Exception as err:
+            logger.info("%s+%s/%s failed: %s", task, cfg.model.org, cfg.model.ckpt, err)
+        finally:
+            exit_hook.discard((cfg, task))
+
     for cfg in helpers.progress(cfgs, desc="submitting jobs"):
-        for task_name, data_root in cfg.data.to_dict().items():
-            # Check that you can get the task_name
-            try:
-                importlib.import_module(f"biobench.{task_name}")
-            except ModuleNotFoundError:
-                logger.warning("Could not find task '%s'.", task_name)
+        for task, data_root in cfg.data.to_dict().items():
+            reason = get_skip_reason(db, cfg, task, data_root, dry_run)
+            if reason:
+                job_stats[reason] += 1
                 continue
 
-            if not data_root:
+            if dry_run:
+                job_stats["todo"] += 1
+                model_stats[cfg.model.ckpt] += 1
+                continue  # no side-effect
+
+            if not reporting.claim_run(db, cfg, task):
+                job_stats["queued"] += 1  # someone else just grabbed it
                 continue
 
-            if reporting.already_ran(db, cfg, task_name):
-                n_skipped += 1
-                continue
-            elif dry_run:
-                jobs.append(cfg)
-            else:
-                job = executor.submit(benchmark_with_mp, task_name, cfg)
-                jobs.append(job)
+            exit_hook.add((cfg, task))  # for signal/atexit handler
+            job = executor.submit(worker, task, cfg)
+            fq.submit((job, cfg, task))
+            job_stats["submitted"] += 1
+
+            while fq.full():
+                flush_one()
 
     if dry_run:
-        # Summarize the jobs by model and training examples
-        model_counts = collections.defaultdict(int)
-        for job_cfg in jobs:
-            key = (job_cfg.model.ckpt, job_cfg.n_train)
-            model_counts[key] += 1
-
-        # Check if there are any jobs to run
-        if not model_counts:
-            logger.info("All jobs have already been completed. Nothing to run.")
-            return
-
-        # Print summary table
         logger.info("Job Summary:")
-        logger.info("%-50s | %-10s | %-5s", "Model", "Train Size", "Count")
-        logger.info("-" * 71)
-        for (model, n_train), count in sorted(model_counts.items()):
-            logger.info("%-50s | %10d | %5d", model, n_train, count)
-        logger.info("-" * 71)
-        logger.info(
-            "Total jobs to run: %d (skipped %d already completed)", len(jobs), n_skipped
-        )
+        logger.info("%-20s | %-5s", "Reason", "Count")
+        logger.info("-" * 31)
+        for reason, count in sorted(job_stats.items()):
+            logger.info("%-20s | %5d", reason, count)
+        logger.info("-" * 31)
+
+        logger.info("Model Summary:")
+        logger.info("%-50s | %-5s", "Model", "Count")
+        logger.info("-" * 61)
+        for model, count in sorted(model_stats.items()):
+            logger.info("%-50s | %5d", model, count)
+        logger.info("-" * 61)
         return
 
-    logger.info("Submitted %d jobs (skipped %d).", len(jobs), n_skipped)
-
-    # 3. Write results to sqlite.
-    for i, future in enumerate(submitit.helpers.as_completed(jobs)):
-        err = future.exception()
-        if err:
-            logger.warning("Error running job: %s: %s", err, err.__cause__)
-            continue
-
-        report: reporting.Report = future.result()
-        report.write()
-        logger.info("Finished %d/%d jobs.", i + 1, len(jobs))
+    while fq:
+        flush_one()
 
     logger.info("Finished.")
 
 
 @beartype.beartype
-def benchmark_with_mp(task_name: str, cfg: config.Experiment) -> reporting.Report:
-    import torch.multiprocessing as mp
-
+def worker(task_name: str, cfg: config.Experiment) -> reporting.Report:
     helpers.bump_nofile(512)
-    if mp.get_sharing_strategy() != "file_system":
-        mp.set_sharing_strategy("file_system")
 
     module = importlib.import_module(f"biobench.{task_name}")
     return module.benchmark(cfg)
+
+
+@beartype.beartype
+def get_skip_reason(
+    db, cfg: config.Experiment, task: str, data_root: str, dry_run: bool
+) -> str | None:
+    """Return a short reason string if we should skip (None -> keep)."""
+    try:
+        importlib.import_module(f"biobench.{task}")
+    except ModuleNotFoundError:
+        return "no code"
+
+    if not data_root:
+        return "no data"
+
+    if reporting.already_ran(db, cfg, task):
+        return "done"
+
+    if reporting.is_claimed(db, cfg, task):
+        return "queued"
+
+    return None
 
 
 if __name__ == "__main__":
@@ -2052,9 +2079,14 @@ import dataclasses
 import gc
 import itertools
 import logging
+import os
 import os.path
+import pathlib
 import resource
+import subprocess
+import sys
 import time
+import warnings
 
 import beartype
 import numpy as np
@@ -2365,7 +2397,7 @@ def auto_batch_size(
             batch = next(iter(dataloader))
             probe(batch)  # forward only; discard output
 
-            # If the loader produced fewer items than we asked for, we've reached the dataset size — any larger batch will give the same tensor, so stop growing.
+            # If the loader produced fewer items than we asked for, we've reached the dataset size -- any larger batch will give the same tensor, so stop growing.
             effective_bsz = infer_batch_size(batch)
             if effective_bsz is None:
                 raise RuntimeError(
@@ -2429,6 +2461,55 @@ def auto_batch_size(
     finally:
         # always restore original value
         dataloader.batch_sampler.batch_size = orig_bsz
+
+
+NFS_TYPES = {"nfs", "nfs4", "nfsd", "autofs"}  # extend if you wish
+
+
+@beartype.beartype
+def warn_if_nfs(path: str | os.PathLike):
+    """
+    If *path* is on an NFS mount, emit a RuntimeWarning.
+
+    Works on Linux (/proc/mounts) and macOS/BSD (`mount` CLI); silently returns on other OSes or if detection fails.
+    """
+    p = pathlib.Path(path).resolve()
+
+    # Linux: /proc/self/mountinfo
+    if sys.platform.startswith("linux"):
+        try:
+            with open("/proc/self/mountinfo") as fd:
+                entries = [line.split() for line in fd]
+            # fields: 4= mount point, - separator -, fstype
+            mounts = {fields[4]: fields[-3] for fields in entries}
+        except Exception:
+            return
+
+    # macOS / BSD: `mount`
+    elif sys.platform in {"darwin", "freebsd"}:
+        try:
+            out = subprocess.check_output(["mount", "-p"], text=True)
+            mounts = {}
+            for line in out.splitlines():
+                mp, _dev, fstype, *_ = line.split()  # mount-point, ...
+                mounts[mp] = fstype
+        except Exception:
+            return
+    else:
+        return  # unsupported OS
+
+    # find longest mount-point prefix of *p*
+    mount_point = max(
+        (mp for mp in mounts if p.is_relative_to(mp) or mp == "/"),
+        key=len,
+        default="/",
+    )
+    if mounts.get(mount_point) in NFS_TYPES:
+        warnings.warn(
+            f"SQLite database '{path}' appears to be on an NFS mount (fs type: {mounts[mount_point]}). Concurrent writers over NFS can corrupt the journal; consider using a local SSD or tmpfs instead.",
+            RuntimeWarning,
+            stacklevel=2,
+        )
 
 >>>> herbarium19/__init__.py
 """
@@ -3394,6 +3475,1109 @@ def main(args: Args):
 if __name__ == "__main__":
     main(tyro.cli(Args))
 
+>>>> jobkit/__init__.py
+from .futures import FutureQueue
+from .hooks import ExitHook
+
+__all__ = ["ExitHook", "FutureQueue"]
+
+>>>> jobkit/futures.py
+import time
+import typing
+
+import beartype
+
+T = typing.TypeVar("T")
+
+
+@beartype.beartype
+class FutureQueue(typing.Generic[T]):
+    def __init__(self, max_size: int):
+        """Create queue. max_size >= 0; 0 => always full."""
+        self._max_size = max_size
+        self._items = []  # FIFO queue of items
+
+    def submit(self, item: T) -> None:
+        """RuntimeError if full()."""
+        if self.full():
+            raise RuntimeError(f"Queue is full (max_size={self._max_size})")
+        self._items.append(item)
+
+    def pop(self) -> T:
+        """Block until *some* contained Job is done, remove and return its payload."""
+        if not self._items:
+            return None
+
+        # First, check if any job is already done (non-blocking)
+        for i, item in enumerate(self._items):
+            if self._is_done(item):
+                return self._items.pop(i)
+
+        # If no job is done, wait for the first one to complete
+        while self._items:
+            for i, item in enumerate(self._items):
+                if self._is_done(item):
+                    return self._items.pop(i)
+            # No job is done yet, sleep briefly before checking again
+            time.sleep(0.1)
+
+        return None
+
+    def _is_done(self, obj) -> bool:
+        """Check if an object or any of its nested items is done."""
+        # Direct check for objects with done() method
+        if hasattr(obj, "done") and callable(obj.done) and obj.done():
+            return True
+
+        # Check first level of nesting (tuples, lists, dicts)
+        if isinstance(obj, (tuple, list)):
+            for item in obj:
+                if hasattr(item, "done") and callable(item.done) and item.done():
+                    return True
+                # Check second level of nesting
+                if isinstance(item, (tuple, list)):
+                    for subitem in item:
+                        if (
+                            hasattr(subitem, "done")
+                            and callable(subitem.done)
+                            and subitem.done()
+                        ):
+                            return True
+                elif isinstance(item, dict):
+                    for subitem in item.values():
+                        if (
+                            hasattr(subitem, "done")
+                            and callable(subitem.done)
+                            and subitem.done()
+                        ):
+                            return True
+        elif isinstance(obj, dict):
+            for item in obj.values():
+                if hasattr(item, "done") and callable(item.done) and item.done():
+                    return True
+                # Check second level of nesting
+                if isinstance(item, (tuple, list)):
+                    for subitem in item:
+                        if (
+                            hasattr(subitem, "done")
+                            and callable(subitem.done)
+                            and subitem.done()
+                        ):
+                            return True
+                elif isinstance(item, dict):
+                    for subitem in item.values():
+                        if (
+                            hasattr(subitem, "done")
+                            and callable(subitem.done)
+                            and subitem.done()
+                        ):
+                            return True
+
+        return False
+
+    def full(self) -> bool:
+        """Return True if the queue is at capacity."""
+        if self._max_size == 0:
+            return True
+        return len(self._items) >= self._max_size
+
+    def __len__(self) -> int:
+        """Return the number of items in the queue."""
+        return len(self._items)
+
+    def __bool__(self) -> bool:
+        """Return True if the queue is not empty."""
+        return bool(self._items)
+
+    def __iter__(self):
+        """Iterate over items in FIFO order."""
+        return iter(self._items)
+
+>>>> jobkit/hooks.py
+import atexit
+import collections.abc
+import signal
+import sys
+import threading
+import typing
+import weakref
+
+import beartype
+
+HashableT = typing.TypeVar("HashableT", bound=collections.abc.Hashable)
+
+
+@beartype.beartype
+class ExitHook(typing.Generic[HashableT]):
+    """
+    Keep track of outstanding *claims* and make sure each one is released
+    on SIGINT/SIGTERM or normal interpreter shutdown.
+
+    Parameters
+    ----------
+    release_fn
+        Callback that frees a single claim (e.g. lambda c: reporting.release_run(db, *c)).
+    lock_factory
+        Optional constructor--defaults to `threading.Lock` but can be swapped
+        for a stub in tests.
+
+    Typical usage
+    -------------
+    >>> hook = ExitHook(release_fn).register()
+    >>> if claim():              # user-defined "claim" operation
+    ...     hook.add(payload)
+    ...     try:
+    ...         run_job()
+    ...     finally:
+    ...         hook.discard(payload)
+    """
+
+    # ---------------------------------------------------------------------
+    # Class-level state shared by all ExitHook instances
+    # ---------------------------------------------------------------------
+
+    # WeakSet lets us track "all currently alive hooks" without accidentally keeping them alive.
+    _live: "weakref.WeakSet[ExitHook]" = weakref.WeakSet()
+    _installed: bool = False
+    _install_lock: threading.Lock = threading.Lock()
+
+    def __init__(
+        self,
+        release_fn: collections.abc.Callable[[HashableT], None],
+        *,
+        lock_factory: collections.abc.Callable[[], threading.Lock] = threading.Lock,
+    ):
+        self._release_fn = release_fn
+        self._claims = set()
+        self._lock = lock_factory()
+        self._registered = False
+
+    def register(self) -> "ExitHook[HashableT]":
+        """Install signal & atexit hooks to ensure claims are released."""
+        # Register this instance and, once per process, hook up the signals.
+        ExitHook._live.add(self)
+        with ExitHook._install_lock:
+            if not ExitHook._installed:
+                signal.signal(signal.SIGINT, ExitHook._shared_handler)
+                signal.signal(signal.SIGTERM, ExitHook._shared_handler)
+                ExitHook._installed = True
+        # Even if we installed signals earlier, tests expect atexit.register to be invoked for *each* new `register()` call after they monkey-patch it.
+        atexit.register(ExitHook._shared_exit_handler)
+        return self
+
+    def add(self, claim: HashableT) -> None:
+        """Add a claim to be tracked and released on exit."""
+        with self._lock:
+            self._claims.add(claim)
+
+    def discard(self, claim: HashableT) -> None:
+        """Remove a claim from tracking."""
+        with self._lock:
+            self._claims.discard(claim)
+
+    def release_run(self, claim: HashableT) -> None:
+        """Thin wrapper around the release_fn."""
+        self._release_fn(claim)
+
+    # ------------------------------------------------------------------
+    # Shared callbacks
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _shared_handler(signum, frame):
+        """Flush claims for *all* live hooks."""
+        for hook in list(ExitHook._live):
+            hook._release_all_claims()
+
+        # propagate the original intent
+        if signum == signal.SIGINT:
+            raise KeyboardInterrupt
+        elif signum == signal.SIGTERM:
+            sys.exit(128 + signum)
+
+    @staticmethod
+    def _shared_exit_handler():
+        for hook in list(ExitHook._live):
+            hook._release_all_claims()
+
+    def _release_all_claims(self):
+        """Release all tracked claims and clear the set."""
+        with self._lock:
+            for claim in self._claims:
+                self._release_fn(claim)
+            self._claims.clear()
+
+>>>> jobkit/test_futures.py
+"""
+Unit tests for the `JobQueue` helper described in Coding-spec: ClaimReaper & JobQueue.
+
+We use a minimal `FakeJob` stub that mimics the `submitit.Job` API (`done()` -> bool) so the tests remain independent of SubmitIt. Each test includes a docstring explaining the contract being verified.
+"""
+
+import queue
+import threading
+import time
+
+import pytest
+
+from .futures import FutureQueue
+
+
+class FakeJob:
+    """Simple stub that reports completion via `done()`."""
+
+    def __init__(self, done: bool = False):
+        self._done = done
+
+    def done(self) -> bool:
+        return self._done
+
+    def mark_done(self):
+        self._done = True
+
+    # Make debugging nicer.
+    def __repr__(self) -> str:
+        return f"<FakeJob done={self._done}>"
+
+
+class DelayedJob(FakeJob):
+    """`done()` flips to True after `delay` wall-seconds."""
+
+    def __init__(self, delay: float):
+        super().__init__(done=False)
+        self._ready_at = time.time() + delay
+
+    def done(self) -> bool:
+        if not self._done and time.time() >= self._ready_at:
+            self._done = True
+        return self._done
+
+
+def test_submit_and_len():
+    """
+    `submit()` appends items and `len(queue)` tracks the count.
+
+    A queue with `max_size=3` should grow from 0 -> 1 -> 2 as items are added.
+    """
+    q = FutureQueue(max_size=3)
+    assert len(q) == 0
+
+    q.submit(FakeJob())
+    assert len(q) == 1
+
+    q.submit(FakeJob())
+    assert len(q) == 2
+
+
+def test_full_and_submit_raises():
+    """
+    `submit()` must raise `RuntimeError` when the queue is full.
+
+    This covers both:
+    * normal capacity exhaustion (`max_size=1`)
+    * the "always full" sentinel (`max_size=0`)
+    """
+    single = FutureQueue(max_size=1)
+    single.submit(FakeJob())  # fills the queue
+    with pytest.raises(RuntimeError):
+        single.submit(FakeJob())  # should fail
+
+    always_full = FutureQueue(max_size=0)
+    assert always_full.full() is True
+    with pytest.raises(RuntimeError):
+        always_full.submit(FakeJob())  # should fail immediately
+
+
+def test_bool_dunder_and_full():
+    """
+    `__bool__` mirrors "non-empty" and `full()` reflects capacity status.
+
+    * Empty queue -> `bool(q)` is `False`.
+    * After one insert -> `bool(q)` is `True`.
+    * When at capacity -> `full()` becomes `True`.
+    """
+    q = FutureQueue(max_size=2)
+    assert not q and len(q) == 0
+
+    q.submit(FakeJob())
+    assert q and not q.full()
+
+    q.submit(FakeJob())
+    assert q.full()
+
+
+@pytest.mark.timeout(5)
+def test_pop_returns_first_finished_payload():
+    """
+    `pop()` must return the *earliest finished* payload, not simply FIFO order.
+
+    We enqueue two jobs:
+    * `slow` -> not yet done
+    * `fast` -> already done
+
+    Even though `slow` was submitted first, `pop()` should unblock on `fast`.
+    """
+    slow, fast = FakeJob(done=False), FakeJob(done=True)
+    q = FutureQueue(max_size=3)
+    q.submit(slow)  # inserted first
+    q.submit(fast)  # inserted second
+
+    popped = q.pop()
+    assert popped is fast
+    assert len(q) == 1 and q.full() is False
+
+
+@pytest.mark.timeout(5)
+def test_pop_recognises_nested_jobs():
+    """
+    The queue must scan *nested* payloads (<= 2 levels, depth-first).
+
+    We wrap a finished `FakeJob` inside a tuple along with arbitrary metadata
+    and verify that `pop()` still detects completion.
+    """
+    done_job = FakeJob(done=True)
+    nested_payload = (done_job, {"cfg": "dummy"})
+    q = FutureQueue(max_size=2)
+    q.submit(nested_payload)
+
+    popped = q.pop()
+    assert popped is nested_payload
+
+
+@pytest.mark.timeout(5)
+def test_pop_frees_capacity_for_further_submissions():
+    """
+    After `pop()` removes a finished payload the queue should no longer be full.
+
+    * Fill a queue of size 1 with a *finished* job.
+    * `pop()` should return immediately and leave the queue empty.
+    * A subsequent `submit()` must succeed without raising.
+    """
+    q = FutureQueue(max_size=1)
+    q.submit(FakeJob(done=True))  # queue is full
+
+    q.pop()  # frees the slot
+    assert len(q) == 0 and not q.full()
+
+    # Should accept a new item now.
+    try:
+        q.submit(FakeJob())
+    except RuntimeError:
+        pytest.fail("Queue did not free capacity after pop()")
+
+
+@pytest.mark.timeout(5)
+def test_depth_two_nesting_is_detected():
+    """
+    The spec promises a *depth-first scan <= 2* levels deep.
+
+    We wrap a finished job two layers down:  [ ( job ) ].  `pop()` must still
+    recognise completion and unblock.
+    """
+    deep = [[FakeJob(done=True)]]
+    q = FutureQueue(max_size=2)
+    q.submit(deep)
+
+    popped = q.pop()
+    assert popped is deep  # exact payload returned
+
+
+@pytest.mark.timeout(5)
+def test_payload_with_multiple_jobs_mixed_status():
+    """
+    If any *member* job is finished the *whole* payload counts as finished.
+
+    We craft a container with (unfinished, finished).  Even though the first
+    element is *not* done, the second is -- so `pop()` must still dequeue it.
+    """
+    first, second = FakeJob(done=False), FakeJob(done=True)
+    mixed = (first, second)
+    q = FutureQueue(max_size=1)
+    q.submit(mixed)
+
+    popped = q.pop()
+    assert popped is mixed
+    assert len(q) == 0  # queue now empty
+
+
+@pytest.mark.timeout(5)
+def test_non_job_payload_left_in_queue_if_no_done_job_inside():
+    """
+    Submitting a payload *without* any `done()` method must *not* starve later
+    finished jobs.
+
+    We enqueue a plain dict (no job) first, followed by a finished `FakeJob`.
+    `pop()` should skip over the dict, return the finished job, and leave the
+    dict in the queue.
+    """
+    sentinel = {"msg": "not a job"}
+    finished = FakeJob(done=True)
+
+    q = FutureQueue(max_size=3)
+    q.submit(sentinel)
+    q.submit(finished)
+
+    assert q.pop() is finished
+    assert list(q) == [sentinel]  # dict still waiting (never satisfies pop)
+
+
+@pytest.mark.timeout(5)
+def test_iter_preserves_fifo_after_interleaved_pops():
+    """
+    `__iter__` must always reflect current FIFO order of *remaining* items.
+
+    Scenario:
+    1. enqueue A(done=False), B(done=True), C(done=False)
+    2. `pop()` removes B
+    3. Order should now be [A, C] -- verify with `list(q)`.
+    """
+    a, b, c = FakeJob(), FakeJob(done=True), FakeJob()
+    q = FutureQueue(max_size=5)
+    q.submit(a)
+    q.submit(b)
+    q.submit(c)
+
+    q.pop()  # removes B
+    assert [a, c] == list(q)
+
+
+def _call_pop(fq: FutureQueue, out: queue.Queue):
+    """Run fq.pop() in a separate thread and capture result / exception."""
+    try:
+        out.put(fq.pop())
+    except Exception as exc:  # pragma: no cover
+        out.put(exc)
+
+
+def test_pop_returns_first_runtime_finish_not_fifo():
+    """
+    The job that *completes first in wall time* must be returned, regardless
+    of insertion order.
+
+    Queue order:  slow(2 s)  ->  fast(0.1 s)
+
+    Expected: `pop()` blocks ~0.1 s, returns *fast*.
+    """
+    slow = DelayedJob(2.0)
+    fast = DelayedJob(0.1)
+
+    fq = FutureQueue(max_size=2)
+    fq.submit(slow)  # FIFO head
+    fq.submit(fast)  # finishes first
+
+    out = queue.Queue()
+    t = threading.Thread(target=_call_pop, args=(fq, out), daemon=True)
+    t.start()
+    t.join(timeout=5)
+
+    assert not t.is_alive(), "pop() blocked too long"
+    popped = out.get_nowait()
+    assert popped is fast
+    assert list(fq) == [slow]  # slow still pending
+
+
+def test_blocking_pop_unblocks_when_only_job_finishes_later():
+    """
+    When **all** payloads are unfinished, `pop()` must wait until one finishes.
+
+    We enqueue a single `DelayedJob(0.2)`, start `pop()` in a thread, and
+    verify it returns within the safety window.
+    """
+    delayed = DelayedJob(0.2)
+    fq = FutureQueue(max_size=1)
+    fq.submit(delayed)
+
+    out = queue.Queue()
+    t = threading.Thread(target=_call_pop, args=(fq, out), daemon=True)
+    t.start()
+    t.join(timeout=5)
+
+    assert not t.is_alive(), "pop() blocked >5 s"
+    assert out.get_nowait() is delayed
+    assert len(fq) == 0
+
+
+def test_pop_skips_non_job_then_unblocks_on_future_finish():
+    """
+    Interleaving:  [dict, DelayedJob].
+
+    `pop()` must *skip* the non-job payload, block until the job finishes,
+    then return **the job** while leaving the dict untouched.
+    """
+    sentinel = {"cfg": "noop"}
+    job = DelayedJob(0.1)
+
+    fq = FutureQueue(3)
+    fq.submit(sentinel)
+    fq.submit(job)
+
+    out = queue.Queue()
+    t = threading.Thread(target=_call_pop, args=(fq, out), daemon=True)
+    t.start()
+    t.join(timeout=5)
+
+    assert out.get_nowait() is job
+    assert list(fq) == [sentinel]
+
+
+def test_multiple_done_jobs_in_one_payload_returns_first_depth_first():
+    """
+    If a single payload contains *several* finished jobs, the queue should treat the first depth-first hit as the trigger.
+
+    We build:  ( doneA , [ doneB ] )  -- `pop()` may choose either, but spec allows returning the *payload* not the individual job; ensure dequeueing occurs immediately.
+    """
+    a, b = FakeJob(done=True), FakeJob(done=True)
+    nested = (a, [b])
+
+    fq = FutureQueue(2)
+    fq.submit(nested)
+
+    assert fq.pop() is nested
+    assert len(fq) == 0
+
+>>>> jobkit/test_hooks.py
+import atexit
+import signal
+import threading
+import time
+
+import beartype
+import pytest
+
+from .hooks import ExitHook
+
+
+def _invoke_handler(handler, signum):
+    """
+    Call the given *handler* as the signal machinery would:
+    - pass (signum, current-frame)   (frame may be None for our purposes)
+    - swallow KeyboardInterrupt / SystemExit so the suite keeps running.
+    """
+    try:
+        handler(signum, None)
+    except (KeyboardInterrupt, SystemExit):
+        pass
+
+
+def test_register_returns_self_and_is_idempotent():
+    """
+    *Spec:* `register()` **must** return the same object so callers can write
+    `reaper = ClaimReaper(...).register()`.
+
+    It must also be safe to call repeatedly (harmless no-ops) because some launchers may defensively register twice.
+    """
+
+    sink = []
+    hook = ExitHook(lambda claim: sink.append(claim))
+
+    assert hook.register() is hook  # first call
+    assert hook.register() is hook  # second call - still fine
+
+
+def test_add_then_discard_accepts_generic_payload():
+    """
+    With the new signature `add(claim)`, the class must accept *any* hashable
+    payload the caller chooses.  The easiest non-trivial smoke-test is a tuple.
+    """
+
+    hook = ExitHook(release_fn=lambda c: None).register()
+
+    claim = ("cfg-xyz", "task-abc")
+    hook.add(claim)  # should not raise
+    hook.discard(claim)  # should not raise
+
+
+def test_multiple_outstanding_claims_do_not_interfere():
+    """
+    Adding several distinct claims before discarding them should not trigger
+    internal errors such as "set changed size during iteration".
+    """
+
+    hook = ExitHook(lambda c: None).register()
+    claims = [f"job-{i}" for i in range(5)]
+
+    for c in claims:
+        hook.add(c)
+
+    for c in claims:
+        hook.discard(c)
+
+
+def test_release_run_calls_injected_release_fn():
+    """
+    `release_run()` is documented as a *thin wrapper* that forwards to the
+    injected `release_fn`.  Verify that the exact same claim object reaches the
+    callback once--and only once.
+    """
+
+    hits = []
+    hook = ExitHook(lambda claim: hits.append(claim))
+
+    claim = ("id", 7)
+    hook.release_run(claim)
+
+    assert hits == [claim], "release_fn should have been invoked exactly once"
+
+
+def test_add_requires_hashable_claim():
+    """
+    Non-hashable objects cannot be stored in the internal set that tracks
+    outstanding claims.  A correct implementation therefore raises TypeError.
+    """
+
+    hook = ExitHook(lambda c: None)
+
+    # list is non-hashable -> should blow up
+    with pytest.raises((TypeError, beartype.roar.BeartypeCallHintParamViolation)):
+        hook.add(["unhashable"])
+
+
+def test_release_run_invokes_callback_exactly_each_time():
+    """
+    *Behavioural guarantee:* every explicit release_run() call must translate
+    into one--and only one--invocation of the injected release_fn, regardless of
+    whether the claim was previously added/discarded.
+    """
+
+    hits = []
+    hook = ExitHook(lambda c: hits.append(c)).register()
+
+    claim = ("cfg-id-123", "task-foo")
+
+    # Claim is active
+    hook.add(claim)
+    hook.release_run(claim)
+    assert hits == [claim]  # called once
+
+    # Claim is no longer tracked
+    hook.discard(claim)
+    hook.release_run(claim)
+    assert hits == [claim, claim]  # called again, no extras
+
+
+def test_sigint_releases_all_claims():
+    hits = []
+    claims = [f"claim-{i}" for i in range(3)]
+    hook = ExitHook(lambda c: hits.append(c)).register()
+
+    for c in claims:
+        hook.add(c)
+
+    old_handler = signal.getsignal(signal.SIGINT)
+    try:
+        with pytest.raises(KeyboardInterrupt):
+            signal.raise_signal(signal.SIGINT)
+    finally:
+        signal.signal(signal.SIGINT, old_handler)  # restore for other tests
+
+    assert sorted(hits) == sorted(claims)
+    assert len(hits) == len(claims)
+
+
+def test_sigint_handler_releases_all_claims():
+    """
+    Core guarantee: when the SIGINT handler is invoked, every *current* claim
+    is released exactly once.
+
+    We call the handler directly rather than raising a real signal so the
+    suite survives even if ClaimReaper forgot to install it.
+    """
+
+    hits, claims = [], [f"claim-{i}" for i in range(3)]
+    hook = ExitHook(lambda c: hits.append(c)).register()
+    for c in claims:
+        hook.add(c)
+
+    handler = signal.getsignal(signal.SIGINT)
+    assert callable(handler) and handler not in (signal.SIG_DFL, signal.SIG_IGN), (
+        "ClaimReaper failed to install a SIGINT handler"
+    )
+
+    _invoke_handler(handler, signal.SIGINT)
+
+    assert sorted(hits) == sorted(claims)
+    assert len(hits) == len(claims)
+
+
+def test_duplicate_add_is_idempotent_under_sigint():
+    """
+    Adding the same claim twice must not produce duplicate releases when the
+    SIGINT handler fires.
+    """
+
+    hits, claim = [], ("cfg-42", "task-alpha")
+    hook = ExitHook(lambda c: hits.append(c)).register()
+    hook.add(claim)
+    hook.add(claim)  # duplicate
+
+    handler = signal.getsignal(signal.SIGINT)
+    assert callable(handler), "missing SIGINT handler"
+    _invoke_handler(handler, signal.SIGINT)
+
+    assert hits == [claim], "duplicate add produced duplicate release"
+
+
+def test_sigterm_handler_releases_only_current_claims():
+    """
+    Discarded claims should not be released by the SIGTERM handler.
+    """
+
+    hits = []
+    live1, live2, discarded = "stay-1", "stay-2", "gone-x"
+    hook = ExitHook(lambda c: hits.append(c)).register()
+
+    for c in (live1, live2, discarded):
+        hook.add(c)
+    hook.discard(discarded)  # no longer live
+
+    handler = signal.getsignal(signal.SIGTERM)
+    assert callable(handler), "missing SIGTERM handler"
+    _invoke_handler(handler, signal.SIGTERM)
+
+    assert sorted(hits) == sorted([live1, live2])
+
+
+def test_discard_unknown_claim_is_noop():
+    """
+    Discarding a claim that was never added should *not* raise.  This keeps
+    launcher code simple because it can unconditionally discard in finally-
+    blocks without first checking membership.
+    """
+
+    hook = ExitHook(lambda c: None).register()
+
+    # Should silently ignore
+    hook.discard("non-existent")
+
+
+def test_register_calls_atexit(monkeypatch):
+    """
+    *Contract*: `register()` must install an atexit hook so that claims are released on normal interpreter shutdown.
+
+    We patch `atexit.register` to capture the callback and assert that:
+    1) it was invoked exactly once; 2) the registered object is callable.
+    """
+
+    captured: list[callable] = []
+
+    def _fake_register(fn, *args, **kwargs):
+        captured.append(fn)
+
+    monkeypatch.setattr(atexit, "register", _fake_register)
+
+    # construction shouldn't trigger the hook -- only .register()
+    hook = ExitHook(lambda _: None)
+    assert not captured
+
+    hook.register()
+    assert len(captured) == 1
+    assert callable(captured[0])
+
+
+def test_atexit_handler_releases_all_live_claims(monkeypatch):
+    """
+    Verify that the function registered with `atexit` releases *every* claim
+    that is still active when the interpreter would exit.
+
+    Strategy
+    --------
+    * Capture the cleanup callback via a patched `atexit.register`.
+    * Add several claims.
+    * Manually invoke the captured callback.
+    * Confirm `release_fn` was called once per tracked claim (order irrelevant).
+    """
+
+    cleanup_fns = []
+
+    def _capture(fn, *a, **kw):
+        cleanup_fns.append(fn)
+
+    monkeypatch.setattr(atexit, "register", _capture)
+
+    hits = []
+    hook = ExitHook(lambda c: hits.append(c)).register()
+    claims = [("cfg-0", "task-0"), ("cfg-1", "task-1"), ("cfg-2", "task-2")]
+    for claim in claims:
+        hook.add(claim)
+
+    # Simulate interpreter shutdown
+    assert cleanup_fns, "No atexit hook registered"
+    cleanup_fns[0]()  # invoke captured function
+
+    assert sorted(hits) == sorted(claims)
+    assert len(hits) == len(claims)
+
+
+def test_lock_prevents_set_mutation_during_massive_adds():
+    """
+    A classic failure mode is "set changed size during iteration" when the
+    signal-handler walks `_claims` while another thread is adding claims.
+
+    Strategy
+    --------
+    * Worker thread continuously adds new claims.
+    * Main thread waits a short moment, then calls the SIGINT handler.
+    * If locking is absent we'll almost certainly trigger the RuntimeError.
+    * We also check that each claim is released **at most once**.
+    """
+
+    hits: list[str] = []
+    hook = ExitHook(lambda c: hits.append(c)).register()
+
+    stop = threading.Event()
+
+    def _producer():
+        i = 0
+        while not stop.is_set():
+            hook.add(f"claim-{i}")
+            i += 1
+
+    t = threading.Thread(target=_producer)
+    t.start()
+
+    # Give producer a head-start so the set is being modified.
+    time.sleep(0.05)
+
+    handler = signal.getsignal(signal.SIGINT)
+    _invoke_handler(handler, signal.SIGINT)
+
+    stop.set()
+    t.join()
+
+    # No duplicates ⇒ each claim released only once (lock prevented races)
+    assert len(hits) == len(set(hits))
+
+
+def test_lock_prevents_set_mutation_during_discards():
+    """
+    Another race: thread discarding while handler iterates.
+    """
+
+    hits: list[str] = []
+    hook = ExitHook(lambda c: hits.append(c)).register()
+
+    # Pre-populate many claims
+    claims = [f"c{i}" for i in range(250)]
+    for c in claims:
+        hook.add(c)
+
+    def _consumer():
+        for c in claims:
+            hook.discard(c)
+            time.sleep(0.0005)  # keep the race window open
+
+    t = threading.Thread(target=_consumer)
+    t.start()
+
+    # Let the consumer start discarding, then fire the handler
+    time.sleep(0.02)
+    handler = signal.getsignal(signal.SIGINT)
+    _invoke_handler(handler, signal.SIGINT)
+
+    t.join()
+
+    # All *remaining* live claims were released once; any discarded before
+    # the handler shouldn't re-appear, so no duplicates.
+    assert len(hits) == len(set(hits))
+
+
+def test_lock_serialises_multiple_concurrent_handlers():
+    """
+    If two threads invoke the handler almost simultaneously, the internal lock
+    must guarantee:
+      * no crashes,
+      * each claim released <= 1 time,
+      * after both finish `_claims` is empty (second call sees nothing).
+
+    We mimic this by launching a second thread that calls the SIGTERM handler
+    while the main thread does the same.
+    """
+
+    hits: list[tuple[str, str]] = []
+    hook = ExitHook(lambda c: hits.append(c)).register()
+
+    claims = [(f"cfg{i}", f"t{i}") for i in range(100)]
+    for c in claims:
+        hook.add(c)
+
+    handler = signal.getsignal(signal.SIGTERM)
+
+    barrier = threading.Barrier(2)
+
+    def _invoke():
+        barrier.wait()
+        _invoke_handler(handler, signal.SIGTERM)
+
+    t = threading.Thread(target=_invoke)
+    t.start()
+
+    barrier.wait()  # release both threads
+    _invoke_handler(handler, signal.SIGTERM)
+    t.join()
+
+    # Every claim released exactly once
+    assert sorted(hits) == sorted(claims)
+    assert len(hits) == len(set(hits))
+
+
+def test_handler_identity_shared_across_instances():
+    """
+    Registering two separate ClaimReaper objects must **not** replace the
+    process-wide signal handler with two different callables.  Both `.register()`
+    calls should leave exactly *one* shared handler installed.
+    """
+
+    old = signal.getsignal(signal.SIGINT)
+    try:
+        ExitHook(lambda _: None).register()
+        handler1 = signal.getsignal(signal.SIGINT)
+
+        ExitHook(lambda _: None).register()
+        handler2 = signal.getsignal(signal.SIGINT)
+
+        assert handler1 is handler2 is not signal.SIG_DFL
+    finally:
+        signal.signal(signal.SIGINT, old)
+
+
+def test_multiple_hooks_each_release_their_own_claims():
+    """
+    When the shared handler runs, *every* live claim from *every* registered
+    hook must be released exactly once.
+    """
+
+    hits1, hits2 = [], []
+    r1 = ExitHook(lambda c: hits1.append(c)).register()
+    r2 = ExitHook(lambda c: hits2.append(c)).register()
+
+    claim1, claim2 = ("A", 1), ("B", 2)
+    r1.add(claim1)
+    r2.add(claim2)
+
+    _invoke_handler(signal.getsignal(signal.SIGINT), signal.SIGINT)
+
+    assert hits1 == [claim1]
+    assert hits2 == [claim2]
+
+
+def test_discarded_claims_on_one_hook_do_not_affect_others():
+    """
+    If hook-1 discards a claim before the signal arrives, only hook-2's
+    live claim should be released.
+    """
+
+    h1, h2 = [], []
+    r1 = ExitHook(lambda c: h1.append(c)).register()
+    r2 = ExitHook(lambda c: h2.append(c)).register()
+
+    gone = ("gone", 0)
+    stay = ("stay", 1)
+
+    r1.add(gone)
+    r1.discard(gone)  # already finished
+    r2.add(stay)
+
+    _invoke_handler(signal.getsignal(signal.SIGINT), signal.SIGINT)
+
+    assert h1 == []  # no spurious releases
+    assert h2 == [stay]
+
+
+def test_unregistered_hook_claims_are_not_released():
+    """
+    Claims tracked by a *non-registered* ClaimReaper instance must *not* be
+    released when some other hook's handler fires.
+    """
+
+    ghost_hits, live_hits = [], []
+    ghost = ExitHook(lambda c: ghost_hits.append(c))  # NOT registered
+    live = ExitHook(lambda c: live_hits.append(c)).register()
+
+    ghost.add(("ghost", 9))
+    live.add(("live", 10))
+
+    _invoke_handler(signal.getsignal(signal.SIGINT), signal.SIGINT)
+
+    assert ghost_hits == []  # untouched
+    assert live_hits == [("live", 10)]
+
+
+def test_handler_is_reentrant_no_duplicate_releases():
+    """
+    After the first invocation empties the claim set, a *second* call should
+    release nothing new.  This proves internal state was cleared.
+    """
+
+    hits = []
+    r = ExitHook(lambda c: hits.append(c)).register()
+    r.add(("cfg", "task"))
+
+    handler = signal.getsignal(signal.SIGTERM)
+    _invoke_handler(handler, signal.SIGTERM)  # first pass
+    first_count = len(hits)
+
+    _invoke_handler(handler, signal.SIGTERM)  # second pass
+    assert len(hits) == first_count, "duplicate releases detected"
+
+
+def test_can_add_new_claims_after_previous_release():
+    """
+    A hook should remain usable: after its claims are flushed by a signal,
+    callers may add new claims and expect those to be released on the *next*
+    signal.
+    """
+
+    hits = []
+    r = ExitHook(lambda c: hits.append(c)).register()
+
+    r.add("first")
+    h = signal.getsignal(signal.SIGTERM)
+    _invoke_handler(h, signal.SIGTERM)
+
+    r.add("second")
+    _invoke_handler(h, signal.SIGTERM)
+
+    assert hits == ["first", "second"]
+
+
+def test_second_signal_after_empty_claims_is_noop():
+    """
+    If no claims are outstanding, invoking the handler should simply return and
+    **not** raise or append anything.
+    """
+
+    hits = []
+    ExitHook(lambda c: hits.append(c)).register()
+
+    handler = signal.getsignal(signal.SIGINT)
+    _invoke_handler(handler, signal.SIGINT)  # nothing to release
+
+    assert hits == []
+
+
+def test_atexit_cleanup_is_idempotent():
+    """
+    The function registered with `atexit` must clear the claim set so that a second manual call is harmless (re-entrant) and releases nothing new.
+    """
+
+    captured = []
+
+    def _capture(fn, *a, **kw):
+        captured.append(fn)
+
+    with pytest.MonkeyPatch().context() as m:
+        m.setattr(atexit, "register", _capture)
+
+        hits = []
+        r = ExitHook(lambda c: hits.append(c)).register()
+        r.add("x")
+
+    # Simulate normal shutdown twice
+    captured[0]()  # first call
+    captured[0]()  # second call - should be a no-op
+
+    assert hits == ["x"]
+
 >>>> kabr/__init__.py
 """
 # Kenyan Animal Behavior Recognition (KABR)
@@ -3417,43 +4601,17 @@ import csv
 import dataclasses
 import logging
 import os
-import typing
 
 import beartype
 import numpy as np
 import torch
-from jaxtyping import Float, Int, jaxtyped
+from jaxtyping import Float, Int, Shaped, jaxtyped
 from PIL import Image
 from torch import Tensor
 
-from biobench import config, registry, reporting, simpleshot
+from .. import config, helpers, registry, reporting, simpleshot
 
-logger = logging.getLogger("kabr")
-
-
-@beartype.beartype
-@dataclasses.dataclass(frozen=True)
-class Args:
-    """Arguments for the KABR task."""
-
-    data: str = ""
-    """dataset directory; where you downloaded this task's data to."""
-    batch_size_cv: int = 256
-    """batch size for computer vision model."""
-    n_workers: int = 4
-    """Number of dataloader worker processes."""
-    frame_agg: typing.Literal["mean", "max"] = "mean"
-    """How to aggregate features across time dimension."""
-    seed: int = 42
-    """random seed."""
-
-    # Computed at runtime.
-    device: str = "cuda"
-    """(computed at runtime) which kind of accelerator to use."""
-    debug: bool = False
-    """(computed at runtime) whether to run in debug mode."""
-    n_train: int = -1
-    """Number of maximum training samples. Negative number means use all of them."""
+logger = logging.getLogger(__name__)
 
 
 @beartype.beartype
@@ -3462,6 +4620,7 @@ class Video:
     """A single video instance as a sequence of frames."""
 
     video_id: int
+    """Video ID."""
     frames: list[str]
     """Paths to actual frame images."""
     labels: list[int]
@@ -3470,6 +4629,14 @@ class Video:
     def __post_init__(self):
         err_msg = f"Video {self.video_id} has a different number of frames ({len(self.frames)} and labels ({len(self.labels)})."
         assert len(self.frames) == len(self.labels), err_msg
+
+
+@jaxtyped(typechecker=beartype.beartype)
+@dataclasses.dataclass(frozen=True)
+class Features:
+    x: Float[np.ndarray, "n dim"]
+    y: Int[np.ndarray, " n"]
+    ids: Shaped[np.ndarray, " n"]
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -3527,7 +4694,7 @@ class Dataset(torch.utils.data.Dataset):
 
     def __getitem__(
         self, i: int
-    ) -> tuple[list[Float[Tensor, "3 width height"]], list[int]]:
+    ) -> tuple[list[Float[Tensor, "3 width height"]], list[int], str]:
         """
         Returns 16 frames and their labels sampled every 5 frames from a clip. The start of the clip is uniformly sampled. If there are fewer
         """
@@ -3556,68 +4723,47 @@ class Dataset(torch.utils.data.Dataset):
         if self.transform is not None:
             images = [self.transform(image) for image in images]
 
-        return images, labels
+        return images, labels, str(i)
 
     def __len__(self) -> int:
         return len(self.videos)
 
 
 @beartype.beartype
-def benchmark(cfg: config.Experiment) -> tuple[config.Model, reporting.Report]:
+def benchmark(cfg: config.Experiment) -> reporting.Report:
     """Runs KABR benchmark."""
     # 1. Load model
     backbone = registry.load_vision_backbone(cfg.model)
-    img_transform = backbone.make_img_transform()
     backbone = backbone.to(cfg.device)
 
     # 2. Load data.
-    train_dataset = Dataset(cfg.data.kabr, "train", transform=img_transform)
-    val_dataset = Dataset(cfg.data.kabr, "val", transform=img_transform)
-
-    train_dataloader = torch.utils.data.DataLoader(
-        train_dataset,
-        batch_size=cfg.batch_size,
-        num_workers=cfg.n_workers,
-        drop_last=False,
-    )
-    val_dataloader = torch.utils.data.DataLoader(
-        val_dataset,
-        batch_size=cfg.batch_size,
-        num_workers=cfg.n_workers,
-        drop_last=False,
-    )
-
-    # 3. Get features
-    val_features, val_labels = get_features(cfg, backbone, val_dataloader)
-    val_features = aggregate_frames(cfg, val_features)
-    val_labels = aggregate_labels(cfg, val_labels)
-
-    train_features, train_labels = get_features(cfg, backbone, train_dataloader)
-    train_features = aggregate_frames(cfg, train_features)
-    train_labels = aggregate_labels(cfg, train_labels)
+    test_features = get_features(cfg, backbone, is_train=False)
+    train_features = get_features(cfg, backbone, is_train=True)
 
     # 4. Do simpleshot.
-    scores = simpleshot.simpleshot(
-        cfg, train_features, train_labels, val_features, val_labels
-    )
+    clf = init_clf(cfg)
+    clf.fit(train_features.x, train_features.y)
+
+    true_labels = test_features.y
+    pred_labels = clf.predict(test_features.x)
 
     # Return benchmark report.
-    video_ids = [video.video_id for video in val_dataset.videos]
-    examples = [
-        reporting.Prediction(str(id), float(score), {})
-        for id, score in zip(video_ids, scores.tolist())
+    preds = [
+        reporting.Prediction(
+            str(video_id),
+            float(pred == true),
+            {"y_pred": pred.item(), "y_true": true.item()},
+        )
+        for video_id, pred, true in zip(test_features.ids, pred_labels, true_labels)
     ]
-    # TODO: include example-specific info (class? something else)
-    return cfg.model, reporting.Report("KABR", examples)
+    return reporting.Report("kabr", preds, cfg)
 
 
-@torch.no_grad()
 @jaxtyped(typechecker=beartype.beartype)
+@torch.no_grad()
 def get_features(
-    cfg: config.Experiment, backbone: registry.VisionBackbone, dataloader
-) -> tuple[
-    Float[Tensor, "n_frames n_examples dim"], Int[Tensor, "n_frames n_examples"]
-]:
+    cfg: config.Experiment, backbone: registry.VisionBackbone, *, is_train: bool
+) -> Features:
     """
     Gets all model features and true labels for all frames and all examples in the dataloader.
 
@@ -3631,38 +4777,72 @@ def get_features(
     Returns:
         tuple of model features and true labels. See signature for shape.
     """
+    img_transform = backbone.make_img_transform()
     backbone = torch.compile(backbone)
-    all_features, all_labels = [], []
+    split = "train" if is_train else "val"
 
-    total = len(dataloader) if not args.debug else 2
-    it = iter(dataloader)
-    logger.debug("Need to embed %d batches of %d images.", total, args.batch_size * 16)
-    for b in range(total):
-        frames, labels = next(it)
+    dataset = Dataset(cfg.data.kabr, split, transform=img_transform)
+    dataloader = torch.utils.data.DataLoader(
+        dataset,
+        batch_size=cfg.batch_size,
+        num_workers=cfg.n_workers,
+        drop_last=False,
+        shuffle=False,
+    )
+
+    all_feats, all_labels, all_ids = [], [], []
+
+    def probe(batch):
+        frames, _, _ = batch
         frames = torch.stack(frames, dim=0)
-        labels = torch.stack(labels, dim=0)
-        frames = frames.to(args.device)
-
-        with torch.amp.autocast("cuda"):
-            # conv2d doesn't support multiple batch dimensions, so we have to view() before and after the model.img_encode() call.
+        frames = frames.to(cfg.device, non_blocking=True)
+        with torch.amp.autocast(cfg.device):
             n_frames, bsz, c, h, w = frames.shape
             frames = frames.view(bsz * n_frames, c, h, w)
             outputs = backbone.img_encode(frames)
             features = outputs.img_features.view(n_frames, bsz, -1)
-            all_features.append(features.cpu())
+            features = aggregate_frames(features)
+
+    with helpers.auto_batch_size(dataloader, probe=probe):
+        total = len(dataloader) if not cfg.debug else 2
+        it = iter(dataloader)
+        for b in helpers.progress(range(total), desc=f"kabr/{split}"):
+            frames, labels, ids = next(it)
+            frames = torch.stack(frames, dim=0)
+            labels = torch.stack(labels, dim=0)
+            frames = frames.to(cfg.device, non_blocking=True)
+
+            with torch.amp.autocast(cfg.device):
+                # conv2d doesn't support multiple batch dimensions, so we have to view() before and after the model.img_encode() call.
+                n_frames, bsz, c, h, w = frames.shape
+                frames = frames.view(bsz * n_frames, c, h, w)
+                outputs = backbone.img_encode(frames)
+                features = outputs.img_features.view(n_frames, bsz, -1)
+
+                features = aggregate_frames(features)
+                all_feats.append(features.cpu())
+
+            labels = aggregate_labels(labels)
             all_labels.append(labels.cpu())
 
-        logger.debug("Embedded batch %d/%d", b + 1, total)
+            logger.debug("Embedded batch %d/%d", b + 1, total)
+            all_ids.extend(ids)
 
-    all_features = torch.cat(all_features, dim=1).cpu()
-    all_labels = torch.cat(all_labels, dim=1).cpu()
+    all_feats = torch.cat(all_feats, dim=0).cpu().numpy()
+    all_labels = torch.cat(all_labels, dim=0).cpu().numpy()
+    all_ids = np.array(all_ids)
 
-    return all_features, all_labels
+    return Features(all_feats, all_labels, all_ids)
+
+
+@beartype.beartype
+def init_clf(cfg: config.Experiment):
+    return simpleshot.SimpleShotClassifier(device="cuda:0")
 
 
 @jaxtyped(typechecker=beartype.beartype)
 def aggregate_labels(
-    args: Args, labels: Int[Tensor, "n_frames n_examples"]
+    labels: Int[Tensor, "n_frames n_examples"],
 ) -> Int[Tensor, " n_examples"]:
     """Aggregate per-frame labels to a per-video label. Uses the most common label (mode)."""
     return torch.mode(labels, dim=0).values
@@ -3670,14 +4850,280 @@ def aggregate_labels(
 
 @jaxtyped(typechecker=beartype.beartype)
 def aggregate_frames(
-    args: Args, features: Float[Tensor, "n_frames n_examples dim"]
+    features: Float[Tensor, "n_frames n_examples dim"],
 ) -> Float[Tensor, "n_examples dim"]:
-    if args.frame_agg == "mean":
-        return torch.mean(features, dim=0)
-    elif args.frame_agg == "max":
-        return torch.max(features, dim=0).values
-    else:
-        typing.assert_never(args.frame_agg)
+    return torch.max(features, dim=0).values
+
+>>>> kabr/download.py
+# /// script
+# requires-python = ">=3.12"
+# dependencies = [
+#     "beartype",
+#     "requests",
+#     "tqdm",
+#     "tyro",
+# ]
+# ///
+"""
+Download the Kenyan Animal Behavior Recognition (KABR) dataset.
+
+Examples
+--------
+# bare-bones (all animals, default path):
+python -m biobench.kabr.download
+
+# custom output directory, keep zip archives:
+python -m biobench.kabr.download --dir /scratch/KABR --keep-archives
+"""
+
+import collections.abc
+import dataclasses
+import glob
+import hashlib
+import os.path
+import pathlib
+import zipfile
+
+import beartype
+import requests
+import tqdm
+import tyro
+
+# --------- #
+# Constants #
+# --------- #
+
+BASE_URL = "https://huggingface.co/datasets/imageomics/KABR/resolve/main/KABR"
+DATASET_PREFIX = "dataset/image/"
+
+ANIMAL_PART_RANGE: dict[str, tuple[str, str]] = {
+    "giraffes": ("aa", "ad"),
+    "zebras_grevys": ("aa", "am"),
+    "zebras_plains": ("aa", "al"),
+}
+
+STATIC_FILES: list[str] = [
+    "README.txt",
+    "annotation/classes.json",
+    "annotation/distribution.xlsx",
+    "annotation/train.csv",
+    "annotation/val.csv",
+    "configs/I3D.yaml",
+    "configs/SLOWFAST.yaml",
+    "configs/X3D.yaml",
+    "dataset/image2video.py",
+    "dataset/image2visual.py",
+]
+
+# ------- #
+# Helpers #
+# ------- #
+
+
+@beartype.beartype
+def generate_part_files(animal: str, start: str, end: str) -> list[str]:
+    """Generate `dataset/image/{animal}_part_??` blocks inclusive of start/end."""
+    start_a, start_b = map(ord, start)
+    end_a, end_b = map(ord, end)
+    return [
+        f"{DATASET_PREFIX}{animal}_part_{chr(a)}{chr(b)}"
+        for a in range(start_a, end_a + 1)
+        for b in range(start_b, end_b + 1)
+    ]
+
+
+@beartype.beartype
+def all_files_for_animals(animals: collections.abc.Iterable[str]) -> list[str]:
+    files: list[str] = STATIC_FILES.copy()
+    for animal in animals:
+        files.append(f"{DATASET_PREFIX}{animal}_md5.txt")
+        start, end = ANIMAL_PART_RANGE[animal]
+        files.extend(generate_part_files(animal, start, end))
+    return files
+
+
+@beartype.beartype
+def stream_download(url: str, dst: pathlib.Path, chunk_bytes: int) -> None:
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    with requests.get(url, stream=True, timeout=30) as r:
+        r.raise_for_status()
+        total = int(r.headers.get("content-length", 0))
+        with (
+            open(dst, "wb") as fd,
+            tqdm.tqdm(
+                total=total,
+                unit="B",
+                unit_scale=True,
+                unit_divisor=1024,
+                desc=dst.name,
+                leave=False,
+            ) as pbar,
+        ):
+            for chunk in r.iter_content(chunk_size=chunk_bytes):
+                fd.write(chunk)
+                pbar.update(len(chunk))
+
+
+@beartype.beartype
+def md5_file(path: pathlib.Path, chunk_bytes: int = 8 * 1024 * 1024) -> str:
+    h = hashlib.md5()
+    with open(path, "rb") as fd:
+        for block in iter(lambda: fd.read(chunk_bytes), b""):
+            h.update(block)
+    return h.hexdigest()
+
+
+@beartype.beartype
+@dataclasses.dataclass(frozen=True)
+class Args:
+    dir: pathlib.Path = pathlib.Path("KABR_files")
+    """Where to place downloaded data."""
+    animals: tuple[str, ...] = tuple(ANIMAL_PART_RANGE.keys())
+    """Subset of animals to download."""
+    chunk_size_kb: int = 1024
+    """Stream chunk size in KB."""
+    keep_archives: bool = False
+    """Keep concatenated *.zip files & md5 after extraction."""
+    skip_existing: bool = True
+    """Skip download if file already present on disk."""
+
+
+@beartype.beartype
+def main(args: Args) -> None:
+    files = all_files_for_animals(args.animals)
+    chunk = args.chunk_size_kb * 1024
+
+    print("Downloading KABR ...")
+    for rel in tqdm.tqdm(files, unit="file"):
+        dst = args.dir / rel
+        if args.skip_existing and dst.exists():
+            continue
+        url = f"{BASE_URL}/{rel}"
+        stream_download(url, dst, chunk)
+
+    print("Concatenating split archives ...")
+    for animal in args.animals:
+        out_zip = args.dir / f"{DATASET_PREFIX}{animal}.zip"
+        parts = sorted(
+            glob.glob(str(args.dir / f"{DATASET_PREFIX}{animal}_part_*")),
+            key=lambda p: pathlib.Path(p).name,
+        )
+        if out_zip.exists() or not parts:
+            continue
+        total_bytes = sum(os.path.getsize(p) for p in parts)
+        with (
+            open(out_zip, "wb") as dst,
+            tqdm.tqdm(
+                total=total_bytes,
+                unit="B",
+                unit_scale=True,
+                unit_divisor=1024,
+                desc=f"Concat {animal}",
+                leave=False,
+            ) as bar,
+        ):
+            for part in parts:
+                with open(part, "rb") as src:
+                    for chunk in iter(lambda: src.read(8 * 1024 * 1024), b""):
+                        dst.write(chunk)
+                        bar.update(len(chunk))
+                pathlib.Path(part).unlink()
+
+    print("Validating & extracting ...")
+    for animal in tqdm.tqdm(args.animals, unit="animal"):
+        md5_txt = args.dir / f"{DATASET_PREFIX}{animal}_md5.txt"
+        zip_path = args.dir / f"{DATASET_PREFIX}{animal}.zip"
+        if not md5_txt.exists() or not zip_path.exists():
+            print(f"Skipping {animal} (missing files).")
+            continue
+
+        expected = md5_txt.read_text().strip().split()[0]
+        got = md5_file(zip_path)
+        if got != expected:
+            raise RuntimeError(
+                f"MD5 mismatch for {zip_path.name}: {got} (expected {expected})"
+            )
+
+        with zipfile.ZipFile(zip_path) as zf:
+            zf.extractall(zip_path.parent)
+
+        if not args.keep_archives:
+            zip_path.unlink(missing_ok=True)
+            md5_txt.unlink(missing_ok=True)
+
+    print(f"Done. Data at: {args.dir}")
+
+
+if __name__ == "__main__":
+    main(tyro.cli(Args))
+
+>>>> kabr/test_download.py
+import hashlib
+
+from . import download as kd
+
+
+def test_generate_part_files():
+    out = kd.generate_part_files("giraffes", "aa", "ab")
+    assert out == [
+        "dataset/image/giraffes_part_aa",
+        "dataset/image/giraffes_part_ab",
+    ]
+
+
+def test_all_files_for_animals_includes_static_and_md5():
+    animals = ("giraffes",)
+    files = kd.all_files_for_animals(animals)
+    # static + md5 + first part file sanity
+    assert "README.txt" in files
+    assert "dataset/image/giraffes_md5.txt" in files
+    assert "dataset/image/giraffes_part_aa" in files
+    # no duplicates
+    assert len(files) == len(set(files))
+
+
+def test_md5_file(tmp_path):
+    p = tmp_path / "blob.bin"
+    data = b"abc" * 123
+    p.write_bytes(data)
+    expect = hashlib.md5(data).hexdigest()
+    assert kd.md5_file(p) == expect
+
+
+def test_stream_download_stub(tmp_path, monkeypatch):
+    # prepare fake response
+    payload = b"hello world"
+
+    class FakeResp:
+        headers = {"content-length": str(len(payload))}
+
+        def iter_content(self, chunk_size):
+            yield payload
+
+        def raise_for_status(self): ...
+
+        # context-manager methods
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc): ...
+
+    monkeypatch.setattr(kd.requests, "get", lambda *a, **kw: FakeResp())
+    # run
+    dst = tmp_path / "file.bin"
+    kd.stream_download("http://foo.bar", dst, 16)
+    assert dst.read_bytes() == payload
+
+>>>> kabr/test_kabr.py
+import pytest
+
+from . import Video
+
+
+def test_video_length_check():
+    Video(0, ["f1"], [0])
+    with pytest.raises(AssertionError):
+        Video(1, ["f1"], [0, 0])
 
 >>>> logbook.md
 # Logbook
@@ -5667,7 +7113,7 @@ import numpy as np
 import sklearn.metrics
 from jaxtyping import jaxtyped
 
-from . import config
+from . import config, helpers
 
 logger = logging.getLogger(__name__)
 
@@ -5677,14 +7123,17 @@ schema_fpath = pathlib.Path(__file__).parent / "schema.sql"
 @beartype.beartype
 def get_db(cfg: config.Experiment) -> sqlite3.Connection:
     """Get a connection to the reports database.
+
+    Args:
+        cfg: Experiment configuration
+
     Returns:
-        a connection to a sqlite3 database.
+        sqlite3.Connection: A connection to the SQLite database
     """
     os.makedirs(os.path.expandvars(cfg.report_to), exist_ok=True)
-    db = sqlite3.connect(
-        os.path.join(os.path.expandvars(cfg.report_to), "reports.sqlite"),
-        autocommit=True,
-    )
+    helpers.warn_if_nfs(cfg.report_to)
+    db_fpath = os.path.join(os.path.expandvars(cfg.report_to), "reports.sqlite")
+    db = sqlite3.connect(db_fpath, autocommit=True)
 
     with open(schema_fpath) as fd:
         schema = fd.read()
@@ -5696,23 +7145,124 @@ def get_db(cfg: config.Experiment) -> sqlite3.Connection:
 
 @beartype.beartype
 def already_ran(db: sqlite3.Connection, cfg: config.Experiment, task_name: str) -> bool:
+    """Check if an experiment has already been run.
+
+    Args:
+        db: SQLite database connection
+        cfg: Experiment configuration
+        task_name: Name of the task to check
+
+    Returns:
+        bool: True if the experiment has already been run, False otherwise
+    """
     query = """
-SELECT COUNT(*)
-FROM experiments
-WHERE task_name = ?
-AND model_org = ?
-AND model_ckpt = ?
-AND n_train = ?
-"""
+    SELECT COUNT(*)
+    FROM experiments
+    WHERE task_name = ?
+    AND model_org = ?
+    AND model_ckpt = ?
+    AND n_train = ?
+    """
     values = (task_name, cfg.model.org, cfg.model.ckpt, cfg.n_train)
 
     (count,) = db.execute(query, values).fetchone()
     return count > 0
 
 
-def get_git_hash() -> str:
+@beartype.beartype
+def is_claimed(db: sqlite3.Connection, cfg: config.Experiment, task_name: str) -> bool:
+    """Check if a run is already claimed by another process.
+
+    Args:
+        db: SQLite database connection
+        cfg: Experiment configuration
+        task_name: Name of the task to check
+
+    Returns:
+        bool: True if the run is already claimed, False otherwise
     """
-    Returns the hash of the current git commit, assuming we are in a git repo.
+    query = """
+    SELECT COUNT(*)
+    FROM runs
+    WHERE task_name = ?
+    AND model_org = ?
+    AND model_ckpt = ?
+    AND n_train = ?
+    """
+    values = (task_name, cfg.model.org, cfg.model.ckpt, cfg.n_train)
+
+    (count,) = db.execute(query, values).fetchone()
+    return count > 0
+
+
+@beartype.beartype
+def claim_run(db: sqlite3.Connection, cfg: config.Experiment, task_name: str) -> bool:
+    """Try to claim (task_name, model, n_train).
+
+    Args:
+        db: SQLite database connection
+        cfg: Experiment configuration
+        task_name: Name of the task to claim
+
+    Returns:
+        bool: True if this process inserted the row and now "owns" the run,
+              False if row already existed and another worker has it
+    """
+
+    stmt = """
+    INSERT OR IGNORE INTO runs
+    (task_name, model_org, model_ckpt, n_train, pid, posix)
+    VALUES (?,?,?,?,?,?)
+    """
+    values = (
+        task_name,
+        cfg.model.org,
+        cfg.model.ckpt,
+        cfg.n_train,
+        os.getpid(),
+        time.time(),
+    )
+
+    try:
+        cur = db.execute(stmt, values)
+        db.commit()
+        return cur.rowcount == 1  # 1 row inserted -> we won
+    except Exception:
+        db.rollback()
+        raise
+
+
+@beartype.beartype
+def release_run(db: sqlite3.Connection, cfg: config.Experiment, task_name: str) -> None:
+    """Delete the coordination row so others may claim again.
+
+    Args:
+        db: SQLite database connection
+        cfg: Experiment configuration
+        task_name: Name of the task to release
+    """
+    stmt = """
+    DELETE FROM runs
+    WHERE task_name=? AND model_org=? AND model_ckpt=? AND n_train=?
+    """
+    values = (task_name, cfg.model.org, cfg.model.ckpt, cfg.n_train)
+    logger.info("Releasing claim on (%s, %s, %s, %d)", *values)
+
+    try:
+        db.execute(stmt, values)
+        db.commit()
+        logger.info("Released claim on (%s, %s, %s, %d)", *values)
+    except Exception:
+        db.rollback()
+        raise
+
+
+@beartype.beartype
+def get_git_hash() -> str:
+    """Returns the hash of the current git commit.
+
+    Returns:
+        str: The hash of the current git commit, assuming we are in a git repo
     """
     return subprocess.check_output(["git", "rev-parse", "HEAD"]).decode("ascii").strip()
 
@@ -5904,12 +7454,12 @@ RED_RGB = (155, 34, 38)
 RED_RGB01 = tuple(c / 256 for c in RED_RGB)
 
 >>>> schema.sql
-PRAGMA journal_mode = WAL;   -- Concurrent reads/writes
-PRAGMA synchronous = NORMAL; -- Good balance speed/safety
-PRAGMA foreign_keys = ON;    -- Enforce FK constraints
+PRAGMA journal_mode = WAL;    -- Concurrent reads/writes
+PRAGMA synchronous = NORMAL;  -- Good balance speed/safety
+PRAGMA foreign_keys = ON;     -- Enforce FK constraints
 PRAGMA busy_timeout = 30000;  -- Wait up to 30s before throwing timeout errors
-PRAGMA strict = ON;          -- Enforce strict type checking (SQLite ≥ 3.37)
-PRAGMA encoding = 'UTF-8';   -- Consistent text encoding
+PRAGMA strict = ON;           -- Enforce strict type checking (SQLite ≥ 3.37)
+PRAGMA encoding = 'UTF-8';    -- Consistent text encoding
 
 
 CREATE TABLE IF NOT EXISTS experiments (
@@ -5945,6 +7495,18 @@ CREATE TABLE IF NOT EXISTS predictions (
 
     PRIMARY KEY (img_id, experiment_id),
     FOREIGN KEY (experiment_id) REFERENCES experiments(id)  ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS runs (
+    task_name TEXT NOT NULL,
+    model_org TEXT NOT NULL,
+    model_ckpt TEXT NOT NULL,
+    n_train INTEGER NOT NULL,
+
+    -- For debugging
+    posix INTEGER NOT NULL,  -- POSIX timestamp
+    pid INTEGER NOT NULL,  -- os.getpid() of the worker
+    PRIMARY KEY (task_name, model_org, model_ckpt, n_train)
 );
 
 >>>> simpleshot.py
@@ -6010,17 +7572,18 @@ class SimpleShotClassifier(sklearn.base.BaseEstimator, sklearn.base.ClassifierMi
         x = l2_normalize(x)
 
         # Do this next step on the GPU to make it fast.
-        # Goes from 1 batch/sec to 77 batch/sec
-        centroids = torch.from_numpy(self.clf_.centroids_).to(self.device)
-        x = x.to(self.device)
+        centroids = torch.from_numpy(self.clf_.centroids_).to(
+            self.device, non_blocking=True
+        )
+        x = torch.from_numpy(x).to(self.device, non_blocking=True)
 
         preds = []
         for start, stop in helpers.batched_idx(len(x), self.batch_size):
             x_batch = x[start:stop]
             distances = torch.linalg.vector_norm(x_batch[:, None] - centroids, axis=2)
-            preds.append(torch.argmin(distances, dim=1))
+            preds.append(torch.argmin(distances, dim=1).cpu())
 
-        return np.concatenate(preds, dim=0)
+        return torch.cat(preds, dim=0).numpy()
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -6717,12 +8280,19 @@ def test_roc_like_property():
     assert separation > 0.5, "Mahalanobis scores should separate ID from OOD"
 
 >>>> test_reporting.py
+import json
 import math
+import multiprocessing
+import pathlib
+import sqlite3
+import time
 
 from hypothesis import given
 from hypothesis import strategies as st
 
-from . import reporting
+from . import config, reporting
+
+multiprocessing.set_start_method("spawn", force=True)
 
 
 @st.composite
@@ -6758,6 +8328,141 @@ def test_micro_f1_equals_micro_accuracy(preds):
 
     # Floating math can introduce tiny error, so compare with tolerance
     assert math.isclose(acc, f1, rel_tol=1e-12, abs_tol=1e-12)
+
+
+##############################
+# Tests for SQLite Reporting #
+##############################
+
+
+def make_cfg(tmp_path: pathlib.Path) -> config.Experiment:
+    """Return a minimal Experiment that points its report DB inside tmp_path."""
+    return config.Experiment(
+        model=config.Model(org="openai", ckpt="ViT-B/16"),
+        n_train=-1,
+        report_to=str(tmp_path),
+        log_to=str(tmp_path / "logs"),
+    )
+
+
+def insert_dummy_experiment(db: sqlite3.Connection, cfg: config.Experiment, task: str):
+    """Directly insert a row into experiments (used to pre-populate scenario 1)."""
+    values = (
+        task,
+        cfg.model.org,
+        cfg.model.ckpt,
+        cfg.n_train,
+        json.dumps(cfg.to_dict()),
+        "[]",
+        "deadbeef",
+        time.time(),
+        "",
+        "pytest",
+    )
+    stmt = """
+    INSERT INTO experiments
+    (task_name, model_org, model_ckpt, n_train,
+     exp_cfg, argv, git_commit, posix, gpu_name, hostname)
+    VALUES (?,?,?,?,?,?,?,?,?,?)
+    """
+    db.execute(stmt, values)
+    db.commit()
+
+
+def test_skip_when_experiment_exists(tmp_path):
+    cfg = make_cfg(tmp_path)
+    task = "plantnet"
+
+    db = reporting.get_db(cfg)
+    insert_dummy_experiment(db, cfg, task)
+
+    assert reporting.already_ran(db, cfg, task) is True
+
+
+BUSY_TIMEOUT = 30
+WAIT = BUSY_TIMEOUT + 5
+
+
+def _worker(cfg: config.Experiment, task: str, q, succeed: bool):
+    db = reporting.get_db(cfg)
+    if reporting.claim_run(db, cfg, task):
+        time.sleep(20)
+        if succeed:
+            insert_dummy_experiment(db, cfg, task)
+            reporting.release_run(db, cfg, task)
+            q.put("winner")
+        else:
+            reporting.release_run(db, cfg, task)
+            q.put("failed")
+    else:
+        q.put("skip")
+
+
+def test_one_winner_many_launchers(tmp_path):
+    cfg = make_cfg(tmp_path)
+    task = "kabr"
+    q = multiprocessing.Queue()
+
+    n_workers = 4
+
+    procs = [
+        multiprocessing.Process(target=_worker, args=(cfg, task, q, True))
+        for _ in range(n_workers)
+    ]
+    for p in procs:
+        p.start()
+    for p in procs:
+        p.join(timeout=WAIT)
+
+    results = [q.get(timeout=WAIT) for _ in range(n_workers)]
+    assert results.count("winner") == 1
+    assert results.count("skip") == n_workers - 1
+
+    db = reporting.get_db(cfg)
+    # experiments row present
+    assert reporting.already_ran(db, cfg, task)
+    # runs table cleaned up
+    assert db.execute("SELECT COUNT(*) FROM runs").fetchone()[0] == 0
+
+
+def test_reclaim_after_failure(tmp_path):
+    cfg = make_cfg(tmp_path)
+    task = "kabr"
+    q = multiprocessing.Queue()
+
+    n_workers = 4
+
+    # wave 1: one process fails
+    procs1 = [multiprocessing.Process(target=_worker, args=(cfg, task, q, False))]
+    procs1.extend([
+        multiprocessing.Process(target=_worker, args=(cfg, task, q, True))
+        for i in range(n_workers - 1)
+    ])
+    for p in procs1:
+        p.start()
+        time.sleep(0.5)
+    for p in procs1:
+        p.join(timeout=40)
+
+    results1 = [q.get(timeout=40) for _ in range(n_workers)]
+    assert results1.count("failed") == 1
+
+    # wave 2: slot should be claimable again
+    procs2 = [
+        multiprocessing.Process(target=_worker, args=(cfg, task, q, True))
+        for _ in range(n_workers)
+    ]
+    for p in procs2:
+        p.start()
+    for p in procs2:
+        p.join(timeout=40)
+
+    results2 = [q.get(timeout=40) for _ in range(n_workers)]
+    assert results2.count("winner") == 1
+
+    db = reporting.get_db(cfg)
+    assert reporting.already_ran(db, cfg, task)
+    assert db.execute("SELECT COUNT(*) FROM runs").fetchone()[0] == 0
 
 >>>> test_smoke.py
 def test_smoke_imports():

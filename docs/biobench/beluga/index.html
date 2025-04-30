@@ -125,7 +125,7 @@ def benchmark(cfg: config.Experiment) -&gt; tuple[config.Model, reporting.Report
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">@beartype.beartype
-@torch.no_grad
+@torch.no_grad()
 def get_features(cfg: config.Experiment, backbone: registry.VisionBackbone) -&gt; Features:
     &#34;&#34;&#34;
     Get a block of features from a vision backbone.

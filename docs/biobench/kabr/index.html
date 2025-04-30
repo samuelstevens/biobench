@@ -51,6 +51,21 @@ We get video representations by embedding each frame of the video and taking the
 </ol>
 </section>
 <section>
+<h2 class="section-title" id="header-submodules">Sub-modules</h2>
+<dl>
+<dt><code class="name"><a title="biobench.kabr.download" href="download.html">biobench.kabr.download</a></code></dt>
+<dd>
+<div class="desc"><p>Download the Kenyan Animal Behavior Recognition (KABR) dataset …</p></div>
+</dd>
+<dt><code class="name"><a title="biobench.kabr.test_download" href="test_download.html">biobench.kabr.test_download</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt><code class="name"><a title="biobench.kabr.test_kabr" href="test_kabr.html">biobench.kabr.test_kabr</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
 </section>
 <section>
 </section>
@@ -58,7 +73,7 @@ We get video representations by embedding each frame of the video and taking the
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
 <dt id="biobench.kabr.aggregate_frames"><code class="name flex">
-<span>def <span class="ident">aggregate_frames</span></span>(<span>args: <a title="biobench.kabr.Args" href="#biobench.kabr.Args">Args</a>,<br>features: jaxtyping.Float[Tensor, 'n_frames n_examples dim']) ‑> jaxtyping.Float[Tensor, 'n_examples dim']</span>
+<span>def <span class="ident">aggregate_frames</span></span>(<span>features: jaxtyping.Float[Tensor, 'n_frames n_examples dim']) ‑> jaxtyping.Float[Tensor, 'n_examples dim']</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -67,19 +82,14 @@ We get video representations by embedding each frame of the video and taking the
 </summary>
 <pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
 def aggregate_frames(
-    args: Args, features: Float[Tensor, &#34;n_frames n_examples dim&#34;]
+    features: Float[Tensor, &#34;n_frames n_examples dim&#34;],
 ) -&gt; Float[Tensor, &#34;n_examples dim&#34;]:
-    if args.frame_agg == &#34;mean&#34;:
-        return torch.mean(features, dim=0)
-    elif args.frame_agg == &#34;max&#34;:
-        return torch.max(features, dim=0).values
-    else:
-        typing.assert_never(args.frame_agg)</code></pre>
+    return torch.max(features, dim=0).values</code></pre>
 </details>
 <div class="desc"></div>
 </dd>
 <dt id="biobench.kabr.aggregate_labels"><code class="name flex">
-<span>def <span class="ident">aggregate_labels</span></span>(<span>args: <a title="biobench.kabr.Args" href="#biobench.kabr.Args">Args</a>,<br>labels: jaxtyping.Int[Tensor, 'n_frames n_examples']) ‑> jaxtyping.Int[Tensor, 'n_examples']</span>
+<span>def <span class="ident">aggregate_labels</span></span>(<span>labels: jaxtyping.Int[Tensor, 'n_frames n_examples']) ‑> jaxtyping.Int[Tensor, 'n_examples']</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -88,7 +98,7 @@ def aggregate_frames(
 </summary>
 <pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
 def aggregate_labels(
-    args: Args, labels: Int[Tensor, &#34;n_frames n_examples&#34;]
+    labels: Int[Tensor, &#34;n_frames n_examples&#34;],
 ) -&gt; Int[Tensor, &#34; n_examples&#34;]:
     &#34;&#34;&#34;Aggregate per-frame labels to a per-video label. Uses the most common label (mode).&#34;&#34;&#34;
     return torch.mode(labels, dim=0).values</code></pre>
@@ -96,7 +106,7 @@ def aggregate_labels(
 <div class="desc"><p>Aggregate per-frame labels to a per-video label. Uses the most common label (mode).</p></div>
 </dd>
 <dt id="biobench.kabr.benchmark"><code class="name flex">
-<span>def <span class="ident">benchmark</span></span>(<span>cfg: <a title="biobench.config.Experiment" href="../config.html#biobench.config.Experiment">Experiment</a>) ‑> tuple[<a title="biobench.config.Model" href="../config.html#biobench.config.Model">Model</a>, <a title="biobench.reporting.Report" href="../reporting.html#biobench.reporting.Report">Report</a>]</span>
+<span>def <span class="ident">benchmark</span></span>(<span>cfg: <a title="biobench.config.Experiment" href="../config.html#biobench.config.Experiment">Experiment</a>) ‑> <a title="biobench.reporting.Report" href="../reporting.html#biobench.reporting.Report">Report</a></span>
 </code></dt>
 <dd>
 <details class="source">
@@ -104,70 +114,49 @@ def aggregate_labels(
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">@beartype.beartype
-def benchmark(cfg: config.Experiment) -&gt; tuple[config.Model, reporting.Report]:
+def benchmark(cfg: config.Experiment) -&gt; reporting.Report:
     &#34;&#34;&#34;Runs KABR benchmark.&#34;&#34;&#34;
     # 1. Load model
     backbone = registry.load_vision_backbone(cfg.model)
-    img_transform = backbone.make_img_transform()
     backbone = backbone.to(cfg.device)
 
     # 2. Load data.
-    train_dataset = Dataset(cfg.data.kabr, &#34;train&#34;, transform=img_transform)
-    val_dataset = Dataset(cfg.data.kabr, &#34;val&#34;, transform=img_transform)
-
-    train_dataloader = torch.utils.data.DataLoader(
-        train_dataset,
-        batch_size=cfg.batch_size,
-        num_workers=cfg.n_workers,
-        drop_last=False,
-    )
-    val_dataloader = torch.utils.data.DataLoader(
-        val_dataset,
-        batch_size=cfg.batch_size,
-        num_workers=cfg.n_workers,
-        drop_last=False,
-    )
-
-    # 3. Get features
-    val_features, val_labels = get_features(cfg, backbone, val_dataloader)
-    val_features = aggregate_frames(cfg, val_features)
-    val_labels = aggregate_labels(cfg, val_labels)
-
-    train_features, train_labels = get_features(cfg, backbone, train_dataloader)
-    train_features = aggregate_frames(cfg, train_features)
-    train_labels = aggregate_labels(cfg, train_labels)
+    test_features = get_features(cfg, backbone, is_train=False)
+    train_features = get_features(cfg, backbone, is_train=True)
 
     # 4. Do simpleshot.
-    scores = simpleshot.simpleshot(
-        cfg, train_features, train_labels, val_features, val_labels
-    )
+    clf = init_clf(cfg)
+    clf.fit(train_features.x, train_features.y)
+
+    true_labels = test_features.y
+    pred_labels = clf.predict(test_features.x)
 
     # Return benchmark report.
-    video_ids = [video.video_id for video in val_dataset.videos]
-    examples = [
-        reporting.Prediction(str(id), float(score), {})
-        for id, score in zip(video_ids, scores.tolist())
+    preds = [
+        reporting.Prediction(
+            str(video_id),
+            float(pred == true),
+            {&#34;y_pred&#34;: pred.item(), &#34;y_true&#34;: true.item()},
+        )
+        for video_id, pred, true in zip(test_features.ids, pred_labels, true_labels)
     ]
-    # TODO: include example-specific info (class? something else)
-    return cfg.model, reporting.Report(&#34;KABR&#34;, examples)</code></pre>
+    return reporting.Report(&#34;kabr&#34;, preds, cfg)</code></pre>
 </details>
 <div class="desc"><p>Runs KABR benchmark.</p></div>
 </dd>
 <dt id="biobench.kabr.get_features"><code class="name flex">
-<span>def <span class="ident">get_features</span></span>(<span>cfg: <a title="biobench.config.Experiment" href="../config.html#biobench.config.Experiment">Experiment</a>,<br>backbone: <a title="biobench.registry.VisionBackbone" href="../registry.html#biobench.registry.VisionBackbone">VisionBackbone</a>,<br>dataloader) ‑> tuple[jaxtyping.Float[Tensor, 'n_frames n_examples dim'], jaxtyping.Int[Tensor, 'n_frames n_examples']]</span>
+<span>def <span class="ident">get_features</span></span>(<span>cfg: <a title="biobench.config.Experiment" href="../config.html#biobench.config.Experiment">Experiment</a>,<br>backbone: <a title="biobench.registry.VisionBackbone" href="../registry.html#biobench.registry.VisionBackbone">VisionBackbone</a>,<br>*,<br>is_train: bool) ‑> <a title="biobench.kabr.Features" href="#biobench.kabr.Features">Features</a></span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">@torch.no_grad()
-@jaxtyped(typechecker=beartype.beartype)
+<pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
+@torch.no_grad()
 def get_features(
-    cfg: config.Experiment, backbone: registry.VisionBackbone, dataloader
-) -&gt; tuple[
-    Float[Tensor, &#34;n_frames n_examples dim&#34;], Int[Tensor, &#34;n_frames n_examples&#34;]
-]:
+    cfg: config.Experiment, backbone: registry.VisionBackbone, *, is_train: bool
+) -&gt; Features:
     &#34;&#34;&#34;
     Gets all model features and true labels for all frames and all examples in the dataloader.
 
@@ -181,33 +170,62 @@ def get_features(
     Returns:
         tuple of model features and true labels. See signature for shape.
     &#34;&#34;&#34;
+    img_transform = backbone.make_img_transform()
     backbone = torch.compile(backbone)
-    all_features, all_labels = [], []
+    split = &#34;train&#34; if is_train else &#34;val&#34;
 
-    total = len(dataloader) if not args.debug else 2
-    it = iter(dataloader)
-    logger.debug(&#34;Need to embed %d batches of %d images.&#34;, total, args.batch_size * 16)
-    for b in range(total):
-        frames, labels = next(it)
+    dataset = Dataset(cfg.data.kabr, split, transform=img_transform)
+    dataloader = torch.utils.data.DataLoader(
+        dataset,
+        batch_size=cfg.batch_size,
+        num_workers=cfg.n_workers,
+        drop_last=False,
+        shuffle=False,
+    )
+
+    all_feats, all_labels, all_ids = [], [], []
+
+    def probe(batch):
+        frames, _, _ = batch
         frames = torch.stack(frames, dim=0)
-        labels = torch.stack(labels, dim=0)
-        frames = frames.to(args.device)
-
-        with torch.amp.autocast(&#34;cuda&#34;):
-            # conv2d doesn&#39;t support multiple batch dimensions, so we have to view() before and after the model.img_encode() call.
+        frames = frames.to(cfg.device, non_blocking=True)
+        with torch.amp.autocast(cfg.device):
             n_frames, bsz, c, h, w = frames.shape
             frames = frames.view(bsz * n_frames, c, h, w)
             outputs = backbone.img_encode(frames)
             features = outputs.img_features.view(n_frames, bsz, -1)
-            all_features.append(features.cpu())
+            features = aggregate_frames(features)
+
+    with helpers.auto_batch_size(dataloader, probe=probe):
+        total = len(dataloader) if not cfg.debug else 2
+        it = iter(dataloader)
+        for b in helpers.progress(range(total), desc=f&#34;kabr/{split}&#34;):
+            frames, labels, ids = next(it)
+            frames = torch.stack(frames, dim=0)
+            labels = torch.stack(labels, dim=0)
+            frames = frames.to(cfg.device, non_blocking=True)
+
+            with torch.amp.autocast(cfg.device):
+                # conv2d doesn&#39;t support multiple batch dimensions, so we have to view() before and after the model.img_encode() call.
+                n_frames, bsz, c, h, w = frames.shape
+                frames = frames.view(bsz * n_frames, c, h, w)
+                outputs = backbone.img_encode(frames)
+                features = outputs.img_features.view(n_frames, bsz, -1)
+
+                features = aggregate_frames(features)
+                all_feats.append(features.cpu())
+
+            labels = aggregate_labels(labels)
             all_labels.append(labels.cpu())
 
-        logger.debug(&#34;Embedded batch %d/%d&#34;, b + 1, total)
+            logger.debug(&#34;Embedded batch %d/%d&#34;, b + 1, total)
+            all_ids.extend(ids)
 
-    all_features = torch.cat(all_features, dim=1).cpu()
-    all_labels = torch.cat(all_labels, dim=1).cpu()
+    all_feats = torch.cat(all_feats, dim=0).cpu().numpy()
+    all_labels = torch.cat(all_labels, dim=0).cpu().numpy()
+    all_ids = np.array(all_ids)
 
-    return all_features, all_labels</code></pre>
+    return Features(all_feats, all_labels, all_ids)</code></pre>
 </details>
 <div class="desc"><p>Gets all model features and true labels for all frames and all examples in the dataloader.</p>
 <p>Returns it as a pair of big tensors; other tasks use a dedicated class for this, but here it's just a tuple.</p>
@@ -223,14 +241,8 @@ def get_features(
 <h2 id="returns">Returns</h2>
 <p>tuple of model features and true labels. See signature for shape.</p></div>
 </dd>
-</dl>
-</section>
-<section>
-<h2 class="section-title" id="header-classes">Classes</h2>
-<dl>
-<dt id="biobench.kabr.Args"><code class="flex name class">
-<span>class <span class="ident">Args</span></span>
-<span>(</span><span>data: str = '',<br>batch_size_cv: int = 256,<br>n_workers: int = 4,<br>frame_agg: Literal['mean', 'max'] = 'mean',<br>seed: int = 42,<br>device: str = 'cuda',<br>debug: bool = False,<br>n_train: int = -1)</span>
+<dt id="biobench.kabr.init_clf"><code class="name flex">
+<span>def <span class="ident">init_clf</span></span>(<span>cfg: <a title="biobench.config.Experiment" href="../config.html#biobench.config.Experiment">Experiment</a>)</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -238,66 +250,16 @@ def get_features(
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">@beartype.beartype
-@dataclasses.dataclass(frozen=True)
-class Args:
-    &#34;&#34;&#34;Arguments for the KABR task.&#34;&#34;&#34;
-
-    data: str = &#34;&#34;
-    &#34;&#34;&#34;dataset directory; where you downloaded this task&#39;s data to.&#34;&#34;&#34;
-    batch_size_cv: int = 256
-    &#34;&#34;&#34;batch size for computer vision model.&#34;&#34;&#34;
-    n_workers: int = 4
-    &#34;&#34;&#34;Number of dataloader worker processes.&#34;&#34;&#34;
-    frame_agg: typing.Literal[&#34;mean&#34;, &#34;max&#34;] = &#34;mean&#34;
-    &#34;&#34;&#34;How to aggregate features across time dimension.&#34;&#34;&#34;
-    seed: int = 42
-    &#34;&#34;&#34;random seed.&#34;&#34;&#34;
-
-    # Computed at runtime.
-    device: str = &#34;cuda&#34;
-    &#34;&#34;&#34;(computed at runtime) which kind of accelerator to use.&#34;&#34;&#34;
-    debug: bool = False
-    &#34;&#34;&#34;(computed at runtime) whether to run in debug mode.&#34;&#34;&#34;
-    n_train: int = -1
-    &#34;&#34;&#34;Number of maximum training samples. Negative number means use all of them.&#34;&#34;&#34;</code></pre>
+def init_clf(cfg: config.Experiment):
+    return simpleshot.SimpleShotClassifier(device=&#34;cuda:0&#34;)</code></pre>
 </details>
-<div class="desc"><p>Arguments for the KABR task.</p></div>
-<h3>Instance variables</h3>
-<dl>
-<dt id="biobench.kabr.Args.batch_size_cv"><code class="name">var <span class="ident">batch_size_cv</span> : int</code></dt>
-<dd>
-<div class="desc"><p>batch size for computer vision model.</p></div>
-</dd>
-<dt id="biobench.kabr.Args.data"><code class="name">var <span class="ident">data</span> : str</code></dt>
-<dd>
-<div class="desc"><p>dataset directory; where you downloaded this task's data to.</p></div>
-</dd>
-<dt id="biobench.kabr.Args.debug"><code class="name">var <span class="ident">debug</span> : bool</code></dt>
-<dd>
-<div class="desc"><p>(computed at runtime) whether to run in debug mode.</p></div>
-</dd>
-<dt id="biobench.kabr.Args.device"><code class="name">var <span class="ident">device</span> : str</code></dt>
-<dd>
-<div class="desc"><p>(computed at runtime) which kind of accelerator to use.</p></div>
-</dd>
-<dt id="biobench.kabr.Args.frame_agg"><code class="name">var <span class="ident">frame_agg</span> : Literal['mean', 'max']</code></dt>
-<dd>
-<div class="desc"><p>How to aggregate features across time dimension.</p></div>
-</dd>
-<dt id="biobench.kabr.Args.n_train"><code class="name">var <span class="ident">n_train</span> : int</code></dt>
-<dd>
-<div class="desc"><p>Number of maximum training samples. Negative number means use all of them.</p></div>
-</dd>
-<dt id="biobench.kabr.Args.n_workers"><code class="name">var <span class="ident">n_workers</span> : int</code></dt>
-<dd>
-<div class="desc"><p>Number of dataloader worker processes.</p></div>
-</dd>
-<dt id="biobench.kabr.Args.seed"><code class="name">var <span class="ident">seed</span> : int</code></dt>
-<dd>
-<div class="desc"><p>random seed.</p></div>
+<div class="desc"></div>
 </dd>
 </dl>
-</dd>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
 <dt id="biobench.kabr.Dataset"><code class="flex name class">
 <span>class <span class="ident">Dataset</span></span>
 <span>(</span><span>path, split: str, transform=None, seed: int = 42)</span>
@@ -362,7 +324,7 @@ class Dataset(torch.utils.data.Dataset):
 
     def __getitem__(
         self, i: int
-    ) -&gt; tuple[list[Float[Tensor, &#34;3 width height&#34;]], list[int]]:
+    ) -&gt; tuple[list[Float[Tensor, &#34;3 width height&#34;]], list[int], str]:
         &#34;&#34;&#34;
         Returns 16 frames and their labels sampled every 5 frames from a clip. The start of the clip is uniformly sampled. If there are fewer
         &#34;&#34;&#34;
@@ -391,7 +353,7 @@ class Dataset(torch.utils.data.Dataset):
         if self.transform is not None:
             images = [self.transform(image) for image in images]
 
-        return images, labels
+        return images, labels, str(i)
 
     def __len__(self) -&gt; int:
         return len(self.videos)</code></pre>
@@ -402,6 +364,39 @@ class Dataset(torch.utils.data.Dataset):
 <li>torch.utils.data.dataset.Dataset</li>
 <li>typing.Generic</li>
 </ul>
+</dd>
+<dt id="biobench.kabr.Features"><code class="flex name class">
+<span>class <span class="ident">Features</span></span>
+<span>(</span><span>x: jaxtyping.Float[ndarray, 'n dim'],<br>y: jaxtyping.Int[ndarray, 'n'],<br>ids: jaxtyping.Shaped[ndarray, 'n'])</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
+@dataclasses.dataclass(frozen=True)
+class Features:
+    x: Float[np.ndarray, &#34;n dim&#34;]
+    y: Int[np.ndarray, &#34; n&#34;]
+    ids: Shaped[np.ndarray, &#34; n&#34;]</code></pre>
+</details>
+<div class="desc"><p>Features(x: jaxtyping.Float[ndarray, 'n dim'], y: jaxtyping.Int[ndarray, 'n'], ids: jaxtyping.Shaped[ndarray, 'n'])</p></div>
+<h3>Instance variables</h3>
+<dl>
+<dt id="biobench.kabr.Features.ids"><code class="name">var <span class="ident">ids</span> : jaxtyping.Shaped[ndarray, 'n']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.kabr.Features.x"><code class="name">var <span class="ident">x</span> : jaxtyping.Float[ndarray, 'n dim']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.kabr.Features.y"><code class="name">var <span class="ident">y</span> : jaxtyping.Int[ndarray, 'n']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
 </dd>
 <dt id="biobench.kabr.Video"><code class="flex name class">
 <span>class <span class="ident">Video</span></span>
@@ -418,6 +413,7 @@ class Video:
     &#34;&#34;&#34;A single video instance as a sequence of frames.&#34;&#34;&#34;
 
     video_id: int
+    &#34;&#34;&#34;Video ID.&#34;&#34;&#34;
     frames: list[str]
     &#34;&#34;&#34;Paths to actual frame images.&#34;&#34;&#34;
     labels: list[int]
@@ -440,7 +436,7 @@ class Video:
 </dd>
 <dt id="biobench.kabr.Video.video_id"><code class="name">var <span class="ident">video_id</span> : int</code></dt>
 <dd>
-<div class="desc"></div>
+<div class="desc"><p>Video ID.</p></div>
 </dd>
 </dl>
 </dd>
@@ -462,31 +458,34 @@ class Video:
 <li><code><a title="biobench" href="../index.html">biobench</a></code></li>
 </ul>
 </li>
+<li><h3><a href="#header-submodules">Sub-modules</a></h3>
+<ul>
+<li><code><a title="biobench.kabr.download" href="download.html">biobench.kabr.download</a></code></li>
+<li><code><a title="biobench.kabr.test_download" href="test_download.html">biobench.kabr.test_download</a></code></li>
+<li><code><a title="biobench.kabr.test_kabr" href="test_kabr.html">biobench.kabr.test_kabr</a></code></li>
+</ul>
+</li>
 <li><h3><a href="#header-functions">Functions</a></h3>
 <ul class="">
 <li><code><a title="biobench.kabr.aggregate_frames" href="#biobench.kabr.aggregate_frames">aggregate_frames</a></code></li>
 <li><code><a title="biobench.kabr.aggregate_labels" href="#biobench.kabr.aggregate_labels">aggregate_labels</a></code></li>
 <li><code><a title="biobench.kabr.benchmark" href="#biobench.kabr.benchmark">benchmark</a></code></li>
 <li><code><a title="biobench.kabr.get_features" href="#biobench.kabr.get_features">get_features</a></code></li>
+<li><code><a title="biobench.kabr.init_clf" href="#biobench.kabr.init_clf">init_clf</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
 <li>
-<h4><code><a title="biobench.kabr.Args" href="#biobench.kabr.Args">Args</a></code></h4>
-<ul class="two-column">
-<li><code><a title="biobench.kabr.Args.batch_size_cv" href="#biobench.kabr.Args.batch_size_cv">batch_size_cv</a></code></li>
-<li><code><a title="biobench.kabr.Args.data" href="#biobench.kabr.Args.data">data</a></code></li>
-<li><code><a title="biobench.kabr.Args.debug" href="#biobench.kabr.Args.debug">debug</a></code></li>
-<li><code><a title="biobench.kabr.Args.device" href="#biobench.kabr.Args.device">device</a></code></li>
-<li><code><a title="biobench.kabr.Args.frame_agg" href="#biobench.kabr.Args.frame_agg">frame_agg</a></code></li>
-<li><code><a title="biobench.kabr.Args.n_train" href="#biobench.kabr.Args.n_train">n_train</a></code></li>
-<li><code><a title="biobench.kabr.Args.n_workers" href="#biobench.kabr.Args.n_workers">n_workers</a></code></li>
-<li><code><a title="biobench.kabr.Args.seed" href="#biobench.kabr.Args.seed">seed</a></code></li>
-</ul>
+<h4><code><a title="biobench.kabr.Dataset" href="#biobench.kabr.Dataset">Dataset</a></code></h4>
 </li>
 <li>
-<h4><code><a title="biobench.kabr.Dataset" href="#biobench.kabr.Dataset">Dataset</a></code></h4>
+<h4><code><a title="biobench.kabr.Features" href="#biobench.kabr.Features">Features</a></code></h4>
+<ul class="">
+<li><code><a title="biobench.kabr.Features.ids" href="#biobench.kabr.Features.ids">ids</a></code></li>
+<li><code><a title="biobench.kabr.Features.x" href="#biobench.kabr.Features.x">x</a></code></li>
+<li><code><a title="biobench.kabr.Features.y" href="#biobench.kabr.Features.y">y</a></code></li>
+</ul>
 </li>
 <li>
 <h4><code><a title="biobench.kabr.Video" href="#biobench.kabr.Video">Video</a></code></h4>

@@ -1,0 +1,889 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+<meta name="generator" content="pdoc3 0.11.6">
+<title>biobench.jobkit.test_hooks API documentation</title>
+<meta name="description" content="">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script type="text/x-mathjax-config">MathJax.Hub.Config({ tex2jax: { inlineMath: [ ['$','$'], ["\\(","\\)"] ], processEscapes: true } });</script>
+<script async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS_CHTML" integrity="sha256-kZafAc6mZvK3W3v1pHOcUix30OHQN6pU/NO2oFkqZVw=" crossorigin></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => {
+hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+hljs.highlightAll();
+/* Collapse source docstrings */
+setTimeout(() => {
+[...document.querySelectorAll('.hljs.language-python > .hljs-string')]
+.filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
+.forEach(el => {
+let d = document.createElement('details');
+d.classList.add('hljs-string');
+d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
+el.replaceWith(d);
+});
+}, 100);
+})</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>biobench.jobkit.test_hooks</code></h1>
+</header>
+<section id="section-intro">
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-functions">Functions</h2>
+<dl>
+<dt id="biobench.jobkit.test_hooks.test_add_requires_hashable_claim"><code class="name flex">
+<span>def <span class="ident">test_add_requires_hashable_claim</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_add_requires_hashable_claim():
+    &#34;&#34;&#34;
+    Non-hashable objects cannot be stored in the internal set that tracks
+    outstanding claims.  A correct implementation therefore raises TypeError.
+    &#34;&#34;&#34;
+
+    hook = ExitHook(lambda c: None)
+
+    # list is non-hashable -&gt; should blow up
+    with pytest.raises((TypeError, beartype.roar.BeartypeCallHintParamViolation)):
+        hook.add([&#34;unhashable&#34;])</code></pre>
+</details>
+<div class="desc"><p>Non-hashable objects cannot be stored in the internal set that tracks
+outstanding claims.
+A correct implementation therefore raises TypeError.</p></div>
+</dd>
+<dt id="biobench.jobkit.test_hooks.test_add_then_discard_accepts_generic_payload"><code class="name flex">
+<span>def <span class="ident">test_add_then_discard_accepts_generic_payload</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_add_then_discard_accepts_generic_payload():
+    &#34;&#34;&#34;
+    With the new signature `add(claim)`, the class must accept *any* hashable
+    payload the caller chooses.  The easiest non-trivial smoke-test is a tuple.
+    &#34;&#34;&#34;
+
+    hook = ExitHook(release_fn=lambda c: None).register()
+
+    claim = (&#34;cfg-xyz&#34;, &#34;task-abc&#34;)
+    hook.add(claim)  # should not raise
+    hook.discard(claim)  # should not raise</code></pre>
+</details>
+<div class="desc"><p>With the new signature <code>add(claim)</code>, the class must accept <em>any</em> hashable
+payload the caller chooses.
+The easiest non-trivial smoke-test is a tuple.</p></div>
+</dd>
+<dt id="biobench.jobkit.test_hooks.test_atexit_cleanup_is_idempotent"><code class="name flex">
+<span>def <span class="ident">test_atexit_cleanup_is_idempotent</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_atexit_cleanup_is_idempotent():
+    &#34;&#34;&#34;
+    The function registered with `atexit` must clear the claim set so that a second manual call is harmless (re-entrant) and releases nothing new.
+    &#34;&#34;&#34;
+
+    captured = []
+
+    def _capture(fn, *a, **kw):
+        captured.append(fn)
+
+    with pytest.MonkeyPatch().context() as m:
+        m.setattr(atexit, &#34;register&#34;, _capture)
+
+        hits = []
+        r = ExitHook(lambda c: hits.append(c)).register()
+        r.add(&#34;x&#34;)
+
+    # Simulate normal shutdown twice
+    captured[0]()  # first call
+    captured[0]()  # second call - should be a no-op
+
+    assert hits == [&#34;x&#34;]</code></pre>
+</details>
+<div class="desc"><p>The function registered with <code>atexit</code> must clear the claim set so that a second manual call is harmless (re-entrant) and releases nothing new.</p></div>
+</dd>
+<dt id="biobench.jobkit.test_hooks.test_atexit_handler_releases_all_live_claims"><code class="name flex">
+<span>def <span class="ident">test_atexit_handler_releases_all_live_claims</span></span>(<span>monkeypatch)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_atexit_handler_releases_all_live_claims(monkeypatch):
+    &#34;&#34;&#34;
+    Verify that the function registered with `atexit` releases *every* claim
+    that is still active when the interpreter would exit.
+
+    Strategy
+    --------
+    * Capture the cleanup callback via a patched `atexit.register`.
+    * Add several claims.
+    * Manually invoke the captured callback.
+    * Confirm `release_fn` was called once per tracked claim (order irrelevant).
+    &#34;&#34;&#34;
+
+    cleanup_fns = []
+
+    def _capture(fn, *a, **kw):
+        cleanup_fns.append(fn)
+
+    monkeypatch.setattr(atexit, &#34;register&#34;, _capture)
+
+    hits = []
+    hook = ExitHook(lambda c: hits.append(c)).register()
+    claims = [(&#34;cfg-0&#34;, &#34;task-0&#34;), (&#34;cfg-1&#34;, &#34;task-1&#34;), (&#34;cfg-2&#34;, &#34;task-2&#34;)]
+    for claim in claims:
+        hook.add(claim)
+
+    # Simulate interpreter shutdown
+    assert cleanup_fns, &#34;No atexit hook registered&#34;
+    cleanup_fns[0]()  # invoke captured function
+
+    assert sorted(hits) == sorted(claims)
+    assert len(hits) == len(claims)</code></pre>
+</details>
+<div class="desc"><p>Verify that the function registered with <code>atexit</code> releases <em>every</em> claim
+that is still active when the interpreter would exit.</p>
+<h2 id="strategy">Strategy</h2>
+<ul>
+<li>Capture the cleanup callback via a patched <code>atexit.register</code>.</li>
+<li>Add several claims.</li>
+<li>Manually invoke the captured callback.</li>
+<li>Confirm <code>release_fn</code> was called once per tracked claim (order irrelevant).</li>
+</ul></div>
+</dd>
+<dt id="biobench.jobkit.test_hooks.test_can_add_new_claims_after_previous_release"><code class="name flex">
+<span>def <span class="ident">test_can_add_new_claims_after_previous_release</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_can_add_new_claims_after_previous_release():
+    &#34;&#34;&#34;
+    A hook should remain usable: after its claims are flushed by a signal,
+    callers may add new claims and expect those to be released on the *next*
+    signal.
+    &#34;&#34;&#34;
+
+    hits = []
+    r = ExitHook(lambda c: hits.append(c)).register()
+
+    r.add(&#34;first&#34;)
+    h = signal.getsignal(signal.SIGTERM)
+    _invoke_handler(h, signal.SIGTERM)
+
+    r.add(&#34;second&#34;)
+    _invoke_handler(h, signal.SIGTERM)
+
+    assert hits == [&#34;first&#34;, &#34;second&#34;]</code></pre>
+</details>
+<div class="desc"><p>A hook should remain usable: after its claims are flushed by a signal,
+callers may add new claims and expect those to be released on the <em>next</em>
+signal.</p></div>
+</dd>
+<dt id="biobench.jobkit.test_hooks.test_discard_unknown_claim_is_noop"><code class="name flex">
+<span>def <span class="ident">test_discard_unknown_claim_is_noop</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_discard_unknown_claim_is_noop():
+    &#34;&#34;&#34;
+    Discarding a claim that was never added should *not* raise.  This keeps
+    launcher code simple because it can unconditionally discard in finally-
+    blocks without first checking membership.
+    &#34;&#34;&#34;
+
+    hook = ExitHook(lambda c: None).register()
+
+    # Should silently ignore
+    hook.discard(&#34;non-existent&#34;)</code></pre>
+</details>
+<div class="desc"><p>Discarding a claim that was never added should <em>not</em> raise.
+This keeps
+launcher code simple because it can unconditionally discard in finally-
+blocks without first checking membership.</p></div>
+</dd>
+<dt id="biobench.jobkit.test_hooks.test_discarded_claims_on_one_hook_do_not_affect_others"><code class="name flex">
+<span>def <span class="ident">test_discarded_claims_on_one_hook_do_not_affect_others</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_discarded_claims_on_one_hook_do_not_affect_others():
+    &#34;&#34;&#34;
+    If hook-1 discards a claim before the signal arrives, only hook-2&#39;s
+    live claim should be released.
+    &#34;&#34;&#34;
+
+    h1, h2 = [], []
+    r1 = ExitHook(lambda c: h1.append(c)).register()
+    r2 = ExitHook(lambda c: h2.append(c)).register()
+
+    gone = (&#34;gone&#34;, 0)
+    stay = (&#34;stay&#34;, 1)
+
+    r1.add(gone)
+    r1.discard(gone)  # already finished
+    r2.add(stay)
+
+    _invoke_handler(signal.getsignal(signal.SIGINT), signal.SIGINT)
+
+    assert h1 == []  # no spurious releases
+    assert h2 == [stay]</code></pre>
+</details>
+<div class="desc"><p>If hook-1 discards a claim before the signal arrives, only hook-2's
+live claim should be released.</p></div>
+</dd>
+<dt id="biobench.jobkit.test_hooks.test_duplicate_add_is_idempotent_under_sigint"><code class="name flex">
+<span>def <span class="ident">test_duplicate_add_is_idempotent_under_sigint</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_duplicate_add_is_idempotent_under_sigint():
+    &#34;&#34;&#34;
+    Adding the same claim twice must not produce duplicate releases when the
+    SIGINT handler fires.
+    &#34;&#34;&#34;
+
+    hits, claim = [], (&#34;cfg-42&#34;, &#34;task-alpha&#34;)
+    hook = ExitHook(lambda c: hits.append(c)).register()
+    hook.add(claim)
+    hook.add(claim)  # duplicate
+
+    handler = signal.getsignal(signal.SIGINT)
+    assert callable(handler), &#34;missing SIGINT handler&#34;
+    _invoke_handler(handler, signal.SIGINT)
+
+    assert hits == [claim], &#34;duplicate add produced duplicate release&#34;</code></pre>
+</details>
+<div class="desc"><p>Adding the same claim twice must not produce duplicate releases when the
+SIGINT handler fires.</p></div>
+</dd>
+<dt id="biobench.jobkit.test_hooks.test_handler_identity_shared_across_instances"><code class="name flex">
+<span>def <span class="ident">test_handler_identity_shared_across_instances</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_handler_identity_shared_across_instances():
+    &#34;&#34;&#34;
+    Registering two separate ClaimReaper objects must **not** replace the
+    process-wide signal handler with two different callables.  Both `.register()`
+    calls should leave exactly *one* shared handler installed.
+    &#34;&#34;&#34;
+
+    old = signal.getsignal(signal.SIGINT)
+    try:
+        ExitHook(lambda _: None).register()
+        handler1 = signal.getsignal(signal.SIGINT)
+
+        ExitHook(lambda _: None).register()
+        handler2 = signal.getsignal(signal.SIGINT)
+
+        assert handler1 is handler2 is not signal.SIG_DFL
+    finally:
+        signal.signal(signal.SIGINT, old)</code></pre>
+</details>
+<div class="desc"><p>Registering two separate ClaimReaper objects must <strong>not</strong> replace the
+process-wide signal handler with two different callables.
+Both <code>.register()</code>
+calls should leave exactly <em>one</em> shared handler installed.</p></div>
+</dd>
+<dt id="biobench.jobkit.test_hooks.test_handler_is_reentrant_no_duplicate_releases"><code class="name flex">
+<span>def <span class="ident">test_handler_is_reentrant_no_duplicate_releases</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_handler_is_reentrant_no_duplicate_releases():
+    &#34;&#34;&#34;
+    After the first invocation empties the claim set, a *second* call should
+    release nothing new.  This proves internal state was cleared.
+    &#34;&#34;&#34;
+
+    hits = []
+    r = ExitHook(lambda c: hits.append(c)).register()
+    r.add((&#34;cfg&#34;, &#34;task&#34;))
+
+    handler = signal.getsignal(signal.SIGTERM)
+    _invoke_handler(handler, signal.SIGTERM)  # first pass
+    first_count = len(hits)
+
+    _invoke_handler(handler, signal.SIGTERM)  # second pass
+    assert len(hits) == first_count, &#34;duplicate releases detected&#34;</code></pre>
+</details>
+<div class="desc"><p>After the first invocation empties the claim set, a <em>second</em> call should
+release nothing new.
+This proves internal state was cleared.</p></div>
+</dd>
+<dt id="biobench.jobkit.test_hooks.test_lock_prevents_set_mutation_during_discards"><code class="name flex">
+<span>def <span class="ident">test_lock_prevents_set_mutation_during_discards</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_lock_prevents_set_mutation_during_discards():
+    &#34;&#34;&#34;
+    Another race: thread discarding while handler iterates.
+    &#34;&#34;&#34;
+
+    hits: list[str] = []
+    hook = ExitHook(lambda c: hits.append(c)).register()
+
+    # Pre-populate many claims
+    claims = [f&#34;c{i}&#34; for i in range(250)]
+    for c in claims:
+        hook.add(c)
+
+    def _consumer():
+        for c in claims:
+            hook.discard(c)
+            time.sleep(0.0005)  # keep the race window open
+
+    t = threading.Thread(target=_consumer)
+    t.start()
+
+    # Let the consumer start discarding, then fire the handler
+    time.sleep(0.02)
+    handler = signal.getsignal(signal.SIGINT)
+    _invoke_handler(handler, signal.SIGINT)
+
+    t.join()
+
+    # All *remaining* live claims were released once; any discarded before
+    # the handler shouldn&#39;t re-appear, so no duplicates.
+    assert len(hits) == len(set(hits))</code></pre>
+</details>
+<div class="desc"><p>Another race: thread discarding while handler iterates.</p></div>
+</dd>
+<dt id="biobench.jobkit.test_hooks.test_lock_prevents_set_mutation_during_massive_adds"><code class="name flex">
+<span>def <span class="ident">test_lock_prevents_set_mutation_during_massive_adds</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_lock_prevents_set_mutation_during_massive_adds():
+    &#34;&#34;&#34;
+    A classic failure mode is &#34;set changed size during iteration&#34; when the
+    signal-handler walks `_claims` while another thread is adding claims.
+
+    Strategy
+    --------
+    * Worker thread continuously adds new claims.
+    * Main thread waits a short moment, then calls the SIGINT handler.
+    * If locking is absent we&#39;ll almost certainly trigger the RuntimeError.
+    * We also check that each claim is released **at most once**.
+    &#34;&#34;&#34;
+
+    hits: list[str] = []
+    hook = ExitHook(lambda c: hits.append(c)).register()
+
+    stop = threading.Event()
+
+    def _producer():
+        i = 0
+        while not stop.is_set():
+            hook.add(f&#34;claim-{i}&#34;)
+            i += 1
+
+    t = threading.Thread(target=_producer)
+    t.start()
+
+    # Give producer a head-start so the set is being modified.
+    time.sleep(0.05)
+
+    handler = signal.getsignal(signal.SIGINT)
+    _invoke_handler(handler, signal.SIGINT)
+
+    stop.set()
+    t.join()
+
+    # No duplicates ⇒ each claim released only once (lock prevented races)
+    assert len(hits) == len(set(hits))</code></pre>
+</details>
+<div class="desc"><p>A classic failure mode is "set changed size during iteration" when the
+signal-handler walks <code>_claims</code> while another thread is adding claims.</p>
+<h2 id="strategy">Strategy</h2>
+<ul>
+<li>Worker thread continuously adds new claims.</li>
+<li>Main thread waits a short moment, then calls the SIGINT handler.</li>
+<li>If locking is absent we'll almost certainly trigger the RuntimeError.</li>
+<li>We also check that each claim is released <strong>at most once</strong>.</li>
+</ul></div>
+</dd>
+<dt id="biobench.jobkit.test_hooks.test_lock_serialises_multiple_concurrent_handlers"><code class="name flex">
+<span>def <span class="ident">test_lock_serialises_multiple_concurrent_handlers</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_lock_serialises_multiple_concurrent_handlers():
+    &#34;&#34;&#34;
+    If two threads invoke the handler almost simultaneously, the internal lock
+    must guarantee:
+      * no crashes,
+      * each claim released &lt;= 1 time,
+      * after both finish `_claims` is empty (second call sees nothing).
+
+    We mimic this by launching a second thread that calls the SIGTERM handler
+    while the main thread does the same.
+    &#34;&#34;&#34;
+
+    hits: list[tuple[str, str]] = []
+    hook = ExitHook(lambda c: hits.append(c)).register()
+
+    claims = [(f&#34;cfg{i}&#34;, f&#34;t{i}&#34;) for i in range(100)]
+    for c in claims:
+        hook.add(c)
+
+    handler = signal.getsignal(signal.SIGTERM)
+
+    barrier = threading.Barrier(2)
+
+    def _invoke():
+        barrier.wait()
+        _invoke_handler(handler, signal.SIGTERM)
+
+    t = threading.Thread(target=_invoke)
+    t.start()
+
+    barrier.wait()  # release both threads
+    _invoke_handler(handler, signal.SIGTERM)
+    t.join()
+
+    # Every claim released exactly once
+    assert sorted(hits) == sorted(claims)
+    assert len(hits) == len(set(hits))</code></pre>
+</details>
+<div class="desc"><p>If two threads invoke the handler almost simultaneously, the internal lock
+must guarantee:
+* no crashes,
+* each claim released &lt;= 1 time,
+* after both finish <code>_claims</code> is empty (second call sees nothing).</p>
+<p>We mimic this by launching a second thread that calls the SIGTERM handler
+while the main thread does the same.</p></div>
+</dd>
+<dt id="biobench.jobkit.test_hooks.test_multiple_hooks_each_release_their_own_claims"><code class="name flex">
+<span>def <span class="ident">test_multiple_hooks_each_release_their_own_claims</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_multiple_hooks_each_release_their_own_claims():
+    &#34;&#34;&#34;
+    When the shared handler runs, *every* live claim from *every* registered
+    hook must be released exactly once.
+    &#34;&#34;&#34;
+
+    hits1, hits2 = [], []
+    r1 = ExitHook(lambda c: hits1.append(c)).register()
+    r2 = ExitHook(lambda c: hits2.append(c)).register()
+
+    claim1, claim2 = (&#34;A&#34;, 1), (&#34;B&#34;, 2)
+    r1.add(claim1)
+    r2.add(claim2)
+
+    _invoke_handler(signal.getsignal(signal.SIGINT), signal.SIGINT)
+
+    assert hits1 == [claim1]
+    assert hits2 == [claim2]</code></pre>
+</details>
+<div class="desc"><p>When the shared handler runs, <em>every</em> live claim from <em>every</em> registered
+hook must be released exactly once.</p></div>
+</dd>
+<dt id="biobench.jobkit.test_hooks.test_multiple_outstanding_claims_do_not_interfere"><code class="name flex">
+<span>def <span class="ident">test_multiple_outstanding_claims_do_not_interfere</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_multiple_outstanding_claims_do_not_interfere():
+    &#34;&#34;&#34;
+    Adding several distinct claims before discarding them should not trigger
+    internal errors such as &#34;set changed size during iteration&#34;.
+    &#34;&#34;&#34;
+
+    hook = ExitHook(lambda c: None).register()
+    claims = [f&#34;job-{i}&#34; for i in range(5)]
+
+    for c in claims:
+        hook.add(c)
+
+    for c in claims:
+        hook.discard(c)</code></pre>
+</details>
+<div class="desc"><p>Adding several distinct claims before discarding them should not trigger
+internal errors such as "set changed size during iteration".</p></div>
+</dd>
+<dt id="biobench.jobkit.test_hooks.test_register_calls_atexit"><code class="name flex">
+<span>def <span class="ident">test_register_calls_atexit</span></span>(<span>monkeypatch)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_register_calls_atexit(monkeypatch):
+    &#34;&#34;&#34;
+    *Contract*: `register()` must install an atexit hook so that claims are released on normal interpreter shutdown.
+
+    We patch `atexit.register` to capture the callback and assert that:
+    1) it was invoked exactly once; 2) the registered object is callable.
+    &#34;&#34;&#34;
+
+    captured: list[callable] = []
+
+    def _fake_register(fn, *args, **kwargs):
+        captured.append(fn)
+
+    monkeypatch.setattr(atexit, &#34;register&#34;, _fake_register)
+
+    # construction shouldn&#39;t trigger the hook -- only .register()
+    hook = ExitHook(lambda _: None)
+    assert not captured
+
+    hook.register()
+    assert len(captured) == 1
+    assert callable(captured[0])</code></pre>
+</details>
+<div class="desc"><p><em>Contract</em>: <code>register()</code> must install an atexit hook so that claims are released on normal interpreter shutdown.</p>
+<p>We patch <code>atexit.register</code> to capture the callback and assert that:
+1) it was invoked exactly once; 2) the registered object is callable.</p></div>
+</dd>
+<dt id="biobench.jobkit.test_hooks.test_register_returns_self_and_is_idempotent"><code class="name flex">
+<span>def <span class="ident">test_register_returns_self_and_is_idempotent</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_register_returns_self_and_is_idempotent():
+    &#34;&#34;&#34;
+    *Spec:* `register()` **must** return the same object so callers can write
+    `reaper = ClaimReaper(...).register()`.
+
+    It must also be safe to call repeatedly (harmless no-ops) because some launchers may defensively register twice.
+    &#34;&#34;&#34;
+
+    sink = []
+    hook = ExitHook(lambda claim: sink.append(claim))
+
+    assert hook.register() is hook  # first call
+    assert hook.register() is hook  # second call - still fine</code></pre>
+</details>
+<div class="desc"><p><em>Spec:</em> <code>register()</code> <strong>must</strong> return the same object so callers can write
+<code>reaper = ClaimReaper(...).register()</code>.</p>
+<p>It must also be safe to call repeatedly (harmless no-ops) because some launchers may defensively register twice.</p></div>
+</dd>
+<dt id="biobench.jobkit.test_hooks.test_release_run_calls_injected_release_fn"><code class="name flex">
+<span>def <span class="ident">test_release_run_calls_injected_release_fn</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_release_run_calls_injected_release_fn():
+    &#34;&#34;&#34;
+    `release_run()` is documented as a *thin wrapper* that forwards to the
+    injected `release_fn`.  Verify that the exact same claim object reaches the
+    callback once--and only once.
+    &#34;&#34;&#34;
+
+    hits = []
+    hook = ExitHook(lambda claim: hits.append(claim))
+
+    claim = (&#34;id&#34;, 7)
+    hook.release_run(claim)
+
+    assert hits == [claim], &#34;release_fn should have been invoked exactly once&#34;</code></pre>
+</details>
+<div class="desc"><p><code>release_run()</code> is documented as a <em>thin wrapper</em> that forwards to the
+injected <code>release_fn</code>.
+Verify that the exact same claim object reaches the
+callback once&ndash;and only once.</p></div>
+</dd>
+<dt id="biobench.jobkit.test_hooks.test_release_run_invokes_callback_exactly_each_time"><code class="name flex">
+<span>def <span class="ident">test_release_run_invokes_callback_exactly_each_time</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_release_run_invokes_callback_exactly_each_time():
+    &#34;&#34;&#34;
+    *Behavioural guarantee:* every explicit release_run() call must translate
+    into one--and only one--invocation of the injected release_fn, regardless of
+    whether the claim was previously added/discarded.
+    &#34;&#34;&#34;
+
+    hits = []
+    hook = ExitHook(lambda c: hits.append(c)).register()
+
+    claim = (&#34;cfg-id-123&#34;, &#34;task-foo&#34;)
+
+    # Claim is active
+    hook.add(claim)
+    hook.release_run(claim)
+    assert hits == [claim]  # called once
+
+    # Claim is no longer tracked
+    hook.discard(claim)
+    hook.release_run(claim)
+    assert hits == [claim, claim]  # called again, no extras</code></pre>
+</details>
+<div class="desc"><p><em>Behavioural guarantee:</em> every explicit release_run() call must translate
+into one&ndash;and only one&ndash;invocation of the injected release_fn, regardless of
+whether the claim was previously added/discarded.</p></div>
+</dd>
+<dt id="biobench.jobkit.test_hooks.test_second_signal_after_empty_claims_is_noop"><code class="name flex">
+<span>def <span class="ident">test_second_signal_after_empty_claims_is_noop</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_second_signal_after_empty_claims_is_noop():
+    &#34;&#34;&#34;
+    If no claims are outstanding, invoking the handler should simply return and
+    **not** raise or append anything.
+    &#34;&#34;&#34;
+
+    hits = []
+    ExitHook(lambda c: hits.append(c)).register()
+
+    handler = signal.getsignal(signal.SIGINT)
+    _invoke_handler(handler, signal.SIGINT)  # nothing to release
+
+    assert hits == []</code></pre>
+</details>
+<div class="desc"><p>If no claims are outstanding, invoking the handler should simply return and
+<strong>not</strong> raise or append anything.</p></div>
+</dd>
+<dt id="biobench.jobkit.test_hooks.test_sigint_handler_releases_all_claims"><code class="name flex">
+<span>def <span class="ident">test_sigint_handler_releases_all_claims</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_sigint_handler_releases_all_claims():
+    &#34;&#34;&#34;
+    Core guarantee: when the SIGINT handler is invoked, every *current* claim
+    is released exactly once.
+
+    We call the handler directly rather than raising a real signal so the
+    suite survives even if ClaimReaper forgot to install it.
+    &#34;&#34;&#34;
+
+    hits, claims = [], [f&#34;claim-{i}&#34; for i in range(3)]
+    hook = ExitHook(lambda c: hits.append(c)).register()
+    for c in claims:
+        hook.add(c)
+
+    handler = signal.getsignal(signal.SIGINT)
+    assert callable(handler) and handler not in (signal.SIG_DFL, signal.SIG_IGN), (
+        &#34;ClaimReaper failed to install a SIGINT handler&#34;
+    )
+
+    _invoke_handler(handler, signal.SIGINT)
+
+    assert sorted(hits) == sorted(claims)
+    assert len(hits) == len(claims)</code></pre>
+</details>
+<div class="desc"><p>Core guarantee: when the SIGINT handler is invoked, every <em>current</em> claim
+is released exactly once.</p>
+<p>We call the handler directly rather than raising a real signal so the
+suite survives even if ClaimReaper forgot to install it.</p></div>
+</dd>
+<dt id="biobench.jobkit.test_hooks.test_sigint_releases_all_claims"><code class="name flex">
+<span>def <span class="ident">test_sigint_releases_all_claims</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_sigint_releases_all_claims():
+    hits = []
+    claims = [f&#34;claim-{i}&#34; for i in range(3)]
+    hook = ExitHook(lambda c: hits.append(c)).register()
+
+    for c in claims:
+        hook.add(c)
+
+    old_handler = signal.getsignal(signal.SIGINT)
+    try:
+        with pytest.raises(KeyboardInterrupt):
+            signal.raise_signal(signal.SIGINT)
+    finally:
+        signal.signal(signal.SIGINT, old_handler)  # restore for other tests
+
+    assert sorted(hits) == sorted(claims)
+    assert len(hits) == len(claims)</code></pre>
+</details>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.jobkit.test_hooks.test_sigterm_handler_releases_only_current_claims"><code class="name flex">
+<span>def <span class="ident">test_sigterm_handler_releases_only_current_claims</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_sigterm_handler_releases_only_current_claims():
+    &#34;&#34;&#34;
+    Discarded claims should not be released by the SIGTERM handler.
+    &#34;&#34;&#34;
+
+    hits = []
+    live1, live2, discarded = &#34;stay-1&#34;, &#34;stay-2&#34;, &#34;gone-x&#34;
+    hook = ExitHook(lambda c: hits.append(c)).register()
+
+    for c in (live1, live2, discarded):
+        hook.add(c)
+    hook.discard(discarded)  # no longer live
+
+    handler = signal.getsignal(signal.SIGTERM)
+    assert callable(handler), &#34;missing SIGTERM handler&#34;
+    _invoke_handler(handler, signal.SIGTERM)
+
+    assert sorted(hits) == sorted([live1, live2])</code></pre>
+</details>
+<div class="desc"><p>Discarded claims should not be released by the SIGTERM handler.</p></div>
+</dd>
+<dt id="biobench.jobkit.test_hooks.test_unregistered_hook_claims_are_not_released"><code class="name flex">
+<span>def <span class="ident">test_unregistered_hook_claims_are_not_released</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_unregistered_hook_claims_are_not_released():
+    &#34;&#34;&#34;
+    Claims tracked by a *non-registered* ClaimReaper instance must *not* be
+    released when some other hook&#39;s handler fires.
+    &#34;&#34;&#34;
+
+    ghost_hits, live_hits = [], []
+    ghost = ExitHook(lambda c: ghost_hits.append(c))  # NOT registered
+    live = ExitHook(lambda c: live_hits.append(c)).register()
+
+    ghost.add((&#34;ghost&#34;, 9))
+    live.add((&#34;live&#34;, 10))
+
+    _invoke_handler(signal.getsignal(signal.SIGINT), signal.SIGINT)
+
+    assert ghost_hits == []  # untouched
+    assert live_hits == [(&#34;live&#34;, 10)]</code></pre>
+</details>
+<div class="desc"><p>Claims tracked by a <em>non-registered</em> ClaimReaper instance must <em>not</em> be
+released when some other hook's handler fires.</p></div>
+</dd>
+</dl>
+</section>
+<section>
+</section>
+</article>
+<nav id="sidebar">
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="biobench.jobkit" href="index.html">biobench.jobkit</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-functions">Functions</a></h3>
+<ul class="">
+<li><code><a title="biobench.jobkit.test_hooks.test_add_requires_hashable_claim" href="#biobench.jobkit.test_hooks.test_add_requires_hashable_claim">test_add_requires_hashable_claim</a></code></li>
+<li><code><a title="biobench.jobkit.test_hooks.test_add_then_discard_accepts_generic_payload" href="#biobench.jobkit.test_hooks.test_add_then_discard_accepts_generic_payload">test_add_then_discard_accepts_generic_payload</a></code></li>
+<li><code><a title="biobench.jobkit.test_hooks.test_atexit_cleanup_is_idempotent" href="#biobench.jobkit.test_hooks.test_atexit_cleanup_is_idempotent">test_atexit_cleanup_is_idempotent</a></code></li>
+<li><code><a title="biobench.jobkit.test_hooks.test_atexit_handler_releases_all_live_claims" href="#biobench.jobkit.test_hooks.test_atexit_handler_releases_all_live_claims">test_atexit_handler_releases_all_live_claims</a></code></li>
+<li><code><a title="biobench.jobkit.test_hooks.test_can_add_new_claims_after_previous_release" href="#biobench.jobkit.test_hooks.test_can_add_new_claims_after_previous_release">test_can_add_new_claims_after_previous_release</a></code></li>
+<li><code><a title="biobench.jobkit.test_hooks.test_discard_unknown_claim_is_noop" href="#biobench.jobkit.test_hooks.test_discard_unknown_claim_is_noop">test_discard_unknown_claim_is_noop</a></code></li>
+<li><code><a title="biobench.jobkit.test_hooks.test_discarded_claims_on_one_hook_do_not_affect_others" href="#biobench.jobkit.test_hooks.test_discarded_claims_on_one_hook_do_not_affect_others">test_discarded_claims_on_one_hook_do_not_affect_others</a></code></li>
+<li><code><a title="biobench.jobkit.test_hooks.test_duplicate_add_is_idempotent_under_sigint" href="#biobench.jobkit.test_hooks.test_duplicate_add_is_idempotent_under_sigint">test_duplicate_add_is_idempotent_under_sigint</a></code></li>
+<li><code><a title="biobench.jobkit.test_hooks.test_handler_identity_shared_across_instances" href="#biobench.jobkit.test_hooks.test_handler_identity_shared_across_instances">test_handler_identity_shared_across_instances</a></code></li>
+<li><code><a title="biobench.jobkit.test_hooks.test_handler_is_reentrant_no_duplicate_releases" href="#biobench.jobkit.test_hooks.test_handler_is_reentrant_no_duplicate_releases">test_handler_is_reentrant_no_duplicate_releases</a></code></li>
+<li><code><a title="biobench.jobkit.test_hooks.test_lock_prevents_set_mutation_during_discards" href="#biobench.jobkit.test_hooks.test_lock_prevents_set_mutation_during_discards">test_lock_prevents_set_mutation_during_discards</a></code></li>
+<li><code><a title="biobench.jobkit.test_hooks.test_lock_prevents_set_mutation_during_massive_adds" href="#biobench.jobkit.test_hooks.test_lock_prevents_set_mutation_during_massive_adds">test_lock_prevents_set_mutation_during_massive_adds</a></code></li>
+<li><code><a title="biobench.jobkit.test_hooks.test_lock_serialises_multiple_concurrent_handlers" href="#biobench.jobkit.test_hooks.test_lock_serialises_multiple_concurrent_handlers">test_lock_serialises_multiple_concurrent_handlers</a></code></li>
+<li><code><a title="biobench.jobkit.test_hooks.test_multiple_hooks_each_release_their_own_claims" href="#biobench.jobkit.test_hooks.test_multiple_hooks_each_release_their_own_claims">test_multiple_hooks_each_release_their_own_claims</a></code></li>
+<li><code><a title="biobench.jobkit.test_hooks.test_multiple_outstanding_claims_do_not_interfere" href="#biobench.jobkit.test_hooks.test_multiple_outstanding_claims_do_not_interfere">test_multiple_outstanding_claims_do_not_interfere</a></code></li>
+<li><code><a title="biobench.jobkit.test_hooks.test_register_calls_atexit" href="#biobench.jobkit.test_hooks.test_register_calls_atexit">test_register_calls_atexit</a></code></li>
+<li><code><a title="biobench.jobkit.test_hooks.test_register_returns_self_and_is_idempotent" href="#biobench.jobkit.test_hooks.test_register_returns_self_and_is_idempotent">test_register_returns_self_and_is_idempotent</a></code></li>
+<li><code><a title="biobench.jobkit.test_hooks.test_release_run_calls_injected_release_fn" href="#biobench.jobkit.test_hooks.test_release_run_calls_injected_release_fn">test_release_run_calls_injected_release_fn</a></code></li>
+<li><code><a title="biobench.jobkit.test_hooks.test_release_run_invokes_callback_exactly_each_time" href="#biobench.jobkit.test_hooks.test_release_run_invokes_callback_exactly_each_time">test_release_run_invokes_callback_exactly_each_time</a></code></li>
+<li><code><a title="biobench.jobkit.test_hooks.test_second_signal_after_empty_claims_is_noop" href="#biobench.jobkit.test_hooks.test_second_signal_after_empty_claims_is_noop">test_second_signal_after_empty_claims_is_noop</a></code></li>
+<li><code><a title="biobench.jobkit.test_hooks.test_sigint_handler_releases_all_claims" href="#biobench.jobkit.test_hooks.test_sigint_handler_releases_all_claims">test_sigint_handler_releases_all_claims</a></code></li>
+<li><code><a title="biobench.jobkit.test_hooks.test_sigint_releases_all_claims" href="#biobench.jobkit.test_hooks.test_sigint_releases_all_claims">test_sigint_releases_all_claims</a></code></li>
+<li><code><a title="biobench.jobkit.test_hooks.test_sigterm_handler_releases_only_current_claims" href="#biobench.jobkit.test_hooks.test_sigterm_handler_releases_only_current_claims">test_sigterm_handler_releases_only_current_claims</a></code></li>
+<li><code><a title="biobench.jobkit.test_hooks.test_unregistered_hook_claims_are_not_released" href="#biobench.jobkit.test_hooks.test_unregistered_hook_claims_are_not_released">test_unregistered_hook_claims_are_not_released</a></code></li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
+</footer>
+</body>
+</html>

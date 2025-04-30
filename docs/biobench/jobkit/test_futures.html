@@ -1,0 +1,666 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+<meta name="generator" content="pdoc3 0.11.6">
+<title>biobench.jobkit.test_futures API documentation</title>
+<meta name="description" content="Unit tests for the `JobQueue` helper described in Coding-spec: ClaimReaper &amp; JobQueue …">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script type="text/x-mathjax-config">MathJax.Hub.Config({ tex2jax: { inlineMath: [ ['$','$'], ["\\(","\\)"] ], processEscapes: true } });</script>
+<script async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS_CHTML" integrity="sha256-kZafAc6mZvK3W3v1pHOcUix30OHQN6pU/NO2oFkqZVw=" crossorigin></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => {
+hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+hljs.highlightAll();
+/* Collapse source docstrings */
+setTimeout(() => {
+[...document.querySelectorAll('.hljs.language-python > .hljs-string')]
+.filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
+.forEach(el => {
+let d = document.createElement('details');
+d.classList.add('hljs-string');
+d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
+el.replaceWith(d);
+});
+}, 100);
+})</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>biobench.jobkit.test_futures</code></h1>
+</header>
+<section id="section-intro">
+<p>Unit tests for the <code>JobQueue</code> helper described in Coding-spec: ClaimReaper &amp; JobQueue.</p>
+<p>We use a minimal <code><a title="biobench.jobkit.test_futures.FakeJob" href="#biobench.jobkit.test_futures.FakeJob">FakeJob</a></code> stub that mimics the <code>submitit.Job</code> API (<code>done()</code> -&gt; bool) so the tests remain independent of SubmitIt. Each test includes a docstring explaining the contract being verified.</p>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-functions">Functions</h2>
+<dl>
+<dt id="biobench.jobkit.test_futures.test_blocking_pop_unblocks_when_only_job_finishes_later"><code class="name flex">
+<span>def <span class="ident">test_blocking_pop_unblocks_when_only_job_finishes_later</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_blocking_pop_unblocks_when_only_job_finishes_later():
+    &#34;&#34;&#34;
+    When **all** payloads are unfinished, `pop()` must wait until one finishes.
+
+    We enqueue a single `DelayedJob(0.2)`, start `pop()` in a thread, and
+    verify it returns within the safety window.
+    &#34;&#34;&#34;
+    delayed = DelayedJob(0.2)
+    fq = FutureQueue(max_size=1)
+    fq.submit(delayed)
+
+    out = queue.Queue()
+    t = threading.Thread(target=_call_pop, args=(fq, out), daemon=True)
+    t.start()
+    t.join(timeout=5)
+
+    assert not t.is_alive(), &#34;pop() blocked &gt;5 s&#34;
+    assert out.get_nowait() is delayed
+    assert len(fq) == 0</code></pre>
+</details>
+<div class="desc"><p>When <strong>all</strong> payloads are unfinished, <code>pop()</code> must wait until one finishes.</p>
+<p>We enqueue a single <code><a title="biobench.jobkit.test_futures.DelayedJob" href="#biobench.jobkit.test_futures.DelayedJob">DelayedJob</a>(0.2)</code>, start <code>pop()</code> in a thread, and
+verify it returns within the safety window.</p></div>
+</dd>
+<dt id="biobench.jobkit.test_futures.test_bool_dunder_and_full"><code class="name flex">
+<span>def <span class="ident">test_bool_dunder_and_full</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_bool_dunder_and_full():
+    &#34;&#34;&#34;
+    `__bool__` mirrors &#34;non-empty&#34; and `full()` reflects capacity status.
+
+    * Empty queue -&gt; `bool(q)` is `False`.
+    * After one insert -&gt; `bool(q)` is `True`.
+    * When at capacity -&gt; `full()` becomes `True`.
+    &#34;&#34;&#34;
+    q = FutureQueue(max_size=2)
+    assert not q and len(q) == 0
+
+    q.submit(FakeJob())
+    assert q and not q.full()
+
+    q.submit(FakeJob())
+    assert q.full()</code></pre>
+</details>
+<div class="desc"><p><code>__bool__</code> mirrors "non-empty" and <code>full()</code> reflects capacity status.</p>
+<ul>
+<li>Empty queue -&gt; <code>bool(q)</code> is <code>False</code>.</li>
+<li>After one insert -&gt; <code>bool(q)</code> is <code>True</code>.</li>
+<li>When at capacity -&gt; <code>full()</code> becomes <code>True</code>.</li>
+</ul></div>
+</dd>
+<dt id="biobench.jobkit.test_futures.test_depth_two_nesting_is_detected"><code class="name flex">
+<span>def <span class="ident">test_depth_two_nesting_is_detected</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@pytest.mark.timeout(5)
+def test_depth_two_nesting_is_detected():
+    &#34;&#34;&#34;
+    The spec promises a *depth-first scan &lt;= 2* levels deep.
+
+    We wrap a finished job two layers down:  [ ( job ) ].  `pop()` must still
+    recognise completion and unblock.
+    &#34;&#34;&#34;
+    deep = [[FakeJob(done=True)]]
+    q = FutureQueue(max_size=2)
+    q.submit(deep)
+
+    popped = q.pop()
+    assert popped is deep  # exact payload returned</code></pre>
+</details>
+<div class="desc"><p>The spec promises a <em>depth-first scan &lt;= 2</em> levels deep.</p>
+<p>We wrap a finished job two layers down:
+[ ( job ) ].
+<code>pop()</code> must still
+recognise completion and unblock.</p></div>
+</dd>
+<dt id="biobench.jobkit.test_futures.test_full_and_submit_raises"><code class="name flex">
+<span>def <span class="ident">test_full_and_submit_raises</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_full_and_submit_raises():
+    &#34;&#34;&#34;
+    `submit()` must raise `RuntimeError` when the queue is full.
+
+    This covers both:
+    * normal capacity exhaustion (`max_size=1`)
+    * the &#34;always full&#34; sentinel (`max_size=0`)
+    &#34;&#34;&#34;
+    single = FutureQueue(max_size=1)
+    single.submit(FakeJob())  # fills the queue
+    with pytest.raises(RuntimeError):
+        single.submit(FakeJob())  # should fail
+
+    always_full = FutureQueue(max_size=0)
+    assert always_full.full() is True
+    with pytest.raises(RuntimeError):
+        always_full.submit(FakeJob())  # should fail immediately</code></pre>
+</details>
+<div class="desc"><p><code>submit()</code> must raise <code>RuntimeError</code> when the queue is full.</p>
+<p>This covers both:
+* normal capacity exhaustion (<code>max_size=1</code>)
+* the "always full" sentinel (<code>max_size=0</code>)</p></div>
+</dd>
+<dt id="biobench.jobkit.test_futures.test_iter_preserves_fifo_after_interleaved_pops"><code class="name flex">
+<span>def <span class="ident">test_iter_preserves_fifo_after_interleaved_pops</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@pytest.mark.timeout(5)
+def test_iter_preserves_fifo_after_interleaved_pops():
+    &#34;&#34;&#34;
+    `__iter__` must always reflect current FIFO order of *remaining* items.
+
+    Scenario:
+    1. enqueue A(done=False), B(done=True), C(done=False)
+    2. `pop()` removes B
+    3. Order should now be [A, C] -- verify with `list(q)`.
+    &#34;&#34;&#34;
+    a, b, c = FakeJob(), FakeJob(done=True), FakeJob()
+    q = FutureQueue(max_size=5)
+    q.submit(a)
+    q.submit(b)
+    q.submit(c)
+
+    q.pop()  # removes B
+    assert [a, c] == list(q)</code></pre>
+</details>
+<div class="desc"><p><code>__iter__</code> must always reflect current FIFO order of <em>remaining</em> items.</p>
+<p>Scenario:
+1. enqueue A(done=False), B(done=True), C(done=False)
+2. <code>pop()</code> removes B
+3. Order should now be [A, C] &ndash; verify with <code>list(q)</code>.</p></div>
+</dd>
+<dt id="biobench.jobkit.test_futures.test_multiple_done_jobs_in_one_payload_returns_first_depth_first"><code class="name flex">
+<span>def <span class="ident">test_multiple_done_jobs_in_one_payload_returns_first_depth_first</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_multiple_done_jobs_in_one_payload_returns_first_depth_first():
+    &#34;&#34;&#34;
+    If a single payload contains *several* finished jobs, the queue should treat the first depth-first hit as the trigger.
+
+    We build:  ( doneA , [ doneB ] )  -- `pop()` may choose either, but spec allows returning the *payload* not the individual job; ensure dequeueing occurs immediately.
+    &#34;&#34;&#34;
+    a, b = FakeJob(done=True), FakeJob(done=True)
+    nested = (a, [b])
+
+    fq = FutureQueue(2)
+    fq.submit(nested)
+
+    assert fq.pop() is nested
+    assert len(fq) == 0</code></pre>
+</details>
+<div class="desc"><p>If a single payload contains <em>several</em> finished jobs, the queue should treat the first depth-first hit as the trigger.</p>
+<p>We build:
+( doneA , [ doneB ] )
+&ndash; <code>pop()</code> may choose either, but spec allows returning the <em>payload</em> not the individual job; ensure dequeueing occurs immediately.</p></div>
+</dd>
+<dt id="biobench.jobkit.test_futures.test_non_job_payload_left_in_queue_if_no_done_job_inside"><code class="name flex">
+<span>def <span class="ident">test_non_job_payload_left_in_queue_if_no_done_job_inside</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@pytest.mark.timeout(5)
+def test_non_job_payload_left_in_queue_if_no_done_job_inside():
+    &#34;&#34;&#34;
+    Submitting a payload *without* any `done()` method must *not* starve later
+    finished jobs.
+
+    We enqueue a plain dict (no job) first, followed by a finished `FakeJob`.
+    `pop()` should skip over the dict, return the finished job, and leave the
+    dict in the queue.
+    &#34;&#34;&#34;
+    sentinel = {&#34;msg&#34;: &#34;not a job&#34;}
+    finished = FakeJob(done=True)
+
+    q = FutureQueue(max_size=3)
+    q.submit(sentinel)
+    q.submit(finished)
+
+    assert q.pop() is finished
+    assert list(q) == [sentinel]  # dict still waiting (never satisfies pop)</code></pre>
+</details>
+<div class="desc"><p>Submitting a payload <em>without</em> any <code>done()</code> method must <em>not</em> starve later
+finished jobs.</p>
+<p>We enqueue a plain dict (no job) first, followed by a finished <code><a title="biobench.jobkit.test_futures.FakeJob" href="#biobench.jobkit.test_futures.FakeJob">FakeJob</a></code>.
+<code>pop()</code> should skip over the dict, return the finished job, and leave the
+dict in the queue.</p></div>
+</dd>
+<dt id="biobench.jobkit.test_futures.test_payload_with_multiple_jobs_mixed_status"><code class="name flex">
+<span>def <span class="ident">test_payload_with_multiple_jobs_mixed_status</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@pytest.mark.timeout(5)
+def test_payload_with_multiple_jobs_mixed_status():
+    &#34;&#34;&#34;
+    If any *member* job is finished the *whole* payload counts as finished.
+
+    We craft a container with (unfinished, finished).  Even though the first
+    element is *not* done, the second is -- so `pop()` must still dequeue it.
+    &#34;&#34;&#34;
+    first, second = FakeJob(done=False), FakeJob(done=True)
+    mixed = (first, second)
+    q = FutureQueue(max_size=1)
+    q.submit(mixed)
+
+    popped = q.pop()
+    assert popped is mixed
+    assert len(q) == 0  # queue now empty</code></pre>
+</details>
+<div class="desc"><p>If any <em>member</em> job is finished the <em>whole</em> payload counts as finished.</p>
+<p>We craft a container with (unfinished, finished).
+Even though the first
+element is <em>not</em> done, the second is &ndash; so <code>pop()</code> must still dequeue it.</p></div>
+</dd>
+<dt id="biobench.jobkit.test_futures.test_pop_frees_capacity_for_further_submissions"><code class="name flex">
+<span>def <span class="ident">test_pop_frees_capacity_for_further_submissions</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@pytest.mark.timeout(5)
+def test_pop_frees_capacity_for_further_submissions():
+    &#34;&#34;&#34;
+    After `pop()` removes a finished payload the queue should no longer be full.
+
+    * Fill a queue of size 1 with a *finished* job.
+    * `pop()` should return immediately and leave the queue empty.
+    * A subsequent `submit()` must succeed without raising.
+    &#34;&#34;&#34;
+    q = FutureQueue(max_size=1)
+    q.submit(FakeJob(done=True))  # queue is full
+
+    q.pop()  # frees the slot
+    assert len(q) == 0 and not q.full()
+
+    # Should accept a new item now.
+    try:
+        q.submit(FakeJob())
+    except RuntimeError:
+        pytest.fail(&#34;Queue did not free capacity after pop()&#34;)</code></pre>
+</details>
+<div class="desc"><p>After <code>pop()</code> removes a finished payload the queue should no longer be full.</p>
+<ul>
+<li>Fill a queue of size 1 with a <em>finished</em> job.</li>
+<li><code>pop()</code> should return immediately and leave the queue empty.</li>
+<li>A subsequent <code>submit()</code> must succeed without raising.</li>
+</ul></div>
+</dd>
+<dt id="biobench.jobkit.test_futures.test_pop_recognises_nested_jobs"><code class="name flex">
+<span>def <span class="ident">test_pop_recognises_nested_jobs</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@pytest.mark.timeout(5)
+def test_pop_recognises_nested_jobs():
+    &#34;&#34;&#34;
+    The queue must scan *nested* payloads (&lt;= 2 levels, depth-first).
+
+    We wrap a finished `FakeJob` inside a tuple along with arbitrary metadata
+    and verify that `pop()` still detects completion.
+    &#34;&#34;&#34;
+    done_job = FakeJob(done=True)
+    nested_payload = (done_job, {&#34;cfg&#34;: &#34;dummy&#34;})
+    q = FutureQueue(max_size=2)
+    q.submit(nested_payload)
+
+    popped = q.pop()
+    assert popped is nested_payload</code></pre>
+</details>
+<div class="desc"><p>The queue must scan <em>nested</em> payloads (&lt;= 2 levels, depth-first).</p>
+<p>We wrap a finished <code><a title="biobench.jobkit.test_futures.FakeJob" href="#biobench.jobkit.test_futures.FakeJob">FakeJob</a></code> inside a tuple along with arbitrary metadata
+and verify that <code>pop()</code> still detects completion.</p></div>
+</dd>
+<dt id="biobench.jobkit.test_futures.test_pop_returns_first_finished_payload"><code class="name flex">
+<span>def <span class="ident">test_pop_returns_first_finished_payload</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@pytest.mark.timeout(5)
+def test_pop_returns_first_finished_payload():
+    &#34;&#34;&#34;
+    `pop()` must return the *earliest finished* payload, not simply FIFO order.
+
+    We enqueue two jobs:
+    * `slow` -&gt; not yet done
+    * `fast` -&gt; already done
+
+    Even though `slow` was submitted first, `pop()` should unblock on `fast`.
+    &#34;&#34;&#34;
+    slow, fast = FakeJob(done=False), FakeJob(done=True)
+    q = FutureQueue(max_size=3)
+    q.submit(slow)  # inserted first
+    q.submit(fast)  # inserted second
+
+    popped = q.pop()
+    assert popped is fast
+    assert len(q) == 1 and q.full() is False</code></pre>
+</details>
+<div class="desc"><p><code>pop()</code> must return the <em>earliest finished</em> payload, not simply FIFO order.</p>
+<p>We enqueue two jobs:
+* <code>slow</code> -&gt; not yet done
+* <code>fast</code> -&gt; already done</p>
+<p>Even though <code>slow</code> was submitted first, <code>pop()</code> should unblock on <code>fast</code>.</p></div>
+</dd>
+<dt id="biobench.jobkit.test_futures.test_pop_returns_first_runtime_finish_not_fifo"><code class="name flex">
+<span>def <span class="ident">test_pop_returns_first_runtime_finish_not_fifo</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_pop_returns_first_runtime_finish_not_fifo():
+    &#34;&#34;&#34;
+    The job that *completes first in wall time* must be returned, regardless
+    of insertion order.
+
+    Queue order:  slow(2 s)  -&gt;  fast(0.1 s)
+
+    Expected: `pop()` blocks ~0.1 s, returns *fast*.
+    &#34;&#34;&#34;
+    slow = DelayedJob(2.0)
+    fast = DelayedJob(0.1)
+
+    fq = FutureQueue(max_size=2)
+    fq.submit(slow)  # FIFO head
+    fq.submit(fast)  # finishes first
+
+    out = queue.Queue()
+    t = threading.Thread(target=_call_pop, args=(fq, out), daemon=True)
+    t.start()
+    t.join(timeout=5)
+
+    assert not t.is_alive(), &#34;pop() blocked too long&#34;
+    popped = out.get_nowait()
+    assert popped is fast
+    assert list(fq) == [slow]  # slow still pending</code></pre>
+</details>
+<div class="desc"><p>The job that <em>completes first in wall time</em> must be returned, regardless
+of insertion order.</p>
+<p>Queue order:
+slow(2 s)
+-&gt;
+fast(0.1 s)</p>
+<p>Expected: <code>pop()</code> blocks ~0.1 s, returns <em>fast</em>.</p></div>
+</dd>
+<dt id="biobench.jobkit.test_futures.test_pop_skips_non_job_then_unblocks_on_future_finish"><code class="name flex">
+<span>def <span class="ident">test_pop_skips_non_job_then_unblocks_on_future_finish</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_pop_skips_non_job_then_unblocks_on_future_finish():
+    &#34;&#34;&#34;
+    Interleaving:  [dict, DelayedJob].
+
+    `pop()` must *skip* the non-job payload, block until the job finishes,
+    then return **the job** while leaving the dict untouched.
+    &#34;&#34;&#34;
+    sentinel = {&#34;cfg&#34;: &#34;noop&#34;}
+    job = DelayedJob(0.1)
+
+    fq = FutureQueue(3)
+    fq.submit(sentinel)
+    fq.submit(job)
+
+    out = queue.Queue()
+    t = threading.Thread(target=_call_pop, args=(fq, out), daemon=True)
+    t.start()
+    t.join(timeout=5)
+
+    assert out.get_nowait() is job
+    assert list(fq) == [sentinel]</code></pre>
+</details>
+<div class="desc"><p>Interleaving:
+[dict, DelayedJob].</p>
+<p><code>pop()</code> must <em>skip</em> the non-job payload, block until the job finishes,
+then return <strong>the job</strong> while leaving the dict untouched.</p></div>
+</dd>
+<dt id="biobench.jobkit.test_futures.test_submit_and_len"><code class="name flex">
+<span>def <span class="ident">test_submit_and_len</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_submit_and_len():
+    &#34;&#34;&#34;
+    `submit()` appends items and `len(queue)` tracks the count.
+
+    A queue with `max_size=3` should grow from 0 -&gt; 1 -&gt; 2 as items are added.
+    &#34;&#34;&#34;
+    q = FutureQueue(max_size=3)
+    assert len(q) == 0
+
+    q.submit(FakeJob())
+    assert len(q) == 1
+
+    q.submit(FakeJob())
+    assert len(q) == 2</code></pre>
+</details>
+<div class="desc"><p><code>submit()</code> appends items and <code>len(queue)</code> tracks the count.</p>
+<p>A queue with <code>max_size=3</code> should grow from 0 -&gt; 1 -&gt; 2 as items are added.</p></div>
+</dd>
+</dl>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="biobench.jobkit.test_futures.DelayedJob"><code class="flex name class">
+<span>class <span class="ident">DelayedJob</span></span>
+<span>(</span><span>delay: float)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class DelayedJob(FakeJob):
+    &#34;&#34;&#34;`done()` flips to True after `delay` wall-seconds.&#34;&#34;&#34;
+
+    def __init__(self, delay: float):
+        super().__init__(done=False)
+        self._ready_at = time.time() + delay
+
+    def done(self) -&gt; bool:
+        if not self._done and time.time() &gt;= self._ready_at:
+            self._done = True
+        return self._done</code></pre>
+</details>
+<div class="desc"><p><code>done()</code> flips to True after <code>delay</code> wall-seconds.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="biobench.jobkit.test_futures.FakeJob" href="#biobench.jobkit.test_futures.FakeJob">FakeJob</a></li>
+</ul>
+<h3>Methods</h3>
+<dl>
+<dt id="biobench.jobkit.test_futures.DelayedJob.done"><code class="name flex">
+<span>def <span class="ident">done</span></span>(<span>self) ‑> bool</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def done(self) -&gt; bool:
+    if not self._done and time.time() &gt;= self._ready_at:
+        self._done = True
+    return self._done</code></pre>
+</details>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="biobench.jobkit.test_futures.FakeJob"><code class="flex name class">
+<span>class <span class="ident">FakeJob</span></span>
+<span>(</span><span>done: bool = False)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class FakeJob:
+    &#34;&#34;&#34;Simple stub that reports completion via `done()`.&#34;&#34;&#34;
+
+    def __init__(self, done: bool = False):
+        self._done = done
+
+    def done(self) -&gt; bool:
+        return self._done
+
+    def mark_done(self):
+        self._done = True
+
+    # Make debugging nicer.
+    def __repr__(self) -&gt; str:
+        return f&#34;&lt;FakeJob done={self._done}&gt;&#34;</code></pre>
+</details>
+<div class="desc"><p>Simple stub that reports completion via <code>done()</code>.</p></div>
+<h3>Subclasses</h3>
+<ul class="hlist">
+<li><a title="biobench.jobkit.test_futures.DelayedJob" href="#biobench.jobkit.test_futures.DelayedJob">DelayedJob</a></li>
+</ul>
+<h3>Methods</h3>
+<dl>
+<dt id="biobench.jobkit.test_futures.FakeJob.done"><code class="name flex">
+<span>def <span class="ident">done</span></span>(<span>self) ‑> bool</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def done(self) -&gt; bool:
+    return self._done</code></pre>
+</details>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.jobkit.test_futures.FakeJob.mark_done"><code class="name flex">
+<span>def <span class="ident">mark_done</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def mark_done(self):
+    self._done = True</code></pre>
+</details>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="biobench.jobkit" href="index.html">biobench.jobkit</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-functions">Functions</a></h3>
+<ul class="">
+<li><code><a title="biobench.jobkit.test_futures.test_blocking_pop_unblocks_when_only_job_finishes_later" href="#biobench.jobkit.test_futures.test_blocking_pop_unblocks_when_only_job_finishes_later">test_blocking_pop_unblocks_when_only_job_finishes_later</a></code></li>
+<li><code><a title="biobench.jobkit.test_futures.test_bool_dunder_and_full" href="#biobench.jobkit.test_futures.test_bool_dunder_and_full">test_bool_dunder_and_full</a></code></li>
+<li><code><a title="biobench.jobkit.test_futures.test_depth_two_nesting_is_detected" href="#biobench.jobkit.test_futures.test_depth_two_nesting_is_detected">test_depth_two_nesting_is_detected</a></code></li>
+<li><code><a title="biobench.jobkit.test_futures.test_full_and_submit_raises" href="#biobench.jobkit.test_futures.test_full_and_submit_raises">test_full_and_submit_raises</a></code></li>
+<li><code><a title="biobench.jobkit.test_futures.test_iter_preserves_fifo_after_interleaved_pops" href="#biobench.jobkit.test_futures.test_iter_preserves_fifo_after_interleaved_pops">test_iter_preserves_fifo_after_interleaved_pops</a></code></li>
+<li><code><a title="biobench.jobkit.test_futures.test_multiple_done_jobs_in_one_payload_returns_first_depth_first" href="#biobench.jobkit.test_futures.test_multiple_done_jobs_in_one_payload_returns_first_depth_first">test_multiple_done_jobs_in_one_payload_returns_first_depth_first</a></code></li>
+<li><code><a title="biobench.jobkit.test_futures.test_non_job_payload_left_in_queue_if_no_done_job_inside" href="#biobench.jobkit.test_futures.test_non_job_payload_left_in_queue_if_no_done_job_inside">test_non_job_payload_left_in_queue_if_no_done_job_inside</a></code></li>
+<li><code><a title="biobench.jobkit.test_futures.test_payload_with_multiple_jobs_mixed_status" href="#biobench.jobkit.test_futures.test_payload_with_multiple_jobs_mixed_status">test_payload_with_multiple_jobs_mixed_status</a></code></li>
+<li><code><a title="biobench.jobkit.test_futures.test_pop_frees_capacity_for_further_submissions" href="#biobench.jobkit.test_futures.test_pop_frees_capacity_for_further_submissions">test_pop_frees_capacity_for_further_submissions</a></code></li>
+<li><code><a title="biobench.jobkit.test_futures.test_pop_recognises_nested_jobs" href="#biobench.jobkit.test_futures.test_pop_recognises_nested_jobs">test_pop_recognises_nested_jobs</a></code></li>
+<li><code><a title="biobench.jobkit.test_futures.test_pop_returns_first_finished_payload" href="#biobench.jobkit.test_futures.test_pop_returns_first_finished_payload">test_pop_returns_first_finished_payload</a></code></li>
+<li><code><a title="biobench.jobkit.test_futures.test_pop_returns_first_runtime_finish_not_fifo" href="#biobench.jobkit.test_futures.test_pop_returns_first_runtime_finish_not_fifo">test_pop_returns_first_runtime_finish_not_fifo</a></code></li>
+<li><code><a title="biobench.jobkit.test_futures.test_pop_skips_non_job_then_unblocks_on_future_finish" href="#biobench.jobkit.test_futures.test_pop_skips_non_job_then_unblocks_on_future_finish">test_pop_skips_non_job_then_unblocks_on_future_finish</a></code></li>
+<li><code><a title="biobench.jobkit.test_futures.test_submit_and_len" href="#biobench.jobkit.test_futures.test_submit_and_len">test_submit_and_len</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="biobench.jobkit.test_futures.DelayedJob" href="#biobench.jobkit.test_futures.DelayedJob">DelayedJob</a></code></h4>
+<ul class="">
+<li><code><a title="biobench.jobkit.test_futures.DelayedJob.done" href="#biobench.jobkit.test_futures.DelayedJob.done">done</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="biobench.jobkit.test_futures.FakeJob" href="#biobench.jobkit.test_futures.FakeJob">FakeJob</a></code></h4>
+<ul class="">
+<li><code><a title="biobench.jobkit.test_futures.FakeJob.done" href="#biobench.jobkit.test_futures.FakeJob.done">done</a></code></li>
+<li><code><a title="biobench.jobkit.test_futures.FakeJob.mark_done" href="#biobench.jobkit.test_futures.FakeJob.mark_done">mark_done</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
+</footer>
+</body>
+</html>

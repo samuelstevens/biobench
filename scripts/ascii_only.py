@@ -45,6 +45,8 @@ mapping = {
     "\u2212": "-",  # minus sign
     # Arrows
     "\u2192": "->",  # right arrow (→)
+    # Math
+    "\u2264": "<=",
 }
 
 
@@ -57,7 +59,6 @@ class NonAsciiIssue:
     line_num: int
     char_pos: int
     problem_line: str
-    bad_byte: bytes
     unicode_repr: str
 
     def __str__(self) -> str:
@@ -67,7 +68,6 @@ class NonAsciiIssue:
             f"{self.file_path}:{self.line_num}:{self.char_pos + 1}: Non-ASCII character detected\n"
             f" {self.problem_line}\n"
             f" {pointer}\n"
-            f" Problematic bytes: {self.bad_byte!r}\n"
             f" Unicode escape: {self.unicode_repr}"
         )
 
@@ -78,29 +78,6 @@ def fix_non_ascii(content: str) -> str:
     for non_ascii, ascii_replacement in mapping.items():
         content = content.replace(non_ascii, ascii_replacement)
     return content
-
-
-@beartype.beartype
-def get_unicode_escape(bad_byte: bytes) -> str:
-    """Convert bytes to Unicode escape representation."""
-    unicode_repr = ""
-    try:
-        # First try UTF-8 decoding
-        char = bad_byte.decode("utf-8")
-        for c in char:
-            if ord(c) > 127:  # Only process non-ASCII
-                unicode_repr += f"\\u{ord(c):04x}"
-            else:
-                unicode_repr += c
-    except UnicodeDecodeError:
-        # If UTF-8 fails, try Latin-1 which always succeeds
-        char = bad_byte.decode("latin-1")
-        for c in char:
-            if ord(c) > 127:  # Only process non-ASCII
-                unicode_repr += f"\\u{ord(c):04x}"
-            else:
-                unicode_repr += c
-    return unicode_repr
 
 
 @beartype.beartype
@@ -125,8 +102,6 @@ def find_non_ascii_issue(py_file: pathlib.Path) -> NonAsciiIssue | None:
 
         # Extract error details
         start = e.start
-        end = e.end
-        bad_byte = e.object[start:end]
         line_num = 1
         char_pos = start
 
@@ -140,16 +115,12 @@ def find_non_ascii_issue(py_file: pathlib.Path) -> NonAsciiIssue | None:
         # Get the problematic line
         problem_line = lines[line_num - 1].rstrip("\n")
 
-        # Get the Unicode escape representation
-        unicode_repr = get_unicode_escape(bad_byte)
-
         return NonAsciiIssue(
             file_path=py_file,
             line_num=line_num,
             char_pos=char_pos,
             problem_line=problem_line,
-            bad_byte=bad_byte,
-            unicode_repr=unicode_repr,
+            unicode_repr=problem_line[char_pos].encode("unicode_escape").decode("utf8"),
         )
 
 

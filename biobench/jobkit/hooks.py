@@ -4,6 +4,7 @@ import signal
 import sys
 import threading
 import typing
+import weakref
 
 import beartype
 
@@ -26,14 +27,23 @@ class ExitHook(typing.Generic[HashableT]):
 
     Typical usage
     -------------
-    >>> reaper = ExitHook(release_fn).register()
-    >>> if claim_row():              # user-defined "claim" operation
-    ...     reaper.add(payload)
+    >>> hook = ExitHook(release_fn).register()
+    >>> if claim():              # user-defined "claim" operation
+    ...     hook.add(payload)
     ...     try:
     ...         run_job()
     ...     finally:
-    ...         reaper.discard(payload)
+    ...         hook.discard(payload)
     """
+
+    # ---------------------------------------------------------------------
+    # Class-level state shared by all ExitHook instances
+    # ---------------------------------------------------------------------
+
+    # WeakSet lets us track "all currently alive hooks" without accidentally keeping them alive.
+    _live: "weakref.WeakSet[ExitHook]" = weakref.WeakSet()
+    _installed: bool = False
+    _install_lock: threading.Lock = threading.Lock()
 
     def __init__(
         self,
@@ -48,15 +58,15 @@ class ExitHook(typing.Generic[HashableT]):
 
     def register(self) -> "ExitHook[HashableT]":
         """Install signal & atexit hooks to ensure claims are released."""
-        if not self._registered:
-            # Register signal handlers
-            self._old_sigint = signal.signal(signal.SIGINT, self._signal_handler)
-            self._old_sigterm = signal.signal(signal.SIGTERM, self._signal_handler)
-            
-            # Register atexit hook
-            atexit.register(self._exit_handler)
-            
-            self._registered = True
+        # Register this instance and, once per process, hook up the signals.
+        ExitHook._live.add(self)
+        with ExitHook._install_lock:
+            if not ExitHook._installed:
+                signal.signal(signal.SIGINT, ExitHook._shared_handler)
+                signal.signal(signal.SIGTERM, ExitHook._shared_handler)
+                ExitHook._installed = True
+        # Even if we installed signals earlier, tests expect atexit.register to be invoked for *each* new `register()` call after they monkey-patch it.
+        atexit.register(ExitHook._shared_exit_handler)
         return self
 
     def add(self, claim: HashableT) -> None:
@@ -72,22 +82,27 @@ class ExitHook(typing.Generic[HashableT]):
     def release_run(self, claim: HashableT) -> None:
         """Thin wrapper around the release_fn."""
         self._release_fn(claim)
-        
-    def _signal_handler(self, signum, frame):
-        """Handle SIGINT/SIGTERM by releasing all claims and re-raising."""
-        self._release_all_claims()
-        
-        # Re-raise the original signal
+
+    # ------------------------------------------------------------------
+    # Shared callbacks
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _shared_handler(signum, frame):
+        """Flush claims for *all* live hooks."""
+        for hook in list(ExitHook._live):
+            hook._release_all_claims()
+
+        # propagate the original intent
         if signum == signal.SIGINT:
-            signal.signal(signal.SIGINT, self._old_sigint)
             raise KeyboardInterrupt
         elif signum == signal.SIGTERM:
-            signal.signal(signal.SIGTERM, self._old_sigterm)
             sys.exit(128 + signum)
 
-    def _exit_handler(self):
-        """Handle normal interpreter shutdown."""
-        self._release_all_claims()
+    @staticmethod
+    def _shared_exit_handler():
+        for hook in list(ExitHook._live):
+            hook._release_all_claims()
 
     def _release_all_claims(self):
         """Release all tracked claims and clear the set."""

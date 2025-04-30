@@ -125,13 +125,12 @@ def claim_run(db: sqlite3.Connection, cfg: config.Experiment, task_name: str) ->
     )
 
     try:
-        db.execute(stmt, values)
+        cur = db.execute(stmt, values)
         db.commit()
+        return cur.rowcount == 1  # 1 row inserted -> we won
     except Exception:
         db.rollback()
         raise
-
-    return db.total_changes == 1  # 1 row inserted -> we won
 
 
 @beartype.beartype
@@ -148,10 +147,12 @@ def release_run(db: sqlite3.Connection, cfg: config.Experiment, task_name: str) 
     WHERE task_name=? AND model_org=? AND model_ckpt=? AND n_train=?
     """
     values = (task_name, cfg.model.org, cfg.model.ckpt, cfg.n_train)
+    logger.info("Releasing claim on (%s, %s, %s, %d)", *values)
 
     try:
         db.execute(stmt, values)
         db.commit()
+        logger.info("Released claim on (%s, %s, %s, %d)", *values)
     except Exception:
         db.rollback()
         raise
