@@ -62,14 +62,14 @@ el.replaceWith(d);
 <div class="desc"></div>
 </dd>
 <dt id="biobench.test_auto_batch_size.make_probe"><code class="name flex">
-<span>def <span class="ident">make_probe</span></span>(<span>max_ok: int, *, style: Literal['oom', 'sdpa'] = 'oom')</span>
+<span>def <span class="ident">make_probe</span></span>(<span>*, max_ok: int, style: Literal['oom', 'sdpa'] = 'oom')</span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def make_probe(max_ok: int, *, style: typing.Literal[&#34;oom&#34;, &#34;sdpa&#34;] = &#34;oom&#34;):
+<pre><code class="python">def make_probe(*, max_ok: int, style: typing.Literal[&#34;oom&#34;, &#34;sdpa&#34;] = &#34;oom&#34;):
     &#34;&#34;&#34;
     Probe that raises a CUDA-style OOM if the *batch* is larger than `max_ok`. Works on CPU; keeps test independent of real GPU RAM.
 
@@ -109,6 +109,62 @@ el.replaceWith(d);
         assert dataloader.batch_sampler.batch_size == 6</code></pre>
 </details>
 <div class="desc"></div>
+</dd>
+<dt id="biobench.test_auto_batch_size.test_backoff_clamped_to_smallest"><code class="name flex">
+<span>def <span class="ident">test_backoff_clamped_to_smallest</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_backoff_clamped_to_smallest():
+    &#34;&#34;&#34;Only 3 successes (2,4,8). backoff=10 should clamp to 2.&#34;&#34;&#34;
+    loader = make_dataloader(64)
+    with helpers.auto_batch_size(
+        loader, probe=make_probe(max_ok=8), schedule=(2, 4, 8, 16), backoff=10
+    ):
+        assert loader.batch_sampler.batch_size == 2</code></pre>
+</details>
+<div class="desc"><p>Only 3 successes (2,4,8). backoff=10 should clamp to 2.</p></div>
+</dd>
+<dt id="biobench.test_auto_batch_size.test_backoff_one_steps_back_once"><code class="name flex">
+<span>def <span class="ident">test_backoff_one_steps_back_once</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_backoff_one_steps_back_once():
+    &#34;&#34;&#34;Largest success is 16, back-off by one =&gt; 8.&#34;&#34;&#34;
+    loader = make_dataloader(64)
+    with helpers.auto_batch_size(
+        loader, probe=make_probe(max_ok=16), schedule=(2, 4, 8, 16, 32), backoff=1
+    ):
+        assert loader.batch_sampler.batch_size == 8</code></pre>
+</details>
+<div class="desc"><p>Largest success is 16, back-off by one =&gt; 8.</p></div>
+</dd>
+<dt id="biobench.test_auto_batch_size.test_backoff_zero_keeps_largest"><code class="name flex">
+<span>def <span class="ident">test_backoff_zero_keeps_largest</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_backoff_zero_keeps_largest():
+    &#34;&#34;&#34;
+    backoff=0 must reproduce the &#34;largest that works&#34; policy.
+    &#34;&#34;&#34;
+    loader = make_dataloader(64)
+    with helpers.auto_batch_size(
+        loader, probe=make_probe(max_ok=16), schedule=(2, 4, 8, 16, 32), backoff=0
+    ):
+        assert loader.batch_sampler.batch_size == 16</code></pre>
+</details>
+<div class="desc"><p>backoff=0 must reproduce the "largest that works" policy.</p></div>
 </dd>
 <dt id="biobench.test_auto_batch_size.test_caps_at_dataset_len_generic"><code class="name flex">
 <span>def <span class="ident">test_caps_at_dataset_len_generic</span></span>(<span>)</span>
@@ -163,6 +219,83 @@ el.replaceWith(d);
 </details>
 <div class="desc"></div>
 </dd>
+<dt id="biobench.test_auto_batch_size.test_dataset_cap_and_backoff"><code class="name flex">
+<span>def <span class="ident">test_dataset_cap_and_backoff</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_dataset_cap_and_backoff():
+    &#34;&#34;&#34;Dataset of 12 samples, schedule goes beyond 12. Largest feasible &lt;=12 is 12; backoff=2 =&gt; 4.&#34;&#34;&#34;
+    loader = make_dataloader(12)  # initial bs=2
+    with helpers.auto_batch_size(
+        loader,
+        probe=make_probe(max_ok=-1),  # never OOM
+        schedule=(4, 8, 12, 16, 32),
+        backoff=2,
+    ):
+        assert loader.batch_sampler.batch_size == 4
+        assert loader.batch_sampler.batch_size &lt;= len(loader.dataset)</code></pre>
+</details>
+<div class="desc"><p>Dataset of 12 samples, schedule goes beyond 12. Largest feasible &lt;=12 is 12; backoff=2 =&gt; 4.</p></div>
+</dd>
+<dt id="biobench.test_auto_batch_size.test_duplicate_size_raises"><code class="name flex">
+<span>def <span class="ident">test_duplicate_size_raises</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_duplicate_size_raises():
+    &#34;&#34;&#34;Duplicate 8 breaks the strict-increasing rule (8 -&gt; 8).&#34;&#34;&#34;
+    loader = make_dataloader(64)
+    with pytest.raises(ValueError):
+        with helpers.auto_batch_size(
+            loader, probe=make_probe(max_ok=32), schedule=(4, 8, 8, 16)
+        ):
+            pass</code></pre>
+</details>
+<div class="desc"><p>Duplicate 8 breaks the strict-increasing rule (8 -&gt; 8).</p></div>
+</dd>
+<dt id="biobench.test_auto_batch_size.test_flaky_probe_backoff_one_skips_flake"><code class="name flex">
+<span>def <span class="ident">test_flaky_probe_backoff_one_skips_flake</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_flaky_probe_backoff_one_skips_flake():
+    &#34;&#34;&#34;8 becomes flaky; second-largest stable is 6.&#34;&#34;&#34;
+    loader = make_dataloader(128)
+    with helpers.auto_batch_size(
+        loader, probe=_probe_flaky(flake_at=8), schedule=(2, 4, 6, 8, 10), backoff=1
+    ):
+        assert loader.batch_sampler.batch_size == 4</code></pre>
+</details>
+<div class="desc"><p>8 becomes flaky; second-largest stable is 6.</p></div>
+</dd>
+<dt id="biobench.test_auto_batch_size.test_flaky_probe_backoff_zero"><code class="name flex">
+<span>def <span class="ident">test_flaky_probe_backoff_zero</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_flaky_probe_backoff_zero():
+    &#34;&#34;&#34;Probe OOMs *after* first success at 8. Helper should settle on 8 with backoff=0.&#34;&#34;&#34;
+    loader = make_dataloader(128)
+    with helpers.auto_batch_size(
+        loader, probe=_probe_flaky(flake_at=8), schedule=(2, 4, 6, 8, 10), backoff=0
+    ):
+        assert loader.batch_sampler.batch_size == 6</code></pre>
+</details>
+<div class="desc"><p>Probe OOMs <em>after</em> first success at 8. Helper should settle on 8 with backoff=0.</p></div>
+</dd>
 <dt id="biobench.test_auto_batch_size.test_invalid_cfg_error_handled"><code class="name flex">
 <span>def <span class="ident">test_invalid_cfg_error_handled</span></span>(<span>)</span>
 </code></dt>
@@ -172,9 +305,7 @@ el.replaceWith(d);
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def test_invalid_cfg_error_handled():
-    &#34;&#34;&#34;
-    Helper treats &#39;invalid configuration argument&#39; the same as OOM.
-    &#34;&#34;&#34;
+    &#34;&#34;&#34;Helper treats &#39;invalid configuration argument&#39; the same as OOM.&#34;&#34;&#34;
     dataloader = make_dataloader(128)
     orig = dataloader.batch_sampler.batch_size
     probe = make_probe(max_ok=4, style=&#34;sdpa&#34;)  # fail when &gt;4
@@ -187,6 +318,31 @@ el.replaceWith(d);
     assert dataloader.batch_sampler.batch_size == orig</code></pre>
 </details>
 <div class="desc"><p>Helper treats 'invalid configuration argument' the same as OOM.</p></div>
+</dd>
+<dt id="biobench.test_auto_batch_size.test_iterator_schedule_checked"><code class="name flex">
+<span>def <span class="ident">test_iterator_schedule_checked</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_iterator_schedule_checked():
+    &#34;&#34;&#34;Even if an iterator lazily yields an out-of-order value (8 then 4), the helper must detect it.&#34;&#34;&#34;
+
+    def gen():
+        yield 2
+        yield 8
+        yield 4  # drop -&gt; should raise
+
+    loader = make_dataloader(64)
+    with pytest.raises(ValueError):
+        with helpers.auto_batch_size(
+            loader, probe=make_probe(max_ok=16), schedule=gen()
+        ):
+            pass</code></pre>
+</details>
+<div class="desc"><p>Even if an iterator lazily yields an out-of-order value (8 then 4), the helper must detect it.</p></div>
 </dd>
 <dt id="biobench.test_auto_batch_size.test_len_adjusts_with_batch_size"><code class="name flex">
 <span>def <span class="ident">test_len_adjusts_with_batch_size</span></span>(<span>)</span>
@@ -220,6 +376,71 @@ el.replaceWith(d);
 </details>
 <div class="desc"><p><code>len(dataloader)</code> reflects the tuned batch size inside the CM and restores afterward.</p></div>
 </dd>
+<dt id="biobench.test_auto_batch_size.test_negative_backoff_error"><code class="name flex">
+<span>def <span class="ident">test_negative_backoff_error</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_negative_backoff_error():
+    &#34;&#34;&#34;A negative value is invalid.&#34;&#34;&#34;
+    loader = make_dataloader(32)
+    with pytest.raises(ValueError):
+        with helpers.auto_batch_size(
+            loader, probe=make_probe(max_ok=8), schedule=(2, 4, 8), backoff=-1
+        ):
+            pass</code></pre>
+</details>
+<div class="desc"><p>A negative value is invalid.</p></div>
+</dd>
+<dt id="biobench.test_auto_batch_size.test_schedule_not_materialised"><code class="name flex">
+<span>def <span class="ident">test_schedule_not_materialised</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@pytest.mark.timeout(1.0)
+def test_schedule_not_materialised():
+    &#34;&#34;&#34;Passing an *infinite* strictly-increasing generator must *not* hang. If the implementation ever did `list(schedule)` or similar, this test would exceed the 1-second timeout and fail.&#34;&#34;&#34;
+
+    def infinite_pow2():
+        n = 2
+        while True:
+            yield n  # 2, 4, 8, 16, ...
+            n *= 2
+
+    loader = make_dataloader(64)  # dataset len = 64
+    # probe never OOMs -&gt; helper should stop when it hits dataset size
+    with helpers.auto_batch_size(
+        loader, probe=make_probe(max_ok=-1), schedule=infinite_pow2()
+    ):
+        # final batch_size should equal dataset length (64)
+        assert loader.batch_sampler.batch_size == len(loader.dataset)</code></pre>
+</details>
+<div class="desc"><p>Passing an <em>infinite</em> strictly-increasing generator must <em>not</em> hang. If the implementation ever did <code>list(schedule)</code> or similar, this test would exceed the 1-second timeout and fail.</p></div>
+</dd>
+<dt id="biobench.test_auto_batch_size.test_single_success_backoff_clamps"><code class="name flex">
+<span>def <span class="ident">test_single_success_backoff_clamps</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_single_success_backoff_clamps():
+    &#34;&#34;&#34;Only size 2 succeeds. backoff=3 must still give 2.&#34;&#34;&#34;
+    loader = make_dataloader(16)
+    with helpers.auto_batch_size(
+        loader, probe=make_probe(max_ok=2), schedule=(2, 4, 8), backoff=3
+    ):
+        assert loader.batch_sampler.batch_size == 2</code></pre>
+</details>
+<div class="desc"><p>Only size 2 succeeds. backoff=3 must still give 2.</p></div>
+</dd>
 <dt id="biobench.test_auto_batch_size.test_terminates_on_short_dataset"><code class="name flex">
 <span>def <span class="ident">test_terminates_on_short_dataset</span></span>(<span>)</span>
 </code></dt>
@@ -229,14 +450,12 @@ el.replaceWith(d);
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def test_terminates_on_short_dataset():
-    &#34;&#34;&#34;
-    If dataset has &lt; tried batch-size, auto_batch_size must still terminate.
-    &#34;&#34;&#34;
+    &#34;&#34;&#34;If dataset has &lt; tried batch-size, auto_batch_size must still terminate.&#34;&#34;&#34;
 
     dataloader = make_dataloader(12)
 
     def run():
-        with helpers.auto_batch_size(dataloader, probe=make_probe(-1)):
+        with helpers.auto_batch_size(dataloader, probe=make_probe(max_ok=-1)):
             pass  # nothing
 
     t = threading.Thread(target=run, daemon=True)
@@ -245,6 +464,25 @@ el.replaceWith(d);
     assert not t.is_alive(), &#34;auto_batch_size never terminated on tiny dataset&#34;</code></pre>
 </details>
 <div class="desc"><p>If dataset has &lt; tried batch-size, auto_batch_size must still terminate.</p></div>
+</dd>
+<dt id="biobench.test_auto_batch_size.test_unsorted_schedule_raises"><code class="name flex">
+<span>def <span class="ident">test_unsorted_schedule_raises</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_unsorted_schedule_raises():
+    &#34;&#34;&#34;Schedule 4,16,8... has a downward step (16 -&gt; 8) =&gt; should raise.&#34;&#34;&#34;
+    loader = make_dataloader(64)
+    with pytest.raises(ValueError):
+        with helpers.auto_batch_size(
+            loader, probe=make_probe(max_ok=32), schedule=(4, 16, 8, 32)
+        ):
+            pass</code></pre>
+</details>
+<div class="desc"><p>Schedule 4,16,8&hellip; has a downward step (16 -&gt; 8) =&gt; should raise.</p></div>
 </dd>
 <dt id="biobench.test_auto_batch_size.test_upper_below_start_allowed"><code class="name flex">
 <span>def <span class="ident">test_upper_below_start_allowed</span></span>(<span>)</span>
@@ -260,7 +498,7 @@ el.replaceWith(d);
     &#34;&#34;&#34;
     dataloader = make_dataloader(128)
     with helpers.auto_batch_size(
-        dataloader, probe=make_probe(-1), schedule=(2, 4, 8), upper=1
+        dataloader, probe=make_probe(max_ok=-1), schedule=(2, 4, 8), upper=1
     ):
         assert dataloader.batch_sampler.batch_size == 1</code></pre>
 </details>
@@ -281,7 +519,10 @@ el.replaceWith(d);
 
     dataloader = make_dataloader(128)
     with helpers.auto_batch_size(
-        dataloader, probe=make_probe(-1), schedule=(2, 4, 8, 16, 32, 64, 128), upper=32
+        dataloader,
+        probe=make_probe(max_ok=-1),
+        schedule=(2, 4, 8, 16, 32, 64, 128),
+        upper=32,
     ):
         assert dataloader.batch_sampler.batch_size == 32, &#34;should cap at upper&#34;</code></pre>
 </details>
@@ -327,11 +568,23 @@ def test_with_gpu():
 <li><code><a title="biobench.test_auto_batch_size.make_dataloader" href="#biobench.test_auto_batch_size.make_dataloader">make_dataloader</a></code></li>
 <li><code><a title="biobench.test_auto_batch_size.make_probe" href="#biobench.test_auto_batch_size.make_probe">make_probe</a></code></li>
 <li><code><a title="biobench.test_auto_batch_size.test_backoff_after_flaky_probe" href="#biobench.test_auto_batch_size.test_backoff_after_flaky_probe">test_backoff_after_flaky_probe</a></code></li>
+<li><code><a title="biobench.test_auto_batch_size.test_backoff_clamped_to_smallest" href="#biobench.test_auto_batch_size.test_backoff_clamped_to_smallest">test_backoff_clamped_to_smallest</a></code></li>
+<li><code><a title="biobench.test_auto_batch_size.test_backoff_one_steps_back_once" href="#biobench.test_auto_batch_size.test_backoff_one_steps_back_once">test_backoff_one_steps_back_once</a></code></li>
+<li><code><a title="biobench.test_auto_batch_size.test_backoff_zero_keeps_largest" href="#biobench.test_auto_batch_size.test_backoff_zero_keeps_largest">test_backoff_zero_keeps_largest</a></code></li>
 <li><code><a title="biobench.test_auto_batch_size.test_caps_at_dataset_len_generic" href="#biobench.test_auto_batch_size.test_caps_at_dataset_len_generic">test_caps_at_dataset_len_generic</a></code></li>
 <li><code><a title="biobench.test_auto_batch_size.test_ctx_runs_and_restores" href="#biobench.test_auto_batch_size.test_ctx_runs_and_restores">test_ctx_runs_and_restores</a></code></li>
+<li><code><a title="biobench.test_auto_batch_size.test_dataset_cap_and_backoff" href="#biobench.test_auto_batch_size.test_dataset_cap_and_backoff">test_dataset_cap_and_backoff</a></code></li>
+<li><code><a title="biobench.test_auto_batch_size.test_duplicate_size_raises" href="#biobench.test_auto_batch_size.test_duplicate_size_raises">test_duplicate_size_raises</a></code></li>
+<li><code><a title="biobench.test_auto_batch_size.test_flaky_probe_backoff_one_skips_flake" href="#biobench.test_auto_batch_size.test_flaky_probe_backoff_one_skips_flake">test_flaky_probe_backoff_one_skips_flake</a></code></li>
+<li><code><a title="biobench.test_auto_batch_size.test_flaky_probe_backoff_zero" href="#biobench.test_auto_batch_size.test_flaky_probe_backoff_zero">test_flaky_probe_backoff_zero</a></code></li>
 <li><code><a title="biobench.test_auto_batch_size.test_invalid_cfg_error_handled" href="#biobench.test_auto_batch_size.test_invalid_cfg_error_handled">test_invalid_cfg_error_handled</a></code></li>
+<li><code><a title="biobench.test_auto_batch_size.test_iterator_schedule_checked" href="#biobench.test_auto_batch_size.test_iterator_schedule_checked">test_iterator_schedule_checked</a></code></li>
 <li><code><a title="biobench.test_auto_batch_size.test_len_adjusts_with_batch_size" href="#biobench.test_auto_batch_size.test_len_adjusts_with_batch_size">test_len_adjusts_with_batch_size</a></code></li>
+<li><code><a title="biobench.test_auto_batch_size.test_negative_backoff_error" href="#biobench.test_auto_batch_size.test_negative_backoff_error">test_negative_backoff_error</a></code></li>
+<li><code><a title="biobench.test_auto_batch_size.test_schedule_not_materialised" href="#biobench.test_auto_batch_size.test_schedule_not_materialised">test_schedule_not_materialised</a></code></li>
+<li><code><a title="biobench.test_auto_batch_size.test_single_success_backoff_clamps" href="#biobench.test_auto_batch_size.test_single_success_backoff_clamps">test_single_success_backoff_clamps</a></code></li>
 <li><code><a title="biobench.test_auto_batch_size.test_terminates_on_short_dataset" href="#biobench.test_auto_batch_size.test_terminates_on_short_dataset">test_terminates_on_short_dataset</a></code></li>
+<li><code><a title="biobench.test_auto_batch_size.test_unsorted_schedule_raises" href="#biobench.test_auto_batch_size.test_unsorted_schedule_raises">test_unsorted_schedule_raises</a></code></li>
 <li><code><a title="biobench.test_auto_batch_size.test_upper_below_start_allowed" href="#biobench.test_auto_batch_size.test_upper_below_start_allowed">test_upper_below_start_allowed</a></code></li>
 <li><code><a title="biobench.test_auto_batch_size.test_upper_caps_batch_size" href="#biobench.test_auto_batch_size.test_upper_caps_batch_size">test_upper_caps_batch_size</a></code></li>
 <li><code><a title="biobench.test_auto_batch_size.test_with_gpu" href="#biobench.test_auto_batch_size.test_with_gpu">test_with_gpu</a></code></li>

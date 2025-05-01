@@ -442,7 +442,7 @@ This proves internal state was cleared.</p></div>
     stop.set()
     t.join()
 
-    # No duplicates ⇒ each claim released only once (lock prevented races)
+    # No duplicates =&gt; each claim released only once (lock prevented races)
     assert len(hits) == len(set(hits))</code></pre>
 </details>
 <div class="desc"><p>A classic failure mode is "set changed size during iteration" when the

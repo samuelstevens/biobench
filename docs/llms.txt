@@ -143,10 +143,12 @@ Because of this, there are two main classes of tasks:
 
 Last checked: 2025-04-30
 
-**All tests passed**
+# 1 failing test(s)
+
+- biobench/test_reporting.py::test_reclaim_after_failure
 # Coverage
 
-Coverage: 2769/4183 lines (66.2%)
+Coverage: 2843/4285 lines (66.3%)
 
 >>>> __init__.py
 """ """
@@ -2364,23 +2366,61 @@ def auto_batch_size(
     probe: collections.abc.Callable[[torch.Tensor], torch.Tensor],
     schedule: collections.abc.Iterable[int] | None = None,
     upper: int = 4096,
+    backoff: int = 0,
 ):
-    """
-    Context manager that **mutates `dataloader.batch_size` in-place** so you always run with the largest batch that fits GPU RAM.
+    """Context manager that mutates `dataloader.batch_size` in-place to use the largest batch that fits GPU RAM.
 
-    Parameters
-    ----------
-    dataloader:
-        The *already constructed* loader you use in your loop. Its `batch_sampler.batch_size` attribute is patched on the fly.
-    probe:
-        A 1-argument callable used to test memory. Typical usage: `lambda x: backbone.img_encode(x).img_features`.
-    schedule:
-        An iterator of candidate batch sizes.  If `None`, use the canonical schedule.
+    This function tests progressively larger batch sizes until it finds the maximum that can be processed without running out of memory.
+
+    Args:
+        dataloader: The already constructed loader you use in your loop. Its `batch_sampler.batch_size` attribute is patched on the fly.
+        probe: A 1-argument callable used to test memory. Typical usage: `lambda x: backbone.img_encode(x).img_features`.
+        schedule: An iterator of candidate batch sizes. If None, use the canonical schedule.
+        schedule: An iterator of strictly increasing candidate batch sizes (2, 4, 8, ...). A *ValueError* is raised when a non-increasing value is encountered. If None, use the canonical schedule.
+        upper: Maximum batch size to try, regardless of available memory.
+        backoff: int, default = 0. How far to step **back** in the candidate schedule from the largest batch-size that completes without OOM  (clamped to the smallest candidate if ``n`` is too big).
+        * `backoff = 0`  -> use the **largest** successful size
+        * `backoff = 1`  -> use the **second-largest** successful size
+        * `backoff = n`  -> use the *n*-th size below the largest success
+
+    Yields:
+        int: The selected batch size.
     """
-    logger = logging.getLogger("auto-bsz")
+
+    @beartype.beartype
+    class OrderedSet[T]:
+        def __init__(self):
+            self._lst = []
+
+        def __bool__(self) -> bool:
+            return bool(self._lst)
+
+        @property
+        def last(self) -> T:
+            return self._lst[-1]
+
+        def append(self, t: T) -> None:
+            if t in self._lst:
+                return
+
+            self._lst.append(t)
+
+        def pop(self) -> T:
+            return self._lst.pop()
+
+        def __repr__(self) -> str:
+            return f"{self.__class__.__name__}({self._items!r})"
+
+        def __str__(self) -> str:
+            return str(self._items)
 
     if dataloader.batch_sampler is None:
         raise ValueError("dataloader must have a batch_sampler")
+
+    if backoff < 0:
+        raise ValueError(f"backoff '{backoff}' < 0; must be >= 0")
+
+    logger = logging.getLogger("auto-bsz")
 
     oom_signatures = (
         "out of memory",
@@ -2393,8 +2433,7 @@ def auto_batch_size(
     )
 
     orig_bsz = int(dataloader.batch_sampler.batch_size)
-    ok_bsz = orig_bsz
-    good_bszs = [ok_bsz]
+    good_bszs = OrderedSet()
     schedule_iter = schedule or _default_batchsize_schedule(orig_bsz)
 
     torch.cuda.empty_cache()  # be nice
@@ -2402,9 +2441,10 @@ def auto_batch_size(
     t_start = time.perf_counter()
 
     for tried_bsz in schedule_iter:
-        # quick sanity: do not create impossible 0-batch situations
-        if tried_bsz <= ok_bsz:
-            continue
+        if good_bszs and tried_bsz <= good_bszs.last:
+            raise ValueError(
+                f"Schedule not monotonically increasing: {tried_bsz} <= {good_bszs.last}"
+            )
 
         if tried_bsz > upper:
             tried_bsz = upper
@@ -2468,6 +2508,11 @@ def auto_batch_size(
                 logger.info("Still OOM at %d; trying previous candidate", ok_bsz)
             else:
                 raise
+
+    while good_bszs and backoff:
+        backoff -= 1
+        ok_bsz = good_bszs.pop()
+        dataloader.batch_sampler.batch_size = ok_bsz
 
     elapsed = time.perf_counter() - t_start
     logger.info("Selected batch_size %d after %.2f s", ok_bsz, elapsed)
@@ -3087,30 +3132,27 @@ def benchmark(cfg: config.Experiment) -> reporting.Report:
     train_features = get_features(cfg, backbone, is_train=True)
 
     # 2. Fit model.
-    clf = init_clf()
+    clf = init_clf(cfg)
     clf.fit(train_features.x, train_features.y)
 
-    helpers.write_hparam_sweep_plot("inat21", cfg.model.ckpt, clf)
-    alpha = clf.best_params_["ridgeclassifier__alpha"].item()
-    logger.info("alpha=%.2g scored %.3f.", alpha, clf.best_score_.item())
+    if hasattr(clf, "best_params_"):
+        helpers.write_hparam_sweep_plot("imagenet1k", cfg.model.ckpt, clf)
+        alpha = clf.best_params_["ridgeclassifier__alpha"].item()
+        logger.info("alpha=%.2g scored %.3f.", alpha, clf.best_score_.item())
 
     true_labels = val_features.y
     pred_labels = clf.predict(val_features.x)
 
-    examples = [
+    preds = [
         reporting.Prediction(
             str(image_id),
             float(pred == true),
             {"y_pred": pred.item(), "y_true": true.item()},
         )
-        for image_id, pred, true in zip(
-            helpers.progress(val_features.ids, desc="making Example()s", every=1_000),
-            pred_labels,
-            true_labels,
-        )
+        for image_id, pred, true in zip(val_features.ids, pred_labels, true_labels)
     ]
 
-    return reporting.Report("iNat21", examples)
+    return reporting.Report("inat21", preds, cfg)
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -3136,6 +3178,10 @@ class Dataset(torchvision.datasets.ImageFolder):
 
         return path, sample, target
 
+    @property
+    def labels(self) -> Int[np.ndarray, " n"]:
+        return np.array([label for _, label in self.samples])
+
 
 @jaxtyped(typechecker=beartype.beartype)
 @torch.no_grad()
@@ -3143,41 +3189,57 @@ def get_features(
     cfg: config.Experiment, backbone: registry.VisionBackbone, *, is_train: bool
 ) -> Features:
     img_transform = backbone.make_img_transform()
-    backbone = torch.compile(backbone.to(args.device))
-
+    backbone = torch.compile(backbone.to(cfg.device))
     split = "train_mini" if is_train else "val"
-    root = os.path.join(args.datadir, split)
+
+    root = os.path.join(cfg.data.inat21, split)
+
     if not os.path.isdir(root):
-        msg = f"Path '{root}' doesn't exist. Did you download the iNat21 dataset? See the docstring at the top of this file for instructions. If you did download it, pass the path with '--inat21-args.datadir'; see --help for more."
+        msg = f"Path '{root}' doesn't exist. Did you download the iNat21 dataset?"
         raise ValueError(msg)
+
     dataset = Dataset(root, img_transform)
+
+    if is_train and cfg.n_train > 0:
+        i = helpers.balanced_random_sample(dataset.labels, cfg.n_train)
+        assert len(i) == cfg.n_train
+        dataset = torch.utils.data.Subset(dataset, i)
 
     dataloader = torch.utils.data.DataLoader(
         dataset,
-        batch_size=args.batch_size,
-        num_workers=args.n_workers,
+        batch_size=cfg.batch_size,
+        num_workers=cfg.n_workers,
         drop_last=False,
         shuffle=True,
     )
 
     all_ids, all_features, all_labels = [], [], []
 
-    total = len(dataloader) if not args.debug else 2
-    it = iter(dataloader)
-    for b in helpers.progress(range(total), every=args.log_every, desc=split):
-        ids, images, labels = next(it)
-        images = images.to(args.device)
+    def probe(batch):
+        ids, imgs, labels = batch
+        imgs = imgs.to(cfg.device, non_blocking=True)
+        with torch.amp.autocast(cfg.device):
+            backbone.img_encode(imgs).img_features
 
-        with torch.amp.autocast("cuda"):
-            features = backbone.img_encode(images).img_features
+    with helpers.auto_batch_size(dataloader, probe=probe):
+        total = len(dataloader) if not cfg.debug else 2
+        it = iter(dataloader)
+        for b in helpers.progress(range(total), desc=f"inat21/{split}"):
+            ids, images, labels = next(it)
+            images = images.to(cfg.device, non_blocking=True)
 
-        all_features.append(features.cpu())
-        all_labels.extend(labels)
-        all_ids.extend(ids)
+            with torch.amp.autocast(cfg.device):
+                features = backbone.img_encode(images).img_features
+
+            all_features.append(features.cpu())
+            all_labels.extend(labels)
+            all_ids.extend(ids)
 
     all_features = torch.cat(all_features, dim=0).cpu().numpy()
     all_ids = np.array(all_ids)
     all_labels = torch.tensor(all_labels).numpy()
+    if is_train and cfg.n_train > 0:
+        assert len(all_ids) == cfg.n_train
 
     return Features(all_features, all_labels, all_ids)
 
@@ -3187,6 +3249,12 @@ def init_clf(cfg: config.Experiment):
     alpha = np.pow(2.0, np.arange(-15, 5))
     if cfg.debug:
         alpha = np.pow(2.0, np.arange(-2, 2))
+
+    if 0 < cfg.n_train < 20_000:
+        return sklearn.pipeline.make_pipeline(
+            sklearn.preprocessing.StandardScaler(),
+            sklearn.linear_model.RidgeClassifier(1.0),
+        )
 
     return sklearn.model_selection.HalvingGridSearchCV(
         sklearn.pipeline.make_pipeline(
@@ -4365,7 +4433,7 @@ def test_lock_prevents_set_mutation_during_massive_adds():
     stop.set()
     t.join()
 
-    # No duplicates ⇒ each claim released only once (lock prevented races)
+    # No duplicates => each claim released only once (lock prevented races)
     assert len(hits) == len(set(hits))
 
 
@@ -4814,6 +4882,7 @@ def get_features(
         num_workers=cfg.n_workers,
         drop_last=False,
         shuffle=False,
+        pin_memory=True,
     )
 
     all_feats, all_labels, all_ids = [], [], []
@@ -4823,13 +4892,14 @@ def get_features(
         frames = torch.stack(frames, dim=0)
         frames = frames.to(cfg.device, non_blocking=True)
         with torch.amp.autocast(cfg.device):
+            # conv2d doesn't support multiple batch dimensions, so we have to view() before and after the model.img_encode() call.
             n_frames, bsz, c, h, w = frames.shape
             frames = frames.view(bsz * n_frames, c, h, w)
             outputs = backbone.img_encode(frames)
             features = outputs.img_features.view(n_frames, bsz, -1)
             features = aggregate_frames(features)
 
-    with helpers.auto_batch_size(dataloader, probe=probe):
+    with helpers.auto_batch_size(dataloader, probe=probe, backoff=1):
         total = len(dataloader) if not cfg.debug else 2
         it = iter(dataloader)
         for b in helpers.progress(range(total), desc=f"kabr/{split}"):
@@ -7297,9 +7367,13 @@ def clear_stale_claims(db: sqlite3.Connection, *, max_age_hours: int = 72) -> in
         raise ValueError("max_age_hours must be positive")
 
     cutoff = time.time() - max_age_hours * 3600
-    cur = db.execute("DELETE FROM runs WHERE posix < ?", (cutoff,))
-    db.commit()
-    return cur.rowcount
+    try:
+        cur = db.execute("DELETE FROM runs WHERE posix < ?", (cutoff,))
+        db.commit()
+        return cur.rowcount
+    except Exception:
+        db.rollback()
+        raise
 
 
 @beartype.beartype
@@ -7719,7 +7793,7 @@ def make_dataloader(size: int):
     return torch.utils.data.DataLoader(ds, batch_size=2, shuffle=False, num_workers=0)
 
 
-def make_probe(max_ok: int, *, style: typing.Literal["oom", "sdpa"] = "oom"):
+def make_probe(*, max_ok: int, style: typing.Literal["oom", "sdpa"] = "oom"):
     """
     Probe that raises a CUDA-style OOM if the *batch* is larger than `max_ok`. Works on CPU; keeps test independent of real GPU RAM.
 
@@ -7791,9 +7865,7 @@ def test_len_adjusts_with_batch_size():
 
 
 def test_invalid_cfg_error_handled():
-    """
-    Helper treats 'invalid configuration argument' the same as OOM.
-    """
+    """Helper treats 'invalid configuration argument' the same as OOM."""
     dataloader = make_dataloader(128)
     orig = dataloader.batch_sampler.batch_size
     probe = make_probe(max_ok=4, style="sdpa")  # fail when >4
@@ -7807,14 +7879,12 @@ def test_invalid_cfg_error_handled():
 
 
 def test_terminates_on_short_dataset():
-    """
-    If dataset has < tried batch-size, auto_batch_size must still terminate.
-    """
+    """If dataset has < tried batch-size, auto_batch_size must still terminate."""
 
     dataloader = make_dataloader(12)
 
     def run():
-        with helpers.auto_batch_size(dataloader, probe=make_probe(-1)):
+        with helpers.auto_batch_size(dataloader, probe=make_probe(max_ok=-1)):
             pass  # nothing
 
     t = threading.Thread(target=run, daemon=True)
@@ -7849,7 +7919,10 @@ def test_upper_caps_batch_size():
 
     dataloader = make_dataloader(128)
     with helpers.auto_batch_size(
-        dataloader, probe=make_probe(-1), schedule=(2, 4, 8, 16, 32, 64, 128), upper=32
+        dataloader,
+        probe=make_probe(max_ok=-1),
+        schedule=(2, 4, 8, 16, 32, 64, 128),
+        upper=32,
     ):
         assert dataloader.batch_sampler.batch_size == 32, "should cap at upper"
 
@@ -7860,7 +7933,7 @@ def test_upper_below_start_allowed():
     """
     dataloader = make_dataloader(128)
     with helpers.auto_batch_size(
-        dataloader, probe=make_probe(-1), schedule=(2, 4, 8), upper=1
+        dataloader, probe=make_probe(max_ok=-1), schedule=(2, 4, 8), upper=1
     ):
         assert dataloader.batch_sampler.batch_size == 1
 
@@ -7889,6 +7962,140 @@ def test_backoff_after_flaky_probe():
         dataloader, probe=_probe_flaky(flake_at=8), schedule=(2, 3, 4, 6, 8, 12, 16)
     ):
         assert dataloader.batch_sampler.batch_size == 6
+
+
+def test_backoff_zero_keeps_largest():
+    """
+    backoff=0 must reproduce the "largest that works" policy.
+    """
+    loader = make_dataloader(64)
+    with helpers.auto_batch_size(
+        loader, probe=make_probe(max_ok=16), schedule=(2, 4, 8, 16, 32), backoff=0
+    ):
+        assert loader.batch_sampler.batch_size == 16
+
+
+def test_backoff_one_steps_back_once():
+    """Largest success is 16, back-off by one => 8."""
+    loader = make_dataloader(64)
+    with helpers.auto_batch_size(
+        loader, probe=make_probe(max_ok=16), schedule=(2, 4, 8, 16, 32), backoff=1
+    ):
+        assert loader.batch_sampler.batch_size == 8
+
+
+def test_backoff_clamped_to_smallest():
+    """Only 3 successes (2,4,8). backoff=10 should clamp to 2."""
+    loader = make_dataloader(64)
+    with helpers.auto_batch_size(
+        loader, probe=make_probe(max_ok=8), schedule=(2, 4, 8, 16), backoff=10
+    ):
+        assert loader.batch_sampler.batch_size == 2
+
+
+def test_negative_backoff_error():
+    """A negative value is invalid."""
+    loader = make_dataloader(32)
+    with pytest.raises(ValueError):
+        with helpers.auto_batch_size(
+            loader, probe=make_probe(max_ok=8), schedule=(2, 4, 8), backoff=-1
+        ):
+            pass
+
+
+def test_flaky_probe_backoff_zero():
+    """Probe OOMs *after* first success at 8. Helper should settle on 8 with backoff=0."""
+    loader = make_dataloader(128)
+    with helpers.auto_batch_size(
+        loader, probe=_probe_flaky(flake_at=8), schedule=(2, 4, 6, 8, 10), backoff=0
+    ):
+        assert loader.batch_sampler.batch_size == 6
+
+
+def test_flaky_probe_backoff_one_skips_flake():
+    """8 becomes flaky; second-largest stable is 6."""
+    loader = make_dataloader(128)
+    with helpers.auto_batch_size(
+        loader, probe=_probe_flaky(flake_at=8), schedule=(2, 4, 6, 8, 10), backoff=1
+    ):
+        assert loader.batch_sampler.batch_size == 4
+
+
+def test_unsorted_schedule_raises():
+    """Schedule 4,16,8... has a downward step (16 -> 8) => should raise."""
+    loader = make_dataloader(64)
+    with pytest.raises(ValueError):
+        with helpers.auto_batch_size(
+            loader, probe=make_probe(max_ok=32), schedule=(4, 16, 8, 32)
+        ):
+            pass
+
+
+def test_duplicate_size_raises():
+    """Duplicate 8 breaks the strict-increasing rule (8 -> 8)."""
+    loader = make_dataloader(64)
+    with pytest.raises(ValueError):
+        with helpers.auto_batch_size(
+            loader, probe=make_probe(max_ok=32), schedule=(4, 8, 8, 16)
+        ):
+            pass
+
+
+def test_iterator_schedule_checked():
+    """Even if an iterator lazily yields an out-of-order value (8 then 4), the helper must detect it."""
+
+    def gen():
+        yield 2
+        yield 8
+        yield 4  # drop -> should raise
+
+    loader = make_dataloader(64)
+    with pytest.raises(ValueError):
+        with helpers.auto_batch_size(
+            loader, probe=make_probe(max_ok=16), schedule=gen()
+        ):
+            pass
+
+
+def test_single_success_backoff_clamps():
+    """Only size 2 succeeds. backoff=3 must still give 2."""
+    loader = make_dataloader(16)
+    with helpers.auto_batch_size(
+        loader, probe=make_probe(max_ok=2), schedule=(2, 4, 8), backoff=3
+    ):
+        assert loader.batch_sampler.batch_size == 2
+
+
+def test_dataset_cap_and_backoff():
+    """Dataset of 12 samples, schedule goes beyond 12. Largest feasible <=12 is 12; backoff=2 => 4."""
+    loader = make_dataloader(12)  # initial bs=2
+    with helpers.auto_batch_size(
+        loader,
+        probe=make_probe(max_ok=-1),  # never OOM
+        schedule=(4, 8, 12, 16, 32),
+        backoff=2,
+    ):
+        assert loader.batch_sampler.batch_size == 4
+        assert loader.batch_sampler.batch_size <= len(loader.dataset)
+
+
+@pytest.mark.timeout(1.0)
+def test_schedule_not_materialised():
+    """Passing an *infinite* strictly-increasing generator must *not* hang. If the implementation ever did `list(schedule)` or similar, this test would exceed the 1-second timeout and fail."""
+
+    def infinite_pow2():
+        n = 2
+        while True:
+            yield n  # 2, 4, 8, 16, ...
+            n *= 2
+
+    loader = make_dataloader(64)  # dataset len = 64
+    # probe never OOMs -> helper should stop when it hits dataset size
+    with helpers.auto_batch_size(
+        loader, probe=make_probe(max_ok=-1), schedule=infinite_pow2()
+    ):
+        # final batch_size should equal dataset length (64)
+        assert loader.batch_sampler.batch_size == len(loader.dataset)
 
 >>>> test_config.py
 import itertools

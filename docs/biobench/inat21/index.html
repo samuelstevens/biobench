@@ -91,30 +91,27 @@ def benchmark(cfg: config.Experiment) -&gt; reporting.Report:
     train_features = get_features(cfg, backbone, is_train=True)
 
     # 2. Fit model.
-    clf = init_clf()
+    clf = init_clf(cfg)
     clf.fit(train_features.x, train_features.y)
 
-    helpers.write_hparam_sweep_plot(&#34;inat21&#34;, cfg.model.ckpt, clf)
-    alpha = clf.best_params_[&#34;ridgeclassifier__alpha&#34;].item()
-    logger.info(&#34;alpha=%.2g scored %.3f.&#34;, alpha, clf.best_score_.item())
+    if hasattr(clf, &#34;best_params_&#34;):
+        helpers.write_hparam_sweep_plot(&#34;imagenet1k&#34;, cfg.model.ckpt, clf)
+        alpha = clf.best_params_[&#34;ridgeclassifier__alpha&#34;].item()
+        logger.info(&#34;alpha=%.2g scored %.3f.&#34;, alpha, clf.best_score_.item())
 
     true_labels = val_features.y
     pred_labels = clf.predict(val_features.x)
 
-    examples = [
+    preds = [
         reporting.Prediction(
             str(image_id),
             float(pred == true),
             {&#34;y_pred&#34;: pred.item(), &#34;y_true&#34;: true.item()},
         )
-        for image_id, pred, true in zip(
-            helpers.progress(val_features.ids, desc=&#34;making Example()s&#34;, every=1_000),
-            pred_labels,
-            true_labels,
-        )
+        for image_id, pred, true in zip(val_features.ids, pred_labels, true_labels)
     ]
 
-    return reporting.Report(&#34;iNat21&#34;, examples)</code></pre>
+    return reporting.Report(&#34;inat21&#34;, preds, cfg)</code></pre>
 </details>
 <div class="desc"><p>Steps:
 1. Get features for all images.
@@ -135,41 +132,57 @@ def get_features(
     cfg: config.Experiment, backbone: registry.VisionBackbone, *, is_train: bool
 ) -&gt; Features:
     img_transform = backbone.make_img_transform()
-    backbone = torch.compile(backbone.to(args.device))
-
+    backbone = torch.compile(backbone.to(cfg.device))
     split = &#34;train_mini&#34; if is_train else &#34;val&#34;
-    root = os.path.join(args.datadir, split)
+
+    root = os.path.join(cfg.data.inat21, split)
+
     if not os.path.isdir(root):
-        msg = f&#34;Path &#39;{root}&#39; doesn&#39;t exist. Did you download the iNat21 dataset? See the docstring at the top of this file for instructions. If you did download it, pass the path with &#39;--inat21-args.datadir&#39;; see --help for more.&#34;
+        msg = f&#34;Path &#39;{root}&#39; doesn&#39;t exist. Did you download the iNat21 dataset?&#34;
         raise ValueError(msg)
+
     dataset = Dataset(root, img_transform)
+
+    if is_train and cfg.n_train &gt; 0:
+        i = helpers.balanced_random_sample(dataset.labels, cfg.n_train)
+        assert len(i) == cfg.n_train
+        dataset = torch.utils.data.Subset(dataset, i)
 
     dataloader = torch.utils.data.DataLoader(
         dataset,
-        batch_size=args.batch_size,
-        num_workers=args.n_workers,
+        batch_size=cfg.batch_size,
+        num_workers=cfg.n_workers,
         drop_last=False,
         shuffle=True,
     )
 
     all_ids, all_features, all_labels = [], [], []
 
-    total = len(dataloader) if not args.debug else 2
-    it = iter(dataloader)
-    for b in helpers.progress(range(total), every=args.log_every, desc=split):
-        ids, images, labels = next(it)
-        images = images.to(args.device)
+    def probe(batch):
+        ids, imgs, labels = batch
+        imgs = imgs.to(cfg.device, non_blocking=True)
+        with torch.amp.autocast(cfg.device):
+            backbone.img_encode(imgs).img_features
 
-        with torch.amp.autocast(&#34;cuda&#34;):
-            features = backbone.img_encode(images).img_features
+    with helpers.auto_batch_size(dataloader, probe=probe):
+        total = len(dataloader) if not cfg.debug else 2
+        it = iter(dataloader)
+        for b in helpers.progress(range(total), desc=f&#34;inat21/{split}&#34;):
+            ids, images, labels = next(it)
+            images = images.to(cfg.device, non_blocking=True)
 
-        all_features.append(features.cpu())
-        all_labels.extend(labels)
-        all_ids.extend(ids)
+            with torch.amp.autocast(cfg.device):
+                features = backbone.img_encode(images).img_features
+
+            all_features.append(features.cpu())
+            all_labels.extend(labels)
+            all_ids.extend(ids)
 
     all_features = torch.cat(all_features, dim=0).cpu().numpy()
     all_ids = np.array(all_ids)
     all_labels = torch.tensor(all_labels).numpy()
+    if is_train and cfg.n_train &gt; 0:
+        assert len(all_ids) == cfg.n_train
 
     return Features(all_features, all_labels, all_ids)</code></pre>
 </details>
@@ -188,6 +201,12 @@ def init_clf(cfg: config.Experiment):
     alpha = np.pow(2.0, np.arange(-15, 5))
     if cfg.debug:
         alpha = np.pow(2.0, np.arange(-2, 2))
+
+    if 0 &lt; cfg.n_train &lt; 20_000:
+        return sklearn.pipeline.make_pipeline(
+            sklearn.preprocessing.StandardScaler(),
+            sklearn.linear_model.RidgeClassifier(1.0),
+        )
 
     return sklearn.model_selection.HalvingGridSearchCV(
         sklearn.pipeline.make_pipeline(
@@ -237,7 +256,11 @@ class Dataset(torchvision.datasets.ImageFolder):
         if self.target_transform is not None:
             target = self.target_transform(target)
 
-        return path, sample, target</code></pre>
+        return path, sample, target
+
+    @property
+    def labels(self) -&gt; Int[np.ndarray, &#34; n&#34;]:
+        return np.array([label for _, label in self.samples])</code></pre>
 </details>
 <div class="desc"><p>Subclasses ImageFolder so that <code>__getitem__</code> includes the path, which we use as the ID.</p></div>
 <h3>Ancestors</h3>
@@ -248,6 +271,21 @@ class Dataset(torchvision.datasets.ImageFolder):
 <li>torch.utils.data.dataset.Dataset</li>
 <li>typing.Generic</li>
 </ul>
+<h3>Instance variables</h3>
+<dl>
+<dt id="biobench.inat21.Dataset.labels"><code class="name">prop <span class="ident">labels</span> : jaxtyping.Int[ndarray, 'n']</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@property
+def labels(self) -&gt; Int[np.ndarray, &#34; n&#34;]:
+    return np.array([label for _, label in self.samples])</code></pre>
+</details>
+<div class="desc"></div>
+</dd>
+</dl>
 </dd>
 <dt id="biobench.inat21.Features"><code class="flex name class">
 <span>class <span class="ident">Features</span></span>
@@ -311,6 +349,9 @@ class Features:
 <ul>
 <li>
 <h4><code><a title="biobench.inat21.Dataset" href="#biobench.inat21.Dataset">Dataset</a></code></h4>
+<ul class="">
+<li><code><a title="biobench.inat21.Dataset.labels" href="#biobench.inat21.Dataset.labels">labels</a></code></li>
+</ul>
 </li>
 <li>
 <h4><code><a title="biobench.inat21.Features" href="#biobench.inat21.Features">Features</a></code></h4>

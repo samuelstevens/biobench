@@ -178,9 +178,13 @@ def clear_stale_claims(db: sqlite3.Connection, *, max_age_hours: int = 72) -&gt;
         raise ValueError(&#34;max_age_hours must be positive&#34;)
 
     cutoff = time.time() - max_age_hours * 3600
-    cur = db.execute(&#34;DELETE FROM runs WHERE posix &lt; ?&#34;, (cutoff,))
-    db.commit()
-    return cur.rowcount</code></pre>
+    try:
+        cur = db.execute(&#34;DELETE FROM runs WHERE posix &lt; ?&#34;, (cutoff,))
+        db.commit()
+        return cur.rowcount
+    except Exception:
+        db.rollback()
+        raise</code></pre>
 </details>
 <div class="desc"><p>Delete rows in <code>runs</code> whose POSIX timestamp is older than <code>max_age_hours</code>.</p>
 <h2 id="returns">Returns</h2>
@@ -488,7 +492,7 @@ class Prediction:
 </dd>
 <dt id="biobench.reporting.Report"><code class="flex name class">
 <span>class <span class="ident">Report</span></span>
-<span>(</span><span>task_name: str,<br>predictions: list[<a title="biobench.reporting.Prediction" href="#biobench.reporting.Prediction">Prediction</a>],<br>cfg: <a title="biobench.config.Experiment" href="config.html#biobench.config.Experiment">Experiment</a>,<br>*,<br>splits: dict[str, float] = &lt;factory&gt;,<br>argv: list[str] = &lt;factory&gt;,<br>git_commit: str = 'af0b78e1ada75bba3c0c55f0f5435143f45648e2',<br>posix: float = &lt;factory&gt;,<br>gpu_name: str = &lt;factory&gt;,<br>hostname: str = &lt;factory&gt;)</span>
+<span>(</span><span>task_name: str,<br>predictions: list[<a title="biobench.reporting.Prediction" href="#biobench.reporting.Prediction">Prediction</a>],<br>cfg: <a title="biobench.config.Experiment" href="config.html#biobench.config.Experiment">Experiment</a>,<br>*,<br>splits: dict[str, float] = &lt;factory&gt;,<br>argv: list[str] = &lt;factory&gt;,<br>git_commit: str = 'e67a7cf9b231012932ce215b538cb4e5dad3213e',<br>posix: float = &lt;factory&gt;,<br>gpu_name: str = &lt;factory&gt;,<br>hostname: str = &lt;factory&gt;)</span>
 </code></dt>
 <dd>
 <details class="source">

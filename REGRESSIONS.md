@@ -1,10 +1,10 @@
 # Regressions
 
-Last checked: 2025-04-30
+Last checked: 2025-05-01
 
 # 1 failing test(s)
 
-- biobench/test_reporting.py::test_reclaim_after_failure
+- biobench/test_auto_batch_size.py::test_schedule_not_materialised
 # Coverage
 
-Coverage: 2843/4285 lines (66.3%)
+Coverage: 2950/4394 lines (67.1%)

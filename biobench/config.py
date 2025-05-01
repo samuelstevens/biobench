@@ -79,7 +79,7 @@ class Experiment:
 
     n_workers: int = 4
     """Number of dataloader workers."""
-    batch_size: int = 32
+    batch_size: int = 16
     """Initial batch size to start with for tuning."""
 
     data: Data = dataclasses.field(default_factory=Data)

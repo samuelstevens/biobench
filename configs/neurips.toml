@@ -1,17 +1,19 @@
 n_train = -1
+verbose = false
 report_to = "/local/scratch/$USER/experiments/biobench"
 
 [data]
 fishnet = "/research/nfs_su_809/workspace/stevens.994/datasets/fishnet"
+# fungiclef = "/research/nfs_su_809/workspace/stevens.994/datasets/fungiclef"
 herbarium19 = "/research/nfs_su_809/workspace/stevens.994/datasets/herbarium19"
 imagenet1k = "huggingface"
 # inat21 = "/research/nfs_su_809/workspace/stevens.994/datasets/inat21"
-# kabr = "/research/nfs_su_809/workspace/stevens.994/datasets/kabr"
+kabr = "/research/nfs_su_809/workspace/stevens.994/datasets/kabr"
 iwildcam = "/research/nfs_su_809/workspace/stevens.994/datasets/iwildcam"
 # mammalnet = "/research/nfs_su_809/workspace/stevens.994/datasets/mammalnet"
 newt = "/research/nfs_su_809/workspace/stevens.994/datasets/newt"
 plankton = "/research/nfs_su_809/workspace/stevens.994/datasets/plankton"
-# plantnet = "/research/nfs_su_809/workspace/stevens.994/datasets/plantnet"
+plantnet = "/research/nfs_su_809/workspace/stevens.994/datasets/plantnet"
 
 [[models]]
 org = "vjepa"
@@ -22,24 +24,8 @@ org = "vjepa"
 ckpt = "vith16"
 
 [[models]]
-org = "vjepa"
-ckpt = "vith16-384"
-
-# [[models]]
-# org = "sam2"
-# ckpt = "sam2_hiera_tiny.fb_r896_2pt1"
-
-# [[models]]
-# org = "sam2"
-# ckpt = "sam2_hiera_small.fb_r896_2pt1"
-
-# [[models]]
-# org = "sam2"
-# ckpt = "sam2_hiera_base_plus.fb_r896_2pt1"
-
-# [[models]]
-# org = "sam2"
-# ckpt = "sam2_hiera_large.fb_r896_2pt1"
+org = "open-clip"
+ckpt = "ViT-B-32/openai"
 
 [[models]]
 org = "open-clip"
@@ -141,10 +127,6 @@ ckpt = "dinov2_vitb14_reg"
 org = "dinov2"
 ckpt = "dinov2_vitl14_reg"
 
-# [[models]]
-# org = "dinov2"
-# ckpt = "dinov2_vitg14_reg"
-
 [[models]]
 org = "aimv2"
 ckpt = "apple/aimv2-large-patch14-224"
@@ -166,10 +148,58 @@ org = "aimv2"
 ckpt = "apple/aimv2-huge-patch14-336"
 
 [[models]]
+org = "open-clip"
+ckpt = "hf-hub:imageomics/bioclip"
+
+[[models]]
+org = "dinov2"
+ckpt = "dinov2_vitg14_reg"
+
+[[models]]
 org = "aimv2"
 ckpt = "apple/aimv2-huge-patch14-448"
 
 [[models]]
-org = "open-clip"
-ckpt = "hf-hub:imageomics/bioclip"
+org = "aimv2"
+ckpt = "apple/aimv2-1B-patch14-224"
+
+[[models]]
+org = "aimv2"
+ckpt = "apple/aimv2-1B-patch14-336"
+
+[[models]]
+org = "aimv2"
+ckpt = "apple/aimv2-1B-patch14-448"
+
+[[models]]
+org = "aimv2"
+ckpt = "apple/aimv2-3B-patch14-224"
+
+[[models]]
+org = "aimv2"
+ckpt = "apple/aimv2-3B-patch14-336"
+
+[[models]]
+org = "aimv2"
+ckpt = "apple/aimv2-3B-patch14-448"
+
+[[models]]
+org = "sam2"
+ckpt = "sam2_hiera_tiny.fb_r896_2pt1"
+
+[[models]]
+org = "sam2"
+ckpt = "sam2_hiera_small.fb_r896_2pt1"
+
+[[models]]
+org = "sam2"
+ckpt = "sam2_hiera_base_plus.fb_r896_2pt1"
+
+[[models]]
+org = "sam2"
+ckpt = "sam2_hiera_large.fb_r1024_2pt1"
+
+[[models]]
+org = "vjepa"
+ckpt = "vith16-384"
 
