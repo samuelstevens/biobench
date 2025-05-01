@@ -16,6 +16,7 @@ import resource
 import subprocess
 import sys
 import time
+import typing
 import warnings
 
 import beartype
@@ -274,7 +275,9 @@ def auto_batch_size(
     probe: collections.abc.Callable[[torch.Tensor], torch.Tensor],
     schedule: collections.abc.Iterable[int] | None = None,
     upper: int = 4096,
+    margin: typing.Literal["prev"] | None = None,
 ):
+    # Change this docstring to the google format. AI!
     """
     Context manager that **mutates `dataloader.batch_size` in-place** so you always run with the largest batch that fits GPU RAM.
 
