@@ -16,7 +16,6 @@ import resource
 import subprocess
 import sys
 import time
-import typing
 import warnings
 
 import beartype
@@ -285,6 +284,7 @@ def auto_batch_size(
         dataloader: The already constructed loader you use in your loop. Its `batch_sampler.batch_size` attribute is patched on the fly.
         probe: A 1-argument callable used to test memory. Typical usage: `lambda x: backbone.img_encode(x).img_features`.
         schedule: An iterator of candidate batch sizes. If None, use the canonical schedule.
+        schedule: An iterator of strictly increasing candidate batch sizes (2, 4, 8, ...). A *ValueError* is raised when a non-increasing value is encountered. If None, use the canonical schedule.
         upper: Maximum batch size to try, regardless of available memory.
         backoff: int, default = 0. How far to step **back** in the candidate schedule from the largest batch-size that completes without OOM  (clamped to the smallest candidate if ``n`` is too big).
         * `backoff = 0`  -> use the **largest** successful size
@@ -294,10 +294,41 @@ def auto_batch_size(
     Yields:
         int: The selected batch size.
     """
-    logger = logging.getLogger("auto-bsz")
+
+    @beartype.beartype
+    class OrderedSet[T]:
+        def __init__(self):
+            self._lst = []
+
+        def __bool__(self) -> bool:
+            return bool(self._lst)
+
+        @property
+        def last(self) -> T:
+            return self._lst[-1]
+
+        def append(self, t: T) -> None:
+            if t in self._lst:
+                return
+
+            self._lst.append(t)
+
+        def pop(self) -> T:
+            return self._lst.pop()
+
+        def __repr__(self) -> str:
+            return f"{self.__class__.__name__}({self._items!r})"
+
+        def __str__(self) -> str:
+            return str(self._items)
 
     if dataloader.batch_sampler is None:
         raise ValueError("dataloader must have a batch_sampler")
+
+    if backoff < 0:
+        raise ValueError(f"backoff '{backoff}' < 0; must be >= 0")
+
+    logger = logging.getLogger("auto-bsz")
 
     oom_signatures = (
         "out of memory",
@@ -310,8 +341,7 @@ def auto_batch_size(
     )
 
     orig_bsz = int(dataloader.batch_sampler.batch_size)
-    ok_bsz = orig_bsz
-    good_bszs = [ok_bsz]
+    good_bszs = OrderedSet()
     schedule_iter = schedule or _default_batchsize_schedule(orig_bsz)
 
     torch.cuda.empty_cache()  # be nice
@@ -319,9 +349,10 @@ def auto_batch_size(
     t_start = time.perf_counter()
 
     for tried_bsz in schedule_iter:
-        # quick sanity: do not create impossible 0-batch situations
-        if tried_bsz <= ok_bsz:
-            continue
+        if good_bszs and tried_bsz <= good_bszs.last:
+            raise ValueError(
+                f"Schedule not monotonically increasing: {tried_bsz} <= {good_bszs.last}"
+            )
 
         if tried_bsz > upper:
             tried_bsz = upper
@@ -385,6 +416,11 @@ def auto_batch_size(
                 logger.info("Still OOM at %d; trying previous candidate", ok_bsz)
             else:
                 raise
+
+    while good_bszs and backoff:
+        backoff -= 1
+        ok_bsz = good_bszs.pop()
+        dataloader.batch_sampler.batch_size = ok_bsz
 
     elapsed = time.perf_counter() - t_start
     logger.info("Selected batch_size %d after %.2f s", ok_bsz, elapsed)

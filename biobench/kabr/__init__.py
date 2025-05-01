@@ -212,6 +212,7 @@ def get_features(
         num_workers=cfg.n_workers,
         drop_last=False,
         shuffle=False,
+        pin_memory=True,
     )
 
     all_feats, all_labels, all_ids = [], [], []
@@ -221,13 +222,14 @@ def get_features(
         frames = torch.stack(frames, dim=0)
         frames = frames.to(cfg.device, non_blocking=True)
         with torch.amp.autocast(cfg.device):
+            # conv2d doesn't support multiple batch dimensions, so we have to view() before and after the model.img_encode() call.
             n_frames, bsz, c, h, w = frames.shape
             frames = frames.view(bsz * n_frames, c, h, w)
             outputs = backbone.img_encode(frames)
             features = outputs.img_features.view(n_frames, bsz, -1)
             features = aggregate_frames(features)
 
-    with helpers.auto_batch_size(dataloader, probe=probe):
+    with helpers.auto_batch_size(dataloader, probe=probe, backoff=1):
         total = len(dataloader) if not cfg.debug else 2
         it = iter(dataloader)
         for b in helpers.progress(range(total), desc=f"kabr/{split}"):
