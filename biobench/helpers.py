@@ -277,18 +277,23 @@ def auto_batch_size(
     upper: int = 4096,
     margin: typing.Literal["prev"] | None = None,
 ):
-    # Change this docstring to the google format. AI!
-    """
-    Context manager that **mutates `dataloader.batch_size` in-place** so you always run with the largest batch that fits GPU RAM.
+    """Context manager that mutates `dataloader.batch_size` in-place to use the largest batch that fits GPU RAM.
 
-    Parameters
-    ----------
-    dataloader:
-        The *already constructed* loader you use in your loop. Its `batch_sampler.batch_size` attribute is patched on the fly.
-    probe:
-        A 1-argument callable used to test memory. Typical usage: `lambda x: backbone.img_encode(x).img_features`.
-    schedule:
-        An iterator of candidate batch sizes.  If `None`, use the canonical schedule.
+    This function tests progressively larger batch sizes until it finds the maximum that can be
+    processed without running out of memory.
+
+    Args:
+        dataloader: The already constructed loader you use in your loop. Its 
+            `batch_sampler.batch_size` attribute is patched on the fly.
+        probe: A 1-argument callable used to test memory. Typical usage: 
+            `lambda x: backbone.img_encode(x).img_features`.
+        schedule: An iterator of candidate batch sizes. If None, use the canonical schedule.
+        upper: Maximum batch size to try, regardless of available memory.
+        margin: If "prev", use the previous successful batch size as a safety margin.
+            If None, use the largest successful batch size.
+
+    Yields:
+        int: The selected batch size.
     """
     logger = logging.getLogger("auto-bsz")
 
