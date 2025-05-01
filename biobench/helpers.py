@@ -275,22 +275,21 @@ def auto_batch_size(
     probe: collections.abc.Callable[[torch.Tensor], torch.Tensor],
     schedule: collections.abc.Iterable[int] | None = None,
     upper: int = 4096,
-    margin: typing.Literal["prev"] | None = None,
+    backoff: int = 0,
 ):
     """Context manager that mutates `dataloader.batch_size` in-place to use the largest batch that fits GPU RAM.
 
-    This function tests progressively larger batch sizes until it finds the maximum that can be
-    processed without running out of memory.
+    This function tests progressively larger batch sizes until it finds the maximum that can be processed without running out of memory.
 
     Args:
-        dataloader: The already constructed loader you use in your loop. Its 
-            `batch_sampler.batch_size` attribute is patched on the fly.
-        probe: A 1-argument callable used to test memory. Typical usage: 
-            `lambda x: backbone.img_encode(x).img_features`.
+        dataloader: The already constructed loader you use in your loop. Its `batch_sampler.batch_size` attribute is patched on the fly.
+        probe: A 1-argument callable used to test memory. Typical usage: `lambda x: backbone.img_encode(x).img_features`.
         schedule: An iterator of candidate batch sizes. If None, use the canonical schedule.
         upper: Maximum batch size to try, regardless of available memory.
-        margin: If "prev", use the previous successful batch size as a safety margin.
-            If None, use the largest successful batch size.
+        backoff: int, default = 0. How far to step **back** in the candidate schedule from the largest batch-size that completes without OOM  (clamped to the smallest candidate if ``n`` is too big).
+        * `backoff = 0`  -> use the **largest** successful size
+        * `backoff = 1`  -> use the **second-largest** successful size
+        * `backoff = n`  -> use the *n*-th size below the largest success
 
     Yields:
         int: The selected batch size.
