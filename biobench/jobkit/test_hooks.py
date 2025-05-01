@@ -306,7 +306,7 @@ def test_lock_prevents_set_mutation_during_massive_adds():
     stop.set()
     t.join()
 
-    # No duplicates ⇒ each claim released only once (lock prevented races)
+    # No duplicates => each claim released only once (lock prevented races)
     assert len(hits) == len(set(hits))
 
 

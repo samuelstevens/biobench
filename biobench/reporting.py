@@ -172,9 +172,13 @@ def clear_stale_claims(db: sqlite3.Connection, *, max_age_hours: int = 72) -> in
         raise ValueError("max_age_hours must be positive")
 
     cutoff = time.time() - max_age_hours * 3600
-    cur = db.execute("DELETE FROM runs WHERE posix < ?", (cutoff,))
-    db.commit()
-    return cur.rowcount
+    try:
+        cur = db.execute("DELETE FROM runs WHERE posix < ?", (cutoff,))
+        db.commit()
+        return cur.rowcount
+    except Exception:
+        db.rollback()
+        raise
 
 
 @beartype.beartype
