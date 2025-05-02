@@ -158,14 +158,15 @@ def init_clf(cfg: config.Experiment):
     if cfg.debug:
         alpha = np.pow(2.0, np.arange(-2, 2))
 
+    clf = sklearn.pipeline.make_pipeline(
+        sklearn.preprocessing.StandardScaler(),
+        sklearn.linear_model.RidgeClassifier(solver="saga"),
+    )
     if 0 < cfg.n_train < 2_000:
-        return sklearn.linear_model.RidgeClassifier()
+        return clf
 
     return sklearn.model_selection.HalvingGridSearchCV(
-        sklearn.pipeline.make_pipeline(
-            sklearn.preprocessing.StandardScaler(),
-            sklearn.linear_model.RidgeClassifier(1.0),
-        ),
+        clf,
         {"ridgeclassifier__alpha": alpha},
         n_jobs=16,
         verbose=2,
