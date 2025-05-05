@@ -52,23 +52,31 @@ class Args:
 @beartype.beartype
 @dataclasses.dataclass(frozen=True)
 class Annotation:
-    # Document this class with docstrings for each value. AI!
     label: str
+    """The class label for this annotation segment."""
     segment: tuple[float, float]
+    """Time segment (start_time, end_time) in seconds where the animal appears."""
 
 
 @beartype.beartype
 @dataclasses.dataclass(frozen=True)
 class Detection:
-    # Document this class with docstrings for each value. AI!
     id: str
+    """Unique identifier for the video clip."""
     taxonomy: list[dict[str, str]]
+    """Taxonomic classification information for the detected animal."""
     annotations: list[Annotation]
+    """List of time segments with animal annotations."""
     duration: int
+    """Total duration of the video in seconds."""
     resolution: str
+    """Video resolution in format 'WIDTHxHEIGHT'."""
     fps: int
+    """Frames per second of the video."""
     subset: str
+    """Dataset split this video belongs to (e.g., 'train', 'val', 'test')."""
     url: str
+    """Original source URL for the video."""
 
 
 @beartype.beartype
