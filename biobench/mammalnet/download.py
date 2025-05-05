@@ -37,14 +37,16 @@ ANNOTATIONS_URL = "https://mammalnet.s3.amazonaws.com/annotation.tar"
 @beartype.beartype
 @dataclasses.dataclass(frozen=True)
 class Args:
-    # Document this class with docstrings for each value. AI!
     dir: str = "."
     """Where to save the downloaded archives and (optionally) extract them."""
     chunk_size_kb: int = 1024
     """Download chunk size (KB). 1024 KB ≈ 1 MB."""
     download_videos: bool = True
+    """Whether to download the video archive."""
     download_annotations: bool = True
+    """Whether to download the annotation archive."""
     trim_videos: bool = True
+    """Whether to create trimmed video clips based on annotations."""
 
 
 @beartype.beartype
