@@ -52,6 +52,7 @@ class Args:
 @beartype.beartype
 @dataclasses.dataclass(frozen=True)
 class Annotation:
+    # Document this class with docstrings for each value. AI!
     label: str
     segment: tuple[float, float]
 
@@ -59,6 +60,7 @@ class Annotation:
 @beartype.beartype
 @dataclasses.dataclass(frozen=True)
 class Detection:
+    # Document this class with docstrings for each value. AI!
     id: str
     taxonomy: list[dict[str, str]]
     annotations: list[Annotation]
