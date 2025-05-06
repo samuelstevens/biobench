@@ -42,41 +42,14 @@ import torchvision.datasets
 from jaxtyping import Float, Shaped, jaxtyped
 from torch import Tensor
 
-from biobench import config, helpers, registry, reporting
+from .. import config, helpers, registry, reporting
 
 logger = logging.getLogger("beluga")
 
 
 @beartype.beartype
-@dataclasses.dataclass(frozen=True)
-class Args:
-    """Configuration for BelugaID task."""
-
-    data: str = ""
-    """dataset directory; where you downloaded this task's data to."""
-    batch_size_cv: int = 256
-    """batch size for computer vision model."""
-    n_workers: int = 8
-    """Number of dataloader workers."""
-    log_every: int = 10
-    """How often to log while getting features."""
-    seed: int = 42
-    """random seed."""
-
-    # Computed at runtime.
-    device: str = "cuda"
-    """(computed at runtime) which kind of accelerator to use."""
-    debug: bool = False
-    """(computed at runtime) whether to run in debug mode."""
-    n_train: int = -1
-    """Number of maximum training samples. Negative number means use all of them."""
-
-
-@beartype.beartype
-def benchmark(cfg: config.Experiment) -> tuple[config.Model, reporting.Report]:
-    """
-    Run the BelugaID benchmark. See this module's documentation for more details.
-    """
+def benchmark(cfg: config.Experiment) -> reporting.Report:
+    """Run the BelugaID benchmark."""
     backbone = registry.load_vision_backbone(cfg.model)
 
     # Embed all images.
@@ -89,30 +62,27 @@ def benchmark(cfg: config.Experiment) -> tuple[config.Model, reporting.Report]:
     clf.fit(features.x, y)
     preds = clf.kneighbors(return_distance=False)
 
-    logger.info("Constructing examples.")
-    examples = [
+    preds = [
         reporting.Prediction(
-            str(image_id),
+            str(img_id),
             float(pred == true),
             {"y_pred": pred.item(), "y_true": true.item()},
         )
-        for image_id, pred, true in zip(
-            helpers.progress(features.ids, every=1_000), preds, y
-        )
+        for img_id, pred, true in zip(features.ids, preds, y)
     ]
-    logger.info("%d examples done.", len(examples))
 
-    return cfg.model, reporting.Report("BelugaID", examples)
+    return reporting.Report("beluga", preds, cfg)
+
+
+@beartype.beartype
+def score(preds: list[reporting.Prediction]) -> float:
+    return reporting.macro_f1(preds)
 
 
 @jaxtyped(typechecker=beartype.beartype)
 @dataclasses.dataclass(frozen=True)
 class Features:
-    """
-    A block of features.
-
-    Note: In Jax, this could be a tuple of arrays, all with a leading dimension of `n`. Instead, in PyTorch, it's easier to make it its own class. Oh well.
-    """
+    """A block of features."""
 
     x: Float[Tensor, "n dim"]
     """Input features; from a `biobench.registry.VisionBackbone`."""
@@ -130,8 +100,15 @@ class Features:
 
 
 @beartype.beartype
-@torch.no_grad
-def get_features(args: Args, backbone: registry.VisionBackbone) -> Features:
+def collate_fn(batch):
+    imgs = torch.stack([img for img, _ in batch])
+    metadata = [meta for _, meta in batch]
+    return imgs, metadata
+
+
+@beartype.beartype
+@torch.no_grad()
+def get_features(cfg: config.Experiment, backbone: registry.VisionBackbone) -> Features:
     """
     Get a block of features from a vision backbone.
 
@@ -140,46 +117,55 @@ def get_features(args: Args, backbone: registry.VisionBackbone) -> Features:
         backbone: visual backbone.
     """
     img_transform = backbone.make_img_transform()
-    backbone = torch.compile(backbone.to(args.device))
+    backbone = torch.compile(backbone.to(cfg.device))
 
-    if not os.path.isdir(args.datadir):
-        msg = f"Path '{args.datadir}' doesn't exist. Did you download the Beluga dataset? See the docstring at the top of this file for instructions. If you did download it, pass the path with '--beluga-args.datadir'; see --help for more."
+    if not os.path.isdir(cfg.data.beluga):
+        msg = f"Path '{cfg.data.beluga}' doesn't exist. Did you download the Beluga dataset?"
         raise ValueError(msg)
 
     dataset = torchvision.datasets.CocoDetection(
-        os.path.join(args.datadir, "beluga.coco", "images", "train2022"),
+        os.path.join(cfg.data.beluga, "beluga.coco", "images", "train2022"),
         os.path.join(
-            args.datadir, "beluga.coco", "annotations", "instances_train2022.json"
+            cfg.data.beluga, "beluga.coco", "annotations", "instances_train2022.json"
         ),
         img_transform,
     )
 
     dataloader = torch.utils.data.DataLoader(
         dataset=dataset,
-        batch_size=args.batch_size,
-        num_workers=args.n_workers,
+        batch_size=cfg.batch_size,
+        num_workers=cfg.n_workers,
         drop_last=False,
-        shuffle=True,  # We use dataset.shuffle instead
-        collate_fn=lambda batch: tuple(zip(*batch)),
+        shuffle=False,
+        collate_fn=collate_fn,
     )
 
     all_features, all_labels, all_ids = [], [], []
 
-    total = len(dataloader) if not args.debug else 2
-    it = iter(dataloader)
-    for b in helpers.progress(range(total), every=args.log_every, desc="embed"):
-        images, metadata = next(it)
-        images = torch.stack(images).to(args.device)
+    def probe(batch):
+        imgs, _ = batch
+        imgs = imgs.to(cfg.device, non_blocking=True)
 
         with torch.amp.autocast("cuda"):
-            features = backbone.img_encode(images).img_features
+            backbone.img_encode(imgs).img_features
 
-        labels = [meta[0]["name"] for meta in metadata]
-        ids = [str(meta[0]["image_id"]) for meta in metadata]
+    with helpers.auto_batch_size(dataloader, probe=probe):
+        total = len(dataloader) if not cfg.debug else 2
+        it = iter(dataloader)
+        for b in helpers.progress(range(total), desc="beluga"):
+            imgs, metadata = next(it)
+            imgs = imgs.to(cfg.device, non_blocking=True)
 
-        all_features.append(features.cpu())
-        all_labels.extend(labels)
-        all_ids.extend(ids)
+            with torch.amp.autocast("cuda"):
+                features = backbone.img_encode(imgs).img_features
+
+            assert all(len(meta) == 1 for meta in metadata)
+            labels = [meta[0]["name"] for meta in metadata]
+            ids = [str(meta[0]["image_id"]) for meta in metadata]
+
+            all_features.append(features.cpu())
+            all_labels.extend(labels)
+            all_ids.extend(ids)
 
     all_features = torch.cat(all_features, dim=0).cpu()
     all_ids = np.array(all_ids)

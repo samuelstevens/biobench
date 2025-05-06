@@ -138,17 +138,19 @@ Because of this, there are two main classes of tasks:
 [Counting insects on sticky insect traps](https://github.com/md-121/yellow-sticky-traps-dataset)
 [Predicting plant stem angle](https://plantvision.unl.edu/datasets/download-panicoid-phenomap-1-dataset/)
 
+# Installing
+
 >>>> REGRESSIONS.md
 # Regressions
 
-Last checked: 2025-04-30
+Last checked: 2025-05-01
 
 # 1 failing test(s)
 
-- biobench/test_reporting.py::test_reclaim_after_failure
+- biobench/test_auto_batch_size.py::test_schedule_not_materialised
 # Coverage
 
-Coverage: 2843/4285 lines (66.3%)
+Coverage: 2950/4394 lines (67.1%)
 
 >>>> __init__.py
 """ """
@@ -512,10 +514,8 @@ logger = logging.getLogger("beluga")
 
 
 @beartype.beartype
-def benchmark(cfg: config.Experiment) -> tuple[config.Model, reporting.Report]:
-    """
-    Run the BelugaID benchmark. See this module's documentation for more details.
-    """
+def benchmark(cfg: config.Experiment) -> reporting.Report:
+    """Run the BelugaID benchmark."""
     backbone = registry.load_vision_backbone(cfg.model)
 
     # Embed all images.
@@ -528,26 +528,27 @@ def benchmark(cfg: config.Experiment) -> tuple[config.Model, reporting.Report]:
     clf.fit(features.x, y)
     preds = clf.kneighbors(return_distance=False)
 
-    examples = [
+    preds = [
         reporting.Prediction(
-            str(image_id),
+            str(img_id),
             float(pred == true),
             {"y_pred": pred.item(), "y_true": true.item()},
         )
-        for image_id, pred, true in zip(features.ids, preds, y)
+        for img_id, pred, true in zip(features.ids, preds, y)
     ]
 
-    return cfg.model, reporting.Report("BelugaID", examples)
+    return reporting.Report("beluga", preds, cfg)
+
+
+@beartype.beartype
+def score(preds: list[reporting.Prediction]) -> float:
+    return reporting.macro_f1(preds)
 
 
 @jaxtyped(typechecker=beartype.beartype)
 @dataclasses.dataclass(frozen=True)
 class Features:
-    """
-    A block of features.
-
-    Note: In Jax, this could be a tuple of arrays, all with a leading dimension of `n`. Instead, in PyTorch, it's easier to make it its own class. Oh well.
-    """
+    """A block of features."""
 
     x: Float[Tensor, "n dim"]
     """Input features; from a `biobench.registry.VisionBackbone`."""
@@ -565,6 +566,13 @@ class Features:
 
 
 @beartype.beartype
+def collate_fn(batch):
+    imgs = torch.stack([img for img, _ in batch])
+    metadata = [meta for _, meta in batch]
+    return imgs, metadata
+
+
+@beartype.beartype
 @torch.no_grad()
 def get_features(cfg: config.Experiment, backbone: registry.VisionBackbone) -> Features:
     """
@@ -575,46 +583,55 @@ def get_features(cfg: config.Experiment, backbone: registry.VisionBackbone) -> F
         backbone: visual backbone.
     """
     img_transform = backbone.make_img_transform()
-    backbone = torch.compile(backbone.to(args.device))
+    backbone = torch.compile(backbone.to(cfg.device))
 
-    if not os.path.isdir(args.datadir):
-        msg = f"Path '{args.datadir}' doesn't exist. Did you download the Beluga dataset? See the docstring at the top of this file for instructions. If you did download it, pass the path with '--beluga-args.datadir'; see --help for more."
+    if not os.path.isdir(cfg.data.beluga):
+        msg = f"Path '{cfg.data.beluga}' doesn't exist. Did you download the Beluga dataset?"
         raise ValueError(msg)
 
     dataset = torchvision.datasets.CocoDetection(
-        os.path.join(args.datadir, "beluga.coco", "images", "train2022"),
+        os.path.join(cfg.data.beluga, "beluga.coco", "images", "train2022"),
         os.path.join(
-            args.datadir, "beluga.coco", "annotations", "instances_train2022.json"
+            cfg.data.beluga, "beluga.coco", "annotations", "instances_train2022.json"
         ),
         img_transform,
     )
 
     dataloader = torch.utils.data.DataLoader(
         dataset=dataset,
-        batch_size=args.batch_size,
-        num_workers=args.n_workers,
+        batch_size=cfg.batch_size,
+        num_workers=cfg.n_workers,
         drop_last=False,
         shuffle=False,
-        collate_fn=lambda batch: tuple(zip(*batch)),
+        collate_fn=collate_fn,
     )
 
     all_features, all_labels, all_ids = [], [], []
 
-    total = len(dataloader) if not args.debug else 2
-    it = iter(dataloader)
-    for b in helpers.progress(range(total), every=args.log_every, desc="embed"):
-        images, metadata = next(it)
-        images = torch.stack(images).to(args.device)
+    def probe(batch):
+        imgs, _ = batch
+        imgs = imgs.to(cfg.device, non_blocking=True)
 
         with torch.amp.autocast("cuda"):
-            features = backbone.img_encode(images).img_features
+            backbone.img_encode(imgs).img_features
 
-        labels = [meta[0]["name"] for meta in metadata]
-        ids = [str(meta[0]["image_id"]) for meta in metadata]
+    with helpers.auto_batch_size(dataloader, probe=probe):
+        total = len(dataloader) if not cfg.debug else 2
+        it = iter(dataloader)
+        for b in helpers.progress(range(total), desc="beluga"):
+            imgs, metadata = next(it)
+            imgs = imgs.to(cfg.device, non_blocking=True)
 
-        all_features.append(features.cpu())
-        all_labels.extend(labels)
-        all_ids.extend(ids)
+            with torch.amp.autocast("cuda"):
+                features = backbone.img_encode(imgs).img_features
+
+            assert all(len(meta) == 1 for meta in metadata)
+            labels = [meta[0]["name"] for meta in metadata]
+            ids = [str(meta[0]["image_id"]) for meta in metadata]
+
+            all_features.append(features.cpu())
+            all_labels.extend(labels)
+            all_ids.extend(ids)
 
     all_features = torch.cat(all_features, dim=0).cpu()
     all_ids = np.array(all_ids)
@@ -643,7 +660,7 @@ import requests
 import tqdm
 import tyro
 
-train_url = "http://us-west-2.opendata.source.coop.s3.amazonaws.com/agentmorris/lila-wildlife/wild-me/beluga.coco.tar.gz"
+URL = "http://us-west-2.opendata.source.coop.s3.amazonaws.com/agentmorris/lila-wildlife/wild-me/beluga.coco.tar.gz"
 
 
 @dataclasses.dataclass(frozen=True)
@@ -670,7 +687,7 @@ def main(args: Args):
 
     if args.download:
         # Download images.
-        r = requests.get(train_url, stream=True)
+        r = requests.get(URL, stream=True)
         r.raise_for_status()
         t = tqdm.tqdm(
             total=int(r.headers["content-length"]),
@@ -1007,7 +1024,7 @@ class Experiment:
 
     n_workers: int = 4
     """Number of dataloader workers."""
-    batch_size: int = 32
+    batch_size: int = 16
     """Initial batch size to start with for tuning."""
 
     data: Data = dataclasses.field(default_factory=Data)
@@ -1082,13 +1099,6 @@ def load(path: str) -> list[Experiment]:
 
     # Convert dictionaries to Experiment objects
     return [Experiment(**exp) for exp in experiments]
-
->>>> design.md
-# Design
-
-biobench is designed to make it easy to add both models and tasks that work with other models and tasks.
-
-To add a new model, look at `biobench.registry`'s documentation, which includes a tutorial for adding a new model.
 
 >>>> fishnet/__init__.py
 """
@@ -2909,7 +2919,7 @@ import sklearn.model_selection
 import sklearn.pipeline
 import sklearn.preprocessing
 import torch
-from jaxtyping import Float, Int, Shaped, jaxtyped
+from jaxtyping import Float16, Int, Shaped, jaxtyped
 
 from biobench import config, helpers, registry, reporting
 
@@ -2926,7 +2936,7 @@ warnings.filterwarnings(
 @jaxtyped(typechecker=beartype.beartype)
 @dataclasses.dataclass(frozen=True)
 class Features:
-    x: Float[np.ndarray, "n dim"]
+    x: Float16[np.ndarray, "n dim"]
     y: Int[np.ndarray, " n"]
     ids: Shaped[np.ndarray, " n"]
 
@@ -3037,7 +3047,7 @@ def get_features(
             all_labels.extend(batch["label"])
             all_ids.extend(batch["id"])
 
-    all_features = torch.cat(all_features, dim=0).cpu().numpy()
+    all_features = torch.cat(all_features, dim=0).cpu().to(torch.float16).numpy()
     all_ids = np.array(all_ids)
     all_labels = torch.tensor(all_labels).numpy()
     assert len(all_ids) == len(i) or cfg.n_train < 0
@@ -3052,14 +3062,15 @@ def init_clf(cfg: config.Experiment):
     if cfg.debug:
         alpha = np.pow(2.0, np.arange(-2, 2))
 
+    clf = sklearn.pipeline.make_pipeline(
+        sklearn.preprocessing.StandardScaler(),
+        sklearn.linear_model.RidgeClassifier(),
+    )
     if 0 < cfg.n_train < 2_000:
-        return sklearn.linear_model.RidgeClassifier()
+        return clf
 
     return sklearn.model_selection.HalvingGridSearchCV(
-        sklearn.pipeline.make_pipeline(
-            sklearn.preprocessing.StandardScaler(),
-            sklearn.linear_model.RidgeClassifier(1.0),
-        ),
+        clf,
         {"ridgeclassifier__alpha": alpha},
         n_jobs=16,
         verbose=2,
@@ -3100,7 +3111,7 @@ import sklearn.pipeline
 import sklearn.preprocessing
 import torch
 import torchvision.datasets
-from jaxtyping import Float, Int, Shaped, jaxtyped
+from jaxtyping import Float16, Int, Shaped, jaxtyped
 
 from biobench import config, helpers, registry, reporting
 
@@ -3112,7 +3123,7 @@ n_classes = 10_000
 @jaxtyped(typechecker=beartype.beartype)
 @dataclasses.dataclass(frozen=True)
 class Features:
-    x: Float[np.ndarray, "n dim"]
+    x: Float16[np.ndarray, "n dim"]
     y: Int[np.ndarray, " n"]
     ids: Shaped[np.ndarray, " n"]
 
@@ -3153,6 +3164,11 @@ def benchmark(cfg: config.Experiment) -> reporting.Report:
     ]
 
     return reporting.Report("inat21", preds, cfg)
+
+
+@beartype.beartype
+def score(preds: list[reporting.Prediction]) -> float:
+    return reporting.micro_acc(preds)
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -3235,7 +3251,7 @@ def get_features(
             all_labels.extend(labels)
             all_ids.extend(ids)
 
-    all_features = torch.cat(all_features, dim=0).cpu().numpy()
+    all_features = torch.cat(all_features, dim=0).cpu().to(torch.float16).numpy()
     all_ids = np.array(all_ids)
     all_labels = torch.tensor(all_labels).numpy()
     if is_train and cfg.n_train > 0:
@@ -3250,17 +3266,15 @@ def init_clf(cfg: config.Experiment):
     if cfg.debug:
         alpha = np.pow(2.0, np.arange(-2, 2))
 
+    clf = sklearn.pipeline.make_pipeline(
+        sklearn.preprocessing.StandardScaler(),
+        sklearn.linear_model.RidgeClassifier(),
+    )
     if 0 < cfg.n_train < 20_000:
-        return sklearn.pipeline.make_pipeline(
-            sklearn.preprocessing.StandardScaler(),
-            sklearn.linear_model.RidgeClassifier(1.0),
-        )
+        clf
 
     return sklearn.model_selection.HalvingGridSearchCV(
-        sklearn.pipeline.make_pipeline(
-            sklearn.preprocessing.StandardScaler(),
-            sklearn.linear_model.RidgeClassifier(1.0),
-        ),
+        clf,
         {"ridgeclassifier__alpha": alpha},
         n_jobs=16,
         verbose=2,
@@ -5660,14 +5674,525 @@ How should we build new benchmarks?
 * Science why: benchmarks should drive progress outside of the benchmark task itself.
 
 >>>> mammalnet/__init__.py
-import beartype
+"""
+# MammalNet
 
-from .. import config, reporting
+We frame behavior recognition as a classification task.
+Given a short video segment, embed the video via some frame-sampling strategy and associate that embedding with a label.
+We train a simple nearest-centroid classifier [which works well with few-shot tasks](https://arxiv.org/abs/1911.04623) over these representation-label pairs.
+
+You must use torchcodec 0.2 with torch 2.6.
+If you have torch 2.7, then use torchcodec 0.3.
+
+If you use this benchmark, please cite the original work:
+
+```
+@inproceedings{chen2023mammalnet,
+  title={Mammalnet: A large-scale video benchmark for mammal recognition and behavior understanding},
+  author={Chen, Jun and Hu, Ming and Coker, Darren J and Berumen, Michael L and Costelloe, Blair and Beery, Sara and Rohrbach, Anna and Elhoseiny, Mohamed},
+  booktitle={Proceedings of the IEEE/CVF conference on computer vision and pattern recognition},
+  pages={13052--13061},
+  year={2023}
+}
+```
+"""
+
+import csv
+import dataclasses
+import logging
+import os.path
+
+import beartype
+import numpy as np
+import torch
+import torchcodec.decoders
+from jaxtyping import Float16, Int, Shaped, jaxtyped
+from torch import Tensor
+
+from .. import config, helpers, registry, reporting, simpleshot
+
+logger = logging.getLogger(__name__)
 
 
 @beartype.beartype
 def benchmark(cfg: config.Experiment) -> tuple[config.Model, reporting.Report]:
-    raise NotImplementedError()
+    # 1. Load model
+    backbone = registry.load_vision_backbone(cfg.model)
+    backbone = backbone.to(cfg.device)
+
+    # 2. Load data.
+    test_features = get_features(cfg, backbone, is_train=False)
+    train_features = get_features(cfg, backbone, is_train=True)
+
+    # 4. Do simpleshot.
+    clf = init_clf(cfg)
+    clf.fit(train_features.x, train_features.y)
+
+    true_labels = test_features.y
+    pred_labels = clf.predict(test_features.x)
+
+    # Return benchmark report.
+    preds = [
+        reporting.Prediction(
+            str(video_id),
+            float(pred == true),
+            {"y_pred": pred.item(), "y_true": true.item()},
+        )
+        for video_id, pred, true in zip(test_features.ids, pred_labels, true_labels)
+    ]
+    return reporting.Report("mammalnet", preds, cfg)
+
+
+@beartype.beartype
+def score(preds: list[reporting.Prediction]) -> float:
+    return reporting.macro_f1(preds)
+
+
+@beartype.beartype
+def init_clf(cfg: config.Experiment):
+    return simpleshot.SimpleShotClassifier(device="cuda:0")
+
+
+@jaxtyped(typechecker=beartype.beartype)
+@dataclasses.dataclass(frozen=True)
+class Features:
+    x: Float16[np.ndarray, "n dim"]
+    y: Int[np.ndarray, " n"]
+    ids: Shaped[np.ndarray, " n"]
+
+
+@jaxtyped(typechecker=beartype.beartype)
+@torch.no_grad()
+def get_features(
+    cfg: config.Experiment, backbone: registry.VisionBackbone, *, is_train: bool
+) -> Features:
+    """
+    Gets all model features and true labels for all frames and all examples in the dataloader.
+
+    Returns it as a pair of big tensors; other tasks use a dedicated class for this, but here it's just a tuple.
+
+    Args:
+        args: KABR task arguments.
+        backbone: Vision backbone.
+        is_train: Whether it's training data or not.
+
+    Returns:
+    """
+    img_transform = backbone.make_img_transform()
+    backbone = torch.compile(backbone)
+    split = "train" if is_train else "val"
+
+    dataset = Dataset(
+        cfg.data.mammalnet, split=split, seed=cfg.seed, transform=img_transform
+    )
+    dataloader = torch.utils.data.DataLoader(
+        dataset,
+        batch_size=cfg.batch_size,
+        num_workers=cfg.n_workers,
+        drop_last=False,
+        shuffle=False,
+        pin_memory=True,
+    )
+
+    all_feats, all_labels, all_ids = [], [], []
+
+    def probe(batch):
+        with torch.amp.autocast(cfg.device):
+            frames, _, _ = batch
+            frames = frames.to(cfg.device, non_blocking=True)
+            # conv2d doesn't support multiple batch dimensions, so we have to view() before and after the model.img_encode() call.
+            n_frames, bsz, c, h, w = frames.shape
+            frames = frames.view(bsz * n_frames, c, h, w)
+            outputs = backbone.img_encode(frames)
+            features = outputs.img_features.view(n_frames, bsz, -1)
+            features = aggregate_frames(features)
+
+    with helpers.auto_batch_size(dataloader, probe=probe, backoff=1):
+        total = len(dataloader) if not cfg.debug else 2
+        it = iter(dataloader)
+        for b in helpers.progress(range(total), desc=f"mammalnet/{split}"):
+            with torch.amp.autocast(cfg.device):
+                frames, labels, ids = next(it)
+                frames = frames.to(cfg.device, non_blocking=True)
+                # conv2d doesn't support multiple batch dimensions, so we have to view() before and after the model.img_encode() call.
+                bsz, n_frames, c, h, w = frames.shape
+                frames = frames.view(bsz * n_frames, c, h, w)
+                outputs = backbone.img_encode(frames)
+                features = outputs.img_features.view(bsz, n_frames, -1)
+
+                features = aggregate_frames(features)
+                all_feats.append(features.cpu())
+
+            all_labels.append(labels.cpu())
+            all_ids.extend(ids)
+
+    all_feats = torch.cat(all_feats, dim=0).cpu().numpy()
+    all_labels = torch.cat(all_labels, dim=0).cpu().numpy()
+    all_ids = np.array(all_ids)
+
+    return Features(all_feats, all_labels, all_ids)
+
+
+@jaxtyped(typechecker=beartype.beartype)
+class Dataset:
+    n_frames: int = 32
+    composition: str = "composition"
+
+    def __init__(self, root: str, *, split: str, seed: int, transform):
+        import torchvision.transforms.v2.functional
+
+        self.root = root
+        self.split = split
+        self.transform = transform
+        self.to_pil_image = torchvision.transforms.v2.functional.to_pil_image
+
+        if not os.path.exists(self.root) or not os.path.isdir(self.root):
+            msg = f"Path '{self.root}' doesn't exist. Did you download the MammalNet dataset?"
+            raise RuntimeError(msg)
+
+        self.samples = []
+        with open(
+            os.path.join(self.root, "annotation", self.composition, f"{self.split}.csv")
+        ) as fd:
+            reader = csv.reader(fd, delimiter=" ")
+            for rel_path, species_id, behavior_id in reader:
+                # the CSV already prefixes "trimmed_videos/..."
+                full_path = os.path.join(self.root, *rel_path.split("/"))
+                if not os.path.isfile(full_path):
+                    logger.warn("Missing clip '%s'; skipping", full_path)
+                    continue
+
+                vid_id, ext = os.path.splitext(os.path.basename(full_path))
+
+                self.samples.append({
+                    "path": full_path,
+                    "id": vid_id,
+                    "species": int(species_id),
+                    "behavior": int(behavior_id),
+                })
+
+    def __len__(self) -> int:
+        return len(self.samples)
+
+    def __getitem__(self, i) -> tuple[Float16[Tensor, "n 3 width height"], int, str]:
+        item = self.samples[i]
+        decoder = torchcodec.decoders.VideoDecoder(item["path"])
+
+        frames = []
+        fs = torch.linspace(0, len(decoder) - 1, self.n_frames, dtype=int).tolist()
+        for frame in decoder.get_frames_at(indices=fs).data:
+            frames.append(self.transform(self.to_pil_image(frame, "RGB")))
+
+        return torch.stack(frames), item["behavior"], item["id"]
+
+
+@jaxtyped(typechecker=beartype.beartype)
+def aggregate_frames(
+    features: Float16[Tensor, "n_frames n_examples dim"],
+) -> Float16[Tensor, "n_examples dim"]:
+    return torch.max(features, dim=0).values
+
+>>>> mammalnet/download.py
+# /// script
+# requires-python = ">=3.12"
+# dependencies = [
+#     "beartype",
+#     "ffmpeg-python",
+#     "requests",
+#     "tqdm",
+#     "tyro",
+# ]
+# ///
+"""
+Download the MammalNet benchmark and its annotations.
+"""
+
+import concurrent.futures
+import dataclasses
+import json
+import logging
+import pathlib
+import statistics
+import tarfile
+
+import beartype
+import ffmpeg
+import requests
+import tqdm
+import tyro
+
+VIDEOS_URL = "https://mammalnet.s3.amazonaws.com/full_video.tar.gz"
+ANNOTATIONS_URL = "https://mammalnet.s3.amazonaws.com/annotation.tar"
+
+log_format = "[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s"
+logging.basicConfig(level=logging.INFO, format=log_format)
+logger = logging.getLogger("mammalnet.download")
+
+
+@beartype.beartype
+@dataclasses.dataclass(frozen=True)
+class Args:
+    dir: str = "."
+    """Where to save the downloaded archives and (optionally) extract them."""
+    chunk_size_kb: int = 1024
+    """Download chunk size (KB). 1024 KB ~ 1 MB."""
+    download_videos: bool = True
+    """Whether to download the video archive."""
+    download_annotations: bool = True
+    """Whether to download the annotation archive."""
+    trim_videos: bool = True
+    """Whether to create trimmed video clips based on annotations."""
+    check_stats: bool = True
+    n_workers: int = 16
+    """Number of parallel `ffmpeg`s to spawn."""
+
+
+@beartype.beartype
+@dataclasses.dataclass(frozen=True)
+class Annotation:
+    label: str
+    """The class label for this annotation segment."""
+    start_s: float
+    end_s: float
+
+    @property
+    def duration_s(self) -> float:
+        return self.end_s - self.start_s
+
+
+@beartype.beartype
+@dataclasses.dataclass(frozen=True)
+class Detection:
+    id: str
+    """Unique identifier for the video clip."""
+    taxonomy: list[dict[str, str]]
+    """Taxonomic classification information for the detected animal."""
+    annotations: list[Annotation]
+    """List of time segments with behavior annotations."""
+    duration_s: int
+    """Total duration of the video in seconds."""
+    resolution: tuple[int, int]
+    """Video resolution in pixels"""
+    fps: int
+    """Frames per second of the video."""
+    subset: str
+    """Dataset split this video belongs to (e.g., 'train', 'val', 'test')."""
+    url: str
+    """Original source URL for the video."""
+
+    @classmethod
+    def from_json(cls, id, dct):
+        annotations = [
+            Annotation(
+                label=ann["label"],
+                start_s=float(ann["segment"][0]),
+                end_s=float(ann["segment"][1]),
+            )
+            for ann in dct.pop("annotations")
+        ]
+        taxonomy = dct.pop("taxnomy")
+        duration_s = dct.pop("duration")
+        resolution = tuple(int(x) for x in dct.pop("resolution").split("x"))
+        return cls(
+            id=id,
+            taxonomy=taxonomy,
+            annotations=annotations,
+            duration_s=duration_s,
+            resolution=resolution,
+            **dct,
+        )
+
+
+@beartype.beartype
+def _download(url: str, dest: pathlib.Path, chunk_bytes: int) -> pathlib.Path:
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    if dest.exists():
+        print(f"{dest.name} already present, skipping download.")
+        return dest
+
+    r = requests.get(url, stream=True)
+    r.raise_for_status()
+    total = int(r.headers.get("content-length", 0))
+
+    with (
+        dest.open("wb") as f,
+        tqdm.tqdm(
+            total=total, unit="B", unit_scale=True, desc=f"Downloading {dest.name}"
+        ) as bar,
+    ):
+        for chunk in r.iter_content(chunk_size=chunk_bytes):
+            f.write(chunk)
+            bar.update(len(chunk))
+    return dest
+
+
+@beartype.beartype
+def _extract(archive: pathlib.Path, out_dir: pathlib.Path) -> None:
+    with tarfile.open(archive, "r:*") as tar:
+        for member in tqdm.tqdm(tar, desc=f"Extracting {archive.name}"):
+            tar.extract(member, path=out_dir)
+
+
+@beartype.beartype
+def _probe(path: pathlib.Path) -> float:
+    out = ffmpeg.probe(str(path))
+    return float(out["format"]["duration"])
+
+
+@beartype.beartype
+def _load_detections(base: pathlib.Path) -> list[Detection]:
+    with open(base / "annotation" / "detection_annotations.json") as fd:
+        detections = [
+            Detection.from_json(key, value) for key, value in json.load(fd).items()
+        ]
+
+    return detections
+
+
+@beartype.beartype
+def _stats(base: pathlib.Path, n_workers: int = 8):
+    detections = _load_detections(base)
+
+    ###############
+    # Full videos #
+    ###############
+
+    from_json = [det.duration_s for det in detections]
+    mean_s_from_json = statistics.mean(from_json)
+
+    vids = list(
+        p for p in (base / "full_videos").iterdir() if p.suffix.lower() == ".mp4"
+    )
+    durations = []
+    with concurrent.futures.ThreadPoolExecutor(max_workers=n_workers) as pool:
+        futs = [pool.submit(_probe, vid) for vid in vids]
+        for fut in tqdm.tqdm(
+            concurrent.futures.as_completed(futs),
+            total=len(futs),
+            desc="full video durations",
+        ):
+            durations.append(fut.result())
+    mean_s_from_disk = statistics.mean(durations)
+
+    print("From paper:")
+    print(f"  Mean (s) : {106:6.1f}")
+    print("From detection_annotations.json:")
+    print(f"  Mean (s) : {mean_s_from_json:6.1f}")
+    print(f"From {base / 'full_videos'}:")
+    print(f"  Mean (s) : {mean_s_from_disk:6.1f}")
+
+    ##################
+    # Trimmed videos #
+    ##################
+
+    # Calculate expected durations from annotations
+    from_json = [ann.duration_s for det in detections for ann in det.annotations]
+    mean_s_from_json = statistics.mean(from_json)
+
+    vids = list(
+        p for p in (base / "trimmed_videos").iterdir() if p.suffix.lower() == ".mp4"
+    )
+    durations = []
+    with concurrent.futures.ThreadPoolExecutor(max_workers=n_workers) as pool:
+        futs = [pool.submit(_probe, vid) for vid in vids]
+        for fut in tqdm.tqdm(
+            concurrent.futures.as_completed(futs),
+            total=len(futs),
+            desc="trimmed video durations",
+        ):
+            if err := fut.exception():
+                logger.warning("Exception: %s", err)
+                continue
+            durations.append(fut.result())
+    mean_s_from_disk = statistics.mean(durations)
+
+    print("From paper:")
+    print(f"  Mean (s) : {77:6.1f}")
+    print("From detection_annotations.json:")
+    print(f"  Mean (s) : {mean_s_from_json:6.1f}")
+    print(f"From {base / 'trimmed_videos'}:")
+    print(f"  Mean (s) : {mean_s_from_disk:6.1f}")
+
+
+@beartype.beartype
+def _trim(src: pathlib.Path, dst: pathlib.Path, start_s: float, end_s: float):
+    """Copy-trim [start_s, end_s] from *src* into *dst* without re-encoding."""
+    if start_s >= end_s:
+        raise ValueError("start_s must be < end_s")
+
+    duration = end_s - start_s
+    (
+        ffmpeg
+        # fast seek to ~start (input-side -ss is key-frame aligned, faster)
+        .input(str(src), ss=start_s)
+        # output-side -t gives exact length; libx264/AAC re-encodes safely
+        .output(
+            str(dst),
+            t=duration,
+            vcodec="libx264",
+            crf=23,
+            preset="veryfast",
+            movflags="+faststart",  # web-friendly moov placement
+            loglevel="error",  # silence ffmpeg spam unless errors
+            **{"an": None},  # <- -an  (strip audio)
+        )
+        .overwrite_output()
+        .run()
+    )
+
+
+@beartype.beartype
+def _trim_all(base: pathlib.Path, n_workers: int):
+    (base / "trimmed_videos").mkdir(exist_ok=True)
+    jobs = []
+    with open(base / "annotation" / "detection_annotations.json") as fd:
+        for key, value in json.load(fd).items():
+            det = Detection.from_json(key, value)
+
+            src = base / "full_videos" / f"{det.id}.mp4"
+            if len(det.annotations) > 1:
+                for k, ann in enumerate(det.annotations):
+                    dst = base / "trimmed_videos" / f"{det.id}_{k + 1}.mp4"
+                    jobs.append((src, dst, ann.start_s, ann.end_s))
+            else:
+                ann = det.annotations[0]
+                dst = base / "trimmed_videos" / f"{det.id}.mp4"
+                jobs.append((src, dst, ann.start_s, ann.end_s))
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=n_workers) as pool:
+        futs = [pool.submit(_trim, *job) for job in jobs]
+        for fut in tqdm.tqdm(concurrent.futures.as_completed(futs), total=len(futs)):
+            fut.result()  # re-raise on failure
+
+
+@beartype.beartype
+def main(args: Args) -> None:
+    base = pathlib.Path(args.dir).expanduser().resolve()
+    chunk = args.chunk_size_kb * 1024
+
+    if args.download_videos:
+        target = base / pathlib.Path(VIDEOS_URL).name
+        archive = _download(VIDEOS_URL, target, chunk)
+
+        _extract(archive, base)
+        print(f"Extracted videos into {base}")
+
+    if args.download_annotations:
+        target = base / pathlib.Path(ANNOTATIONS_URL).name
+        archive = _download(ANNOTATIONS_URL, target, chunk)
+
+        _extract(archive, base)
+        print(f"Extracted annotations into {base}")
+
+    if args.trim_videos:
+        _trim_all(base, args.n_workers)
+
+    if args.check_stats:
+        _stats(base, args.n_workers)
+
+
+if __name__ == "__main__":
+    main(tyro.cli(Args))
 
 >>>> newt/__init__.py
 """

@@ -18,7 +18,7 @@ import requests
 import tqdm
 import tyro
 
-train_url = "http://us-west-2.opendata.source.coop.s3.amazonaws.com/agentmorris/lila-wildlife/wild-me/beluga.coco.tar.gz"
+URL = "http://us-west-2.opendata.source.coop.s3.amazonaws.com/agentmorris/lila-wildlife/wild-me/beluga.coco.tar.gz"
 
 
 @dataclasses.dataclass(frozen=True)
@@ -45,7 +45,7 @@ def main(args: Args):
 
     if args.download:
         # Download images.
-        r = requests.get(train_url, stream=True)
+        r = requests.get(URL, stream=True)
         r.raise_for_status()
         t = tqdm.tqdm(
             total=int(r.headers["content-length"]),
