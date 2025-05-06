@@ -1,31 +1,26 @@
 # /// script
 # requires-python = ">=3.12"
 # dependencies = [
-#     "av",
 #     "beartype",
+#     "ffmpeg-python",
 #     "requests",
 #     "tqdm",
 #     "tyro",
 # ]
 # ///
 """
-Download the **MammalNet** trimmed-video benchmark and its annotations.
-
-Sources (as of 2025-05-01)
---------------------------
-* Videos (~XX GB):   https://mammalnet.s3.amazonaws.com/trimmed_videos.tar.gz
-* Annotations:      https://mammalnet.s3.amazonaws.com/annotation.tar
-
-After downloading you can pass `--unzip true` to extract the archives.
+Download the MammalNet benchmark and its annotations.
 """
 
+import concurrent.futures
 import dataclasses
 import json
 import pathlib
+import statistics
 import tarfile
 
-import av
 import beartype
+import ffmpeg
 import requests
 import tqdm
 import tyro
@@ -40,13 +35,16 @@ class Args:
     dir: str = "."
     """Where to save the downloaded archives and (optionally) extract them."""
     chunk_size_kb: int = 1024
-    """Download chunk size (KB). 1024 KB ≈ 1 MB."""
+    """Download chunk size (KB). 1024 KB ~ 1 MB."""
     download_videos: bool = True
     """Whether to download the video archive."""
     download_annotations: bool = True
     """Whether to download the annotation archive."""
     trim_videos: bool = True
     """Whether to create trimmed video clips based on annotations."""
+    check_stats: bool = True
+    n_workers: int = 16
+    """Number of parallel `ffmpeg`s to spawn."""
 
 
 @beartype.beartype
@@ -54,8 +52,11 @@ class Args:
 class Annotation:
     label: str
     """The class label for this annotation segment."""
-    segment: tuple[float, float]
-    """Time segment (start_time, end_time) in seconds where the animal appears."""
+    start_s: float
+    end_s: float
+
+    def duration(self) -> float:
+        return self.end_s - self.start_s
 
 
 @beartype.beartype
@@ -66,17 +67,39 @@ class Detection:
     taxonomy: list[dict[str, str]]
     """Taxonomic classification information for the detected animal."""
     annotations: list[Annotation]
-    """List of time segments with animal annotations."""
-    duration: int
+    """List of time segments with behavior annotations."""
+    duration_s: int
     """Total duration of the video in seconds."""
-    resolution: str
-    """Video resolution in format 'WIDTHxHEIGHT'."""
+    resolution: tuple[int, int]
+    """Video resolution in pixels"""
     fps: int
     """Frames per second of the video."""
     subset: str
     """Dataset split this video belongs to (e.g., 'train', 'val', 'test')."""
     url: str
     """Original source URL for the video."""
+
+    @classmethod
+    def from_json(cls, id, dct):
+        annotations = [
+            Annotation(
+                label=ann["label"],
+                start_s=float(ann["segment"][0]),
+                end_s=float(ann["segment"][1]),
+            )
+            for ann in dct.pop("annotations")
+        ]
+        taxonomy = dct.pop("taxnomy")
+        duration_s = dct.pop("duration")
+        resolution = tuple(int(x) for x in dct.pop("resolution").split("x"))
+        return cls(
+            id=id,
+            taxonomy=taxonomy,
+            annotations=annotations,
+            duration_s=duration_s,
+            resolution=resolution,
+            **dct,
+        )
 
 
 @beartype.beartype
@@ -110,36 +133,106 @@ def _extract(archive: pathlib.Path, out_dir: pathlib.Path) -> None:
 
 
 @beartype.beartype
-def _trim(detection: Detection, src: pathlib.Path, dst: pathlib.Path):
-    pass
+def _probe(path: pathlib.Path) -> float:
+    out = ffmpeg.probe(str(path))
+    return float(out["format"]["duration"])
+
+
+@beartype.beartype
+def _load_detections(base: pathlib.Path) -> list[Detection]:
+    with open(base / "annotation" / "detection_annotations.json") as fd:
+        detections = [
+            Detection.from_json(key, value) for key, value in json.load(fd).items()
+        ]
+
+    return detections
+
+
+@beartype.beartype
+def _stats(base: pathlib.Path, n_workers: int = 8):
+    detections = _load_detections(base)
+
+    ###############
+    # Full videos #
+    ###############
+
+    from_json = [det.duration_s for det in detections]
+    mean_s_from_json = statistics.mean(from_json)
+
+    vids = list(
+        p for p in (base / "full_videos").iterdir() if p.suffix.lower() == ".mp4"
+    )
+    durations = []
+    with concurrent.futures.ThreadPoolExecutor(max_workers=n_workers) as pool:
+        futs = [pool.submit(_probe, vid) for vid in vids]
+        for fut in tqdm.tqdm(
+            concurrent.futures.as_completed(futs),
+            total=len(futs),
+            desc="full video durations",
+        ):
+            durations.append(fut.result())
+    mean_s_from_disk = statistics.mean(durations)
+
+    print("From paper:")
+    print(f"  Mean (s) : {106:6.1f}")
+    print("From detection_annotations.json:")
+    print(f"  Mean (s) : {mean_s_from_json:6.1f}")
+
+    print(f"From {base / 'full_videos'}:")
+    print(f"  Mean (s) : {mean_s_from_disk:6.1f}")
+
+    # Do the same thing for the trimmed videos. The from_json will be using the annotations.duration_s field. AI!
 
 
 @beartype.beartype
 def _trim(src: pathlib.Path, dst: pathlib.Path, start_s: float, end_s: float):
     """Copy-trim [start_s, end_s] from *src* into *dst* without re-encoding."""
-    # open once for reading
-    with av.open(str(src)) as in_container:
-        video_stream = in_container.streams.video[0]
-        time_base = video_stream.time_base  # seconds / pts
+    if start_s >= end_s:
+        raise ValueError("start_s must be < end_s")
 
-        # prepare writer
-        with av.open(str(dst), "w") as out_container:
-            out_stream = out_container.add_stream_from_template(video_stream)
+    duration = end_s - start_s
+    (
+        ffmpeg
+        # fast seek to ~start (input-side -ss is key-frame aligned, faster)
+        .input(str(src), ss=start_s)
+        # output-side -t gives exact length; libx264/AAC re-encodes safely
+        .output(
+            str(dst),
+            t=duration,
+            vcodec="libx264",
+            crf=23,
+            preset="veryfast",
+            movflags="+faststart",  # web-friendly moov placement
+            loglevel="error",  # silence ffmpeg spam unless errors
+            **{"an": None},  # <- -an  (strip audio)
+        )
+        .overwrite_output()
+        .run()
+    )
 
-            start_ts = int(start_s / time_base)
-            end_ts = int(end_s / time_base)
 
-            in_container.seek(
-                start_ts, any_frame=False, backward=True, stream=video_stream
-            )
-            for pkt in in_container.demux(video_stream):
-                if pkt.dts is None:
-                    continue
-                if pkt.dts > end_ts:
-                    break
-                if pkt.dts >= start_ts:
-                    pkt.stream = out_stream
-                    out_container.mux(pkt)
+@beartype.beartype
+def _trim_all(base: pathlib.Path, n_workers: int):
+    (base / "trimmed_videos").mkdir(exist_ok=True)
+    jobs = []
+    with open(base / "annotation" / "detection_annotations.json") as fd:
+        for key, value in json.load(fd).items():
+            det = Detection.from_json(key, value)
+
+            src = base / "full_videos" / f"{det.id}.mp4"
+            if len(det.annotations) > 1:
+                for k, ann in enumerate(det.annotations):
+                    dst = base / "trimmed_videos" / f"{det.id}_{k + 1}.mp4"
+                    jobs.append((src, dst, *ann.segment))
+            else:
+                ann = det.annotations[0]
+                dst = base / "trimmed_videos" / f"{det.id}.mp4"
+                jobs.append((src, dst, *ann.segment))
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=n_workers) as pool:
+        futs = [pool.submit(_trim, *job) for job in jobs]
+        for fut in tqdm.tqdm(concurrent.futures.as_completed(futs), total=len(futs)):
+            fut.result()  # re-raise on failure
 
 
 @beartype.beartype
@@ -162,35 +255,10 @@ def main(args: Args) -> None:
         print(f"Extracted annotations into {base}")
 
     if args.trim_videos:
-        (base / "trimmed_videos").mkdir(exist_ok=True)
-        with open(base / "annotation" / "detection_annotations.json") as fd:
-            for key, value in tqdm.tqdm(json.load(fd).items()):
-                annotations = [
-                    Annotation(
-                        label=ann["label"],
-                        segment=tuple(float(t) for t in ann["segment"]),
-                    )
-                    for ann in value.pop("annotations")
-                ]
-                taxonomy = value.pop("taxnomy")
-                det = Detection(
-                    id=key, taxonomy=taxonomy, annotations=annotations, **value
-                )
+        _trim_all(base, args.n_workers)
 
-                if len(det.annotations) > 1:
-                    for k, ann in enumerate(det.annotations):
-                        _trim(
-                            base / "full_videos" / f"{det.id}.mp4",
-                            base / "trimmed_videos" / f"{det.id}_{k + 1}.mp4",
-                            *ann.segment,
-                        )
-                else:
-                    ann = det.annotations[0]
-                    _trim(
-                        base / "full_videos" / f"{det.id}.mp4",
-                        base / "trimmed_videos" / f"{det.id}.mp4",
-                        *ann.segment,
-                    )
+    if args.check_stats:
+        _stats(base, args.n_workers)
 
 
 if __name__ == "__main__":
