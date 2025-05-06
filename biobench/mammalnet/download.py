@@ -15,6 +15,7 @@ Download the MammalNet benchmark and its annotations.
 import concurrent.futures
 import dataclasses
 import json
+import logging
 import pathlib
 import statistics
 import tarfile
@@ -27,6 +28,10 @@ import tyro
 
 VIDEOS_URL = "https://mammalnet.s3.amazonaws.com/full_video.tar.gz"
 ANNOTATIONS_URL = "https://mammalnet.s3.amazonaws.com/annotation.tar"
+
+log_format = "[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s"
+logging.basicConfig(level=logging.INFO, format=log_format)
+logger = logging.getLogger("mammalnet.download")
 
 
 @beartype.beartype
@@ -55,7 +60,8 @@ class Annotation:
     start_s: float
     end_s: float
 
-    def duration(self) -> float:
+    @property
+    def duration_s(self) -> float:
         return self.end_s - self.start_s
 
 
@@ -177,7 +183,6 @@ def _stats(base: pathlib.Path, n_workers: int = 8):
     print(f"  Mean (s) : {106:6.1f}")
     print("From detection_annotations.json:")
     print(f"  Mean (s) : {mean_s_from_json:6.1f}")
-
     print(f"From {base / 'full_videos'}:")
     print(f"  Mean (s) : {mean_s_from_disk:6.1f}")
 
@@ -186,34 +191,32 @@ def _stats(base: pathlib.Path, n_workers: int = 8):
     ##################
 
     # Calculate expected durations from annotations
-    annotation_durations = []
-    for det in detections:
-        for ann in det.annotations:
-            annotation_durations.append(ann.duration())
-    mean_s_annotations = statistics.mean(annotation_durations)
+    from_json = [ann.duration_s for det in detections for ann in det.annotations]
+    mean_s_from_json = statistics.mean(from_json)
 
-    # Measure actual durations of trimmed videos
-    trimmed_vids = list(
+    vids = list(
         p for p in (base / "trimmed_videos").iterdir() if p.suffix.lower() == ".mp4"
     )
-    trimmed_durations = []
+    durations = []
     with concurrent.futures.ThreadPoolExecutor(max_workers=n_workers) as pool:
-        futs = [pool.submit(_probe, vid) for vid in trimmed_vids]
+        futs = [pool.submit(_probe, vid) for vid in vids]
         for fut in tqdm.tqdm(
             concurrent.futures.as_completed(futs),
             total=len(futs),
             desc="trimmed video durations",
         ):
-            trimmed_durations.append(fut.result())
-    
-    if trimmed_durations:
-        mean_s_trimmed = statistics.mean(trimmed_durations)
-        print("\nTrimmed videos:")
-        print(f"  Mean from annotations (s) : {mean_s_annotations:6.1f}")
-        print(f"  Mean from disk (s)       : {mean_s_trimmed:6.1f}")
-        print(f"  Count                    : {len(trimmed_durations)}")
-    else:
-        print("\nNo trimmed videos found. Run with --trim_videos to create them.")
+            if err := fut.exception():
+                logger.warning("Exception: %s", err)
+                continue
+            durations.append(fut.result())
+    mean_s_from_disk = statistics.mean(durations)
+
+    print("From paper:")
+    print(f"  Mean (s) : {77:6.1f}")
+    print("From detection_annotations.json:")
+    print(f"  Mean (s) : {mean_s_from_json:6.1f}")
+    print(f"From {base / 'trimmed_videos'}:")
+    print(f"  Mean (s) : {mean_s_from_disk:6.1f}")
 
 
 @beartype.beartype
@@ -255,11 +258,11 @@ def _trim_all(base: pathlib.Path, n_workers: int):
             if len(det.annotations) > 1:
                 for k, ann in enumerate(det.annotations):
                     dst = base / "trimmed_videos" / f"{det.id}_{k + 1}.mp4"
-                    jobs.append((src, dst, *ann.segment))
+                    jobs.append((src, dst, ann.start_s, ann.end_s))
             else:
                 ann = det.annotations[0]
                 dst = base / "trimmed_videos" / f"{det.id}.mp4"
-                jobs.append((src, dst, *ann.segment))
+                jobs.append((src, dst, ann.start_s, ann.end_s))
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=n_workers) as pool:
         futs = [pool.submit(_trim, *job) for job in jobs]
