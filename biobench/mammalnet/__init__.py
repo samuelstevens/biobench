@@ -152,12 +152,16 @@ def get_features(
 @beartype.beartype
 @dataclasses.dataclass(frozen=True, slots=True)
 class Video:
-    # Document this class with docstrings for each attribute using """..""" AI!
     path: str
+    """Full file path to the video file."""
     vid_id: str
+    """Unique identifier for the video clip."""
     species_id: int
+    """Numeric ID representing the animal species in the video."""
     behavior_id: int
+    """Numeric ID representing the behavior category in the video."""
     n_frames: int
+    """Total number of frames in the video."""
 
 
 @beartype.beartype
