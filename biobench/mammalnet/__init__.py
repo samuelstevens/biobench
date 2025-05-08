@@ -33,7 +33,7 @@ import numpy as np
 import spdl.io
 import spdl.pipeline
 import torch
-from jaxtyping import Float16, Int, Shaped, jaxtyped
+from jaxtyping import Float16, Float32, Int, Shaped, jaxtyped
 from PIL import Image
 from torch import Tensor
 
@@ -114,12 +114,19 @@ def get_features(
         spdl.pipeline.PipelineBuilder()
         .add_source(list_files(cfg.data.mammalnet, split=split))
         .pipe(
-            functools.partial(load_clip, img_transform=img_transform),
-            concurrency=cfg.n_workers,
+            functools.partial(
+                load_clip, img_transform=img_transform, device=cfg.device
+            ),
+            concurrency=cfg.n_workers * 4,
+            output_order="input",
         )
         .aggregate(cfg.batch_size)
-        .add_sink(4)
-        .build(num_threads=cfg.n_workers, report_stats_interval=60)
+        .pipe(
+            functools.partial(collate_fn, device=cfg.device),
+            output_order="input",
+        )
+        .add_sink(cfg.batch_size)
+        .build(num_threads=cfg.n_workers * 6, report_stats_interval=30)
     )
 
     all_feats, all_labels, all_ids = [], [], []
@@ -127,7 +134,6 @@ def get_features(
     with pipeline.auto_stop():
         for batch in helpers.progress(pipeline, desc=f"mammalnet/{split}"):
             with torch.amp.autocast(cfg.device):
-                breakpoint()
                 frames, labels, ids = batch
                 frames = frames.to(cfg.device, non_blocking=True)
                 # conv2d doesn't support multiple batch dimensions, so we have to view() before and after the model.img_encode() call.
@@ -139,11 +145,11 @@ def get_features(
                 features = aggregate_frames(features.to(torch.float16))
                 all_feats.append(features.cpu())
 
-            all_labels.append(labels.cpu())
+            all_labels.extend(labels)
             all_ids.extend(ids)
 
     all_feats = torch.cat(all_feats, dim=0).cpu().numpy()
-    all_labels = torch.cat(all_labels, dim=0).cpu().numpy()
+    all_labels = np.array(all_labels)
     all_ids = np.array(all_ids)
 
     return Features(all_feats, all_labels, all_ids)
@@ -170,7 +176,9 @@ class Annotation:
     label: str
     """The class label for this annotation segment."""
     start_s: float
+    """Start time in seconds."""
     end_s: float
+    """End time in seconds."""
 
     @property
     def duration_s(self) -> float:
@@ -180,7 +188,7 @@ class Annotation:
 @beartype.beartype
 @dataclasses.dataclass(frozen=True)
 class Detection:
-    id: str
+    vid_id: str
     """Unique identifier for the video clip."""
     taxonomy: list[dict[str, str]]
     """Taxonomic classification information for the detected animal."""
@@ -198,7 +206,7 @@ class Detection:
     """Original source URL for the video."""
 
     @classmethod
-    def from_json(cls, id, dct):
+    def from_json(cls, vid_id, dct):
         annotations = [
             Annotation(
                 label=ann["label"],
@@ -211,7 +219,7 @@ class Detection:
         duration_s = dct.pop("duration")
         resolution = tuple(int(x) for x in dct.pop("resolution").split("x"))
         return cls(
-            id=id,
+            vid_id=vid_id,
             taxonomy=taxonomy,
             annotations=annotations,
             duration_s=duration_s,
@@ -232,10 +240,10 @@ def list_files(root: str, *, split: str, composition: str = "composition"):
             det = Detection.from_json(key, value)
             if len(det.annotations) == 1:
                 ann = det.annotations[0]
-                lengths[det.id] = int(det.fps * ann.duration_s)
+                lengths[det.vid_id] = int(det.fps * ann.duration_s)
             else:
                 for i, ann in enumerate(det.annotations):
-                    lengths[f"{det.id}_{i + 1}"] = int(det.fps * ann.duration_s)
+                    lengths[f"{det.vid_id}_{i + 1}"] = int(det.fps * ann.duration_s)
 
     with open(os.path.join(root, "annotation", composition, f"{split}.csv")) as fd:
         reader = csv.reader(fd, delimiter=" ")
@@ -249,38 +257,57 @@ def list_files(root: str, *, split: str, composition: str = "composition"):
             vid_id, ext = os.path.splitext(os.path.basename(full_path))
 
             yield Video(
-                full_path, vid_id, int(species_id), int(behavior_id), lengths[vid_id]
+                full_path,
+                vid_id,
+                int(species_id),
+                int(behavior_id),
+                # -2 just in case we messed up.
+                lengths[vid_id] - 2,
             )
 
 
-@beartype.beartype
+@jaxtyped(typechecker=beartype.beartype)
 def load_clip(
     video: Video, img_transform, *, n_frames: int = 32, device: str = "cuda:0"
-) -> torch.Tensor:
-    """
-    Returns: [n_frames, C, W, H] on the requested CUDA device.
-    Caller's collate -> [B, n_frames, C, W, H]
-    """
+) -> tuple[Float32[Tensor, "n_frames channels width height"], int, str]:
+    """ """
 
     # 1. demux once
     packets = spdl.io.demux_video(video.path)
 
     # 2. decide which frames we need
-
     idx = np.linspace(0, video.n_frames - 1, n_frames, dtype=int).tolist()
 
     # 3. decode only those frames (CPU, RGB24)
-    frames = spdl.io.sample_decode_video(packets, idx)
+    try:
+        frames = spdl.io.sample_decode_video(packets, idx)
+    except IndexError as err:
+        # str(err) has a \[0, \d+\) regex pattern in it. Parse the (\d+) our and recapture frames using that as the boundaries. AI!
+        print(video, idx)
+        raise
 
     # 4. frames -> numpy uint8 [T,H,W,C]
     buf = spdl.io.convert_frames(frames)
     arr = spdl.io.to_numpy(buf)  # still CPU
 
     # 5. PIL -> user-supplied transform
-    imgs = [img_transform(Image.fromarray(img)) for img in arr]  # each [C,W,H]
+    imgs = [img_transform(Image.fromarray(img)) for img in arr]
 
-    clip = torch.stack(imgs, dim=0)  # [T,C,W,H]
-    return clip.to(device, non_blocking=True)
+    clip = torch.stack(imgs, dim=0)
+    return clip.to(device, non_blocking=True), video.behavior_id, video.vid_id
+
+
+@jaxtyped(typechecker=beartype.beartype)
+def collate_fn(
+    batch: list[tuple[Float32[Tensor, "n_frames channels width height"], int, str]],
+    *,
+    device: str = "cuda:0",
+) -> tuple[
+    Float32[Tensor, "batch n_frames channels width height"], list[int], list[str]
+]:
+    clips, labels, ids = zip(*batch)
+    clips = torch.stack(clips, 0).to(device)
+    return clips, list(labels), list(ids)
 
 
 @jaxtyped(typechecker=beartype.beartype)
