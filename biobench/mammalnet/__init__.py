@@ -282,9 +282,17 @@ def load_clip(
     try:
         frames = spdl.io.sample_decode_video(packets, idx)
     except IndexError as err:
-        # str(err) has a \[0, \d+\) regex pattern in it. Parse the (\d+) our and recapture frames using that as the boundaries. AI!
-        print(video, idx)
-        raise
+        # Try to extract the upper bound from the error message
+        import re
+        match = re.search(r'\[0, (\d+)\)', str(err))
+        if match:
+            max_idx = int(match.group(1)) - 1
+            # Recapture frames using the extracted boundary
+            new_idx = np.linspace(0, max_idx, n_frames, dtype=int).tolist()
+            frames = spdl.io.sample_decode_video(packets, new_idx)
+        else:
+            print(video, idx)
+            raise
 
     # 4. frames -> numpy uint8 [T,H,W,C]
     buf = spdl.io.convert_frames(frames)
