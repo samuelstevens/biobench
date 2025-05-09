@@ -21,17 +21,15 @@ If you use this benchmark, please cite the original work:
 ```
 """
 
+import collections.abc
 import csv
 import dataclasses
-import functools
-import json
 import logging
+import os
 import os.path
 
 import beartype
 import numpy as np
-import spdl.io
-import spdl.pipeline
 import torch
 from jaxtyping import Float16, Float32, Int, Shaped, jaxtyped
 from PIL import Image
@@ -110,31 +108,35 @@ def get_features(
     backbone = torch.compile(backbone)
     split = "train" if is_train else "val"
 
-    pipeline = (
-        spdl.pipeline.PipelineBuilder()
-        .add_source(list_files(cfg.data.mammalnet, split=split))
-        .pipe(
-            functools.partial(
-                load_clip, img_transform=img_transform, device=cfg.device
-            ),
-            concurrency=cfg.n_workers * 4,
-            output_order="input",
-        )
-        .aggregate(cfg.batch_size)
-        .pipe(
-            functools.partial(collate_fn, device=cfg.device),
-            output_order="input",
-        )
-        .add_sink(cfg.batch_size)
-        .build(num_threads=cfg.n_workers * 6, report_stats_interval=30)
+    dataset = Dataset(cfg.data.mammalnet, split=split, transform=img_transform)
+    dataloader = torch.utils.data.DataLoader(
+        dataset,
+        batch_size=cfg.batch_size,
+        num_workers=cfg.n_workers,
+        drop_last=False,
+        shuffle=False,
+        pin_memory=True,
     )
+
+    def probe(batch):
+        with torch.amp.autocast(cfg.device):
+            frames, _, _ = batch
+            frames = frames.to(cfg.device, non_blocking=True)
+            bsz, n_frames, c, h, w = frames.shape
+            frames = frames.view(bsz * n_frames, c, h, w)
+            outputs = backbone.img_encode(frames)
+            features = outputs.img_features.view(bsz, n_frames, -1)
+
+            features = aggregate_frames(features.to(torch.float16))
 
     all_feats, all_labels, all_ids = [], [], []
 
-    with pipeline.auto_stop():
-        for batch in helpers.progress(pipeline, desc=f"mammalnet/{split}"):
+    with helpers.auto_batch_size(dataloader, probe=probe, backoff=1):
+        total = len(dataloader) if not cfg.debug else 2
+        it = iter(dataloader)
+        for b in helpers.progress(range(total), desc=f"mammal/{split}"):
             with torch.amp.autocast(cfg.device):
-                frames, labels, ids = batch
+                frames, labels, ids = next(it)
                 frames = frames.to(cfg.device, non_blocking=True)
                 # conv2d doesn't support multiple batch dimensions, so we have to view() before and after the model.img_encode() call.
                 bsz, n_frames, c, h, w = frames.shape
@@ -158,164 +160,71 @@ def get_features(
 @beartype.beartype
 @dataclasses.dataclass(frozen=True, slots=True)
 class Video:
-    path: str
-    """Full file path to the video file."""
-    vid_id: str
+    frame_fpaths: list[str]
+    """Full filepaths to the frames."""
+    video_id: str
     """Unique identifier for the video clip."""
     species_id: int
     """Numeric ID representing the animal species in the video."""
     behavior_id: int
     """Numeric ID representing the behavior category in the video."""
-    n_frames: int
-    """Total number of frames in the video."""
 
 
 @beartype.beartype
-@dataclasses.dataclass(frozen=True)
-class Annotation:
-    label: str
-    """The class label for this annotation segment."""
-    start_s: float
-    """Start time in seconds."""
-    end_s: float
-    """End time in seconds."""
-
-    @property
-    def duration_s(self) -> float:
-        return self.end_s - self.start_s
-
-
-@beartype.beartype
-@dataclasses.dataclass(frozen=True)
-class Detection:
-    vid_id: str
-    """Unique identifier for the video clip."""
-    taxonomy: list[dict[str, str]]
-    """Taxonomic classification information for the detected animal."""
-    annotations: list[Annotation]
-    """List of time segments with behavior annotations."""
-    duration_s: int
-    """Total duration of the video in seconds."""
-    resolution: tuple[int, int]
-    """Video resolution in pixels"""
-    fps: int
-    """Frames per second of the video."""
-    subset: str
-    """Dataset split this video belongs to (e.g., 'train', 'val', 'test')."""
-    url: str
-    """Original source URL for the video."""
-
-    @classmethod
-    def from_json(cls, vid_id, dct):
-        annotations = [
-            Annotation(
-                label=ann["label"],
-                start_s=float(ann["segment"][0]),
-                end_s=float(ann["segment"][1]),
-            )
-            for ann in dct.pop("annotations")
-        ]
-        taxonomy = dct.pop("taxnomy")
-        duration_s = dct.pop("duration")
-        resolution = tuple(int(x) for x in dct.pop("resolution").split("x"))
-        return cls(
-            vid_id=vid_id,
-            taxonomy=taxonomy,
-            annotations=annotations,
-            duration_s=duration_s,
-            resolution=resolution,
-            **dct,
-        )
-
-
-@beartype.beartype
-def list_files(root: str, *, split: str, composition: str = "composition"):
+def find_videos(
+    root: str, *, split: str, composition: str = "composition", n_frames: int = 32
+) -> collections.abc.Iterator[Video]:
     if not os.path.exists(root) or not os.path.isdir(root):
         msg = f"Path '{root}' doesn't exist. Did you download the MammalNet dataset?"
         raise RuntimeError(msg)
 
-    lengths = {}
-    with open(os.path.join(root, "annotation", "detection_annotations.json")) as fd:
-        for key, value in json.load(fd).items():
-            det = Detection.from_json(key, value)
-            if len(det.annotations) == 1:
-                ann = det.annotations[0]
-                lengths[det.vid_id] = int(det.fps * ann.duration_s)
-            else:
-                for i, ann in enumerate(det.annotations):
-                    lengths[f"{det.vid_id}_{i + 1}"] = int(det.fps * ann.duration_s)
-
     with open(os.path.join(root, "annotation", composition, f"{split}.csv")) as fd:
         reader = csv.reader(fd, delimiter=" ")
         for rel_path, species_id, behavior_id in reader:
-            # the CSV already prefixes "trimmed_videos/..."
-            full_path = os.path.join(root, *rel_path.split("/"))
-            if not os.path.isfile(full_path):
-                logger.warn("Missing clip '%s'; skipping", full_path)
+            # the CSV prefixes "trimmed_videos/..."
+            _, fname = rel_path.split("/")
+            video_id, ext = os.path.splitext(fname)
+            assert ext == ".mp4"
+
+            frames_dpath = os.path.join(root, "frames", video_id)
+            if not os.path.isdir(frames_dpath):
+                msg = ("Missing frames for clip '%s' in split '%s'; skipping",)
+                logger.warn(msg, frames_dpath, split)
                 continue
 
-            vid_id, ext = os.path.splitext(os.path.basename(full_path))
+            frame_fpaths = [
+                os.path.join(frames_dpath, f"frame_{f + 1:02}.jpg")
+                for f in range(n_frames)
+            ]
+            frame_fpaths = [fpath for fpath in frame_fpaths if os.path.isfile(fpath)]
 
-            yield Video(
-                full_path,
-                vid_id,
-                int(species_id),
-                int(behavior_id),
-                # -2 just in case we messed up.
-                lengths[vid_id] - 2,
-            )
+            if len(frame_fpaths) < n_frames:
+                msg = "Missing %d frames for clip '%s' in split '%s; skipping"
+                logger.warn(msg, n_frames - len(frame_fpaths), video_id, split)
+                continue
 
-
-@jaxtyped(typechecker=beartype.beartype)
-def load_clip(
-    video: Video, img_transform, *, n_frames: int = 32, device: str = "cuda:0"
-) -> tuple[Float32[Tensor, "n_frames channels width height"], int, str]:
-    """ """
-
-    # 1. demux once
-    packets = spdl.io.demux_video(video.path)
-
-    # 2. decide which frames we need
-    idx = np.linspace(0, video.n_frames - 1, n_frames, dtype=int).tolist()
-
-    # 3. decode only those frames (CPU, RGB24)
-    try:
-        frames = spdl.io.sample_decode_video(packets, idx)
-    except IndexError as err:
-        # Try to extract the upper bound from the error message
-        import re
-        match = re.search(r'\[0, (\d+)\)', str(err))
-        if match:
-            max_idx = int(match.group(1)) - 1
-            # Recapture frames using the extracted boundary
-            new_idx = np.linspace(0, max_idx, n_frames, dtype=int).tolist()
-            frames = spdl.io.sample_decode_video(packets, new_idx)
-        else:
-            print(video, idx)
-            raise
-
-    # 4. frames -> numpy uint8 [T,H,W,C]
-    buf = spdl.io.convert_frames(frames)
-    arr = spdl.io.to_numpy(buf)  # still CPU
-
-    # 5. PIL -> user-supplied transform
-    imgs = [img_transform(Image.fromarray(img)) for img in arr]
-
-    clip = torch.stack(imgs, dim=0)
-    return clip.to(device, non_blocking=True), video.behavior_id, video.vid_id
+            yield Video(frame_fpaths, video_id, int(species_id), int(behavior_id))
 
 
 @jaxtyped(typechecker=beartype.beartype)
-def collate_fn(
-    batch: list[tuple[Float32[Tensor, "n_frames channels width height"], int, str]],
-    *,
-    device: str = "cuda:0",
-) -> tuple[
-    Float32[Tensor, "batch n_frames channels width height"], list[int], list[str]
-]:
-    clips, labels, ids = zip(*batch)
-    clips = torch.stack(clips, 0).to(device)
-    return clips, list(labels), list(ids)
+class Dataset(torch.utils.data.Dataset):
+    _videos: list[Video]
+
+    def __init__(self, root: str, *, split: str, transform):
+        self._videos = list(find_videos(root, split=split))
+        self._transform = transform
+
+    def __len__(self) -> int:
+        return len(self._videos)
+
+    def __getitem__(
+        self, i
+    ) -> tuple[Float32[Tensor, "n_frames channels width height"], int, str]:
+        video = self._videos[i]
+
+        frames = [self._transform(Image.open(fpath)) for fpath in video.frame_fpaths]
+
+        return torch.stack(frames, dim=0), video.behavior_id, video.video_id
 
 
 @jaxtyped(typechecker=beartype.beartype)

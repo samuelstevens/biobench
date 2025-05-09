@@ -138,8 +138,6 @@ Because of this, there are two main classes of tasks:
 [Counting insects on sticky insect traps](https://github.com/md-121/yellow-sticky-traps-dataset)
 [Predicting plant stem angle](https://plantvision.unl.edu/datasets/download-panicoid-phenomap-1-dataset/)
 
-# Installing
-
 >>>> REGRESSIONS.md
 # Regressions
 
@@ -524,9 +522,9 @@ def benchmark(cfg: config.Experiment) -> reporting.Report:
     encoder = sklearn.preprocessing.OrdinalEncoder(dtype=int)
     y = encoder.fit_transform(features.labels.reshape(-1, 1)).reshape(-1)
 
-    clf = sklearn.neighbors.NearestNeighbors(n_neighbors=1)
+    clf = sklearn.neighbors.KNeighborsClassifier(n_neighbors=5, weights="uniform")
     clf.fit(features.x, y)
-    preds = clf.kneighbors(return_distance=False)
+    y_hat = clf.predict(None)
 
     preds = [
         reporting.Prediction(
@@ -534,7 +532,7 @@ def benchmark(cfg: config.Experiment) -> reporting.Report:
             float(pred == true),
             {"y_pred": pred.item(), "y_true": true.item()},
         )
-        for img_id, pred, true in zip(features.ids, preds, y)
+        for img_id, pred, true in zip(features.ids, y_hat, y)
     ]
 
     return reporting.Report("beluga", preds, cfg)
@@ -1024,7 +1022,7 @@ class Experiment:
 
     n_workers: int = 4
     """Number of dataloader workers."""
-    batch_size: int = 16
+    batch_size: int = 4
     """Initial batch size to start with for tuning."""
 
     data: Data = dataclasses.field(default_factory=Data)
@@ -3072,8 +3070,8 @@ def init_clf(cfg: config.Experiment):
     return sklearn.model_selection.HalvingGridSearchCV(
         clf,
         {"ridgeclassifier__alpha": alpha},
-        n_jobs=16,
-        verbose=2,
+        n_jobs=8,
+        verbose=3,
         factor=3,
         random_state=cfg.seed,
     )
@@ -3276,8 +3274,8 @@ def init_clf(cfg: config.Experiment):
     return sklearn.model_selection.HalvingGridSearchCV(
         clf,
         {"ridgeclassifier__alpha": alpha},
-        n_jobs=16,
-        verbose=2,
+        n_jobs=8,
+        verbose=3,
         factor=3,
     )
 
@@ -5697,16 +5695,18 @@ If you use this benchmark, please cite the original work:
 ```
 """
 
+import collections.abc
 import csv
 import dataclasses
 import logging
+import os
 import os.path
 
 import beartype
 import numpy as np
 import torch
-import torchcodec.decoders
-from jaxtyping import Float16, Int, Shaped, jaxtyped
+from jaxtyping import Float16, Float32, Int, Shaped, jaxtyped
+from PIL import Image
 from torch import Tensor
 
 from .. import config, helpers, registry, reporting, simpleshot
@@ -5715,7 +5715,7 @@ logger = logging.getLogger(__name__)
 
 
 @beartype.beartype
-def benchmark(cfg: config.Experiment) -> tuple[config.Model, reporting.Report]:
+def benchmark(cfg: config.Experiment) -> reporting.Report:
     # 1. Load model
     backbone = registry.load_vision_backbone(cfg.model)
     backbone = backbone.to(cfg.device)
@@ -5782,9 +5782,7 @@ def get_features(
     backbone = torch.compile(backbone)
     split = "train" if is_train else "val"
 
-    dataset = Dataset(
-        cfg.data.mammalnet, split=split, seed=cfg.seed, transform=img_transform
-    )
+    dataset = Dataset(cfg.data.mammalnet, split=split, transform=img_transform)
     dataloader = torch.utils.data.DataLoader(
         dataset,
         batch_size=cfg.batch_size,
@@ -5794,23 +5792,23 @@ def get_features(
         pin_memory=True,
     )
 
-    all_feats, all_labels, all_ids = [], [], []
-
     def probe(batch):
         with torch.amp.autocast(cfg.device):
             frames, _, _ = batch
             frames = frames.to(cfg.device, non_blocking=True)
-            # conv2d doesn't support multiple batch dimensions, so we have to view() before and after the model.img_encode() call.
-            n_frames, bsz, c, h, w = frames.shape
+            bsz, n_frames, c, h, w = frames.shape
             frames = frames.view(bsz * n_frames, c, h, w)
             outputs = backbone.img_encode(frames)
-            features = outputs.img_features.view(n_frames, bsz, -1)
-            features = aggregate_frames(features)
+            features = outputs.img_features.view(bsz, n_frames, -1)
+
+            features = aggregate_frames(features.to(torch.float16))
+
+    all_feats, all_labels, all_ids = [], [], []
 
     with helpers.auto_batch_size(dataloader, probe=probe, backoff=1):
         total = len(dataloader) if not cfg.debug else 2
         it = iter(dataloader)
-        for b in helpers.progress(range(total), desc=f"mammalnet/{split}"):
+        for b in helpers.progress(range(total), desc=f"mammal/{split}"):
             with torch.amp.autocast(cfg.device):
                 frames, labels, ids = next(it)
                 frames = frames.to(cfg.device, non_blocking=True)
@@ -5820,77 +5818,94 @@ def get_features(
                 outputs = backbone.img_encode(frames)
                 features = outputs.img_features.view(bsz, n_frames, -1)
 
-                features = aggregate_frames(features)
+                features = aggregate_frames(features.to(torch.float16))
                 all_feats.append(features.cpu())
 
-            all_labels.append(labels.cpu())
+            all_labels.extend(labels)
             all_ids.extend(ids)
 
     all_feats = torch.cat(all_feats, dim=0).cpu().numpy()
-    all_labels = torch.cat(all_labels, dim=0).cpu().numpy()
+    all_labels = np.array(all_labels)
     all_ids = np.array(all_ids)
 
     return Features(all_feats, all_labels, all_ids)
 
 
+@beartype.beartype
+@dataclasses.dataclass(frozen=True, slots=True)
+class Video:
+    frame_fpaths: list[str]
+    """Full filepaths to the frames."""
+    video_id: str
+    """Unique identifier for the video clip."""
+    species_id: int
+    """Numeric ID representing the animal species in the video."""
+    behavior_id: int
+    """Numeric ID representing the behavior category in the video."""
+
+
+@beartype.beartype
+def find_videos(
+    root: str, *, split: str, composition: str = "composition", n_frames: int = 32
+) -> collections.abc.Iterator[Video]:
+    if not os.path.exists(root) or not os.path.isdir(root):
+        msg = f"Path '{root}' doesn't exist. Did you download the MammalNet dataset?"
+        raise RuntimeError(msg)
+
+    with open(os.path.join(root, "annotation", composition, f"{split}.csv")) as fd:
+        reader = csv.reader(fd, delimiter=" ")
+        for rel_path, species_id, behavior_id in reader:
+            # the CSV prefixes "trimmed_videos/..."
+            _, fname = rel_path.split("/")
+            video_id, ext = os.path.splitext(fname)
+            assert ext == ".mp4"
+
+            frames_dpath = os.path.join(root, "frames", video_id)
+            if not os.path.isdir(frames_dpath):
+                msg = ("Missing frames for clip '%s' in split '%s'; skipping",)
+                logger.warn(msg, frames_dpath, split)
+                continue
+
+            frame_fpaths = [
+                os.path.join(frames_dpath, f"frame_{f + 1:02}.jpg")
+                for f in range(n_frames)
+            ]
+            frame_fpaths = [fpath for fpath in frame_fpaths if os.path.isfile(fpath)]
+
+            if len(frame_fpaths) < n_frames:
+                msg = "Missing %d frames for clip '%s' in split '%s; skipping"
+                logger.warn(msg, n_frames - len(frame_fpaths), video_id, split)
+                continue
+
+            yield Video(frame_fpaths, video_id, int(species_id), int(behavior_id))
+
+
 @jaxtyped(typechecker=beartype.beartype)
-class Dataset:
-    n_frames: int = 32
-    composition: str = "composition"
+class Dataset(torch.utils.data.Dataset):
+    _videos: list[Video]
 
-    def __init__(self, root: str, *, split: str, seed: int, transform):
-        import torchvision.transforms.v2.functional
-
-        self.root = root
-        self.split = split
-        self.transform = transform
-        self.to_pil_image = torchvision.transforms.v2.functional.to_pil_image
-
-        if not os.path.exists(self.root) or not os.path.isdir(self.root):
-            msg = f"Path '{self.root}' doesn't exist. Did you download the MammalNet dataset?"
-            raise RuntimeError(msg)
-
-        self.samples = []
-        with open(
-            os.path.join(self.root, "annotation", self.composition, f"{self.split}.csv")
-        ) as fd:
-            reader = csv.reader(fd, delimiter=" ")
-            for rel_path, species_id, behavior_id in reader:
-                # the CSV already prefixes "trimmed_videos/..."
-                full_path = os.path.join(self.root, *rel_path.split("/"))
-                if not os.path.isfile(full_path):
-                    logger.warn("Missing clip '%s'; skipping", full_path)
-                    continue
-
-                vid_id, ext = os.path.splitext(os.path.basename(full_path))
-
-                self.samples.append({
-                    "path": full_path,
-                    "id": vid_id,
-                    "species": int(species_id),
-                    "behavior": int(behavior_id),
-                })
+    def __init__(self, root: str, *, split: str, transform):
+        self._videos = list(find_videos(root, split=split))
+        self._transform = transform
 
     def __len__(self) -> int:
-        return len(self.samples)
+        return len(self._videos)
 
-    def __getitem__(self, i) -> tuple[Float16[Tensor, "n 3 width height"], int, str]:
-        item = self.samples[i]
-        decoder = torchcodec.decoders.VideoDecoder(item["path"])
+    def __getitem__(
+        self, i
+    ) -> tuple[Float32[Tensor, "n_frames channels width height"], int, str]:
+        video = self._videos[i]
 
-        frames = []
-        fs = torch.linspace(0, len(decoder) - 1, self.n_frames, dtype=int).tolist()
-        for frame in decoder.get_frames_at(indices=fs).data:
-            frames.append(self.transform(self.to_pil_image(frame, "RGB")))
+        frames = [self._transform(Image.open(fpath)) for fpath in video.frame_fpaths]
 
-        return torch.stack(frames), item["behavior"], item["id"]
+        return torch.stack(frames, dim=0), video.behavior_id, video.video_id
 
 
 @jaxtyped(typechecker=beartype.beartype)
 def aggregate_frames(
-    features: Float16[Tensor, "n_frames n_examples dim"],
-) -> Float16[Tensor, "n_examples dim"]:
-    return torch.max(features, dim=0).values
+    features: Float16[Tensor, "batch n_frames dim"],
+) -> Float16[Tensor, "batch dim"]:
+    return torch.max(features, dim=1).values
 
 >>>> mammalnet/download.py
 # /// script
@@ -5911,6 +5926,7 @@ import concurrent.futures
 import dataclasses
 import json
 import logging
+import math
 import pathlib
 import statistics
 import tarfile
@@ -5936,13 +5952,18 @@ class Args:
     """Where to save the downloaded archives and (optionally) extract them."""
     chunk_size_kb: int = 1024
     """Download chunk size (KB). 1024 KB ~ 1 MB."""
-    download_videos: bool = True
+    download_videos: bool = False
     """Whether to download the video archive."""
-    download_annotations: bool = True
+    download_annotations: bool = False
     """Whether to download the annotation archive."""
-    trim_videos: bool = True
+    trim_videos: bool = False
     """Whether to create trimmed video clips based on annotations."""
-    check_stats: bool = True
+    check_stats: bool = False
+    """Whether to check video length statistics for both full and trimmed videos."""
+    sample_frames: bool = False
+    """Whether to extract stills from trimmed clips."""
+    n_frames: int = 32
+    """How many frames per clip."""
     n_workers: int = 16
     """Number of parallel `ffmpeg`s to spawn."""
 
@@ -5953,7 +5974,9 @@ class Annotation:
     label: str
     """The class label for this annotation segment."""
     start_s: float
+    """Start time in seconds."""
     end_s: float
+    """End time in seconds."""
 
     @property
     def duration_s(self) -> float:
@@ -5963,7 +5986,7 @@ class Annotation:
 @beartype.beartype
 @dataclasses.dataclass(frozen=True)
 class Detection:
-    id: str
+    vid_id: str
     """Unique identifier for the video clip."""
     taxonomy: list[dict[str, str]]
     """Taxonomic classification information for the detected animal."""
@@ -5981,7 +6004,7 @@ class Detection:
     """Original source URL for the video."""
 
     @classmethod
-    def from_json(cls, id, dct):
+    def from_json(cls, vid_id, dct):
         annotations = [
             Annotation(
                 label=ann["label"],
@@ -5994,7 +6017,7 @@ class Detection:
         duration_s = dct.pop("duration")
         resolution = tuple(int(x) for x in dct.pop("resolution").split("x"))
         return cls(
-            id=id,
+            vid_id=vid_id,
             taxonomy=taxonomy,
             annotations=annotations,
             duration_s=duration_s,
@@ -6034,9 +6057,76 @@ def _extract(archive: pathlib.Path, out_dir: pathlib.Path) -> None:
 
 
 @beartype.beartype
-def _probe(path: pathlib.Path) -> float:
+def _duration(path: pathlib.Path) -> float:
     out = ffmpeg.probe(str(path))
     return float(out["format"]["duration"])
+
+
+@beartype.beartype
+def _n_frames(path: pathlib.Path, *, tol: float = 0.01) -> int:
+    """
+    Robust frame-count extractor.
+
+    Priority:
+        1.   stream.nb_frames                      (exact when present)
+        2-4. derived counts that should agree within *tol*
+             * duration_ts / time_base
+             * duration * fps
+             * coded_number_of_frames (if present)
+    Returns the majority (or first) value that satisfies pair-wise agreement.
+    Raises if no two estimates agree.
+
+    tol: relative tolerance, e.g. 0.01 -> 1 % mismatch allowed.
+    """
+    meta = ffmpeg.probe(str(path))["streams"][0]
+
+    def as_int(x: str | None) -> int | None:
+        return int(x) if x and x.isdigit() else None
+
+    candidates = {}
+
+    # 1) nb_frames (often absent on H.264)
+    if n := as_int(meta.get("nb_frames")):
+        candidates["nb_frames"] = n
+
+    # 2) duration_ts / time_base
+    if meta.get("duration_ts") and meta.get("time_base"):
+        num_ts = int(meta["duration_ts"])
+        tb_num, tb_den = map(int, meta["time_base"].split("/"))
+        if tb_num:
+            candidates["duration_ts"] = round(num_ts * tb_den / tb_num)
+
+    # 3) duration * fps
+    fps_num, fps_den = map(int, meta["r_frame_rate"].split("/"))
+    fps = fps_num / fps_den if fps_den else 0
+    if meta.get("duration") and fps:
+        candidates["duration*fps"] = round(float(meta["duration"]) * fps)
+
+    # 4) coded_number_of_frames (for some codecs)
+    if n := as_int(meta.get("coded_number_of_frames")):
+        candidates["coded_frames"] = n
+
+    # choose majority-agreeing integer
+    votes = {}
+    for _, v in candidates.items():
+        votes[v] = votes.get(v, 0) + 1
+
+    # allow near-duplicates
+    for i_name, i_val in candidates.items():
+        if any(
+            math.isclose(i_val, j_val, rel_tol=tol)
+            for j_val in votes.keys()
+            if j_val != i_val
+        ):
+            votes[i_val] += 1
+
+    best, count = max(votes.items(), key=lambda kv: kv[1])
+    if count < 2 and len(candidates) > 1:  # no agreement
+        raise RuntimeError(
+            f"Inconsistent frame counts for {path.name}: "
+            + ", ".join(f"{k}={v}" for k, v in candidates.items())
+        )
+    return best
 
 
 @beartype.beartype
@@ -6065,7 +6155,7 @@ def _stats(base: pathlib.Path, n_workers: int = 8):
     )
     durations = []
     with concurrent.futures.ThreadPoolExecutor(max_workers=n_workers) as pool:
-        futs = [pool.submit(_probe, vid) for vid in vids]
+        futs = [pool.submit(_duration, vid) for vid in vids]
         for fut in tqdm.tqdm(
             concurrent.futures.as_completed(futs),
             total=len(futs),
@@ -6094,7 +6184,7 @@ def _stats(base: pathlib.Path, n_workers: int = 8):
     )
     durations = []
     with concurrent.futures.ThreadPoolExecutor(max_workers=n_workers) as pool:
-        futs = [pool.submit(_probe, vid) for vid in vids]
+        futs = [pool.submit(_duration, vid) for vid in vids]
         for fut in tqdm.tqdm(
             concurrent.futures.as_completed(futs),
             total=len(futs),
@@ -6166,6 +6256,44 @@ def _trim_all(base: pathlib.Path, n_workers: int):
 
 
 @beartype.beartype
+def _sample(src: pathlib.Path, dst_dir: pathlib.Path, *, n_frames: int):
+    if dst_dir.exists() and any(dst_dir.iterdir()):
+        return  # already done
+
+    step = max(_n_frames(src) // n_frames, 1)  # stride in frame space
+
+    dst_dir.mkdir(parents=True, exist_ok=True)
+
+    (
+        ffmpeg.input(str(src))
+        .filter("select", f"not(mod(n,{step}))")
+        .filter("setpts", "N/FRAME_RATE/TB")
+        .output(
+            str(dst_dir / "frame_%02d.jpg"),
+            vframes=n_frames,
+            vsync="vfr",
+            qscale=2,
+            loglevel="error",
+            **{"an": None},
+        )
+        .overwrite_output()
+        .run()
+    )
+
+
+@beartype.beartype
+def _sample_frames(base: pathlib.Path, *, n_workers: int, n_frames: int):
+    trimmed = base / "trimmed_videos"
+    out = base / "frames"
+    vids = [p for p in trimmed.iterdir() if p.suffix.lower() == ".mp4"]
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=n_workers) as pool:
+        futs = [pool.submit(_sample, p, out / p.stem, n_frames=n_frames) for p in vids]
+        for fut in tqdm.tqdm(concurrent.futures.as_completed(futs), total=len(futs)):
+            fut.result()  # re-raise on failure
+
+
+@beartype.beartype
 def main(args: Args) -> None:
     base = pathlib.Path(args.dir).expanduser().resolve()
     chunk = args.chunk_size_kb * 1024
@@ -6189,6 +6317,9 @@ def main(args: Args) -> None:
 
     if args.check_stats:
         _stats(base, args.n_workers)
+
+    if args.sample_frames:
+        _sample_frames(base, n_workers=args.n_workers, n_frames=args.n_frames)
 
 
 if __name__ == "__main__":

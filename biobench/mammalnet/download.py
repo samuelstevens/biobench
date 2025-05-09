@@ -16,6 +16,7 @@ import concurrent.futures
 import dataclasses
 import json
 import logging
+import math
 import pathlib
 import statistics
 import tarfile
@@ -41,13 +42,18 @@ class Args:
     """Where to save the downloaded archives and (optionally) extract them."""
     chunk_size_kb: int = 1024
     """Download chunk size (KB). 1024 KB ~ 1 MB."""
-    download_videos: bool = True
+    download_videos: bool = False
     """Whether to download the video archive."""
-    download_annotations: bool = True
+    download_annotations: bool = False
     """Whether to download the annotation archive."""
-    trim_videos: bool = True
+    trim_videos: bool = False
     """Whether to create trimmed video clips based on annotations."""
-    check_stats: bool = True
+    check_stats: bool = False
+    """Whether to check video length statistics for both full and trimmed videos."""
+    sample_frames: bool = False
+    """Whether to extract stills from trimmed clips."""
+    n_frames: int = 32
+    """How many frames per clip."""
     n_workers: int = 16
     """Number of parallel `ffmpeg`s to spawn."""
 
@@ -58,7 +64,9 @@ class Annotation:
     label: str
     """The class label for this annotation segment."""
     start_s: float
+    """Start time in seconds."""
     end_s: float
+    """End time in seconds."""
 
     @property
     def duration_s(self) -> float:
@@ -68,7 +76,7 @@ class Annotation:
 @beartype.beartype
 @dataclasses.dataclass(frozen=True)
 class Detection:
-    id: str
+    vid_id: str
     """Unique identifier for the video clip."""
     taxonomy: list[dict[str, str]]
     """Taxonomic classification information for the detected animal."""
@@ -86,7 +94,7 @@ class Detection:
     """Original source URL for the video."""
 
     @classmethod
-    def from_json(cls, id, dct):
+    def from_json(cls, vid_id, dct):
         annotations = [
             Annotation(
                 label=ann["label"],
@@ -99,7 +107,7 @@ class Detection:
         duration_s = dct.pop("duration")
         resolution = tuple(int(x) for x in dct.pop("resolution").split("x"))
         return cls(
-            id=id,
+            vid_id=vid_id,
             taxonomy=taxonomy,
             annotations=annotations,
             duration_s=duration_s,
@@ -139,9 +147,76 @@ def _extract(archive: pathlib.Path, out_dir: pathlib.Path) -> None:
 
 
 @beartype.beartype
-def _probe(path: pathlib.Path) -> float:
+def _duration(path: pathlib.Path) -> float:
     out = ffmpeg.probe(str(path))
     return float(out["format"]["duration"])
+
+
+@beartype.beartype
+def _n_frames(path: pathlib.Path, *, tol: float = 0.01) -> int:
+    """
+    Robust frame-count extractor.
+
+    Priority:
+        1.   stream.nb_frames                      (exact when present)
+        2-4. derived counts that should agree within *tol*
+             * duration_ts / time_base
+             * duration * fps
+             * coded_number_of_frames (if present)
+    Returns the majority (or first) value that satisfies pair-wise agreement.
+    Raises if no two estimates agree.
+
+    tol: relative tolerance, e.g. 0.01 -> 1 % mismatch allowed.
+    """
+    meta = ffmpeg.probe(str(path))["streams"][0]
+
+    def as_int(x: str | None) -> int | None:
+        return int(x) if x and x.isdigit() else None
+
+    candidates = {}
+
+    # 1) nb_frames (often absent on H.264)
+    if n := as_int(meta.get("nb_frames")):
+        candidates["nb_frames"] = n
+
+    # 2) duration_ts / time_base
+    if meta.get("duration_ts") and meta.get("time_base"):
+        num_ts = int(meta["duration_ts"])
+        tb_num, tb_den = map(int, meta["time_base"].split("/"))
+        if tb_num:
+            candidates["duration_ts"] = round(num_ts * tb_den / tb_num)
+
+    # 3) duration * fps
+    fps_num, fps_den = map(int, meta["r_frame_rate"].split("/"))
+    fps = fps_num / fps_den if fps_den else 0
+    if meta.get("duration") and fps:
+        candidates["duration*fps"] = round(float(meta["duration"]) * fps)
+
+    # 4) coded_number_of_frames (for some codecs)
+    if n := as_int(meta.get("coded_number_of_frames")):
+        candidates["coded_frames"] = n
+
+    # choose majority-agreeing integer
+    votes = {}
+    for _, v in candidates.items():
+        votes[v] = votes.get(v, 0) + 1
+
+    # allow near-duplicates
+    for i_name, i_val in candidates.items():
+        if any(
+            math.isclose(i_val, j_val, rel_tol=tol)
+            for j_val in votes.keys()
+            if j_val != i_val
+        ):
+            votes[i_val] += 1
+
+    best, count = max(votes.items(), key=lambda kv: kv[1])
+    if count < 2 and len(candidates) > 1:  # no agreement
+        raise RuntimeError(
+            f"Inconsistent frame counts for {path.name}: "
+            + ", ".join(f"{k}={v}" for k, v in candidates.items())
+        )
+    return best
 
 
 @beartype.beartype
@@ -170,7 +245,7 @@ def _stats(base: pathlib.Path, n_workers: int = 8):
     )
     durations = []
     with concurrent.futures.ThreadPoolExecutor(max_workers=n_workers) as pool:
-        futs = [pool.submit(_probe, vid) for vid in vids]
+        futs = [pool.submit(_duration, vid) for vid in vids]
         for fut in tqdm.tqdm(
             concurrent.futures.as_completed(futs),
             total=len(futs),
@@ -199,7 +274,7 @@ def _stats(base: pathlib.Path, n_workers: int = 8):
     )
     durations = []
     with concurrent.futures.ThreadPoolExecutor(max_workers=n_workers) as pool:
-        futs = [pool.submit(_probe, vid) for vid in vids]
+        futs = [pool.submit(_duration, vid) for vid in vids]
         for fut in tqdm.tqdm(
             concurrent.futures.as_completed(futs),
             total=len(futs),
@@ -271,6 +346,44 @@ def _trim_all(base: pathlib.Path, n_workers: int):
 
 
 @beartype.beartype
+def _sample(src: pathlib.Path, dst_dir: pathlib.Path, *, n_frames: int):
+    if dst_dir.exists() and any(dst_dir.iterdir()):
+        return  # already done
+
+    step = max(_n_frames(src) // n_frames, 1)  # stride in frame space
+
+    dst_dir.mkdir(parents=True, exist_ok=True)
+
+    (
+        ffmpeg.input(str(src))
+        .filter("select", f"not(mod(n,{step}))")
+        .filter("setpts", "N/FRAME_RATE/TB")
+        .output(
+            str(dst_dir / "frame_%02d.jpg"),
+            vframes=n_frames,
+            vsync="vfr",
+            qscale=2,
+            loglevel="error",
+            **{"an": None},
+        )
+        .overwrite_output()
+        .run()
+    )
+
+
+@beartype.beartype
+def _sample_frames(base: pathlib.Path, *, n_workers: int, n_frames: int):
+    trimmed = base / "trimmed_videos"
+    out = base / "frames"
+    vids = [p for p in trimmed.iterdir() if p.suffix.lower() == ".mp4"]
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=n_workers) as pool:
+        futs = [pool.submit(_sample, p, out / p.stem, n_frames=n_frames) for p in vids]
+        for fut in tqdm.tqdm(concurrent.futures.as_completed(futs), total=len(futs)):
+            fut.result()  # re-raise on failure
+
+
+@beartype.beartype
 def main(args: Args) -> None:
     base = pathlib.Path(args.dir).expanduser().resolve()
     chunk = args.chunk_size_kb * 1024
@@ -294,6 +407,9 @@ def main(args: Args) -> None:
 
     if args.check_stats:
         _stats(base, args.n_workers)
+
+    if args.sample_frames:
+        _sample_frames(base, n_workers=args.n_workers, n_frames=args.n_frames)
 
 
 if __name__ == "__main__":

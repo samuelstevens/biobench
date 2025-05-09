@@ -27,6 +27,7 @@ dependencies = [
     "pycocotools>=2.0.8",
     "gdown>=5.2.0",
     "safetensors>=0.5.3",
+    "einops>=0.8.1",
 ]
 
 [tool.ruff.lint]
