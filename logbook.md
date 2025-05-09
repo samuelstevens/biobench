@@ -423,6 +423,76 @@ Now I want to track
 And I need to try multi-turn prompts as well.
 Then just show me the freaking graphs baby!
 
+# 03/19/2025
+
+Okay, after abandoning this repo for cv4animals, I am back for a neurips submission.
+I think I need to find some prior work in benchmark papers, and ask around to see if anyone has written one or more benchmark paper for neurips.
+Kazi has, so I'm talking to him
+Yi Tay wrote a great "Benchmark Lottery" paper that I'm going to draw heavily from.
+I think I need to think carefully about which tasks to include when creating a "benchmark suite".
+
+These are some of the tasks we plan to use for BioCLIP 2.
+
+* MammalNet
+* Herbarium19
+* Rolnick's Moth Benchmark (Yuyan's ICML submission); clustering
+* iWildCam
+* KABR
+* NeWT
+* Pl@ntNet
+* Fishnet
+* RareSpecies
+* (Ages)
+
+Detection/Segmentation
+
+* Ciona17 (https://ieeexplore.ieee.org/abstract/document/8287716)
+* MASNet (https://github.com/zhenqifu/MASNet/tree/main)
+* Sawit (https://github.com/dtnguyen0304/sawit)
+
+I think MammalNet and Herbarium19 are excellent.
+Probably each task needs to be considered in terms of what it adds to a benchmark, and its inclusion should be justified.
+
+We can justify decisions with:
+
+* Popularity (citations) as a proxy for a task being important to the community (iNat21)
+* Adding a specific distribution (camera trap classification, for example)
+* Adding a modality (video classification, for example)
+* Adding a specific clade (fish, for example)
+
+Other ideas besides imagenet correlation (or lack thereof)
+
+1. Long-tail Performance Gap - Quantify how dramatically performance drops on rare species vs. common ones across models, showing your benchmark better captures this critical ecological dimension
+2. Data Efficiency Curves - Show learning curves (performance vs. training data size) differ dramatically across ecological tasks compared to generic vision tasks
+3. Task Independence Analysis - Use principal component analysis on task performance to show your tasks capture fundamentally different capabilities -> not sure about PCA but task independence is good for comparing to the openclip zero-shot benchmark or the VTAB benchmark.
+4. Time-Based Evaluation. Plot model performance on imagenet with publication date on x-axis, and model performance on biobench with date on x-axis. Are we improving?
+
+
+So now I will have the following empirical results:
+1. Correlation (or lack thereof) between ImageNet-1K results/rankings and BioBench results/rankings.
+2. Pre-training objective and its effect on BioBench scores (compare DINOv2, CLIP, SigLIP, SAMv2, BioCLIP and V-JEPA)
+3. FLOPS/image, pretraining FLOPs, model parameters and its effect on BioBench scores
+4. Data efficiency (number of training images) and its effect on BioBench scores
+5. Benchmark stability (leave-one-out vs full benchmark)
+
+Is that enough for a benchmark paper? I'm just curating existing datasets.
+
+
+# 03/25/2025
+
+We have actually three parts to the target audience:
+
+1. Reviewers at NeurIPS. They will be CV/ML/AI researchers with an interest in AI in ecology (hopefully) who are looking to poke holes in the submission.
+2. Professors who will read the title, abstract and main figures, then decide whether to share it with their students.
+3. Practitioners and other researchers looking to use our benchmark for evaluating a new methodology (model)
+
+Keep this in mind when writing. We need to convince reviewers, but groups 2 and 3 are more important long-term.
+
+# 03/26/2025
+
+Ecological CV is important.
+Why?
+
 # 04/23/2025
 
 Good outline:
@@ -432,5 +502,16 @@ Do we need benchmarks? -> Most AI/ML researchers agree yes. There are good studi
 Are current benchmarks good enough? -> Not anymore. I show that this is true with the statistical graphs. I give an explanation why by showing images in ImageNet-1K, MS-COCO, ADE20K, iNat21 and the tasks in BioBench.
 
 How should we build new benchmarks?
+
 * Engineeering why: benchmarks should help us answer new questions about models, goldilocks zone, etc.
 * Science why: benchmarks should drive progress outside of the benchmark task itself.
+
+# 05/08/2025
+
+Things I want to change after NeurIPS submission:
+
+1. Splits should be better aligned with either site/location, past/future (time) or other reasonable distribution splits.
+2. We should also report performance for 100 samples, or 1 of each class, whichever is more. Then I can cite both my cv4animals submission and callista's website.
+3. We should use GPU accelerated training for doing sweeps on linear probing for large models like DINOv2's probing code.
+
+Some of these can be worked on before the NeurIPS reviews come out in prep fo rebuttal.

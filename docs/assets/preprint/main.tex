@@ -1,0 +1,569 @@
+\documentclass{article}
+
+
+% if you need to pass options to natbib, use, e.g.:
+\PassOptionsToPackage{numbers, sort&compress}{natbib}
+% before loading neurips_2025
+
+
+% ready for submission
+\usepackage{neurips_2025}
+
+
+% to compile a preprint version, e.g., for submission to arXiv, add add the
+% [preprint] option:
+% \usepackage[preprint]{neurips_2025}
+
+
+% to compile a camera-ready version, add the [final] option, e.g.:
+%     \usepackage[final]{neurips_2025}
+
+
+% to avoid loading the natbib package, add option nonatbib:
+% \usepackage[nonatbib]{neurips_2025}
+
+
+\usepackage[utf8]{inputenc} % allow utf-8 input
+\usepackage[T1]{fontenc}    % use 8-bit T1 fonts
+\usepackage{hyperref}       % hyperlinks
+\usepackage{url}            % simple URL typesetting
+\usepackage{booktabs}       % professional-quality tables
+\usepackage{amsfonts}       % blackboard math symbols
+\usepackage{nicefrac}       % compact symbols for 1/2, etc.
+\usepackage{microtype}      % microtypography
+\usepackage{xcolor}         % colors
+\usepackage{graphicx}
+\usepackage{multirow}
+\usepackage{enumitem}
+\usepackage{tabularx}
+\usepackage[capitalize]{cleveref}
+\usepackage{pifont}
+
+\usepackage[detect-all,separate-uncertainty = true]{siunitx}
+\sisetup{
+    output-exponent-marker=\ensuremath{\mathrm{e}},
+    group-separator= {,},
+    group-minimum-digits = 4,
+    list-final-separator={, },
+    mode={math},
+    retain-explicit-plus
+}
+
+\makeatletter
+\renewcommand{\paragraph}{%
+  \@startsection{paragraph}{4}%
+  {\z@}{1.5ex \@plus 1ex \@minus .2ex}{-0.5em}%
+  {\normalfont\normalsize\bfseries}%
+}
+\makeatother
+
+% Import additional packages before hyperref
+%
+% --- inline annotations
+%
+\newcommand{\red}[1]{{\color{red}#1}}
+\newcommand{\todo}[1]{\textbf{\color{red}[TODO: #1]}}
+
+\newcommand{\benchmarkname}{WildVision}
+\newcommand{\verticalcell}[1]{\multicolumn{1}{c}{\rotatebox{90}{#1}}}
+
+\newcommand{\cmark}{\ding{51}}
+\newcommand{\xmark}{\ding{55}}
+
+
+\setlist{nosep}
+
+
+\title{\benchmarkname{}: A Stability‑Driven Multi‑Task Suite for Vision Models in Ecology and Evolutionary Biology}
+
+% The \author macro works with any number of authors. There are two commands
+% used to separate the names and addresses of multiple authors: \And and \AND.
+%
+% Using \And between authors leaves it to LaTeX to determine where to break the lines. 
+% Using \AND forces a line break at that point. 
+% So, if LaTeX puts 3 of 4 authors names on the first line, and the last on the second line, try using \AND instead of \And before the third author name.
+
+
+\author{%
+  Samuel Stevens\thanks{Use footnote for providing further information
+    about author (webpage, alternative address)---\emph{not} for acknowledging funding agencies.} \\
+  The Ohio State University\\
+  \texttt{stevens.994@osu.edu} \\
+  % examples of more authors
+  \And
+  Jianyang Gu \\
+  The Ohio State University \\
+  \texttt{gu.1220@osu.edu} \\
+  % \AND
+  % Coauthor \\
+  % Affiliation \\
+  % Address \\
+  % \texttt{email} \\
+  % \And
+  % Coauthor \\
+  % Affiliation \\
+  % Address \\
+  % \texttt{email} \\
+  % \And
+  % Coauthor \\
+  % Affiliation \\
+  % Address \\
+  % \texttt{email} \\
+}
+
+\bibliographystyle{plainnat}
+
+\begin{document}
+
+
+\maketitle
+
+
+\begin{abstract}
+  Global biodiversity is collapsing, yet state-of-the-art vision models, tuned on ImageNet‑1K, drop from more than 90\% down to 60-75\% accuracy on real‑world ecology tasks. 
+  We introduce \benchmarkname{}, a stability‑driven, multi‑task evaluation suite for ecological computer vision. 
+  \benchmarkname{} bundles X public datasets, spanning camera‑trap species ID, fine‑grained leaf classification, insect mimicry, fish functional traits, and plankton microscopy (150 K images across plants, mammals, insects, fish, and plankton), into a unified embedding API (f(image) $\mathbb{R}^n$) with linear probes. 
+  We show ImageNet‑1K accuracy predicts ecological performance only up to 75\% (Spearman’s $\rho \approx0.9$), but predictivity collapses ($\rho < 0.2$) as accuracy exceeds 85\%, and several lower‑ranked models outperform top ImageNet checkpoints on key tasks. 
+  Via 1,000 bootstrap resamples of task subsets, we demonstrate robust rank‑stability and guard against benchmark‑lottery bias. 
+  All code, data splits, and evaluation scripts are publicly released so researchers and conservation practitioners can benchmark and refine models that truly generalize to biodiversity monitoring in the wild.
+\end{abstract}
+
+
+
+
+
+\section{Introduction}
+
+Machine-learning now drives everything from protein structure prediction to planetary-scale biodiversity surveys, yet progress depends on benchmarks that tell us which models to trust.
+Vision research still orients around ImageNet-1K, MS COCO, and ADE20K \citep{deng2009imagenet1k,lin2014mscoco,zhou2017ade20k}, and state-of-the-art claims like vision transformers, self-supervised pre-training or image-text pre-training, are routinely justified by gains on those leaderboards.
+
+Scientific images, however, are \textit{not} web photographs.
+Radiographs and histopathology slides emphasise internal or cellular structure \citep{zech2018three}; microbiology depends on high-magnification micrographs of microorganisms \citep{raghu2019transfusion}; and ecology relies on camera-trap or specimen imagery in uncontrolled environments \citep{tuia2022perspectives,weinstein2018computer}.
+These sources differ in content, scale, and acquisition method from the datasets that govern general computer vision progress.
+
+The mismatch is not merely cosmetic.  
+Across three publicly released ecology tasks (long-tail species ID \citep{garcin2021plantnet300k}, drone-video behaviour recognition \citep{kholiavchenko2024kabr}, and specimen trait inference \citep{khan2023fishnet}) we measure Spearman's rank correlation $\rho$ between ImageNet-1K top-1 accuracy and task accuracy for XX modern computer vision checkpoints spanning supervised \citep{wrightmann2021rsb}, self-supervised \citep{dinov2}, and image–text pre-training \citep{clip,siglip,aimv2}.
+Once models surpass the now-common \num{75}\% ImageNet threshold, correlation collapses from $\rho\approx0.8$ to $\rho<0.4$ (\cref{fig:hook}).
+Generic benchmark accuracy, long used as a barometer of visual understanding, stops predicting performance on the scientific tasks we measure once models clear the 75\% ImageNet top-1 threshold.
+Early reports hint that the same ``ranking cliff'' also afflicts medical imaging \citep{zech2018three,zeman2022deep}, astronomical surveys \citep{dominguez2023astronet}, and molecular modelling \citep{stark2023moleculebench}.
+Because ecological domains offer both scientific diversity and abundant open data, they provide an ideal testbed to systematically investigate how benchmark predictivity fails under realistic distributional shift.
+
+Scientific images diverge from web-photo benchmarks along three fault-lines, ordered here by severity. The most disruptive is acquisition-modality shift: camera-trap infrared, multispectral drone fly-overs, hyperspectral wafer inspections, and phase-contrast micrographs share little with RGB DSLR statistics, so features honed on ImageNet seldom fire on these signals. Next comes task-form diversity: ecologists detect animals in video, regress leaf nitrogen from reflectance, and track movement across frames; pathologists segment tumours and predict survival curves—operations that differ fundamentally from single-label classification. Finally, semantic granularity intervenes: thousands of rare butterfly species, infrequent carcinoma sub-types, or niche bacterial morphologies appear only a handful of times, making long-tail balance critical. Without tackling all three gaps, improvements in ImageNet accuracy are unlikely to translate into scientific utility.
+
+We address acquisition-modality shift by building explicit out-of-distribution stress tests into the benchmark. WildVision partitions evaluation by sensor channel (RGB versus IR), altitude, and season; models must retain rank when imagery shifts. Analogous slices—MRI versus CT in radiology, bright-field versus fluorescence in microbiology—would make modality robustness integral to any science-driven leaderboard.
+
+To close the task-form gap we derive benchmark tasks directly from end-to-end scientific workflows. WildVision therefore includes detection, behaviour classification, and trait regression sourced from field protocols; in oncology the same principle would yield lesion segmentation and survival-time prediction, while in agronomy it would cover weed-crop differentiation and biomass estimation, ensuring that evaluated objectives mirror real scientific questions.
+
+Semantic granularity is handled through domain-aware splits and metrics. WildVision balances classes with macro-F1 and weights errors by taxonomic distance so that a rare beetle or an uncommon carcinoma subtype influences leaderboard order as strongly as a common class; the same machinery extends to Gene Ontology hierarchies in cell biology or defect taxonomies in industrial inspection, making long-tail classes first-class citizens in evaluation.
+
+We operationalise these principles in WildVision, a suite of XX tasks spanning YY taxa collected under true field conditions. WildVision ships with open data, code, and a single-GPU evaluator. A baseline of ZZ models shows ImageNet accuracy explains ≤35\% of WildVision variance, while internal Kendall τ ≥ 0.78 yields a reliable ordering.
+WildVision is thus both a resource for computer-vision ecologists and a template for building domain-grounded benchmarks that advance AI-for-science.
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=\linewidth]{figures/hook.pdf}
+    \caption{
+    Predictive validity of ImageNet-1K accuracy across ecology tasks, measured with Spearman's $\rho$ between ImageNet-1K and task rankings, computed across all checkpoints with ImageNet Top-1 accuracy $\geq T\%$ (x-axis). 
+    Shaded region shows \num{90}\% bootstrapped confidence intervals. 
+    \textbf{ImageNet-1K is predictive of model rankings for internet photos (A), halves for drone footage (B), and vanishes for specimen traits (C); Generalist benchmarks cannot predict model rankings as models improve.} 
+    \cref{app:correlations} contains additional details and analysis of this trend.
+    }\label{fig:hook}
+\end{figure}
+
+
+\section{Introduction2}
+
+\textit{``My model scores \num{89}\% on ImageNet--surely it will crush your real-world task.''}
+A decade ago that statement was a safe bet; today it is wishful thinking.
+Modern vision architectures have pushed ImageNet-1K, COCO, and ADE20K into the
+\emph{saturated zone}: top-1 accuracies exceed \num{90}\% \citep{coca}, incremental gains are lost in the noise, and rankings of state-of-the-art (SOTA) checkpoints shuffle almost at random.
+When a benchmark saturates it stops guiding research, misallocates compute, and creates the illusion of progress \citep{recht2019imagenet,beyer2020imagenet,paullada2021data}.
+Put differently, ImageNet has drifted out of the Goldilocks zone of benchmark difficulty \citep[vibe-eval]{wang2024vibe}: frontier models now sit on the flat part of the curve where additional accuracy provides almost no signal (Fig 2).
+
+\noindent\textbf{Ecology as a stress test.}
+While general benchmarks plateau, ecological computer vision raises the bar: fine-grained species distinctions, extreme long-tails, cluttered habitats, microscopy scales, and behavioural dynamics that never appear in ImageNet.
+State-of-the-art ImageNet models that flirt with \num{90}\% top-1 routinely plunge to
+\num{60}–\num{75}\% on ecological tasks \citep{beery2018recognition,van2018inaturalist,schneider2023newt}.
+Quantitatively, we measure Spearman’s $\rho$ between ImageNet-1K and nine ecological tasks and find a \emph{predictivity cliff} (\cref{fig:general-correlation}):
+\[
+\rho = 0.82 \text{ below 75 \% top-1} \longrightarrow \rho = 0.55 \text{ above 75 \%.}
+\]
+Prior work has shown that ImageNet accuracy does \emph{not} transfer to
+distribution-shifted \emph{accuracy}, e.g.\ ImageNet-V2, ObjectNet,
+ImageNet-A/R/H~\citep{recht2019imagenet,barbu2019objectnet,taori2020imagenetH,hendrycks2021imagenetR}.
+However, none of these studies examined how benchmark \emph{saturation} erodes the \emph{rank-ordering} power of ImageNet across domains.
+Our analysis is the first to link rising ImageNet scores to a measurable collapse in cross-domain rank correlation, extending ``benchmark-lottery'' concerns~\citep{ashmore2021benchmark} from within-suite task choice to the relationship between general and domain-specific benchmarks.
+Prior work on ImageNet-V2, ObjectNet, and ImageNet-A/R/H analyses \emph{accuracy shift} under distribution change; none study cross-domain \emph{rank predictivity}.  
+We are the first to link benchmark \emph{saturation} to a 0.82->0.55 collapse in Spearman $\rho$—translating into >40\% mis-ordering of frontier checkpoints (Fig. 3, App. B)—thus extending “benchmark-lottery” concerns~\citep{ashmore2021benchmark} beyond intra-suite task choice.
+
+
+Why does the correlation collapse?  Ecological imagery violates three assumptions baked into ImageNet training:  
+(i) \textbf{Label taxonomy}—classes differ by subtle morphology, not coarse object identity;  
+(ii) \textbf{Long-tail frequency}—WildVision’s class histogram follows Zipf with a >1 000× head-to-tail ratio, whereas ImageNet’s is $\approx4\times$;  
+(iii) \textbf{Context shift}—species often appear camouflaged or occluded, while ImageNet crops objects centrally.  
+We quantify (i) and (iii) in §4.2 via intra-class embedding variance and background-entropy analysis.
+Examples of these violations are visualised in Fig.~\ref{fig:image-comparison}.
+
+\noindent\textbf{Why hasn’t ecology adopted a unified benchmark already?}
+Several excellent datasets exist—iNat21, WILDS, PlantCLEF, Herbarium19—but each
+comes with its own file format, custom loader, evaluation script, and metric idiosyncrasies.
+Integrating a single new model into all of them typically requires
+\(\sim\!600\) lines of task-specific code and hours of data wrangling.
+This engineering tax discourages broad participation and fragments empirical evidence.
+
+
+
+\noindent\textbf{A benchmark must be both rigorous \emph{and} effortless to use.}
+We argue that next-generation suites should satisfy two principles:
+\emph{(i) Goldilocks engineering}—easy enough that any new model can plug in with
+\(<\!10\) lines of code; \emph{(ii) Scientific leverage}—task diversity and
+statistical tooling that reveal behaviours general benchmarks cannot.
+Our answer is \textbf{WildVision}, a stability-driven, multi-task evaluation suite
+built on a single modular interface:
+\[
+   \boxed{f:\;\text{image} \rightarrow \mathbb{R}^{n}}
+   \quad\text{(model author’s only obligation).}
+\]
+WildVision owns the rest: automatic probing, bootstrap confidence intervals,
+rank-stability analysis, and task-specific metrics—so the community can focus on
+\emph{ideas} instead of plumbing.
+
+Unlike iNat21, PlantCLEF, WILDS-iWildCam, or Herbarium19—each a \emph{single-task} dataset—\textbf{WildVision is a \emph{suite}}: nine tasks, one loader, one metric API, one statistics module.  
+A new model integrates by implementing \texttt{f(img)\,$\rightarrow$\,\(\mathbb{R}^n\)} exactly once; WildVision then evaluates it on \emph{all} tasks with no extra code.  
+Concretely, adding CLIP-ViT-L/14 required 7 lines of glue code, whereas reproducing iWildCam’s official evaluation script alone is 180 LoC.
+
+\noindent\textbf{At a glance.}
+We integrate \textbf{37} supervised, self-supervised, and multimodal checkpoints
+(CLIP, SigLIP, DINOv2, MAE, ConvNeXt, ResNets, BioCLIP, random baselines) into
+\textbf{nine} datasets spanning plants, mammals, insects, fish, and plankton
+(\(\sim\!150\,\text{k}\) images).
+Every checkpoint required \(\le\!10\) lines of glue.
+Our study reveals:
+
+\begin{itemize}[leftmargin=*]
+\item \textbf{Predictivity collapse}: Spearman \(\rho\) between ImageNet-1K and WildVision rankings drops from 0.82 to 0.55 once models exceed 75 \% top-1; a similar cliff appears with iNat21.
+\item \textbf{Unexpected winners}: mid-tier CLIP variants outperform higher-ranked ImageNet models on 6/9 tasks, overturning conventional leader-boards.
+\item \textbf{Stable ranking}: bootstrap rank-stability (\(\tau > 0.85\)) confirms WildVision is resilient to benchmark-lottery effects \citep{ashmore2021benchmark}.
+\end{itemize}
+
+\noindent\textbf{Our contributions}
+\begin{enumerate}[leftmargin=*]
+\item \textbf{WildVision}: an open-source, plug-and-play benchmark suite with a one-line embedding API and automated statistical toolkit.
+\item \textbf{Large-scale empirical study}: 37 checkpoints, 9 tasks, revealing when and why general benchmarks fail for ecological vision.
+\item \textbf{Rank-stability methodology}: bootstrap analysis that quantifies benchmark reliability and exposes ImageNet’s saturation.
+\end{enumerate}
+
+\noindent\textbf{Roadmap.}
+Section \ref{sec:background} reviews related benchmarks; Section \ref{sec:wildvision}
+details dataset curation and the embedding API; Section \ref{sec:experiments}
+presents our empirical findings; Section \ref{sec:discussion} discusses broader
+implications for model design and conservation; and Section \ref{sec:conclusion}
+summarizes future directions.
+
+
+
+
+
+
+\begin{figure}
+    \centering
+    \small
+    \includegraphics[width=\linewidth]{example-image-a}
+    \caption{\textbf{Why ImageNet fails on ecology.}
+    \emph{Top row:} object- or scene-centric exemplars from popular evaluation datasets.
+    \emph{Bottom row:} corresponding WildVision samples that break the same assumptions.
+    (i) \textbf{Taxonomy:} fine-grained butterfly mimics differ only by wing speckles.
+    (ii) \textbf{Long-tail:} species frequency spans >1 000× head–tail ratio.
+    (iii) \textbf{Context:} camera-trap frames are cluttered, low contrast, and off-center.
+    These factors jointly explain the ``predictivity cliff'' in Fig.~\ref{fig:general-correlation}.}\label{fig:image-comparison}
+\end{figure}
+
+
+\section{Related Work}
+
+\subsection{General-Purpose Vision Benchmarks}
+
+General-purpose benchmarks like ImageNet \cite{deng2009imagenet} have driven substantial progress in computer vision, but evidence increasingly shows their inadequacy for ecological applications. While models achieve >95\% accuracy on ImageNet \todo{this is not true haha}, performance drops to 60-75\% on ecological tasks \cite{beery2018recognition, van2018inaturalist} \todo{check numbers. reference our own benchmark}. 
+Benchmarks like ObjectNet \cite{barbu2019objectnet} demonstrate that traditional models suffer 40-45\% \todo{check that shit} accuracy decreases under  distribution shifts, which is a critical concern for ecological monitoring where environmental variability is extreme and unavoidable.
+
+\subsection{Multi-Task and Transfer Learning Benchmarks}
+
+The computer vision community has developed several benchmarks to evaluate representation transfer. 
+VTAB \cite{zhai2019large} spans 19 tasks across diverse domains, while Taskonomy \cite{zamir2018taskonomy} mapped transfer relationships between 26 visual tasks. 
+However, these benchmarks include minimal ecological content and fail to capture the specific challenges of biodiversity monitoring: fine-grained taxonomic distinctions, extreme environmental variability, and long-tailed species distributions. 
+This gap directly motivates BioBench's development: current transfer learning benchmarks don't address ecology's unique requirements.
+
+\subsection{Ecological Computer Vision Efforts}
+
+Existing ecological computer vision datasets address isolated challenges but lack a comprehensive evaluation framework. 
+iNaturalist \cite{van2018inaturalist} provides fine-grained species classification but doesn't incorporate temporal behavior or ecological trait prediction. PlantCLEF \cite{plantclef} and Pl@ntNet \cite{plantnet} focus exclusively on plant identification. 
+WILDS \cite{koh2021wilds} includes iWildCam for camera trap imagery but treats ecological monitoring as just one of many domains rather than exploring its multi-faceted challenges. 
+These isolated efforts highlight the critical need for \benchmarkname{}: conservation practitioners currently lack systematic guidance on which vision architectures best transfer to the complex, interconnected tasks comprising ecological monitoring workflows.
+
+\subsection{Benchmark Construction Methodology}
+
+Recent work has highlighted the importance of benchmark construction itself. 
+DomainBed \cite{gulrajani2021search} demonstrated that consistent evaluation protocols are essential for meaningful comparisons. 
+\benchmarkname{} builds on these methodological advances through our modular embedding-based evaluation framework, which enables efficient assessment of new models across diverse ecological tasks while maintaining statistical validity through bootstrap confidence intervals and rank stability analysis \cite{lotterybenchmark}.
+
+Unlike previous work, \benchmarkname{} uniquely bridges the gap between machine learning research and ecological application by: 
+(1) comprehensively covering the visual challenges encountered in real-world monitoring, from species identification to behavior classification and trait prediction; 
+(2) providing a standardized interface that isolates representation quality from task-specific engineering; and 
+(3) enabling direct comparison of model architectures for conservation deployment. 
+As global biodiversity loss accelerates, this systematic benchmark addresses an urgent need that no existing framework satisfies, enabling practitioners to select optimal models for the specific visual challenges of ecological monitoring while giving ML researchers the tools to develop architectures that better serve conservation goals.
+
+\citet{wang2018glue,wang2019superglue}
+cite benchmark lottery, reka vibe eval, bigbench, bigbenchhard, bigbenchextrahard, my cv4animals paper
+
+
+\section{Benchmark}\label{sec:benchmark}
+
+An effective ecological vision benchmark must address fundamental limitations in existing evaluation frameworks. 
+First, it requires diversity across multiple dimensions: taxonomic breadth spanning microorganisms to mammals; varied image regimes from microscopy to camera traps; task diversity beyond simple classification; and natural class imbalances reflecting real-world species distributions. 
+Second, it must balance proxy-driven tasks (measuring general capability) with mission-driven tasks (assessing operational utility for conservation applications). 
+Third, it must provide rigorous statistical tools (confidence intervals, significance testing, and rank stability analysis) to distinguish genuine performance differences from benchmark lottery effects. 
+
+Neither ImageNet-1K nor iNat2021 satisfies these requirements.
+ 
+ImageNet lacks ecological diversity, while iNat2021 offers taxonomic breadth but limited task variety and no mission-driven evaluation. 
+Most critically, our analysis reveals that once models exceed 75\% accuracy on ImageNet, the benchmark loses predictive power for ecological performance ($\rho$ drops from 0.82 to 0.55), rendering it insufficient as a proxy for ecological vision capability. WildVision addresses these limitations through a minimal embedding interface that dramatically reduces integration overhead while providing comprehensive coverage across the ecological axes that matter most.
+
+
+\begin{table}[t]
+    \centering
+    \small
+    \caption{Datasets across key dimensions that distinguish general computer vision benchmarks from ecological vision tasks. 
+    $^*$\textit{Mission} tasks serve a specific ecological application (\cmark) rather than a general benchmark purpose (\xmark). 
+    $^\dagger$\textit{Context} indicates whether images show organisms in their natural environment (in-situ) or as preserved specimens. ``Target'' indicates the classification target. 
+    $^\ddagger$\textit{Zipf} quantifies class imbalance; lower is more balanced. 
+    \textbf{Takeaway:} ImageNet-1K fundamentally differs from other ecological tasks because it is taxonomically unrestricted, web-scraped rather than scientifically curated, and uses artificially balanced classes that don't reflect natural distributions.}
+    \label{tab:tasks}
+    \begin{tabular}{lcccccc}
+    \toprule
+    Name & Mission?$^*$ & Taxon & Source & Context$^\dagger$ & Target & Zipf$^\ddagger$ \\
+    \midrule
+    ImageNet-1K & \xmark &  & Web-scraped & - &  &  \\
+    iNat2021 & \xmark &  & Citizen science & In-situ & Species &  \\
+    NeWT & \xmark &  & Citizen science & In-situ & Varied &  \\
+    \midrule
+    BelugaID & \cmark & \textit{D. leucas} & Citizen science & In-situ & Individuals &  \\
+    FishNet & \xmark & Fish & Natural collections  & Specimen & Functional Traits &  \\
+    FungiCLEF & \xmark & Fungi & & In-situ & Species &  \\
+    Herbarium19 & \cmark & Plants & & Specimen & Species &  \\
+    iWildCam21 & \cmark & Mammals & & In-situ & Species &  \\
+    KABR & \cmark & Mammals & Research study & In-situ & Behaviors  & \\
+    MammalNet & \xmark & Mammals & Web-scraped & In-situ & Behaviors & \\
+    Plankton & \cmark & Protists & Research study & In-situ & Species & \\
+    Pl@ntNet & \xmark & Plants & & & Species &  \\
+    \bottomrule
+    \end{tabular}
+\end{table}
+
+\subsection{Why a New Suite Was Needed}
+Popular vision benchmarks---ImageNet--1K, COCO, ADE20K, iNat21---share three
+limitations for ecological science: (i) they test one visual regime
+(object-- or scene--centric photos), (ii) they ignore extreme class
+imbalance and fine–grained morphology, and (iii) each ships with bespoke
+loaders and metrics, incurring a \emph{600\,LoC “integration tax”} for every
+new model (§1).  
+WildVision removes this barrier with a single contract  
+\[
+  \boxed{f:\text{image}\rightarrow\mathbb{R}^{n}},
+\]
+required once per model; all probing, metrics, and
+bootstrap confidence intervals are handled by the suite (Fig.\,\ref{fig:wvapi}).
+The design mantra is simple: \emph{invert every ImageNet weakness into a
+WildVision strength.}
+
+\subsection{Task Mix: Filling Five Gaps}
+Table~\ref{tab:axis} positions the nine tasks along five axes that ImageNet
+leaves unmet.  Each dataset was included \emph{only if} it populated at least
+one previously empty cell.
+
+
+\noindent\textbf{Dataset vignettes} (full statistics in App.~A).  
+\textit{KABR} adds aerial behaviour;  
+\textit{BelugaID} introduces individual re–identification and marine imaging;  
+\textit{FungiCLEF} fills the fungal kingdom and ultra–long tail;  
+\textit{WHOI–Plankton} brings micro–scale morphology;  
+\textit{FishNet} supplies numeric trait prediction;  
+the remaining tasks complete coverage for terrestrial plants, insects,
+and large mammals.
+
+\subsection{Build Once, Evaluate Everywhere}
+All datasets are released as \texttt{.jsonl} manifests
+\{\texttt{url, split, label, frames}\}.  
+A two–line YAML spec defines resizing and centre–crop
+(\textsc{Alg.\,1}, App.~A).  
+Labels map to the GBIF 2024--03 taxonomic backbone; behavior and trait names
+follow Darwin--Core.  
+WildVision fits logistic or linear probes, reports task metrics, and
+bootstraps 1\,000 resamples to yield 95\,\% confidence
+intervals; rank–st
+
+\section{Methodology}
+
+We evaluate XX models on \benchmarkname{}.
+
+
+\section{Results}
+
+We first evaluate the quality of the benchmark via correlation with ImageNet-1K and relative rank stability.
+
+\begin{table}[t]
+    \centering
+    \small
+    \setlength\tabcolsep{3pt}
+    \caption{An overview of all models on ImageNet-1K, iNat2021, NeWT and all tasks in \benchmarkname{}. State-of-the-art results for each task, along with their source, are reported at the top. \textbf{Mean} is across all tasks in \benchmarkname{} (not ImageNet-1K, iNat2021, or NeWT).}
+    \label{tab:overview}
+    \begin{tabular}{llc@{\hskip 8pt}rrrrrrrrrrrrr}
+        \toprule
+        Model & Architecture & \verticalcell{Image (px)} 
+        & \verticalcell{ImageNet-1K} & \verticalcell{iNat2021} & \verticalcell{NeWT} 
+        & \verticalcell{Beluga} & \verticalcell{FishNet} & \verticalcell{FungiCLEF} 
+        & \verticalcell{Herbarium19} & \verticalcell{iWildCam} & \verticalcell{KABR} 
+        & \verticalcell{MammalNet} & \verticalcell{Plankton} & \verticalcell{Pl@ntNet} & \verticalcell{\textbf{Mean}} \\
+        \midrule
+        \multicolumn{3}{l}{\textit{State-of-the-Art}} & 91.0 & & & & & & & & 65.8 \\
+        \multicolumn{3}{l}{\textit{Source}}
+        & \citep{yu2022coca} & & & & & & & & \citep{kholiavchenko2024deep}  \\
+        \midrule
+        \multirow{4}*{CLIP} 
+        & ViT-B/32 & 224 & 57.0 & 00.0 & 78.0 & 2.8 & 44.1 & 00.0 & 4.8 & 12.9 & 23.4 & 00.0 & 2.3 & 15.0 & 15.0 \\
+        & ViT-B/16 & 224 & 62.3 & 00.0 & 80.0 & 3.1 & 43.7 & 00.0 & 6.0 & 16.6 & 30.8 & 00.0 & 2.2 & 18.7 & 17.3 \\
+        & ViT-L/14 & 224 & 72.1 & 38.8 & 82.5 & 2.9 & 48.2 & 00.0 & 9.7 & 20.4 & 31.6 & 00.0 & 2.6 & 24.5 & 20.0 \\
+        & ViT-L/14 & 336 & 73.1 & 42.4 & 83.6 & 2.8 & 48.9 & 00.0 & 12.5 & 22.7 & 31.1 & 00.0 & 2.5 & 25.9 & 20.9 \\[4pt]
+        
+        \multirow{7}*{SigLIP} 
+        & ViT-B/16 & 224 & 73.8 & 35.1 & 81.5 & 3.9 & 50.1 & 00.0 & 9.2 & 18.4 & 31.8 & 00.0 & 2.5 & 26.2 & 20.3 \\
+        & ViT-B/16 & 256 & 74.5 & 00.0 & 81.9 & 4.0 & 48.5 & 00.0 & 9.7 & 19.0 & 32.6 & 00.0 & 2.7 & 27.0 & 20.5 \\
+        & ViT-B/16 & 384 & 76.5 & 43.0 & 83.7 & 3.9 & 50.0 & 00.0 & 13.7 & 21.9 & 33.3 & 00.0 & 2.5 & 28.8 & 22.0 \\
+        & ViT-B/16 & 512 & 77.3 & 45.4 & 84.2 & 4.3 & 50.7 & 00.0 & 15.1 & 23.8 & 33.1 & 00.0 & 2.5 & 29.5 & 22.7 \\
+        & ViT-L/16 & 256 & 79.2 & 00.0 & 83.5 & 4.0 & 56.2 & 00.0 & 12.8 & 24.1 & 29.4 & 00.0 & 2.9 & 30.5 & 22.8 \\
+        & ViT-L/16 & 384 & 81.0 & 00.0 & 85.4 & 4.1 & 57.1 & 00.0 & 18.1 & 27.8 & 30.7 & 00.0 & 3.1 & 33.5 & 24.9 \\
+        & SO400M/14$^*$ & 224 & 81.1 & 00.0 & 84.7 & 3.9 & 57.5 & 00.0 & 16.9 & 25.6 & 33.0 & 00.0 & 2.7 & 33.7 & 24.8 \\
+        & SO400M/14$^*$ & 384 & 82.2 & 00.0 & 86.0 & 4.0 & 58.8 & 00.0 & 22.6 & 30.6 & 33.0 & 00.0 & 2.9 & 36.2 & 26.9 \\
+        [4pt]
+        
+        \multirow{4}*{DINOv2} 
+        & ViT-S/14 & 224 & 67.1 & 00.0 & 82.0 & 00.0 & 55.0 & 00.0 & 6.6 & 17.6 & 23.3 & 00.0 & 2.9 & 24.9 & 21.7 \\
+        & ViT-B/14 & 224 & 75.4 & 00.0 & 83.0 & 00.0 & 60.0 & 00.0 & 13.4 & 28.0 & 22.6 & 00.0 & 2.9 & 32.2 & 26.5 \\
+        & ViT-L/14 & 224 & 78.6 & 00.0 & 83.0 & 00.0 & 62.1 & 00.0 & 21.7 & 35.2 & 23.3 & 00.0 & 2.9 & 36.2 & 30.2 \\
+        & ViT-g/14 & 224 & 79.8 & 00.0 & 82.8 & 4.5 & 66.7 & 00.0 & 29.9 & 39.9 & 25.3 & 00.0 & 3.4 & 39.7 & 29.9 \\[4pt]
+        
+        \multirow{12}*{AIMv2} 
+        & ViT-L/14 & 224 & 75.0 & 00.0 & 78.1 & 1.3 & 43.9 & 00.0 & 6.1 & 14.9 & 32.0 & 00.0 & 1.8 & 26.0 & 18.0 \\
+        & ViT-L/14 & 336 & 75.2 & 00.0 & 79.8 & 1.7 & 43.7 & 00.0 & 7.0 & 16.2 & 33.1 & 00.0 & 1.9 & 28.4 & 18.8 \\
+        & ViT-L/14 & 448 & 75.0 & 00.0 & 79.1 & 1.7 & 43.9 & 00.0 & 7.0 & 15.9 & 32.8 & 00.0 & 2.0 & 28.6 & 18.9 \\
+        & ViT-H/14 & 224 & & 80.3 &  & 73.7 &  &  & 7.1 &  & 80.2 &  \\
+        & ViT-H/14 & 336 & & & & & & & & & \\
+        & ViT-H/14 & 448 & & & & & & & & & \\
+        & ViT-1B/14 & 224 & & & & & & & & & \\
+        & ViT-1B/14 & 336 & & & & & & & & & \\
+        & ViT-1B/14 & 448 & & & & & & & & & \\
+        & ViT-3B/14 & 224 & & & & & & & & & \\
+        & ViT-3B/14 & 336 & 00.0 & 00.0 & 83.5 & 00.0 & 48.0 & 00.0 & 16.3 & 25.3 & 00.0 & 00.0 & 2.4 & 38.1 & 26.0 \\
+        & ViT-3B/14 & 448 & 00.0 & 00.0 & 84.0 & 00.0 & 44.8 & 00.0 & 16.4 & 25.3 & 00.0 & 00.0 & 2.3 & 39.3 & 25.6 \\[4pt]
+        
+        \multirow{4}*{SAM 2} 
+        & Hiera Tiny & 896 & 00.0 & 00.0 & 66.1 & 00.0 & 44.2 & 00.0 & 2.7 & 7.0 & 00.0 & 00.0 & 2.4 & 2.3 & 11.7 \\
+        & Hiera Small & 896 & & & & & & & & \\
+        & Hiera Base+ & 896 & & & & & & & & \\
+        & Hiera Large & 1024 & & & & & & & & \\[4pt]
+        
+        \multirow{3}*{V-JEPA} 
+        & ViT-L/16 & 224 & & & & & & & & \\
+        & ViT-H/16 & 224 & & & & & & & & \\
+        & ViT-H/16 & 384 & & & & & & & & & \\[4pt]
+        
+        BioCLIP & ViT-B/16 & 224 & 41.2 & 81.7 &  & 72.7 &  &  & 5.4 &  & 82.7 & \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\subsection{Correlation with ImageNet-1K}\label{sec:imagenet1k-correlation}
+
+
+If ImageNet-1K \citep{deng2009imagenet1k} is a sufficient benchmark, we would model performance on ImageNet-1K to strongly correlate with both task-specific performance and overall benchmark performance.
+We plot ImageNet-1K linear-probe performance on the x-axis and task performance on the y-axis in \cref{fig:general-correlation}, and find that it does not correlate.
+\todo{Think about another visualization to demonstrate the lack of correlation. Either a piecewise linear fit, showing that performance above $T$ on ImageNet-1K is no longer predictive, or that Spearman correlation for models above $T$ on ImageNet-1K is very unstable.}
+
+\subsection{Benchmark Stability}
+
+
+\begin{table}[t]
+    \centering
+    \small
+    \caption{CAPTION CAPTION CAPTION}
+    \label{tab:imagenet1k-ranking}
+    \begin{tabular}{lrr}
+        \toprule
+        Model & Rank & STABILITY? \\
+        \midrule
+        DINOv2 & 1 & -1 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+Because we both include and exclude tasks based on relatively MADE UP criteria, we try to justify our decisions by demonstrating relative stability in model rankings by randomly re-selecting a subset of tasks and measuring how the ranking changes.
+The benchmark is more stable if the rankings do not change.
+We measure this with METRIC (or VISUALIZATION) and show that our benchmark is stable.
+
+\section{Findings}
+
+Now we use our benchmark to discover new things about existing methodologies.
+
+\subsection{Pre-Training Objective}
+
+Do different pre-training objectives lead to different performances? 
+Do JEPA architectures lead to better semantic representations than other vision-only objectives like DINOv2?
+Let's find out!
+
+\subsection{Compute Scaling}
+
+Do bigger models do better?
+Are there ``emergent'' abilities of vision models with scale?
+
+\subsection{Data Scaling}
+
+How does the number of training samples affect model performance?
+
+\section{Conclusion \& Future Work}
+
+\clearpage
+
+\bibliography{main}
+
+\clearpage
+
+\appendix
+
+\section{Correlations with Other Benchmarks}\label{app:correlations}
+
+\section{Benchmark Details}
+
+
+\begin{table}[t]
+    \centering
+    \small
+    \begin{tabular}{lllrr}
+        \toprule
+        Name & Task & Metric & Train & Test\\
+        \midrule
+        FishNet \citep{khan2023fishnet} & Functional trait prediction & Macro Acc. & \num{75631} & \num{18901} \\
+        Herbarium19 \citep{tan2019herbarium19} & Species classification from museum images & Macro Acc. & \num{34225} & \num{2679} \\
+        iWildCam \citep{iwildcam} & Species classification from camera trap images \\
+        KABR \citep{kabr} & Behavior classification from drone footage & \\
+        Pl@ntNet \citep{garcin2021plantnet300k} & Species classification & Macro Acc. & \num{243916} & \num{31118} \\
+        Plankton \citep{plankton} & Species classification from micrographs & Macro Acc. & \num{63074} & \num{151236} \\
+        MammalNet \citep{mammalnet} \\
+        NeWT \cite{newt} & & Acc. \\
+        FungiCLEF \cite{fungiclef} & & & \num{295938} & \num{60832} \\
+        \bottomrule
+    \end{tabular}
+    \caption{Task statistics}
+    \label{tab:task-stats}
+\end{table}
+
+
+\end{document}
