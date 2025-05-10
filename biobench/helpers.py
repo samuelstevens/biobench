@@ -204,6 +204,9 @@ def batched_idx(
         yield start, stop
 
 
+# Write a batched_idx as a class that has a __iter__ and a __len__ attribute. AI!
+
+
 @beartype.beartype
 def bump_nofile(margin: int = 512) -> None:
     """
@@ -229,6 +232,10 @@ def _default_batchsize_schedule(start: int = 2) -> collections.abc.Iterable[int]
     """
     2, 3, 4, 6, 8, 12, 16, 24, 32, 48, 64, 96, 128, 196, 256, 384, 512, 768, 1024, ...
     """
+
+    while start < 2:
+        yield start
+        start += 1
 
     x = start
     for m in itertools.cycle((3 / 2, 4 / 3)):  # 3/2, 4/3, 3/2, 4/3, ...
