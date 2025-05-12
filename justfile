@@ -1,10 +1,10 @@
 docs: fmt
     yek biobench *.py *.md > docs/llms.txt
     rm -rf docs/biobench docs/benchmark.html
-    uv run pdoc3 --force --html --output-dir docs --config latex_math=True biobench benchmark
+    uv run pdoc3 --force --html --output-dir docs --config latex_math=True biobench benchmark scripts
 
 test: fmt
-    uv run pytest --cov biobench --cov-report term --cov-report json --json-report --json-report-file pytest.json --cov-report html -n 32 biobench || true
+    uv run pytest --cov biobench --cov-report term --cov-report json --json-report --json-report-file pytest.json --cov-report html -n 32 biobench scripts || true
     uv run coverage-badge -o docs/coverage.svg -f
     uv run scripts/regressions.py
 

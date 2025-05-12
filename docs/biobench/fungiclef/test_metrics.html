@@ -90,6 +90,23 @@ def stub_poison(monkeypatch):
 </details>
 <div class="desc"></div>
 </dd>
+<dt id="biobench.fungiclef.test_metrics.test_ce_unknown_in_0_10"><code class="name flex">
+<span>def <span class="ident">test_ce_unknown_in_0_10</span></span>(<span>) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@given(y_true=_gen_labels(), y_pred=_gen_labels())
+def test_ce_unknown_in_0_10(y_true, y_pred):
+    assume(len(y_true) == len(y_pred))
+    y_t, y_p = map(np.asarray, (y_true, y_pred))
+    val = metrics.classification_error_with_unknown(y_t, y_p)
+    assert 0.0 &lt;= val &lt;= 10.0</code></pre>
+</details>
+<div class="desc"></div>
+</dd>
 <dt id="biobench.fungiclef.test_metrics.test_classification_error_all_correct"><code class="name flex">
 <span>def <span class="ident">test_classification_error_all_correct</span></span>(<span>)</span>
 </code></dt>
@@ -181,18 +198,15 @@ def stub_poison(monkeypatch):
     y_pred=st.lists(st.integers(min_value=-1, max_value=10), min_size=1, max_size=20),
 )
 def test_fuzz_raises_or_returns(y_true, y_pred):
+    assume(len(y_true) == len(y_pred))
     y_t = np.array(y_true)
     y_p = np.array(y_pred)
-    try:
-        out = metrics.evaluate_metrics(y_t, y_p)
-        # Expect dict keys and numeric values
-        assert isinstance(out, dict)
-        for k, v in out.items():
-            assert isinstance(k, str)
-            assert isinstance(v, float)
-    except ValueError:
-        # mismatch lengths should raise
-        assert y_t.shape != y_p.shape</code></pre>
+    out = metrics.evaluate_metrics(y_t, y_p)
+    # Expect dict keys and numeric values
+    assert isinstance(out, dict)
+    for k, v in out.items():
+        assert isinstance(k, str)
+        assert isinstance(v, float)</code></pre>
 </details>
 <div class="desc"></div>
 </dd>
@@ -219,6 +233,23 @@ def test_fuzz_raises_or_returns(y_true, y_pred):
 </details>
 <div class="desc"></div>
 </dd>
+<dt id="biobench.fungiclef.test_metrics.test_psc_esc_cost_in_0_100"><code class="name flex">
+<span>def <span class="ident">test_psc_esc_cost_in_0_100</span></span>(<span>) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@given(y_true=_gen_labels(), y_pred=_gen_labels())
+def test_psc_esc_cost_in_0_100(y_true, y_pred):
+    assume(len(y_true) == len(y_pred))
+    y_t, y_p = map(np.asarray, (y_true, y_pred))
+    val = metrics.psc_esc_cost_score(y_t, y_p)
+    assert 0.0 &lt;= val &lt;= 100.0</code></pre>
+</details>
+<div class="desc"></div>
+</dd>
 <dt id="biobench.fungiclef.test_metrics.test_psc_esc_cost_score_default_costs"><code class="name flex">
 <span>def <span class="ident">test_psc_esc_cost_score_default_costs</span></span>(<span>)</span>
 </code></dt>
@@ -233,6 +264,23 @@ def test_fuzz_raises_or_returns(y_true, y_pred):
     # PSC=2, ESC=2, cost_psc=100, cost_esc=1 =&gt; (200 + 2)/4 = 50.5
     cost = metrics.psc_esc_cost_score(y_true, y_pred)
     assert pytest.approx(cost, abs=1e-6) == 50.5</code></pre>
+</details>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.fungiclef.test_metrics.test_user_loss_in_0_110"><code class="name flex">
+<span>def <span class="ident">test_user_loss_in_0_110</span></span>(<span>) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@given(y_true=_gen_labels(), y_pred=_gen_labels())
+def test_user_loss_in_0_110(y_true, y_pred):
+    assume(len(y_true) == len(y_pred))
+    y_t, y_p = map(np.asarray, (y_true, y_pred))
+    val = metrics.user_loss_score(y_t, y_p)
+    assert 0.0 &lt;= val &lt;= 110.0</code></pre>
 </details>
 <div class="desc"></div>
 </dd>
@@ -256,13 +304,16 @@ def test_fuzz_raises_or_returns(y_true, y_pred):
 <li><code><a title="biobench.fungiclef.test_metrics.stub_poison" href="#biobench.fungiclef.test_metrics.stub_poison">stub_poison</a></code></li>
 <li><code><a title="biobench.fungiclef.test_metrics.test_all_correct" href="#biobench.fungiclef.test_metrics.test_all_correct">test_all_correct</a></code></li>
 <li><code><a title="biobench.fungiclef.test_metrics.test_all_wrong" href="#biobench.fungiclef.test_metrics.test_all_wrong">test_all_wrong</a></code></li>
+<li><code><a title="biobench.fungiclef.test_metrics.test_ce_unknown_in_0_10" href="#biobench.fungiclef.test_metrics.test_ce_unknown_in_0_10">test_ce_unknown_in_0_10</a></code></li>
 <li><code><a title="biobench.fungiclef.test_metrics.test_classification_error_all_correct" href="#biobench.fungiclef.test_metrics.test_classification_error_all_correct">test_classification_error_all_correct</a></code></li>
 <li><code><a title="biobench.fungiclef.test_metrics.test_classification_error_all_wrong" href="#biobench.fungiclef.test_metrics.test_classification_error_all_wrong">test_classification_error_all_wrong</a></code></li>
 <li><code><a title="biobench.fungiclef.test_metrics.test_classification_error_with_unknown_edge" href="#biobench.fungiclef.test_metrics.test_classification_error_with_unknown_edge">test_classification_error_with_unknown_edge</a></code></li>
 <li><code><a title="biobench.fungiclef.test_metrics.test_evaluate_metrics_basic" href="#biobench.fungiclef.test_metrics.test_evaluate_metrics_basic">test_evaluate_metrics_basic</a></code></li>
 <li><code><a title="biobench.fungiclef.test_metrics.test_fuzz_raises_or_returns" href="#biobench.fungiclef.test_metrics.test_fuzz_raises_or_returns">test_fuzz_raises_or_returns</a></code></li>
 <li><code><a title="biobench.fungiclef.test_metrics.test_num_psc_decisions_and_num_esc_decisions" href="#biobench.fungiclef.test_metrics.test_num_psc_decisions_and_num_esc_decisions">test_num_psc_decisions_and_num_esc_decisions</a></code></li>
+<li><code><a title="biobench.fungiclef.test_metrics.test_psc_esc_cost_in_0_100" href="#biobench.fungiclef.test_metrics.test_psc_esc_cost_in_0_100">test_psc_esc_cost_in_0_100</a></code></li>
 <li><code><a title="biobench.fungiclef.test_metrics.test_psc_esc_cost_score_default_costs" href="#biobench.fungiclef.test_metrics.test_psc_esc_cost_score_default_costs">test_psc_esc_cost_score_default_costs</a></code></li>
+<li><code><a title="biobench.fungiclef.test_metrics.test_user_loss_in_0_110" href="#biobench.fungiclef.test_metrics.test_user_loss_in_0_110">test_user_loss_in_0_110</a></code></li>
 </ul>
 </li>
 </ul>

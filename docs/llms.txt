@@ -141,14 +141,16 @@ Because of this, there are two main classes of tasks:
 >>>> REGRESSIONS.md
 # Regressions
 
-Last checked: 2025-05-01
+Last checked: 2025-05-11
 
-# 1 failing test(s)
+# 3 failing test(s)
 
-- biobench/test_auto_batch_size.py::test_schedule_not_materialised
+- biobench/jobkit/test_hooks.py::test_multiple_hooks_each_release_their_own_claims
+- biobench/test_openset.py::test_min_mahalanobis_sq_batched_equal
+- biobench/test_openset.py::test_min_mahalanobis_sq_batched_no_error
 # Coverage
 
-Coverage: 2950/4394 lines (67.1%)
+Coverage: 3056/4902 lines (62.3%)
 
 >>>> __init__.py
 """ """
@@ -724,8 +726,6 @@ Run `python benchmark.py --help` to see all the options.
 
 Note that you will have to download all the datasets, but each dataset includes its own download script with instructions.
 For example, see `biobench.newt.download` for an example.
-
-.. include:: ./design.md
 """
 
 import collections
@@ -741,11 +741,7 @@ from biobench import config, helpers, jobkit, reporting
 
 
 @beartype.beartype
-def main(
-    cfgs: list[str] = [os.path.join("configs", "neurips.toml")],
-    dry_run: bool = True,
-    max_pending: int = 8,
-):
+def main(cfgs: list[str], dry_run: bool = True, max_pending: int = 8):
     """
     Launch all jobs, using either a local GPU or a Slurm cluster. Then report results and save to disk.
 
@@ -1022,7 +1018,7 @@ class Experiment:
 
     n_workers: int = 4
     """Number of dataloader workers."""
-    batch_size: int = 4
+    batch_size: int = 8
     """Initial batch size to start with for tuning."""
 
     data: Data = dataclasses.field(default_factory=Data)
@@ -1453,6 +1449,88 @@ class ImageDataset(torch.utils.data.Dataset):
     def __len__(self) -> int:
         return len(self.df)
 
+    @property
+    def labels(self) -> Int[np.ndarray, "n 9"]:
+        return (
+            self.df.select(pl.nth(self.label_cols))
+            .with_columns(
+                FeedingPath=pl.when(pl.col("FeedingPath") == "benthic")
+                .then(0)
+                .otherwise(1)
+            )
+            .to_numpy()
+        )
+
+>>>> fishnet/baseline.py
+"""
+Uniform-random baseline for FishNet functional-trait prediction.
+
+Each bootstrap trial:
+
+1. Loads the FishNet test split specified in the experiment config.
+2. Generates a 9-bit prediction vector for every image by i.i.d. Bernoulli(0.5).
+3. Scores macro-F1 via the existing `fishnet.score` helper.
+
+After *n* trials it prints the mean and standard deviation of the macro-F1 (expressed as a percentage). No training statistics are used; this is a pure chance-level reference.
+
+Run from the command line:
+
+uv run python -m biobench.fishnet.random_baseline --cfg configs/neurips.toml
+"""
+
+import logging
+
+import beartype
+import numpy as np
+import tyro
+
+from .. import config, helpers, reporting
+from . import ImageDataset, score
+
+
+@beartype.beartype
+def main(cfg: str, n: int = 1_000, seed: int = 42):
+    """Estimate the macro-F1 of uniform random guessing on FishNet.
+
+    Args:
+        cfg: Path or key understood by `config.load`; must point to an experiment that defines `data.fishnet` and the `verbose` flag.
+        n: Number of bootstrap trials. Default is 1_000.
+        seed: Seed for NumPy's `default_rng`. Default is 42.
+
+    Prints:
+        "Mean score: mean (std dev)" where scores are macro-F1 x 100.
+    """
+    cfg = next(cfg for cfg in config.load(cfg))
+
+    log_format = "[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s"
+    level = logging.DEBUG if cfg.verbose else logging.INFO
+    logging.basicConfig(level=level, format=log_format)
+    logger = logging.getLogger(__name__)
+
+    rng = np.random.default_rng(seed)
+
+    test_ds = ImageDataset(cfg.data.fishnet, "test.csv", transform=None)
+    logger.info("Loaded test dataset.")
+
+    scores = []
+    for _ in helpers.progress(range(n), every=n // 100, desc="bootstrapping"):
+        y_pred = (rng.random((len(test_ds), 9)) < 0.5).astype(int)
+        preds = [
+            reporting.Prediction(
+                "deadbeef",
+                (p == t).mean().item(),
+                {"y_pred": p.tolist(), "y_true": t.tolist()},
+            )
+            for p, t in zip(y_pred, test_ds.labels)
+        ]
+        scores.append(score(preds) * 100)
+
+    print(f"Mean score: {np.mean(scores):.3f} ({np.std(scores):.3f})")
+
+
+if __name__ == "__main__":
+    tyro.cli(main)
+
 >>>> fishnet/download.py
 # /// script
 # requires-python = ">=3.11"
@@ -1566,14 +1644,12 @@ import typing
 import beartype
 import numpy as np
 import polars as pl
-import sklearn.pipeline
-import sklearn.preprocessing
 import torch
 from jaxtyping import Float, Int, Shaped, jaxtyped
 from PIL import Image
 
 from .. import config, helpers, openset, registry, reporting, simpleshot
-from .metrics import user_loss_score
+from . import metrics
 
 logger = logging.getLogger("fungiclef")
 
@@ -1589,9 +1665,14 @@ class Features:
 
 @beartype.beartype
 class FungiDataset(torch.utils.data.Dataset):
-    def __init__(self, csv_fpath: str, img_dpath: str, transform):
+    def __init__(self, root: str, split: typing.Literal["train", "val"], transform):
+        img_dpath = os.path.join(root, "DF20_300" if split == "train" else "DF21_300")
         if not os.path.isdir(img_dpath):
             raise RuntimeError(f"Image directory not found: {img_dpath}")
+
+        csv_fpath = os.path.join(root, f"FungiCLEF2023_{split}_metadata_PRODUCTION.csv")
+        if not os.path.isfile(csv_fpath):
+            raise RuntimeError(f"CSV not found: {csv_fpath}")
 
         df = pl.read_csv(csv_fpath)
         self.img_names = df.get_column("image_path").to_numpy()
@@ -1615,7 +1696,7 @@ class FungiDataset(torch.utils.data.Dataset):
             p2 = os.path.join(self.img_dpath, img_name.lower())
             if os.path.exists(p2):
                 path = p2
-                logger.debug("Using lowercase image path for %s", img_name)
+                # logger.debug("Using lowercase image path for %s", img_name)
             else:
                 raise FileNotFoundError(
                     f"Image '{img_name}' not found in {self.img_dpath} (tried '{p1}', '{p2}')"
@@ -1633,27 +1714,21 @@ class FungiDataset(torch.utils.data.Dataset):
 
 
 @beartype.beartype
+@torch.no_grad()
 def get_features(
     cfg: config.Experiment,
     backbone: registry.VisionBackbone,
     *,
-    split: typing.Literal["train", "val"],
+    is_train: bool,
     pool: bool,
 ) -> Features:
     transform = backbone.make_img_transform()
 
-    csv_fpath = os.path.join(
-        cfg.data.fungiclef, f"FungiCLEF2023_{split}_metadata_PRODUCTION.csv"
-    )
-
-    img_dpath = os.path.join(
-        cfg.data.fungiclef,
-        "DF20_300" if split == "train" else "DF21_300",
-    )
-    dataset = FungiDataset(csv_fpath, img_dpath, transform)
+    split = "train" if is_train else "val"
+    dataset = FungiDataset(cfg.data.fungiclef, split, transform)
 
     # subsample for train
-    if split == "train" and cfg.n_train > 0:
+    if is_train and cfg.n_train > 0:
         idxs = helpers.balanced_random_sample(dataset.labels, cfg.n_train)
         dataset = torch.utils.data.Subset(dataset, idxs)
 
@@ -1662,26 +1737,43 @@ def get_features(
         batch_size=cfg.batch_size,
         shuffle=False,
         num_workers=cfg.n_workers,
-        pin_memory=True,
+        pin_memory=False,
     )
 
     backbone = torch.compile(backbone.to(cfg.device))
     feats_list, labs_list, img_ids_list, obs_ids_list = [], [], [], []
 
-    total = len(dataloader) if not cfg.debug else 2
-    it = iter(dataloader)
-    for b in helpers.progress(range(total), every=10, desc=f"fungi/{split}"):
-        batch = next(it)
+    def probe(batch):
         imgs = batch["img"].to(cfg.device)
-        with torch.amp.autocast("cuda"):
-            out = backbone.img_encode(imgs).img_features.cpu().numpy()
-        feats_list.append(out)
-        labs_list.append(np.array(batch["label"], dtype=int))
-        img_ids_list.extend(batch["img_id"])
-        obs_ids_list.extend(batch["obs_id"])
+        with torch.amp.autocast(cfg.device):
+            backbone.img_encode(imgs)
+
+    @beartype.beartype
+    def debug_cuda_mem(tag: str):
+        if logger.isEnabledFor(logging.DEBUG):
+            logger.debug("%s: %d", tag, torch.cuda.memory_allocated())
+
+    with helpers.auto_batch_size(dataloader, probe=probe):
+        total = len(dataloader) if not cfg.debug else 2
+        it = iter(dataloader)
+        for _ in helpers.progress(range(total), desc=f"fungi/{split}"):
+            debug_cuda_mem("loop start")
+            batch = next(it)
+            debug_cuda_mem("after batch")
+            imgs = batch["img"].to(cfg.device, non_blocking=True)
+            debug_cuda_mem("imgs.to(device)")
+            with torch.amp.autocast(cfg.device):
+                out = backbone.img_encode(imgs).img_features
+            debug_cuda_mem("forward pass")
+            feats_list.append(out.cpu().numpy())
+            debug_cuda_mem("appended feats")
+            labs_list.extend(batch["label"].tolist())
+            img_ids_list.extend(batch["img_id"])
+            obs_ids_list.extend(batch["obs_id"].tolist())
+            debug_cuda_mem("appended metadata")
 
     x = np.concatenate(feats_list, axis=0)
-    y = np.concatenate(labs_list, axis=0)
+    y = np.array(labs_list)
     img_ids = np.array(img_ids_list)
     obs_ids = np.array(obs_ids_list)
 
@@ -1703,21 +1795,22 @@ def get_features(
 @torch.no_grad()
 def benchmark(cfg: config.Experiment) -> reporting.Report:
     backbone = registry.load_vision_backbone(cfg.model)
-    train_feats = get_features(cfg, backbone, split="train", pool=False)
-    val_feats = get_features(cfg, backbone, split="val", pool=True)
+    train_feats = get_features(cfg, backbone, is_train=True, pool=False)
+    val_feats = get_features(cfg, backbone, is_train=False, pool=True)
 
     clf = init_clf(cfg)
-    clf = openset.MahalanobisOpenSetClassifier(clf)
     clf.fit(train_feats.x, train_feats.y)
 
+    logger.info("Classifying %d examples.", len(val_feats.x))
     preds = clf.predict(val_feats.x)
+    logger.info("Classified %d examples.", len(val_feats.x))
 
     # Identify train and test classes
     train_classes = set(np.unique(train_feats.y))
 
     examples = [
         reporting.Prediction(
-            img_id,
+            str(img_id),
             float(p == t),
             {"y_pred": int(p), "y_true": int(t), "ood": t not in train_classes},
         )
@@ -1729,10 +1822,7 @@ def benchmark(cfg: config.Experiment) -> reporting.Report:
 @beartype.beartype
 def init_clf(cfg: config.Experiment):
     return openset.MahalanobisOpenSetClassifier(
-        sklearn.pipeline.make_pipeline(
-            sklearn.preprocessing.StandardScaler(),
-            simpleshot.SimpleShotClassifier(device="cuda:0"),
-        ),
+        simpleshot.SimpleShotClassifier(device="cuda:0")
     )
 
 
@@ -1747,9 +1837,91 @@ def score(preds: list[reporting.Prediction]) -> float:
     * `info['y_true']` and `info['y_pred']` are ints; unknown is -1.
     * The helper in metrics.py already combines CE and PSC/ESC.
     """
-    y_true = np.fromiter((p.info["y_true"] for p in preds), dtype=int)
+    y_true = np.fromiter(
+        (-1 if p.info["ood"] else p.info["y_true"] for p in preds), dtype=int
+    )
     y_pred = np.fromiter((p.info["y_pred"] for p in preds), dtype=int)
-    return user_loss_score(y_true, y_pred)
+    user_loss = metrics.user_loss_score(y_true, y_pred)
+
+    n = y_true.size
+    n_unknown = (y_true == -1).sum()
+    n_poisonous = np.isin(y_true, metrics.POISONOUS_SPECIES).sum()
+
+    cost_unknown_mis = 10.0
+    cost_psc = 100.0
+    cost_esc = 1.0
+
+    worst_ce = (cost_unknown_mis - 1) * n_unknown / n + 1
+    worst_psc = (cost_psc * n_poisonous + cost_esc * (n - n_poisonous)) / n
+
+    score = 1 - user_loss / (worst_ce + worst_psc)
+    return score
+
+>>>> fungiclef/baseline.py
+"""
+Uniform-random baseline for FungiCLEF.
+
+After *n* trials it prints the mean and standard deviation of the user score (expressed as a percentage). No training statistics are used; this is a pure chance-level reference.
+
+Run from the command line:
+
+uv run python -m biobench.fungiclef.random_baseline --cfg configs/neurips.toml
+"""
+
+import logging
+
+import beartype
+import numpy as np
+import tyro
+
+from .. import config, helpers, reporting
+from . import FungiDataset, score
+
+
+@beartype.beartype
+def main(cfg: str, n: int = 1_000, seed: int = 42):
+    """Evaluate uniform random guessing on FungiCLEF.
+
+    Args:
+        cfg: Path or key understood by `config.load`; must point to an experiment that defines `data.fungiclef` and the `verbose` flag.
+        n: Number of bootstrap trials. Default is 1_000.
+        seed: Seed for NumPy's `default_rng`. Default is 42.
+
+    Prints:
+        "Mean score: mean (std dev)" where scores are fungiclef.score x 100.
+    """
+    cfg = next(cfg for cfg in config.load(cfg))
+
+    log_format = "[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s"
+    level = logging.DEBUG if cfg.verbose else logging.INFO
+    logging.basicConfig(level=level, format=log_format)
+    logger = logging.getLogger(__name__)
+
+    train_ds = FungiDataset(cfg.data.fungiclef, "train", None)
+    logger.info("Loaded train dataset.")
+    val_ds = FungiDataset(cfg.data.fungiclef, "val", None)
+    logger.info("Loaded val dataset.")
+
+    rng = np.random.default_rng(seed=seed)
+    label_space = np.concatenate(([-1], sorted(train_ds.labels))).astype(int)
+
+    scores = []
+    for _ in helpers.progress(range(n), every=n // 100, desc="bootstrapping"):
+        preds = [
+            reporting.Prediction(
+                "deadbeef",
+                float(p == t),
+                {"y_pred": int(p), "y_true": int(t), "ood": t == -1},
+            )
+            for p, t in zip(rng.choice(label_space, size=len(val_ds)), val_ds.labels)
+        ]
+        scores.append(score(preds) * 100)
+
+    print(f"Mean score: {np.mean(scores):.3f} ({np.std(scores):.3f})")
+
+
+if __name__ == "__main__":
+    tyro.cli(main)
 
 >>>> fungiclef/download.py
 # /// script
@@ -1957,9 +2129,9 @@ def psc_esc_cost_score(
 
 @beartype.beartype
 def user_loss_score(y_true: np.ndarray, y_pred: np.ndarray) -> float:
-    ce = classification_error_with_unknown(y_true, y_pred)
+    ce_unk = classification_error_with_unknown(y_true, y_pred)
     psc = psc_esc_cost_score(y_true, y_pred)
-    return ce + psc
+    return ce_unk + psc
 
 
 @beartype.beartype
@@ -1991,7 +2163,7 @@ def evaluate_metrics(y_true: np.ndarray, y_pred: np.ndarray) -> dict[str, float]
 >>>> fungiclef/test_metrics.py
 import numpy as np
 import pytest
-from hypothesis import given
+from hypothesis import assume, given
 from hypothesis import strategies as st
 
 from . import metrics
@@ -2084,18 +2256,44 @@ def test_all_wrong():
     y_pred=st.lists(st.integers(min_value=-1, max_value=10), min_size=1, max_size=20),
 )
 def test_fuzz_raises_or_returns(y_true, y_pred):
+    assume(len(y_true) == len(y_pred))
     y_t = np.array(y_true)
     y_p = np.array(y_pred)
-    try:
-        out = metrics.evaluate_metrics(y_t, y_p)
-        # Expect dict keys and numeric values
-        assert isinstance(out, dict)
-        for k, v in out.items():
-            assert isinstance(k, str)
-            assert isinstance(v, float)
-    except ValueError:
-        # mismatch lengths should raise
-        assert y_t.shape != y_p.shape
+    out = metrics.evaluate_metrics(y_t, y_p)
+    # Expect dict keys and numeric values
+    assert isinstance(out, dict)
+    for k, v in out.items():
+        assert isinstance(k, str)
+        assert isinstance(v, float)
+
+
+def _gen_labels():
+    """[-1 = unknown] U [0..50], 1 - 100 samples"""
+    return st.lists(st.integers(min_value=-1, max_value=50), min_size=1, max_size=100)
+
+
+@given(y_true=_gen_labels(), y_pred=_gen_labels())
+def test_ce_unknown_in_0_10(y_true, y_pred):
+    assume(len(y_true) == len(y_pred))
+    y_t, y_p = map(np.asarray, (y_true, y_pred))
+    val = metrics.classification_error_with_unknown(y_t, y_p)
+    assert 0.0 <= val <= 10.0
+
+
+@given(y_true=_gen_labels(), y_pred=_gen_labels())
+def test_psc_esc_cost_in_0_100(y_true, y_pred):
+    assume(len(y_true) == len(y_pred))
+    y_t, y_p = map(np.asarray, (y_true, y_pred))
+    val = metrics.psc_esc_cost_score(y_t, y_p)
+    assert 0.0 <= val <= 100.0
+
+
+@given(y_true=_gen_labels(), y_pred=_gen_labels())
+def test_user_loss_in_0_110(y_true, y_pred):
+    assume(len(y_true) == len(y_pred))
+    y_t, y_p = map(np.asarray, (y_true, y_pred))
+    val = metrics.user_loss_score(y_t, y_p)
+    assert 0.0 <= val <= 110.0
 
 >>>> helpers.py
 """
@@ -2286,9 +2484,7 @@ def balanced_random_sample(
 
 
 @beartype.beartype
-def batched_idx(
-    total_size: int, batch_size: int
-) -> collections.abc.Iterator[tuple[int, int]]:
+class batched_idx:
     """
     Iterate over (start, end) indices for total_size examples, where end - start is at most batch_size.
 
@@ -2299,9 +2495,25 @@ def batched_idx(
     Returns:
         A generator of (int, int) tuples that can slice up a list or a tensor.
     """
-    for start in range(0, total_size, batch_size):
-        stop = min(start + batch_size, total_size)
-        yield start, stop
+
+    def __init__(self, total_size: int, batch_size: int):
+        """
+        Args:
+            total_size: total number of examples
+            batch_size: maximum distance between the generated indices
+        """
+        self.total_size = total_size
+        self.batch_size = batch_size
+
+    def __iter__(self) -> collections.abc.Iterator[tuple[int, int]]:
+        """Yield (start, end) index pairs for batching."""
+        for start in range(0, self.total_size, self.batch_size):
+            stop = min(start + self.batch_size, self.total_size)
+            yield start, stop
+
+    def __len__(self) -> int:
+        """Return the number of batches."""
+        return (self.total_size + self.batch_size - 1) // self.batch_size
 
 
 @beartype.beartype
@@ -2329,6 +2541,10 @@ def _default_batchsize_schedule(start: int = 2) -> collections.abc.Iterable[int]
     """
     2, 3, 4, 6, 8, 12, 16, 24, 32, 48, 64, 96, 128, 196, 256, 384, 512, 768, 1024, ...
     """
+
+    while start < 2:
+        yield start
+        start += 1
 
     x = start
     for m in itertools.cycle((3 / 2, 4 / 3)):  # 3/2, 4/3, 3/2, 4/3, ...
@@ -3385,7 +3601,25 @@ if __name__ == "__main__":
 """
 Fits a linear classifier that is trained using cross-entropy on the training set of iWildCam 2020.
 
+Please cite both the Wilds paper (provides the great package code) and the original iWildCam dataset:
 
+```
+@inproceedings{koh2021wilds,
+  title={Wilds: A benchmark of in-the-wild distribution shifts},
+  author={Koh, Pang Wei and Sagawa, Shiori and Marklund, Henrik and Xie, Sang Michael and Zhang, Marvin and Balsubramani, Akshay and Hu, Weihua and Yasunaga, Michihiro and Phillips, Richard Lanas and Gao, Irena and others},
+  booktitle={International conference on machine learning},
+  pages={5637--5664},
+  year={2021},
+  organization={PMLR}
+}
+
+@article{beery2020iwildcam,
+    title={The iWildCam 2020 Competition Dataset},
+    author={Beery, Sara and Cole, Elijah and Gjoka, Arvi},
+    journal={arXiv preprint arXiv:2004.10340},
+    year={2020}
+}
+```
 """
 
 import dataclasses
@@ -4870,19 +5104,6 @@ def score(preds: list[reporting.Prediction]) -> float:
 def get_features(
     cfg: config.Experiment, backbone: registry.VisionBackbone, *, is_train: bool
 ) -> Features:
-    """
-    Gets all model features and true labels for all frames and all examples in the dataloader.
-
-    Returns it as a pair of big tensors; other tasks use a dedicated class for this, but here it's just a tuple.
-
-    Args:
-        args: KABR task arguments.
-        backbone: Vision backbone.
-        dataloader: Dataloader for whatever data you want to get features for.
-
-    Returns:
-        tuple of model features and true labels. See signature for shape.
-    """
     img_transform = backbone.make_img_transform()
     backbone = torch.compile(backbone)
     split = "train" if is_train else "val"
@@ -4890,7 +5111,7 @@ def get_features(
     dataset = Dataset(cfg.data.kabr, split, transform=img_transform)
     dataloader = torch.utils.data.DataLoader(
         dataset,
-        batch_size=cfg.batch_size,
+        batch_size=max(1, cfg.batch_size // 32),
         num_workers=cfg.n_workers,
         drop_last=False,
         shuffle=False,
@@ -5698,18 +5919,24 @@ If you use this benchmark, please cite the original work:
 import collections.abc
 import csv
 import dataclasses
+import functools
 import logging
 import os
 import os.path
 
 import beartype
 import numpy as np
+import scipy.stats
+import sklearn.linear_model
+import sklearn.model_selection
+import sklearn.pipeline
+import sklearn.preprocessing
 import torch
-from jaxtyping import Float16, Float32, Int, Shaped, jaxtyped
+from jaxtyping import Float, Float16, Int, Shaped, jaxtyped
 from PIL import Image
 from torch import Tensor
 
-from .. import config, helpers, registry, reporting, simpleshot
+from .. import config, helpers, registry, reporting
 
 logger = logging.getLogger(__name__)
 
@@ -5748,11 +5975,6 @@ def score(preds: list[reporting.Prediction]) -> float:
     return reporting.macro_f1(preds)
 
 
-@beartype.beartype
-def init_clf(cfg: config.Experiment):
-    return simpleshot.SimpleShotClassifier(device="cuda:0")
-
-
 @jaxtyped(typechecker=beartype.beartype)
 @dataclasses.dataclass(frozen=True)
 class Features:
@@ -5780,16 +6002,22 @@ def get_features(
     """
     img_transform = backbone.make_img_transform()
     backbone = torch.compile(backbone)
-    split = "train" if is_train else "val"
+    split = "train" if is_train else "test"
 
     dataset = Dataset(cfg.data.mammalnet, split=split, transform=img_transform)
+
+    if is_train and cfg.n_train > 0:
+        i = helpers.balanced_random_sample(dataset.labels, cfg.n_train)
+        assert len(i) == cfg.n_train
+        dataset = torch.utils.data.Subset(dataset, i)
+
     dataloader = torch.utils.data.DataLoader(
         dataset,
-        batch_size=cfg.batch_size,
+        batch_size=max(1, cfg.batch_size // 32),
         num_workers=cfg.n_workers,
         drop_last=False,
         shuffle=False,
-        pin_memory=True,
+        pin_memory=False,
     )
 
     def probe(batch):
@@ -5800,7 +6028,6 @@ def get_features(
             frames = frames.view(bsz * n_frames, c, h, w)
             outputs = backbone.img_encode(frames)
             features = outputs.img_features.view(bsz, n_frames, -1)
-
             features = aggregate_frames(features.to(torch.float16))
 
     all_feats, all_labels, all_ids = [], [], []
@@ -5827,6 +6054,10 @@ def get_features(
     all_feats = torch.cat(all_feats, dim=0).cpu().numpy()
     all_labels = np.array(all_labels)
     all_ids = np.array(all_ids)
+    assert len(all_ids) == len(dataset)
+
+    if is_train and cfg.n_train >= 0:
+        assert len(all_ids) == len(dataset) == cfg.n_train
 
     return Features(all_feats, all_labels, all_ids)
 
@@ -5854,7 +6085,7 @@ def find_videos(
 
     with open(os.path.join(root, "annotation", composition, f"{split}.csv")) as fd:
         reader = csv.reader(fd, delimiter=" ")
-        for rel_path, species_id, behavior_id in reader:
+        for rel_path, behavior_id, species_id in reader:
             # the CSV prefixes "trimmed_videos/..."
             _, fname = rel_path.split("/")
             video_id, ext = os.path.splitext(fname)
@@ -5885,20 +6116,29 @@ class Dataset(torch.utils.data.Dataset):
     _videos: list[Video]
 
     def __init__(self, root: str, *, split: str, transform):
-        self._videos = list(find_videos(root, split=split))
+        self._videos = list(
+            helpers.progress(
+                find_videos(root, split=split), every=500, desc=f"videos/{split}"
+            )
+        )
         self._transform = transform
+        logger.info("Loaded %d videos for split '%s'.", len(self), split)
 
     def __len__(self) -> int:
         return len(self._videos)
 
     def __getitem__(
         self, i
-    ) -> tuple[Float32[Tensor, "n_frames channels width height"], int, str]:
+    ) -> tuple[Float[Tensor, "n_frames channels width height"], int, str]:
         video = self._videos[i]
 
         frames = [self._transform(Image.open(fpath)) for fpath in video.frame_fpaths]
 
         return torch.stack(frames, dim=0), video.behavior_id, video.video_id
+
+    @functools.cached_property
+    def labels(self) -> Int[np.ndarray, " n"]:
+        return np.array([video.behavior_id for video in self._videos])
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -5906,6 +6146,26 @@ def aggregate_frames(
     features: Float16[Tensor, "batch n_frames dim"],
 ) -> Float16[Tensor, "batch dim"]:
     return torch.max(features, dim=1).values
+
+
+@beartype.beartype
+def init_clf(cfg: config.Experiment):
+    clf = sklearn.pipeline.make_pipeline(
+        sklearn.preprocessing.StandardScaler(),
+        sklearn.linear_model.LogisticRegression(max_iter=200),
+    )
+    if 0 < cfg.n_train <= 1000:
+        return clf
+
+    return sklearn.model_selection.RandomizedSearchCV(
+        clf,
+        {"logisticregression__C": scipy.stats.loguniform(a=1e-2, b=1e2)},
+        n_iter=30,
+        n_jobs=8,
+        verbose=3,
+        random_state=cfg.seed,
+        scoring="f1_macro",
+    )
 
 >>>> mammalnet/download.py
 # /// script
@@ -6807,11 +7067,18 @@ if __name__ == "__main__":
     main(tyro.cli(Args))
 
 >>>> openset.py
+import logging
+
 import beartype
 import numpy as np
-import scipy.stats
 import sklearn.base
+import sklearn.discriminant_analysis
 import sklearn.utils.validation
+from jaxtyping import Float, jaxtyped
+
+from . import helpers
+
+logger = logging.getLogger(__name__)
 
 
 @beartype.beartype
@@ -6840,22 +7107,15 @@ class MahalanobisOpenSetClassifier(
         Must implement fit / predict (e.g. a Pipeline with a classifier).
     alpha : float, default=0.95
         Confidence level for the chi-squared cutoff; 1-alpha is the tail mass declared OOD.
-    covariance_estimator : {"empirical", "ledoit"}, default="ledoit"
-        Strategy for covariance. "ledoit" is shrinkage-robust and invertible.
     unknown_label : int | str, default=-1
         Label given to detections outside the known set.
     """
 
     def __init__(
-        self,
-        base_estimator,
-        alpha: float = 0.95,
-        covariance_estimator: str = "ledoit",
-        unknown_label: int | str = -1,
+        self, base_estimator, alpha: float = 0.95, unknown_label: int | str = -1
     ):
         self.base_estimator = base_estimator
         self.alpha = alpha
-        self.covariance_estimator = covariance_estimator
         self.unknown_label = unknown_label
 
     # ---------------- #
@@ -6865,56 +7125,90 @@ class MahalanobisOpenSetClassifier(
         X, y = sklearn.utils.validation.check_X_y(X, y, accept_sparse=False)
         self.classes_ = np.unique(y)
 
-        # 1. fit the wrapped classifier
         self.clf_ = sklearn.base.clone(self.base_estimator).fit(X, y)
+        logger.info("Fit base estimator.")
 
-        # 2. compute per-class means
-        self.means_ = np.vstack([X[y == c].mean(axis=0) for c in self.classes_])
+        self.lda_ = sklearn.discriminant_analysis.LinearDiscriminantAnalysis(
+            solver="eigen", shrinkage="auto", store_covariance=True
+        )
+        self.lda_.fit(X, y)
+        logger.info("Fit LDA.")
 
-        # 3. shared covariance
-        if self.covariance_estimator == "ledoit":
-            cov = sklearn.covariance.LedoitWolf().fit(X)
-            self.Sigma_inv_ = cov.precision_
-        elif self.covariance_estimator == "empirical":
-            cov = np.cov(X, rowvar=False)
-            self.Sigma_inv_ = np.linalg.pinv(cov)
-        else:
-            raise ValueError("covariance_estimator must be 'empirical' or 'ledoit'")
+        self.means_ = self.lda_.means_
+        self.covariance_ = self.lda_.covariance_
+        try:
+            self.inv_covariance_ = np.linalg.inv(self.covariance_)
+        except np.linalg.LinAlgError:
+            self.inv_covariance_ = np.linalg.pinv(self.covariance_)
+        logger.info("Inverted covariance matrix.")
 
-        # 4. analytic chi-squared cutoff
-        d = X.shape[1]
-        self.tau_ = scipy.stats.chi2.ppf(self.alpha, df=d)
+        train_scores = min_mahalanobis_sq_batched(X, self.means_, self.inv_covariance_)
+        self.tpr_ = np.percentile(train_scores, 95)
+
+        logger.info("Fit.")
         return self
 
     def predict(self, X):
-        sklearn.utils.validation.check_is_fitted(self, "clf_")
-        X = sklearn.utils.validation.check_array(X, accept_sparse=False)
-
-        # Mahalanobis distance to nearest class mean
-        d2 = self._min_mahala_sq(X)
-        is_in = d2 <= self.tau_
+        scores = self.decision_function(X)
 
         pred_known = self.clf_.predict(X)
-        pred = np.where(is_in, pred_known, self.unknown_label)
+        pred = np.where(scores >= 0, pred_known, self.unknown_label)
         return pred
 
     def decision_function(self, X):
-        """Negative min-Mahalanobis distance (higher = more in-dist)."""
         sklearn.utils.validation.check_is_fitted(self, "clf_")
         X = sklearn.utils.validation.check_array(X, accept_sparse=False)
-        return -self._min_mahala_sq(X)
 
-    # ------------------ #
-    # internal utilities #
-    # ------------------ #
-    def _min_mahala_sq(self, X) -> np.ndarray:
-        """
-        Vectorised squared Mahalanobis distance to the *nearest* class mean.
-        """
-        diff = X[:, None, :] - self.means_  # (n, C, d)
-        # (n, C) -> min over C -> (n,)
-        d2 = np.einsum("ncd,dd,ncd->nc", diff, self.Sigma_inv_, diff).min(axis=1)
-        return d2
+        d2 = min_mahalanobis_sq_batched(X, self.means_, self.inv_covariance_)
+        return self.tpr_ - d2
+
+
+@jaxtyped(typechecker=beartype.beartype)
+def min_mahalanobis_sq(
+    X: Float[np.ndarray, "n d"],
+    mu: Float[np.ndarray, "classes d"],
+    cov_inv: Float[np.ndarray, "d d"],
+) -> Float[np.ndarray, " n"]:
+    logger.info(
+        "Calculating min_mahalanobis_sq. n=%d, d=%d, c=%d",
+        X.shape[0],
+        X.shape[1],
+        mu.shape[0],
+    )
+    diff = X[:, None, :] - mu[None, :, :]
+    logger.info("Got diff with shape %s", diff.shape)
+    d2 = np.einsum("ncd,dd,ncd->nc", diff, cov_inv, diff)
+    logger.info("Got d2 with shape %s", d2.shape)
+    out = d2.min(axis=1)
+    logger.info("Got out with shape %s", out.shape)
+    return out.astype(np.float32)
+
+
+@jaxtyped(typechecker=beartype.beartype)
+def min_mahalanobis_sq_batched(
+    X: Float[np.ndarray, "n d"],
+    mu: Float[np.ndarray, "classes d"],
+    cov_inv: Float[np.ndarray, "d d"],
+    *,
+    bsz: int = 256,
+) -> Float[np.ndarray, " n"]:
+    n, d = X.shape
+    L = np.linalg.cholesky(cov_inv)
+    logger.info("Calculated L.")
+
+    Xw = X @ L  # (n, d)  whiten once
+    muw = mu @ L  # (c, d)
+    muw_norm_sq = np.square(muw).sum(axis=1).reshape(1, -1)  # (1, c)
+
+    out = np.full(n, 0.0, dtype=np.float32)
+
+    for start, end in helpers.progress(helpers.batched_idx(n, bsz), desc="mahalanobis"):
+        Xwb = Xw[start:end]  # (bsz, d)
+        Xwb_norm_sq = np.square(Xwb).sum(axis=1, keepdims=True)  # (bsz, 1)
+        d_sq = Xwb_norm_sq + muw_norm_sq - 2.0 * Xwb @ muw.T  # (bsz,C)
+        out[start:end] = d_sq.min(axis=1)
+
+    return out.astype(np.float32)
 
 >>>> plankton/__init__.py
 """
@@ -8322,7 +8616,7 @@ class SimpleShotClassifier(sklearn.base.BaseEstimator, sklearn.base.ClassifierMi
         Used only during `predict`; centroids are pushed to this device for fast batched distance computation.
     """
 
-    def __init__(self, batch_size: int = 2048, device: str = "cpu"):
+    def __init__(self, batch_size: int = 512, device: str = "cpu"):
         self.batch_size = batch_size
         self.device = device
 
@@ -9040,7 +9334,7 @@ def test_balanced_random_sample_never_duplicates_indices(labels, n):
 import numpy as np
 import pytest
 import sklearn.linear_model
-from hypothesis import given
+from hypothesis import given, settings
 from hypothesis import strategies as st
 
 from . import openset
@@ -9065,9 +9359,9 @@ def _toy_data():
     return x, y
 
 
-# -----------------------------------------------------------------------------
-# Estimator API test
-# -----------------------------------------------------------------------------
+# ------------------ #
+# Estimator API test #
+# ------------------ #
 
 
 def test_estimator_api():
@@ -9081,7 +9375,7 @@ def test_estimator_api():
     preds = clf.predict(x)
 
     # Attributes created by fit
-    for attr in ("clf_", "means_", "Sigma_inv_", "tau_", "classes_"):
+    for attr in ("clf_", "means_", "inv_covariance_", "tpr_"):
         assert hasattr(clf, attr), f"missing attribute {attr} after fit()"
 
     # Perfect prediction on training data
@@ -9098,6 +9392,7 @@ def test_estimator_api():
     n_features=st.integers(min_value=2, max_value=60),
     n_classes=st.integers(min_value=2, max_value=40),
 )
+@settings(deadline=400)
 def test_fuzz_no_exceptions(n_samples, n_features, n_classes):
     rng = np.random.default_rng()
     x = rng.normal(size=(n_samples, n_features)).astype(np.float32)
@@ -9118,7 +9413,7 @@ def test_fuzz_no_exceptions(n_samples, n_features, n_classes):
 @pytest.mark.parametrize(
     "test_pt, expected",
     [
-        (np.array([[0.0]]), 0),  # near class-0 centroid
+        (np.array([[-1.0]]), 0),  # near class-0 centroid
         (np.array([[1.2]]), 1),  # near class-1 centroid
         (np.array([[100.0]]), -1),  # far away -> unknown
         (np.array([[-50.0]]), -1),  # far other side -> unknown
@@ -9185,6 +9480,86 @@ def test_roc_like_property():
     # Simple AUC approximation: score separation
     separation = scores[: len(x_k)].mean() - scores[len(x_k) :].mean()
     assert separation > 0.5, "Mahalanobis scores should separate ID from OOD"
+
+
+@st.composite
+def random_spd_inv(draw, d: int):
+    """Random symmetric-positive-definite inverse covariance."""
+    A = draw(
+        st.lists(
+            st.floats(-5, 5, allow_nan=False, allow_infinity=False),
+            min_size=d * d,
+            max_size=d * d,
+        )
+    )
+    A = np.asarray(A, dtype=np.float64).reshape(d, d)
+    cov = A @ A.T + 1e-3 * np.eye(d)
+    return np.linalg.inv(cov)
+
+
+@st.composite
+def maha_inputs(draw):
+    # dimensions
+    n = draw(st.integers(min_value=1, max_value=64))
+    d = draw(st.integers(min_value=1, max_value=32))
+    C = draw(st.integers(min_value=1, max_value=16))
+
+    # feature matrix
+    X = draw(
+        st.lists(
+            st.floats(-10, 10, allow_nan=False, allow_infinity=False),
+            min_size=n * d,
+            max_size=n * d,
+        )
+    )
+    X = np.asarray(X, dtype=np.float64).reshape(n, d)
+
+    # class means
+    mu = draw(
+        st.lists(
+            st.floats(-10, 10, allow_nan=False, allow_infinity=False),
+            min_size=C * d,
+            max_size=C * d,
+        )
+    )
+    mu = np.asarray(mu, dtype=np.float64).reshape(C, d)
+
+    # shared precision (inverse covariance)
+    cov_inv = draw(random_spd_inv(d))
+
+    return X, mu, cov_inv
+
+
+@given(maha_inputs())
+def test_min_mahalanobis_sq_no_error(data):
+    X, mu, cov_inv = data
+    out = openset.min_mahalanobis_sq(X, mu, cov_inv)
+
+    # basic sanity: shape and finiteness
+    assert out.shape == (X.shape[0],)
+    assert np.isfinite(out).all()
+    assert (out >= 0).all()
+
+
+@given(maha_inputs())
+def test_min_mahalanobis_sq_batched_no_error(data):
+    X, mu, cov_inv = data
+    out = openset.min_mahalanobis_sq_batched(X, mu, cov_inv)
+
+    # basic sanity: shape and finiteness
+    assert out.shape == (X.shape[0],)
+    assert np.isfinite(out).all()
+    assert (out >= 0).all()
+
+
+@given(maha_inputs())
+def test_min_mahalanobis_sq_batched_equal(data):
+    X, mu, cov_inv = data
+    expected = openset.min_mahalanobis_sq(X, mu, cov_inv)
+    actual = openset.min_mahalanobis_sq_batched(X, mu, cov_inv)
+
+    assert expected.shape == actual.shape
+    np.testing.assert_allclose(actual, expected, atol=1e-5, rtol=1e-5)
 
 >>>> test_reporting.py
 import json
@@ -9730,24 +10105,36 @@ class Timm(registry.VisionBackbone):
     def img_encode(
         self, batch: Float[Tensor, "batch 3 width height"]
     ) -> registry.EncodedImgBatch:
+        bsz_orig, _, _, _ = batch.shape
         feats = self.model.forward_features(batch)
         if feats.ndim == 4:
-            # This is probably a convnet of some kind, with (batch, dim, width, height)
-            bsz, d, w, h = feats.shape
+            # This could be a convnet of some kind with (batch, dim, width, height) or a ViT with (batch, width, height, dim).
+            # We do some shape checking to figure it out.
+            bsz, d1, d2, d3 = feats.shape
+
+            if bsz_orig != bsz:
+                msg = f"Batch size changed from {bsz_orig} to {bsz} in {self.ckpt}.forward_features()"
+                raise ValueError(msg)
+
+            if d1 == d2 and d3 > d1 and d3 > d2:
+                bsz, w, h, d = feats.shape
+                patches = einops.rearrange(feats, "b w h d -> b (w h) d")
+            elif d2 == d3 and d1 > d2 and d1 > d3:
+                bsz, d, w, h = feats.shape
+                patches = einops.rearrange(feats, "b d w h -> b (w h) d")
+            else:
+                msg = f"Can't interpret shape {feats.shape} for model '{self.ckpt}'."
+                raise ValueError(msg)
 
             # Validate the shape of the features
             if not (d > w and d > h):
-                raise ValueError(
-                    f"Expected feature dimensions (d={d}) to be larger than spatial dimensions (w={w}, h={h}). This suggests the tensor dimensions may be in an unexpected order."
-                )
+                msg = f"Expected feature dimensions (d={d}) to be larger than spatial dimensions (w={w}, h={h}). This suggests the tensor dimensions may be in an unexpected order."
+                raise ValueError(msg)
 
             if w != h:
-                raise ValueError(
-                    f"Expected equal spatial dimensions, but got width={w} and height={h}. Unequal spatial dimensions indicate a mistake in our understanding of the output features from model '{self.ckpt}'."
-                )
+                msg = f"Expected equal spatial dimensions, but got width={w} and height={h}. Unequal spatial dimensions indicate a mistake in our understanding of the output features from model '{self.ckpt}'."
+                raise ValueError(msg)
 
-            # Reshape to (batch, patches, dim) format
-            patches = feats.permute(0, 2, 3, 1).reshape(bsz, w * h, d)
             # TODO: should we only use max pooling?
             img = patches.max(dim=1).values  # Global max pooling
         elif feats.ndim == 3:

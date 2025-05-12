@@ -323,24 +323,36 @@ class Timm(registry.VisionBackbone):
     def img_encode(
         self, batch: Float[Tensor, &#34;batch 3 width height&#34;]
     ) -&gt; registry.EncodedImgBatch:
+        bsz_orig, _, _, _ = batch.shape
         feats = self.model.forward_features(batch)
         if feats.ndim == 4:
-            # This is probably a convnet of some kind, with (batch, dim, width, height)
-            bsz, d, w, h = feats.shape
+            # This could be a convnet of some kind with (batch, dim, width, height) or a ViT with (batch, width, height, dim).
+            # We do some shape checking to figure it out.
+            bsz, d1, d2, d3 = feats.shape
+
+            if bsz_orig != bsz:
+                msg = f&#34;Batch size changed from {bsz_orig} to {bsz} in {self.ckpt}.forward_features()&#34;
+                raise ValueError(msg)
+
+            if d1 == d2 and d3 &gt; d1 and d3 &gt; d2:
+                bsz, w, h, d = feats.shape
+                patches = einops.rearrange(feats, &#34;b w h d -&gt; b (w h) d&#34;)
+            elif d2 == d3 and d1 &gt; d2 and d1 &gt; d3:
+                bsz, d, w, h = feats.shape
+                patches = einops.rearrange(feats, &#34;b d w h -&gt; b (w h) d&#34;)
+            else:
+                msg = f&#34;Can&#39;t interpret shape {feats.shape} for model &#39;{self.ckpt}&#39;.&#34;
+                raise ValueError(msg)
 
             # Validate the shape of the features
             if not (d &gt; w and d &gt; h):
-                raise ValueError(
-                    f&#34;Expected feature dimensions (d={d}) to be larger than spatial dimensions (w={w}, h={h}). This suggests the tensor dimensions may be in an unexpected order.&#34;
-                )
+                msg = f&#34;Expected feature dimensions (d={d}) to be larger than spatial dimensions (w={w}, h={h}). This suggests the tensor dimensions may be in an unexpected order.&#34;
+                raise ValueError(msg)
 
             if w != h:
-                raise ValueError(
-                    f&#34;Expected equal spatial dimensions, but got width={w} and height={h}. Unequal spatial dimensions indicate a mistake in our understanding of the output features from model &#39;{self.ckpt}&#39;.&#34;
-                )
+                msg = f&#34;Expected equal spatial dimensions, but got width={w} and height={h}. Unequal spatial dimensions indicate a mistake in our understanding of the output features from model &#39;{self.ckpt}&#39;.&#34;
+                raise ValueError(msg)
 
-            # Reshape to (batch, patches, dim) format
-            patches = feats.permute(0, 2, 3, 1).reshape(bsz, w * h, d)
             # TODO: should we only use max pooling?
             img = patches.max(dim=1).values  # Global max pooling
         elif feats.ndim == 3:

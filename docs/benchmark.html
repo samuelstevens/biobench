@@ -43,9 +43,6 @@ el.replaceWith(d);
 Run <code>python benchmark.py --help</code> to see all the options.</p>
 <p>Note that you will have to download all the datasets, but each dataset includes its own download script with instructions.
 For example, see <code><a title="biobench.newt.download" href="biobench/newt/download.html">biobench.newt.download</a></code> for an example.</p>
-<h1 id="design">Design</h1>
-<p>biobench is designed to make it easy to add both models and tasks that work with other models and tasks.</p>
-<p>To add a new model, look at <code><a title="biobench.registry" href="biobench/registry.html">biobench.registry</a></code>'s documentation, which includes a tutorial for adding a new model.</p>
 </section>
 <section>
 </section>
@@ -86,7 +83,7 @@ def get_skip_reason(
 <div class="desc"><p>Return a short reason string if we should skip (None -&gt; keep).</p></div>
 </dd>
 <dt id="benchmark.main"><code class="name flex">
-<span>def <span class="ident">main</span></span>(<span>cfgs: list[str] = ['configs/neurips.toml'],<br>dry_run: bool = True,<br>max_pending: int = 8)</span>
+<span>def <span class="ident">main</span></span>(<span>cfgs: list[str], dry_run: bool = True, max_pending: int = 8)</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -94,11 +91,7 @@ def get_skip_reason(
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">@beartype.beartype
-def main(
-    cfgs: list[str] = [os.path.join(&#34;configs&#34;, &#34;neurips.toml&#34;)],
-    dry_run: bool = True,
-    max_pending: int = 8,
-):
+def main(cfgs: list[str], dry_run: bool = True, max_pending: int = 8):
     &#34;&#34;&#34;
     Launch all jobs, using either a local GPU or a Slurm cluster. Then report results and save to disk.
 
@@ -264,9 +257,7 @@ def worker(task_name: str, cfg: config.Experiment) -&gt; reporting.Report:
 </article>
 <nav id="sidebar">
 <div class="toc">
-<ul>
-<li><a href="#design">Design</a></li>
-</ul>
+<ul></ul>
 </div>
 <ul id="index">
 <li><h3><a href="#header-functions">Functions</a></h3>

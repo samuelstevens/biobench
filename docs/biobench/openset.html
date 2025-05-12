@@ -44,13 +44,82 @@ el.replaceWith(d);
 <section>
 </section>
 <section>
+<h2 class="section-title" id="header-functions">Functions</h2>
+<dl>
+<dt id="biobench.openset.min_mahalanobis_sq"><code class="name flex">
+<span>def <span class="ident">min_mahalanobis_sq</span></span>(<span>X: jaxtyping.Float[ndarray, 'n d'],<br>mu: jaxtyping.Float[ndarray, 'classes d'],<br>cov_inv: jaxtyping.Float[ndarray, 'd d']) ‑> jaxtyping.Float[ndarray, 'n']</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
+def min_mahalanobis_sq(
+    X: Float[np.ndarray, &#34;n d&#34;],
+    mu: Float[np.ndarray, &#34;classes d&#34;],
+    cov_inv: Float[np.ndarray, &#34;d d&#34;],
+) -&gt; Float[np.ndarray, &#34; n&#34;]:
+    logger.info(
+        &#34;Calculating min_mahalanobis_sq. n=%d, d=%d, c=%d&#34;,
+        X.shape[0],
+        X.shape[1],
+        mu.shape[0],
+    )
+    diff = X[:, None, :] - mu[None, :, :]
+    logger.info(&#34;Got diff with shape %s&#34;, diff.shape)
+    d2 = np.einsum(&#34;ncd,dd,ncd-&gt;nc&#34;, diff, cov_inv, diff)
+    logger.info(&#34;Got d2 with shape %s&#34;, d2.shape)
+    out = d2.min(axis=1)
+    logger.info(&#34;Got out with shape %s&#34;, out.shape)
+    return out.astype(np.float32)</code></pre>
+</details>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.openset.min_mahalanobis_sq_batched"><code class="name flex">
+<span>def <span class="ident">min_mahalanobis_sq_batched</span></span>(<span>X: jaxtyping.Float[ndarray, 'n d'],<br>mu: jaxtyping.Float[ndarray, 'classes d'],<br>cov_inv: jaxtyping.Float[ndarray, 'd d'],<br>*,<br>bsz: int = 256) ‑> jaxtyping.Float[ndarray, 'n']</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
+def min_mahalanobis_sq_batched(
+    X: Float[np.ndarray, &#34;n d&#34;],
+    mu: Float[np.ndarray, &#34;classes d&#34;],
+    cov_inv: Float[np.ndarray, &#34;d d&#34;],
+    *,
+    bsz: int = 256,
+) -&gt; Float[np.ndarray, &#34; n&#34;]:
+    n, d = X.shape
+    L = np.linalg.cholesky(cov_inv)
+    logger.info(&#34;Calculated L.&#34;)
+
+    Xw = X @ L  # (n, d)  whiten once
+    muw = mu @ L  # (c, d)
+    muw_norm_sq = np.square(muw).sum(axis=1).reshape(1, -1)  # (1, c)
+
+    out = np.full(n, 0.0, dtype=np.float32)
+
+    for start, end in helpers.progress(helpers.batched_idx(n, bsz), desc=&#34;mahalanobis&#34;):
+        Xwb = Xw[start:end]  # (bsz, d)
+        Xwb_norm_sq = np.square(Xwb).sum(axis=1, keepdims=True)  # (bsz, 1)
+        d_sq = Xwb_norm_sq + muw_norm_sq - 2.0 * Xwb @ muw.T  # (bsz,C)
+        out[start:end] = d_sq.min(axis=1)
+
+    return out.astype(np.float32)</code></pre>
+</details>
+<div class="desc"></div>
+</dd>
+</dl>
 </section>
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
 <dt id="biobench.openset.MahalanobisOpenSetClassifier"><code class="flex name class">
 <span>class <span class="ident">MahalanobisOpenSetClassifier</span></span>
-<span>(</span><span>base_estimator,<br>alpha: float = 0.95,<br>covariance_estimator: str = 'ledoit',<br>unknown_label: int | str = -1)</span>
+<span>(</span><span>base_estimator, alpha: float = 0.95, unknown_label: int | str = -1)</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -83,22 +152,15 @@ class MahalanobisOpenSetClassifier(
         Must implement fit / predict (e.g. a Pipeline with a classifier).
     alpha : float, default=0.95
         Confidence level for the chi-squared cutoff; 1-alpha is the tail mass declared OOD.
-    covariance_estimator : {&#34;empirical&#34;, &#34;ledoit&#34;}, default=&#34;ledoit&#34;
-        Strategy for covariance. &#34;ledoit&#34; is shrinkage-robust and invertible.
     unknown_label : int | str, default=-1
         Label given to detections outside the known set.
     &#34;&#34;&#34;
 
     def __init__(
-        self,
-        base_estimator,
-        alpha: float = 0.95,
-        covariance_estimator: str = &#34;ledoit&#34;,
-        unknown_label: int | str = -1,
+        self, base_estimator, alpha: float = 0.95, unknown_label: int | str = -1
     ):
         self.base_estimator = base_estimator
         self.alpha = alpha
-        self.covariance_estimator = covariance_estimator
         self.unknown_label = unknown_label
 
     # ---------------- #
@@ -108,56 +170,42 @@ class MahalanobisOpenSetClassifier(
         X, y = sklearn.utils.validation.check_X_y(X, y, accept_sparse=False)
         self.classes_ = np.unique(y)
 
-        # 1. fit the wrapped classifier
         self.clf_ = sklearn.base.clone(self.base_estimator).fit(X, y)
+        logger.info(&#34;Fit base estimator.&#34;)
 
-        # 2. compute per-class means
-        self.means_ = np.vstack([X[y == c].mean(axis=0) for c in self.classes_])
+        self.lda_ = sklearn.discriminant_analysis.LinearDiscriminantAnalysis(
+            solver=&#34;eigen&#34;, shrinkage=&#34;auto&#34;, store_covariance=True
+        )
+        self.lda_.fit(X, y)
+        logger.info(&#34;Fit LDA.&#34;)
 
-        # 3. shared covariance
-        if self.covariance_estimator == &#34;ledoit&#34;:
-            cov = sklearn.covariance.LedoitWolf().fit(X)
-            self.Sigma_inv_ = cov.precision_
-        elif self.covariance_estimator == &#34;empirical&#34;:
-            cov = np.cov(X, rowvar=False)
-            self.Sigma_inv_ = np.linalg.pinv(cov)
-        else:
-            raise ValueError(&#34;covariance_estimator must be &#39;empirical&#39; or &#39;ledoit&#39;&#34;)
+        self.means_ = self.lda_.means_
+        self.covariance_ = self.lda_.covariance_
+        try:
+            self.inv_covariance_ = np.linalg.inv(self.covariance_)
+        except np.linalg.LinAlgError:
+            self.inv_covariance_ = np.linalg.pinv(self.covariance_)
+        logger.info(&#34;Inverted covariance matrix.&#34;)
 
-        # 4. analytic chi-squared cutoff
-        d = X.shape[1]
-        self.tau_ = scipy.stats.chi2.ppf(self.alpha, df=d)
+        train_scores = min_mahalanobis_sq_batched(X, self.means_, self.inv_covariance_)
+        self.tpr_ = np.percentile(train_scores, 95)
+
+        logger.info(&#34;Fit.&#34;)
         return self
 
     def predict(self, X):
-        sklearn.utils.validation.check_is_fitted(self, &#34;clf_&#34;)
-        X = sklearn.utils.validation.check_array(X, accept_sparse=False)
-
-        # Mahalanobis distance to nearest class mean
-        d2 = self._min_mahala_sq(X)
-        is_in = d2 &lt;= self.tau_
+        scores = self.decision_function(X)
 
         pred_known = self.clf_.predict(X)
-        pred = np.where(is_in, pred_known, self.unknown_label)
+        pred = np.where(scores &gt;= 0, pred_known, self.unknown_label)
         return pred
 
     def decision_function(self, X):
-        &#34;&#34;&#34;Negative min-Mahalanobis distance (higher = more in-dist).&#34;&#34;&#34;
         sklearn.utils.validation.check_is_fitted(self, &#34;clf_&#34;)
         X = sklearn.utils.validation.check_array(X, accept_sparse=False)
-        return -self._min_mahala_sq(X)
 
-    # ------------------ #
-    # internal utilities #
-    # ------------------ #
-    def _min_mahala_sq(self, X) -&gt; np.ndarray:
-        &#34;&#34;&#34;
-        Vectorised squared Mahalanobis distance to the *nearest* class mean.
-        &#34;&#34;&#34;
-        diff = X[:, None, :] - self.means_  # (n, C, d)
-        # (n, C) -&gt; min over C -&gt; (n,)
-        d2 = np.einsum(&#34;ncd,dd,ncd-&gt;nc&#34;, diff, self.Sigma_inv_, diff).min(axis=1)
-        return d2</code></pre>
+        d2 = min_mahalanobis_sq_batched(X, self.means_, self.inv_covariance_)
+        return self.tpr_ - d2</code></pre>
 </details>
 <div class="desc"><p>Wraps an arbitrary scikit-learn multiclass estimator with a Mahalanobis out-of-distribution detector.
 Unknown samples are assigned <code>unknown_label</code>.</p>
@@ -178,8 +226,6 @@ editor = {S. Bengio and H. Wallach and H. Larochelle and K. Grauman and N. Cesa-
 <dd>Must implement fit / predict (e.g. a Pipeline with a classifier).</dd>
 <dt><strong><code>alpha</code></strong> :&ensp;<code>float</code>, default=<code>0.95</code></dt>
 <dd>Confidence level for the chi-squared cutoff; 1-alpha is the tail mass declared OOD.</dd>
-<dt><strong><code>covariance_estimator</code></strong> :&ensp;<code>{"empirical", "ledoit"}</code>, default=<code>"ledoit"</code></dt>
-<dd>Strategy for covariance. "ledoit" is shrinkage-robust and invertible.</dd>
 <dt><strong><code>unknown_label</code></strong> :&ensp;<code>int | str</code>, default=<code>-1</code></dt>
 <dd>Label given to detections outside the known set.</dd>
 </dl></div>
@@ -201,12 +247,13 @@ editor = {S. Bengio and H. Wallach and H. Larochelle and K. Grauman and N. Cesa-
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def decision_function(self, X):
-    &#34;&#34;&#34;Negative min-Mahalanobis distance (higher = more in-dist).&#34;&#34;&#34;
     sklearn.utils.validation.check_is_fitted(self, &#34;clf_&#34;)
     X = sklearn.utils.validation.check_array(X, accept_sparse=False)
-    return -self._min_mahala_sq(X)</code></pre>
+
+    d2 = min_mahalanobis_sq_batched(X, self.means_, self.inv_covariance_)
+    return self.tpr_ - d2</code></pre>
 </details>
-<div class="desc"><p>Negative min-Mahalanobis distance (higher = more in-dist).</p></div>
+<div class="desc"></div>
 </dd>
 <dt id="biobench.openset.MahalanobisOpenSetClassifier.fit"><code class="name flex">
 <span>def <span class="ident">fit</span></span>(<span>self, X, y)</span>
@@ -220,25 +267,27 @@ editor = {S. Bengio and H. Wallach and H. Larochelle and K. Grauman and N. Cesa-
     X, y = sklearn.utils.validation.check_X_y(X, y, accept_sparse=False)
     self.classes_ = np.unique(y)
 
-    # 1. fit the wrapped classifier
     self.clf_ = sklearn.base.clone(self.base_estimator).fit(X, y)
+    logger.info(&#34;Fit base estimator.&#34;)
 
-    # 2. compute per-class means
-    self.means_ = np.vstack([X[y == c].mean(axis=0) for c in self.classes_])
+    self.lda_ = sklearn.discriminant_analysis.LinearDiscriminantAnalysis(
+        solver=&#34;eigen&#34;, shrinkage=&#34;auto&#34;, store_covariance=True
+    )
+    self.lda_.fit(X, y)
+    logger.info(&#34;Fit LDA.&#34;)
 
-    # 3. shared covariance
-    if self.covariance_estimator == &#34;ledoit&#34;:
-        cov = sklearn.covariance.LedoitWolf().fit(X)
-        self.Sigma_inv_ = cov.precision_
-    elif self.covariance_estimator == &#34;empirical&#34;:
-        cov = np.cov(X, rowvar=False)
-        self.Sigma_inv_ = np.linalg.pinv(cov)
-    else:
-        raise ValueError(&#34;covariance_estimator must be &#39;empirical&#39; or &#39;ledoit&#39;&#34;)
+    self.means_ = self.lda_.means_
+    self.covariance_ = self.lda_.covariance_
+    try:
+        self.inv_covariance_ = np.linalg.inv(self.covariance_)
+    except np.linalg.LinAlgError:
+        self.inv_covariance_ = np.linalg.pinv(self.covariance_)
+    logger.info(&#34;Inverted covariance matrix.&#34;)
 
-    # 4. analytic chi-squared cutoff
-    d = X.shape[1]
-    self.tau_ = scipy.stats.chi2.ppf(self.alpha, df=d)
+    train_scores = min_mahalanobis_sq_batched(X, self.means_, self.inv_covariance_)
+    self.tpr_ = np.percentile(train_scores, 95)
+
+    logger.info(&#34;Fit.&#34;)
     return self</code></pre>
 </details>
 <div class="desc"></div>
@@ -252,15 +301,10 @@ editor = {S. Bengio and H. Wallach and H. Larochelle and K. Grauman and N. Cesa-
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def predict(self, X):
-    sklearn.utils.validation.check_is_fitted(self, &#34;clf_&#34;)
-    X = sklearn.utils.validation.check_array(X, accept_sparse=False)
-
-    # Mahalanobis distance to nearest class mean
-    d2 = self._min_mahala_sq(X)
-    is_in = d2 &lt;= self.tau_
+    scores = self.decision_function(X)
 
     pred_known = self.clf_.predict(X)
-    pred = np.where(is_in, pred_known, self.unknown_label)
+    pred = np.where(scores &gt;= 0, pred_known, self.unknown_label)
     return pred</code></pre>
 </details>
 <div class="desc"></div>
@@ -376,6 +420,12 @@ default=<code>sklearn.utils.metadata_routing.UNCHANGED</code></dt>
 <li><h3>Super-module</h3>
 <ul>
 <li><code><a title="biobench" href="index.html">biobench</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-functions">Functions</a></h3>
+<ul class="">
+<li><code><a title="biobench.openset.min_mahalanobis_sq" href="#biobench.openset.min_mahalanobis_sq">min_mahalanobis_sq</a></code></li>
+<li><code><a title="biobench.openset.min_mahalanobis_sq_batched" href="#biobench.openset.min_mahalanobis_sq_batched">min_mahalanobis_sq_batched</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>

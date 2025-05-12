@@ -1,0 +1,380 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+<meta name="generator" content="pdoc3 0.11.6">
+<title>biobench.mammalnet.download API documentation</title>
+<meta name="description" content="Download the MammalNet benchmark and its annotations.">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script type="text/x-mathjax-config">MathJax.Hub.Config({ tex2jax: { inlineMath: [ ['$','$'], ["\\(","\\)"] ], processEscapes: true } });</script>
+<script async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS_CHTML" integrity="sha256-kZafAc6mZvK3W3v1pHOcUix30OHQN6pU/NO2oFkqZVw=" crossorigin></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => {
+hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+hljs.highlightAll();
+/* Collapse source docstrings */
+setTimeout(() => {
+[...document.querySelectorAll('.hljs.language-python > .hljs-string')]
+.filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
+.forEach(el => {
+let d = document.createElement('details');
+d.classList.add('hljs-string');
+d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
+el.replaceWith(d);
+});
+}, 100);
+})</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>biobench.mammalnet.download</code></h1>
+</header>
+<section id="section-intro">
+<p>Download the MammalNet benchmark and its annotations.</p>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-functions">Functions</h2>
+<dl>
+<dt id="biobench.mammalnet.download.main"><code class="name flex">
+<span>def <span class="ident">main</span></span>(<span>args: <a title="biobench.mammalnet.download.Args" href="#biobench.mammalnet.download.Args">Args</a>) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@beartype.beartype
+def main(args: Args) -&gt; None:
+    base = pathlib.Path(args.dir).expanduser().resolve()
+    chunk = args.chunk_size_kb * 1024
+
+    if args.download_videos:
+        target = base / pathlib.Path(VIDEOS_URL).name
+        archive = _download(VIDEOS_URL, target, chunk)
+
+        _extract(archive, base)
+        print(f&#34;Extracted videos into {base}&#34;)
+
+    if args.download_annotations:
+        target = base / pathlib.Path(ANNOTATIONS_URL).name
+        archive = _download(ANNOTATIONS_URL, target, chunk)
+
+        _extract(archive, base)
+        print(f&#34;Extracted annotations into {base}&#34;)
+
+    if args.trim_videos:
+        _trim_all(base, args.n_workers)
+
+    if args.check_stats:
+        _stats(base, args.n_workers)
+
+    if args.sample_frames:
+        _sample_frames(base, n_workers=args.n_workers, n_frames=args.n_frames)</code></pre>
+</details>
+<div class="desc"></div>
+</dd>
+</dl>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="biobench.mammalnet.download.Annotation"><code class="flex name class">
+<span>class <span class="ident">Annotation</span></span>
+<span>(</span><span>label: str, start_s: float, end_s: float)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@beartype.beartype
+@dataclasses.dataclass(frozen=True)
+class Annotation:
+    label: str
+    &#34;&#34;&#34;The class label for this annotation segment.&#34;&#34;&#34;
+    start_s: float
+    &#34;&#34;&#34;Start time in seconds.&#34;&#34;&#34;
+    end_s: float
+    &#34;&#34;&#34;End time in seconds.&#34;&#34;&#34;
+
+    @property
+    def duration_s(self) -&gt; float:
+        return self.end_s - self.start_s</code></pre>
+</details>
+<div class="desc"><p>Annotation(label: str, start_s: float, end_s: float)</p></div>
+<h3>Instance variables</h3>
+<dl>
+<dt id="biobench.mammalnet.download.Annotation.duration_s"><code class="name">prop <span class="ident">duration_s</span> : float</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@property
+def duration_s(self) -&gt; float:
+    return self.end_s - self.start_s</code></pre>
+</details>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.mammalnet.download.Annotation.end_s"><code class="name">var <span class="ident">end_s</span> : float</code></dt>
+<dd>
+<div class="desc"><p>End time in seconds.</p></div>
+</dd>
+<dt id="biobench.mammalnet.download.Annotation.label"><code class="name">var <span class="ident">label</span> : str</code></dt>
+<dd>
+<div class="desc"><p>The class label for this annotation segment.</p></div>
+</dd>
+<dt id="biobench.mammalnet.download.Annotation.start_s"><code class="name">var <span class="ident">start_s</span> : float</code></dt>
+<dd>
+<div class="desc"><p>Start time in seconds.</p></div>
+</dd>
+</dl>
+</dd>
+<dt id="biobench.mammalnet.download.Args"><code class="flex name class">
+<span>class <span class="ident">Args</span></span>
+<span>(</span><span>dir: str = '.',<br>chunk_size_kb: int = 1024,<br>download_videos: bool = False,<br>download_annotations: bool = False,<br>trim_videos: bool = False,<br>check_stats: bool = False,<br>sample_frames: bool = False,<br>n_frames: int = 32,<br>n_workers: int = 16)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@beartype.beartype
+@dataclasses.dataclass(frozen=True)
+class Args:
+    dir: str = &#34;.&#34;
+    &#34;&#34;&#34;Where to save the downloaded archives and (optionally) extract them.&#34;&#34;&#34;
+    chunk_size_kb: int = 1024
+    &#34;&#34;&#34;Download chunk size (KB). 1024 KB ~ 1 MB.&#34;&#34;&#34;
+    download_videos: bool = False
+    &#34;&#34;&#34;Whether to download the video archive.&#34;&#34;&#34;
+    download_annotations: bool = False
+    &#34;&#34;&#34;Whether to download the annotation archive.&#34;&#34;&#34;
+    trim_videos: bool = False
+    &#34;&#34;&#34;Whether to create trimmed video clips based on annotations.&#34;&#34;&#34;
+    check_stats: bool = False
+    &#34;&#34;&#34;Whether to check video length statistics for both full and trimmed videos.&#34;&#34;&#34;
+    sample_frames: bool = False
+    &#34;&#34;&#34;Whether to extract stills from trimmed clips.&#34;&#34;&#34;
+    n_frames: int = 32
+    &#34;&#34;&#34;How many frames per clip.&#34;&#34;&#34;
+    n_workers: int = 16
+    &#34;&#34;&#34;Number of parallel `ffmpeg`s to spawn.&#34;&#34;&#34;</code></pre>
+</details>
+<div class="desc"><p>Args(dir: str = '.', chunk_size_kb: int = 1024, download_videos: bool = False, download_annotations: bool = False, trim_videos: bool = False, check_stats: bool = False, sample_frames: bool = False, n_frames: int = 32, n_workers: int = 16)</p></div>
+<h3>Instance variables</h3>
+<dl>
+<dt id="biobench.mammalnet.download.Args.check_stats"><code class="name">var <span class="ident">check_stats</span> : bool</code></dt>
+<dd>
+<div class="desc"><p>Whether to check video length statistics for both full and trimmed videos.</p></div>
+</dd>
+<dt id="biobench.mammalnet.download.Args.chunk_size_kb"><code class="name">var <span class="ident">chunk_size_kb</span> : int</code></dt>
+<dd>
+<div class="desc"><p>Download chunk size (KB). 1024 KB ~ 1 MB.</p></div>
+</dd>
+<dt id="biobench.mammalnet.download.Args.dir"><code class="name">var <span class="ident">dir</span> : str</code></dt>
+<dd>
+<div class="desc"><p>Where to save the downloaded archives and (optionally) extract them.</p></div>
+</dd>
+<dt id="biobench.mammalnet.download.Args.download_annotations"><code class="name">var <span class="ident">download_annotations</span> : bool</code></dt>
+<dd>
+<div class="desc"><p>Whether to download the annotation archive.</p></div>
+</dd>
+<dt id="biobench.mammalnet.download.Args.download_videos"><code class="name">var <span class="ident">download_videos</span> : bool</code></dt>
+<dd>
+<div class="desc"><p>Whether to download the video archive.</p></div>
+</dd>
+<dt id="biobench.mammalnet.download.Args.n_frames"><code class="name">var <span class="ident">n_frames</span> : int</code></dt>
+<dd>
+<div class="desc"><p>How many frames per clip.</p></div>
+</dd>
+<dt id="biobench.mammalnet.download.Args.n_workers"><code class="name">var <span class="ident">n_workers</span> : int</code></dt>
+<dd>
+<div class="desc"><p>Number of parallel <code>ffmpeg</code>s to spawn.</p></div>
+</dd>
+<dt id="biobench.mammalnet.download.Args.sample_frames"><code class="name">var <span class="ident">sample_frames</span> : bool</code></dt>
+<dd>
+<div class="desc"><p>Whether to extract stills from trimmed clips.</p></div>
+</dd>
+<dt id="biobench.mammalnet.download.Args.trim_videos"><code class="name">var <span class="ident">trim_videos</span> : bool</code></dt>
+<dd>
+<div class="desc"><p>Whether to create trimmed video clips based on annotations.</p></div>
+</dd>
+</dl>
+</dd>
+<dt id="biobench.mammalnet.download.Detection"><code class="flex name class">
+<span>class <span class="ident">Detection</span></span>
+<span>(</span><span>vid_id: str,<br>taxonomy: list[dict[str, str]],<br>annotations: list[<a title="biobench.mammalnet.download.Annotation" href="#biobench.mammalnet.download.Annotation">Annotation</a>],<br>duration_s: int,<br>resolution: tuple[int, int],<br>fps: int,<br>subset: str,<br>url: str)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@beartype.beartype
+@dataclasses.dataclass(frozen=True)
+class Detection:
+    vid_id: str
+    &#34;&#34;&#34;Unique identifier for the video clip.&#34;&#34;&#34;
+    taxonomy: list[dict[str, str]]
+    &#34;&#34;&#34;Taxonomic classification information for the detected animal.&#34;&#34;&#34;
+    annotations: list[Annotation]
+    &#34;&#34;&#34;List of time segments with behavior annotations.&#34;&#34;&#34;
+    duration_s: int
+    &#34;&#34;&#34;Total duration of the video in seconds.&#34;&#34;&#34;
+    resolution: tuple[int, int]
+    &#34;&#34;&#34;Video resolution in pixels&#34;&#34;&#34;
+    fps: int
+    &#34;&#34;&#34;Frames per second of the video.&#34;&#34;&#34;
+    subset: str
+    &#34;&#34;&#34;Dataset split this video belongs to (e.g., &#39;train&#39;, &#39;val&#39;, &#39;test&#39;).&#34;&#34;&#34;
+    url: str
+    &#34;&#34;&#34;Original source URL for the video.&#34;&#34;&#34;
+
+    @classmethod
+    def from_json(cls, vid_id, dct):
+        annotations = [
+            Annotation(
+                label=ann[&#34;label&#34;],
+                start_s=float(ann[&#34;segment&#34;][0]),
+                end_s=float(ann[&#34;segment&#34;][1]),
+            )
+            for ann in dct.pop(&#34;annotations&#34;)
+        ]
+        taxonomy = dct.pop(&#34;taxnomy&#34;)
+        duration_s = dct.pop(&#34;duration&#34;)
+        resolution = tuple(int(x) for x in dct.pop(&#34;resolution&#34;).split(&#34;x&#34;))
+        return cls(
+            vid_id=vid_id,
+            taxonomy=taxonomy,
+            annotations=annotations,
+            duration_s=duration_s,
+            resolution=resolution,
+            **dct,
+        )</code></pre>
+</details>
+<div class="desc"><p>Detection(vid_id: str, taxonomy: list[dict[str, str]], annotations: list[biobench.mammalnet.download.Annotation], duration_s: int, resolution: tuple[int, int], fps: int, subset: str, url: str)</p></div>
+<h3>Static methods</h3>
+<dl>
+<dt id="biobench.mammalnet.download.Detection.from_json"><code class="name flex">
+<span>def <span class="ident">from_json</span></span>(<span>vid_id, dct)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Instance variables</h3>
+<dl>
+<dt id="biobench.mammalnet.download.Detection.annotations"><code class="name">var <span class="ident">annotations</span> : list[<a title="biobench.mammalnet.download.Annotation" href="#biobench.mammalnet.download.Annotation">Annotation</a>]</code></dt>
+<dd>
+<div class="desc"><p>List of time segments with behavior annotations.</p></div>
+</dd>
+<dt id="biobench.mammalnet.download.Detection.duration_s"><code class="name">var <span class="ident">duration_s</span> : int</code></dt>
+<dd>
+<div class="desc"><p>Total duration of the video in seconds.</p></div>
+</dd>
+<dt id="biobench.mammalnet.download.Detection.fps"><code class="name">var <span class="ident">fps</span> : int</code></dt>
+<dd>
+<div class="desc"><p>Frames per second of the video.</p></div>
+</dd>
+<dt id="biobench.mammalnet.download.Detection.resolution"><code class="name">var <span class="ident">resolution</span> : tuple[int, int]</code></dt>
+<dd>
+<div class="desc"><p>Video resolution in pixels</p></div>
+</dd>
+<dt id="biobench.mammalnet.download.Detection.subset"><code class="name">var <span class="ident">subset</span> : str</code></dt>
+<dd>
+<div class="desc"><p>Dataset split this video belongs to (e.g., 'train', 'val', 'test').</p></div>
+</dd>
+<dt id="biobench.mammalnet.download.Detection.taxonomy"><code class="name">var <span class="ident">taxonomy</span> : list[dict[str, str]]</code></dt>
+<dd>
+<div class="desc"><p>Taxonomic classification information for the detected animal.</p></div>
+</dd>
+<dt id="biobench.mammalnet.download.Detection.url"><code class="name">var <span class="ident">url</span> : str</code></dt>
+<dd>
+<div class="desc"><p>Original source URL for the video.</p></div>
+</dd>
+<dt id="biobench.mammalnet.download.Detection.vid_id"><code class="name">var <span class="ident">vid_id</span> : str</code></dt>
+<dd>
+<div class="desc"><p>Unique identifier for the video clip.</p></div>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="biobench.mammalnet" href="index.html">biobench.mammalnet</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-functions">Functions</a></h3>
+<ul class="">
+<li><code><a title="biobench.mammalnet.download.main" href="#biobench.mammalnet.download.main">main</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="biobench.mammalnet.download.Annotation" href="#biobench.mammalnet.download.Annotation">Annotation</a></code></h4>
+<ul class="">
+<li><code><a title="biobench.mammalnet.download.Annotation.duration_s" href="#biobench.mammalnet.download.Annotation.duration_s">duration_s</a></code></li>
+<li><code><a title="biobench.mammalnet.download.Annotation.end_s" href="#biobench.mammalnet.download.Annotation.end_s">end_s</a></code></li>
+<li><code><a title="biobench.mammalnet.download.Annotation.label" href="#biobench.mammalnet.download.Annotation.label">label</a></code></li>
+<li><code><a title="biobench.mammalnet.download.Annotation.start_s" href="#biobench.mammalnet.download.Annotation.start_s">start_s</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="biobench.mammalnet.download.Args" href="#biobench.mammalnet.download.Args">Args</a></code></h4>
+<ul class="">
+<li><code><a title="biobench.mammalnet.download.Args.check_stats" href="#biobench.mammalnet.download.Args.check_stats">check_stats</a></code></li>
+<li><code><a title="biobench.mammalnet.download.Args.chunk_size_kb" href="#biobench.mammalnet.download.Args.chunk_size_kb">chunk_size_kb</a></code></li>
+<li><code><a title="biobench.mammalnet.download.Args.dir" href="#biobench.mammalnet.download.Args.dir">dir</a></code></li>
+<li><code><a title="biobench.mammalnet.download.Args.download_annotations" href="#biobench.mammalnet.download.Args.download_annotations">download_annotations</a></code></li>
+<li><code><a title="biobench.mammalnet.download.Args.download_videos" href="#biobench.mammalnet.download.Args.download_videos">download_videos</a></code></li>
+<li><code><a title="biobench.mammalnet.download.Args.n_frames" href="#biobench.mammalnet.download.Args.n_frames">n_frames</a></code></li>
+<li><code><a title="biobench.mammalnet.download.Args.n_workers" href="#biobench.mammalnet.download.Args.n_workers">n_workers</a></code></li>
+<li><code><a title="biobench.mammalnet.download.Args.sample_frames" href="#biobench.mammalnet.download.Args.sample_frames">sample_frames</a></code></li>
+<li><code><a title="biobench.mammalnet.download.Args.trim_videos" href="#biobench.mammalnet.download.Args.trim_videos">trim_videos</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="biobench.mammalnet.download.Detection" href="#biobench.mammalnet.download.Detection">Detection</a></code></h4>
+<ul class="two-column">
+<li><code><a title="biobench.mammalnet.download.Detection.annotations" href="#biobench.mammalnet.download.Detection.annotations">annotations</a></code></li>
+<li><code><a title="biobench.mammalnet.download.Detection.duration_s" href="#biobench.mammalnet.download.Detection.duration_s">duration_s</a></code></li>
+<li><code><a title="biobench.mammalnet.download.Detection.fps" href="#biobench.mammalnet.download.Detection.fps">fps</a></code></li>
+<li><code><a title="biobench.mammalnet.download.Detection.from_json" href="#biobench.mammalnet.download.Detection.from_json">from_json</a></code></li>
+<li><code><a title="biobench.mammalnet.download.Detection.resolution" href="#biobench.mammalnet.download.Detection.resolution">resolution</a></code></li>
+<li><code><a title="biobench.mammalnet.download.Detection.subset" href="#biobench.mammalnet.download.Detection.subset">subset</a></code></li>
+<li><code><a title="biobench.mammalnet.download.Detection.taxonomy" href="#biobench.mammalnet.download.Detection.taxonomy">taxonomy</a></code></li>
+<li><code><a title="biobench.mammalnet.download.Detection.url" href="#biobench.mammalnet.download.Detection.url">url</a></code></li>
+<li><code><a title="biobench.mammalnet.download.Detection.vid_id" href="#biobench.mammalnet.download.Detection.vid_id">vid_id</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
+</footer>
+</body>
+</html>

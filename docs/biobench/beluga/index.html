@@ -79,7 +79,7 @@ But we are simply interested in seeing if models embed images of the same indivi
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
 <dt id="biobench.beluga.benchmark"><code class="name flex">
-<span>def <span class="ident">benchmark</span></span>(<span>cfg: <a title="biobench.config.Experiment" href="../config.html#biobench.config.Experiment">Experiment</a>) ‑> tuple[<a title="biobench.config.Model" href="../config.html#biobench.config.Model">Model</a>, <a title="biobench.reporting.Report" href="../reporting.html#biobench.reporting.Report">Report</a>]</span>
+<span>def <span class="ident">benchmark</span></span>(<span>cfg: <a title="biobench.config.Experiment" href="../config.html#biobench.config.Experiment">Experiment</a>) ‑> <a title="biobench.reporting.Report" href="../reporting.html#biobench.reporting.Report">Report</a></span>
 </code></dt>
 <dd>
 <details class="source">
@@ -87,10 +87,8 @@ But we are simply interested in seeing if models embed images of the same indivi
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">@beartype.beartype
-def benchmark(cfg: config.Experiment) -&gt; tuple[config.Model, reporting.Report]:
-    &#34;&#34;&#34;
-    Run the BelugaID benchmark. See this module&#39;s documentation for more details.
-    &#34;&#34;&#34;
+def benchmark(cfg: config.Experiment) -&gt; reporting.Report:
+    &#34;&#34;&#34;Run the BelugaID benchmark.&#34;&#34;&#34;
     backbone = registry.load_vision_backbone(cfg.model)
 
     # Embed all images.
@@ -99,22 +97,38 @@ def benchmark(cfg: config.Experiment) -&gt; tuple[config.Model, reporting.Report
     encoder = sklearn.preprocessing.OrdinalEncoder(dtype=int)
     y = encoder.fit_transform(features.labels.reshape(-1, 1)).reshape(-1)
 
-    clf = sklearn.neighbors.NearestNeighbors(n_neighbors=1)
+    clf = sklearn.neighbors.KNeighborsClassifier(n_neighbors=5, weights=&#34;uniform&#34;)
     clf.fit(features.x, y)
-    preds = clf.kneighbors(return_distance=False)
+    y_hat = clf.predict(None)
 
-    examples = [
+    preds = [
         reporting.Prediction(
-            str(image_id),
+            str(img_id),
             float(pred == true),
             {&#34;y_pred&#34;: pred.item(), &#34;y_true&#34;: true.item()},
         )
-        for image_id, pred, true in zip(features.ids, preds, y)
+        for img_id, pred, true in zip(features.ids, y_hat, y)
     ]
 
-    return cfg.model, reporting.Report(&#34;BelugaID&#34;, examples)</code></pre>
+    return reporting.Report(&#34;beluga&#34;, preds, cfg)</code></pre>
 </details>
-<div class="desc"><p>Run the BelugaID benchmark. See this module's documentation for more details.</p></div>
+<div class="desc"><p>Run the BelugaID benchmark.</p></div>
+</dd>
+<dt id="biobench.beluga.collate_fn"><code class="name flex">
+<span>def <span class="ident">collate_fn</span></span>(<span>batch)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@beartype.beartype
+def collate_fn(batch):
+    imgs = torch.stack([img for img, _ in batch])
+    metadata = [meta for _, meta in batch]
+    return imgs, metadata</code></pre>
+</details>
+<div class="desc"></div>
 </dd>
 <dt id="biobench.beluga.get_features"><code class="name flex">
 <span>def <span class="ident">get_features</span></span>(<span>cfg: <a title="biobench.config.Experiment" href="../config.html#biobench.config.Experiment">Experiment</a>,<br>backbone: <a title="biobench.registry.VisionBackbone" href="../registry.html#biobench.registry.VisionBackbone">VisionBackbone</a>) ‑> <a title="biobench.beluga.Features" href="#biobench.beluga.Features">Features</a></span>
@@ -135,46 +149,55 @@ def get_features(cfg: config.Experiment, backbone: registry.VisionBackbone) -&gt
         backbone: visual backbone.
     &#34;&#34;&#34;
     img_transform = backbone.make_img_transform()
-    backbone = torch.compile(backbone.to(args.device))
+    backbone = torch.compile(backbone.to(cfg.device))
 
-    if not os.path.isdir(args.datadir):
-        msg = f&#34;Path &#39;{args.datadir}&#39; doesn&#39;t exist. Did you download the Beluga dataset? See the docstring at the top of this file for instructions. If you did download it, pass the path with &#39;--beluga-args.datadir&#39;; see --help for more.&#34;
+    if not os.path.isdir(cfg.data.beluga):
+        msg = f&#34;Path &#39;{cfg.data.beluga}&#39; doesn&#39;t exist. Did you download the Beluga dataset?&#34;
         raise ValueError(msg)
 
     dataset = torchvision.datasets.CocoDetection(
-        os.path.join(args.datadir, &#34;beluga.coco&#34;, &#34;images&#34;, &#34;train2022&#34;),
+        os.path.join(cfg.data.beluga, &#34;beluga.coco&#34;, &#34;images&#34;, &#34;train2022&#34;),
         os.path.join(
-            args.datadir, &#34;beluga.coco&#34;, &#34;annotations&#34;, &#34;instances_train2022.json&#34;
+            cfg.data.beluga, &#34;beluga.coco&#34;, &#34;annotations&#34;, &#34;instances_train2022.json&#34;
         ),
         img_transform,
     )
 
     dataloader = torch.utils.data.DataLoader(
         dataset=dataset,
-        batch_size=args.batch_size,
-        num_workers=args.n_workers,
+        batch_size=cfg.batch_size,
+        num_workers=cfg.n_workers,
         drop_last=False,
         shuffle=False,
-        collate_fn=lambda batch: tuple(zip(*batch)),
+        collate_fn=collate_fn,
     )
 
     all_features, all_labels, all_ids = [], [], []
 
-    total = len(dataloader) if not args.debug else 2
-    it = iter(dataloader)
-    for b in helpers.progress(range(total), every=args.log_every, desc=&#34;embed&#34;):
-        images, metadata = next(it)
-        images = torch.stack(images).to(args.device)
+    def probe(batch):
+        imgs, _ = batch
+        imgs = imgs.to(cfg.device, non_blocking=True)
 
         with torch.amp.autocast(&#34;cuda&#34;):
-            features = backbone.img_encode(images).img_features
+            backbone.img_encode(imgs).img_features
 
-        labels = [meta[0][&#34;name&#34;] for meta in metadata]
-        ids = [str(meta[0][&#34;image_id&#34;]) for meta in metadata]
+    with helpers.auto_batch_size(dataloader, probe=probe):
+        total = len(dataloader) if not cfg.debug else 2
+        it = iter(dataloader)
+        for b in helpers.progress(range(total), desc=&#34;beluga&#34;):
+            imgs, metadata = next(it)
+            imgs = imgs.to(cfg.device, non_blocking=True)
 
-        all_features.append(features.cpu())
-        all_labels.extend(labels)
-        all_ids.extend(ids)
+            with torch.amp.autocast(&#34;cuda&#34;):
+                features = backbone.img_encode(imgs).img_features
+
+            assert all(len(meta) == 1 for meta in metadata)
+            labels = [meta[0][&#34;name&#34;] for meta in metadata]
+            ids = [str(meta[0][&#34;image_id&#34;]) for meta in metadata]
+
+            all_features.append(features.cpu())
+            all_labels.extend(labels)
+            all_ids.extend(ids)
 
     all_features = torch.cat(all_features, dim=0).cpu()
     all_ids = np.array(all_ids)
@@ -190,6 +213,20 @@ def get_features(cfg: config.Experiment, backbone: registry.VisionBackbone) -&gt
 <dt><strong><code>backbone</code></strong></dt>
 <dd>visual backbone.</dd>
 </dl></div>
+</dd>
+<dt id="biobench.beluga.score"><code class="name flex">
+<span>def <span class="ident">score</span></span>(<span>preds: list[<a title="biobench.reporting.Prediction" href="../reporting.html#biobench.reporting.Prediction">Prediction</a>]) ‑> float</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@beartype.beartype
+def score(preds: list[reporting.Prediction]) -&gt; float:
+    return reporting.macro_f1(preds)</code></pre>
+</details>
+<div class="desc"></div>
 </dd>
 </dl>
 </section>
@@ -208,11 +245,7 @@ def get_features(cfg: config.Experiment, backbone: registry.VisionBackbone) -&gt
 <pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
 @dataclasses.dataclass(frozen=True)
 class Features:
-    &#34;&#34;&#34;
-    A block of features.
-
-    Note: In Jax, this could be a tuple of arrays, all with a leading dimension of `n`. Instead, in PyTorch, it&#39;s easier to make it its own class. Oh well.
-    &#34;&#34;&#34;
+    &#34;&#34;&#34;A block of features.&#34;&#34;&#34;
 
     x: Float[Tensor, &#34;n dim&#34;]
     &#34;&#34;&#34;Input features; from a `biobench.registry.VisionBackbone`.&#34;&#34;&#34;
@@ -228,8 +261,7 @@ class Features:
     def n(self) -&gt; int:
         return len(self.ids)</code></pre>
 </details>
-<div class="desc"><p>A block of features.</p>
-<p>Note: In Jax, this could be a tuple of arrays, all with a leading dimension of <code>n</code>. Instead, in PyTorch, it's easier to make it its own class. Oh well.</p></div>
+<div class="desc"><p>A block of features.</p></div>
 <h3>Instance variables</h3>
 <dl>
 <dt id="biobench.beluga.Features.ids"><code class="name">var <span class="ident">ids</span> : jaxtyping.Shaped[ndarray, 'n']</code></dt>
@@ -295,7 +327,9 @@ def n(self) -&gt; int:
 <li><h3><a href="#header-functions">Functions</a></h3>
 <ul class="">
 <li><code><a title="biobench.beluga.benchmark" href="#biobench.beluga.benchmark">benchmark</a></code></li>
+<li><code><a title="biobench.beluga.collate_fn" href="#biobench.beluga.collate_fn">collate_fn</a></code></li>
 <li><code><a title="biobench.beluga.get_features" href="#biobench.beluga.get_features">get_features</a></code></li>
+<li><code><a title="biobench.beluga.score" href="#biobench.beluga.score">score</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>

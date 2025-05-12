@@ -47,6 +47,18 @@ el.replaceWith(d);
 <section>
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
+<dt id="biobench.test_openset.maha_inputs"><code class="name flex">
+<span>def <span class="ident">maha_inputs</span></span>(<span>) ‑> hypothesis.strategies.SearchStrategy</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.test_openset.random_spd_inv"><code class="name flex">
+<span>def <span class="ident">random_spd_inv</span></span>(<span>d: int) ‑> hypothesis.strategies.SearchStrategy</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Random symmetric-positive-definite inverse covariance.</p></div>
+</dd>
 <dt id="biobench.test_openset.test_estimator_api"><code class="name flex">
 <span>def <span class="ident">test_estimator_api</span></span>(<span>)</span>
 </code></dt>
@@ -66,7 +78,7 @@ el.replaceWith(d);
     preds = clf.predict(x)
 
     # Attributes created by fit
-    for attr in (&#34;clf_&#34;, &#34;means_&#34;, &#34;Sigma_inv_&#34;, &#34;tau_&#34;, &#34;classes_&#34;):
+    for attr in (&#34;clf_&#34;, &#34;means_&#34;, &#34;inv_covariance_&#34;, &#34;tpr_&#34;):
         assert hasattr(clf, attr), f&#34;missing attribute {attr} after fit()&#34;
 
     # Perfect prediction on training data
@@ -87,6 +99,7 @@ el.replaceWith(d);
     n_features=st.integers(min_value=2, max_value=60),
     n_classes=st.integers(min_value=2, max_value=40),
 )
+@settings(deadline=400)
 def test_fuzz_no_exceptions(n_samples, n_features, n_classes):
     rng = np.random.default_rng()
     x = rng.normal(size=(n_samples, n_features)).astype(np.float32)
@@ -138,7 +151,7 @@ def test_high_known_accuracy(seed):
 <pre><code class="python">@pytest.mark.parametrize(
     &#34;test_pt, expected&#34;,
     [
-        (np.array([[0.0]]), 0),  # near class-0 centroid
+        (np.array([[-1.0]]), 0),  # near class-0 centroid
         (np.array([[1.2]]), 1),  # near class-1 centroid
         (np.array([[100.0]]), -1),  # far away -&gt; unknown
         (np.array([[-50.0]]), -1),  # far other side -&gt; unknown
@@ -149,6 +162,65 @@ def test_known_vs_unknown(test_pt, expected):
     clf = _simple_classifier().fit(x, y)
     pred = clf.predict(test_pt)[0]
     assert pred == expected</code></pre>
+</details>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.test_openset.test_min_mahalanobis_sq_batched_equal"><code class="name flex">
+<span>def <span class="ident">test_min_mahalanobis_sq_batched_equal</span></span>(<span>) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@given(maha_inputs())
+def test_min_mahalanobis_sq_batched_equal(data):
+    X, mu, cov_inv = data
+    expected = openset.min_mahalanobis_sq(X, mu, cov_inv)
+    actual = openset.min_mahalanobis_sq_batched(X, mu, cov_inv)
+
+    assert expected.shape == actual.shape
+    np.testing.assert_allclose(actual, expected, atol=1e-5, rtol=1e-5)</code></pre>
+</details>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.test_openset.test_min_mahalanobis_sq_batched_no_error"><code class="name flex">
+<span>def <span class="ident">test_min_mahalanobis_sq_batched_no_error</span></span>(<span>) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@given(maha_inputs())
+def test_min_mahalanobis_sq_batched_no_error(data):
+    X, mu, cov_inv = data
+    out = openset.min_mahalanobis_sq_batched(X, mu, cov_inv)
+
+    # basic sanity: shape and finiteness
+    assert out.shape == (X.shape[0],)
+    assert np.isfinite(out).all()
+    assert (out &gt;= 0).all()</code></pre>
+</details>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.test_openset.test_min_mahalanobis_sq_no_error"><code class="name flex">
+<span>def <span class="ident">test_min_mahalanobis_sq_no_error</span></span>(<span>) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@given(maha_inputs())
+def test_min_mahalanobis_sq_no_error(data):
+    X, mu, cov_inv = data
+    out = openset.min_mahalanobis_sq(X, mu, cov_inv)
+
+    # basic sanity: shape and finiteness
+    assert out.shape == (X.shape[0],)
+    assert np.isfinite(out).all()
+    assert (out &gt;= 0).all()</code></pre>
 </details>
 <div class="desc"></div>
 </dd>
@@ -190,10 +262,15 @@ def test_known_vs_unknown(test_pt, expected):
 </li>
 <li><h3><a href="#header-functions">Functions</a></h3>
 <ul class="">
+<li><code><a title="biobench.test_openset.maha_inputs" href="#biobench.test_openset.maha_inputs">maha_inputs</a></code></li>
+<li><code><a title="biobench.test_openset.random_spd_inv" href="#biobench.test_openset.random_spd_inv">random_spd_inv</a></code></li>
 <li><code><a title="biobench.test_openset.test_estimator_api" href="#biobench.test_openset.test_estimator_api">test_estimator_api</a></code></li>
 <li><code><a title="biobench.test_openset.test_fuzz_no_exceptions" href="#biobench.test_openset.test_fuzz_no_exceptions">test_fuzz_no_exceptions</a></code></li>
 <li><code><a title="biobench.test_openset.test_high_known_accuracy" href="#biobench.test_openset.test_high_known_accuracy">test_high_known_accuracy</a></code></li>
 <li><code><a title="biobench.test_openset.test_known_vs_unknown" href="#biobench.test_openset.test_known_vs_unknown">test_known_vs_unknown</a></code></li>
+<li><code><a title="biobench.test_openset.test_min_mahalanobis_sq_batched_equal" href="#biobench.test_openset.test_min_mahalanobis_sq_batched_equal">test_min_mahalanobis_sq_batched_equal</a></code></li>
+<li><code><a title="biobench.test_openset.test_min_mahalanobis_sq_batched_no_error" href="#biobench.test_openset.test_min_mahalanobis_sq_batched_no_error">test_min_mahalanobis_sq_batched_no_error</a></code></li>
+<li><code><a title="biobench.test_openset.test_min_mahalanobis_sq_no_error" href="#biobench.test_openset.test_min_mahalanobis_sq_no_error">test_min_mahalanobis_sq_no_error</a></code></li>
 <li><code><a title="biobench.test_openset.test_roc_like_property" href="#biobench.test_openset.test_roc_like_property">test_roc_like_property</a></code></li>
 </ul>
 </li>

@@ -28,6 +28,8 @@ dependencies = [
     "gdown>=5.2.0",
     "safetensors>=0.5.3",
     "einops>=0.8.1",
+    "scipy>=1.15.2",
+    "mlcroissant>=1.0.17",
 ]
 
 [tool.ruff.lint]
@@ -46,4 +48,5 @@ dev = [
     "pyinstrument>=5.0.1",
     "transformers>=4.51.3",
     "pytest-timeout>=2.3.1",
+    "ffmpeg-python>=0.2.0",
 ]

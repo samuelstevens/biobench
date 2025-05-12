@@ -94,7 +94,7 @@ def l2_normalize(
 <dl>
 <dt id="biobench.simpleshot.SimpleShotClassifier"><code class="flex name class">
 <span>class <span class="ident">SimpleShotClassifier</span></span>
-<span>(</span><span>batch_size: int = 2048, device: str = 'cpu')</span>
+<span>(</span><span>batch_size: int = 512, device: str = 'cpu')</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -112,7 +112,7 @@ class SimpleShotClassifier(sklearn.base.BaseEstimator, sklearn.base.ClassifierMi
         Used only during `predict`; centroids are pushed to this device for fast batched distance computation.
     &#34;&#34;&#34;
 
-    def __init__(self, batch_size: int = 2048, device: str = &#34;cpu&#34;):
+    def __init__(self, batch_size: int = 512, device: str = &#34;cpu&#34;):
         self.batch_size = batch_size
         self.device = device
 

@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
 <meta name="generator" content="pdoc3 0.11.6">
-<title>biobench.beluga.download API documentation</title>
-<meta name="description" content="Downloads the Begula whale dataset from lila.science.">
+<title>biobench.fishnet.baseline API documentation</title>
+<meta name="description" content="Uniform-random baseline for FishNet functional-trait prediction …">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
@@ -35,10 +35,19 @@ el.replaceWith(d);
 <main>
 <article id="content">
 <header>
-<h1 class="title">Module <code>biobench.beluga.download</code></h1>
+<h1 class="title">Module <code>biobench.fishnet.baseline</code></h1>
 </header>
 <section id="section-intro">
-<p>Downloads the Begula whale dataset from lila.science.</p>
+<p>Uniform-random baseline for FishNet functional-trait prediction.</p>
+<p>Each bootstrap trial:</p>
+<ol>
+<li>Loads the FishNet test split specified in the experiment config.</li>
+<li>Generates a 9-bit prediction vector for every image by i.i.d. Bernoulli(0.5).</li>
+<li>Scores macro-F1 via the existing <code>fishnet.score</code> helper.</li>
+</ol>
+<p>After <em>n</em> trials it prints the mean and standard deviation of the macro-F1 (expressed as a percentage). No training statistics are used; this is a pure chance-level reference.</p>
+<p>Run from the command line:</p>
+<p>uv run python -m biobench.fishnet.random_baseline &ndash;cfg configs/neurips.toml</p>
 </section>
 <section>
 </section>
@@ -47,101 +56,69 @@ el.replaceWith(d);
 <section>
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
-<dt id="biobench.beluga.download.main"><code class="name flex">
-<span>def <span class="ident">main</span></span>(<span>args: <a title="biobench.beluga.download.Args" href="#biobench.beluga.download.Args">Args</a>)</span>
+<dt id="biobench.fishnet.baseline.main"><code class="name flex">
+<span>def <span class="ident">main</span></span>(<span>cfg: str, n: int = 1000, seed: int = 42)</span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def main(args: Args):
-    &#34;&#34;&#34;Download and unzip the data.&#34;&#34;&#34;
-    os.makedirs(args.dir, exist_ok=True)
+<pre><code class="python">@beartype.beartype
+def main(cfg: str, n: int = 1_000, seed: int = 42):
+    &#34;&#34;&#34;Estimate the macro-F1 of uniform random guessing on FishNet.
 
-    chunk_size = int(args.chunk_size_kb * 1024)
+    Args:
+        cfg: Path or key understood by `config.load`; must point to an experiment that defines `data.fishnet` and the `verbose` flag.
+        n: Number of bootstrap trials. Default is 1_000.
+        seed: Seed for NumPy&#39;s `default_rng`. Default is 42.
 
-    images_tar_path = os.path.join(args.dir, &#34;beluga.coco.tar.gz&#34;)
+    Prints:
+        &#34;Mean score: mean (std dev)&#34; where scores are macro-F1 x 100.
+    &#34;&#34;&#34;
+    cfg = next(cfg for cfg in config.load(cfg))
 
-    if args.download:
-        # Download images.
-        r = requests.get(URL, stream=True)
-        r.raise_for_status()
-        t = tqdm.tqdm(
-            total=int(r.headers[&#34;content-length&#34;]),
-            unit=&#34;B&#34;,
-            unit_scale=1,
-            unit_divisor=1024,
-            desc=&#34;Downloading images&#34;,
-        )
-        with open(images_tar_path, &#34;wb&#34;) as fd:
-            for chunk in r.iter_content(chunk_size=chunk_size):
-                fd.write(chunk)
-                t.update(len(chunk))
-        t.close()
+    log_format = &#34;[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s&#34;
+    level = logging.DEBUG if cfg.verbose else logging.INFO
+    logging.basicConfig(level=level, format=log_format)
+    logger = logging.getLogger(__name__)
 
-        print(f&#34;Downloaded images: {images_tar_path}.&#34;)
+    rng = np.random.default_rng(seed)
 
-    if args.expand:
-        with tarfile.open(images_tar_path, &#34;r&#34;) as tar:
-            for member in tqdm.tqdm(
-                tar, desc=&#34;Extracting images&#34;, total=len(tar.getnames())
-            ):
-                tar.extract(member, path=args.dir, filter=&#34;data&#34;)
+    test_ds = ImageDataset(cfg.data.fishnet, &#34;test.csv&#34;, transform=None)
+    logger.info(&#34;Loaded test dataset.&#34;)
 
-        print(f&#34;Extracted images: {args.dir}.&#34;)</code></pre>
+    scores = []
+    for _ in helpers.progress(range(n), every=n // 100, desc=&#34;bootstrapping&#34;):
+        y_pred = (rng.random((len(test_ds), 9)) &lt; 0.5).astype(int)
+        preds = [
+            reporting.Prediction(
+                &#34;deadbeef&#34;,
+                (p == t).mean().item(),
+                {&#34;y_pred&#34;: p.tolist(), &#34;y_true&#34;: t.tolist()},
+            )
+            for p, t in zip(y_pred, test_ds.labels)
+        ]
+        scores.append(score(preds) * 100)
+
+    print(f&#34;Mean score: {np.mean(scores):.3f} ({np.std(scores):.3f})&#34;)</code></pre>
 </details>
-<div class="desc"><p>Download and unzip the data.</p></div>
+<div class="desc"><p>Estimate the macro-F1 of uniform random guessing on FishNet.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>cfg</code></strong></dt>
+<dd>Path or key understood by <code>config.load</code>; must point to an experiment that defines <code>data.fishnet</code> and the <code>verbose</code> flag.</dd>
+<dt><strong><code>n</code></strong></dt>
+<dd>Number of bootstrap trials. Default is 1_000.</dd>
+<dt><strong><code>seed</code></strong></dt>
+<dd>Seed for NumPy's <code>default_rng</code>. Default is 42.</dd>
+</dl>
+<h2 id="prints">Prints</h2>
+<p>"Mean score: mean (std dev)" where scores are macro-F1 x 100.</p></div>
 </dd>
 </dl>
 </section>
 <section>
-<h2 class="section-title" id="header-classes">Classes</h2>
-<dl>
-<dt id="biobench.beluga.download.Args"><code class="flex name class">
-<span>class <span class="ident">Args</span></span>
-<span>(</span><span>dir: str = '.',<br>chunk_size_kb: int = 1,<br>download: bool = True,<br>expand: bool = True)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">@dataclasses.dataclass(frozen=True)
-class Args:
-    &#34;&#34;&#34;Configuration.&#34;&#34;&#34;
-
-    dir: str = &#34;.&#34;
-    &#34;&#34;&#34;where to save data.&#34;&#34;&#34;
-    chunk_size_kb: int = 1
-    &#34;&#34;&#34;how many KB to download at a time before writing to file.&#34;&#34;&#34;
-    download: bool = True
-    &#34;&#34;&#34;whether to download images.&#34;&#34;&#34;
-    expand: bool = True
-    &#34;&#34;&#34;whether to expand tarfiles into a folder.&#34;&#34;&#34;</code></pre>
-</details>
-<div class="desc"><p>Configuration.</p></div>
-<h3>Instance variables</h3>
-<dl>
-<dt id="biobench.beluga.download.Args.chunk_size_kb"><code class="name">var <span class="ident">chunk_size_kb</span> : int</code></dt>
-<dd>
-<div class="desc"><p>how many KB to download at a time before writing to file.</p></div>
-</dd>
-<dt id="biobench.beluga.download.Args.dir"><code class="name">var <span class="ident">dir</span> : str</code></dt>
-<dd>
-<div class="desc"><p>where to save data.</p></div>
-</dd>
-<dt id="biobench.beluga.download.Args.download"><code class="name">var <span class="ident">download</span> : bool</code></dt>
-<dd>
-<div class="desc"><p>whether to download images.</p></div>
-</dd>
-<dt id="biobench.beluga.download.Args.expand"><code class="name">var <span class="ident">expand</span> : bool</code></dt>
-<dd>
-<div class="desc"><p>whether to expand tarfiles into a folder.</p></div>
-</dd>
-</dl>
-</dd>
-</dl>
 </section>
 </article>
 <nav id="sidebar">
@@ -151,25 +128,12 @@ class Args:
 <ul id="index">
 <li><h3>Super-module</h3>
 <ul>
-<li><code><a title="biobench.beluga" href="index.html">biobench.beluga</a></code></li>
+<li><code><a title="biobench.fishnet" href="index.html">biobench.fishnet</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-functions">Functions</a></h3>
 <ul class="">
-<li><code><a title="biobench.beluga.download.main" href="#biobench.beluga.download.main">main</a></code></li>
-</ul>
-</li>
-<li><h3><a href="#header-classes">Classes</a></h3>
-<ul>
-<li>
-<h4><code><a title="biobench.beluga.download.Args" href="#biobench.beluga.download.Args">Args</a></code></h4>
-<ul class="">
-<li><code><a title="biobench.beluga.download.Args.chunk_size_kb" href="#biobench.beluga.download.Args.chunk_size_kb">chunk_size_kb</a></code></li>
-<li><code><a title="biobench.beluga.download.Args.dir" href="#biobench.beluga.download.Args.dir">dir</a></code></li>
-<li><code><a title="biobench.beluga.download.Args.download" href="#biobench.beluga.download.Args.download">download</a></code></li>
-<li><code><a title="biobench.beluga.download.Args.expand" href="#biobench.beluga.download.Args.expand">expand</a></code></li>
-</ul>
-</li>
+<li><code><a title="biobench.fishnet.baseline.main" href="#biobench.fishnet.baseline.main">main</a></code></li>
 </ul>
 </li>
 </ul>

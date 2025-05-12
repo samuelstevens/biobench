@@ -178,7 +178,7 @@ def get_features(
             all_labels.extend(labels)
             all_ids.extend(ids)
 
-    all_features = torch.cat(all_features, dim=0).cpu().numpy()
+    all_features = torch.cat(all_features, dim=0).cpu().to(torch.float16).numpy()
     all_ids = np.array(all_ids)
     all_labels = torch.tensor(all_labels).numpy()
     if is_train and cfg.n_train &gt; 0:
@@ -202,22 +202,34 @@ def init_clf(cfg: config.Experiment):
     if cfg.debug:
         alpha = np.pow(2.0, np.arange(-2, 2))
 
+    clf = sklearn.pipeline.make_pipeline(
+        sklearn.preprocessing.StandardScaler(),
+        sklearn.linear_model.RidgeClassifier(),
+    )
     if 0 &lt; cfg.n_train &lt; 20_000:
-        return sklearn.pipeline.make_pipeline(
-            sklearn.preprocessing.StandardScaler(),
-            sklearn.linear_model.RidgeClassifier(1.0),
-        )
+        clf
 
     return sklearn.model_selection.HalvingGridSearchCV(
-        sklearn.pipeline.make_pipeline(
-            sklearn.preprocessing.StandardScaler(),
-            sklearn.linear_model.RidgeClassifier(1.0),
-        ),
+        clf,
         {&#34;ridgeclassifier__alpha&#34;: alpha},
-        n_jobs=16,
-        verbose=2,
+        n_jobs=8,
+        verbose=3,
         factor=3,
     )</code></pre>
+</details>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.inat21.score"><code class="name flex">
+<span>def <span class="ident">score</span></span>(<span>preds: list[<a title="biobench.reporting.Prediction" href="../reporting.html#biobench.reporting.Prediction">Prediction</a>]) ‑> float</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@beartype.beartype
+def score(preds: list[reporting.Prediction]) -&gt; float:
+    return reporting.micro_acc(preds)</code></pre>
 </details>
 <div class="desc"></div>
 </dd>
@@ -289,7 +301,7 @@ def labels(self) -&gt; Int[np.ndarray, &#34; n&#34;]:
 </dd>
 <dt id="biobench.inat21.Features"><code class="flex name class">
 <span>class <span class="ident">Features</span></span>
-<span>(</span><span>x: jaxtyping.Float[ndarray, 'n dim'],<br>y: jaxtyping.Int[ndarray, 'n'],<br>ids: jaxtyping.Shaped[ndarray, 'n'])</span>
+<span>(</span><span>x: jaxtyping.Float16[ndarray, 'n dim'],<br>y: jaxtyping.Int[ndarray, 'n'],<br>ids: jaxtyping.Shaped[ndarray, 'n'])</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -299,18 +311,18 @@ def labels(self) -&gt; Int[np.ndarray, &#34; n&#34;]:
 <pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
 @dataclasses.dataclass(frozen=True)
 class Features:
-    x: Float[np.ndarray, &#34;n dim&#34;]
+    x: Float16[np.ndarray, &#34;n dim&#34;]
     y: Int[np.ndarray, &#34; n&#34;]
     ids: Shaped[np.ndarray, &#34; n&#34;]</code></pre>
 </details>
-<div class="desc"><p>Features(x: jaxtyping.Float[ndarray, 'n dim'], y: jaxtyping.Int[ndarray, 'n'], ids: jaxtyping.Shaped[ndarray, 'n'])</p></div>
+<div class="desc"><p>Features(x: jaxtyping.Float16[ndarray, 'n dim'], y: jaxtyping.Int[ndarray, 'n'], ids: jaxtyping.Shaped[ndarray, 'n'])</p></div>
 <h3>Instance variables</h3>
 <dl>
 <dt id="biobench.inat21.Features.ids"><code class="name">var <span class="ident">ids</span> : jaxtyping.Shaped[ndarray, 'n']</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="biobench.inat21.Features.x"><code class="name">var <span class="ident">x</span> : jaxtyping.Float[ndarray, 'n dim']</code></dt>
+<dt id="biobench.inat21.Features.x"><code class="name">var <span class="ident">x</span> : jaxtyping.Float16[ndarray, 'n dim']</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -343,6 +355,7 @@ class Features:
 <li><code><a title="biobench.inat21.benchmark" href="#biobench.inat21.benchmark">benchmark</a></code></li>
 <li><code><a title="biobench.inat21.get_features" href="#biobench.inat21.get_features">get_features</a></code></li>
 <li><code><a title="biobench.inat21.init_clf" href="#biobench.inat21.init_clf">init_clf</a></code></li>
+<li><code><a title="biobench.inat21.score" href="#biobench.inat21.score">score</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>

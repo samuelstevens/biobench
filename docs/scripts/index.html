@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
 <meta name="generator" content="pdoc3 0.11.6">
-<title>biobench.beluga.download API documentation</title>
-<meta name="description" content="Downloads the Begula whale dataset from lila.science.">
+<title>scripts API documentation</title>
+<meta name="description" content="">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
@@ -35,113 +35,48 @@ el.replaceWith(d);
 <main>
 <article id="content">
 <header>
-<h1 class="title">Module <code>biobench.beluga.download</code></h1>
+<h1 class="title">Package <code>scripts</code></h1>
 </header>
 <section id="section-intro">
-<p>Downloads the Begula whale dataset from lila.science.</p>
 </section>
 <section>
-</section>
-<section>
-</section>
-<section>
-<h2 class="section-title" id="header-functions">Functions</h2>
+<h2 class="section-title" id="header-submodules">Sub-modules</h2>
 <dl>
-<dt id="biobench.beluga.download.main"><code class="name flex">
-<span>def <span class="ident">main</span></span>(<span>args: <a title="biobench.beluga.download.Args" href="#biobench.beluga.download.Args">Args</a>)</span>
-</code></dt>
+<dt><code class="name"><a title="scripts.ascii_only" href="ascii_only.html">scripts.ascii_only</a></code></dt>
 <dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def main(args: Args):
-    &#34;&#34;&#34;Download and unzip the data.&#34;&#34;&#34;
-    os.makedirs(args.dir, exist_ok=True)
-
-    chunk_size = int(args.chunk_size_kb * 1024)
-
-    images_tar_path = os.path.join(args.dir, &#34;beluga.coco.tar.gz&#34;)
-
-    if args.download:
-        # Download images.
-        r = requests.get(URL, stream=True)
-        r.raise_for_status()
-        t = tqdm.tqdm(
-            total=int(r.headers[&#34;content-length&#34;]),
-            unit=&#34;B&#34;,
-            unit_scale=1,
-            unit_divisor=1024,
-            desc=&#34;Downloading images&#34;,
-        )
-        with open(images_tar_path, &#34;wb&#34;) as fd:
-            for chunk in r.iter_content(chunk_size=chunk_size):
-                fd.write(chunk)
-                t.update(len(chunk))
-        t.close()
-
-        print(f&#34;Downloaded images: {images_tar_path}.&#34;)
-
-    if args.expand:
-        with tarfile.open(images_tar_path, &#34;r&#34;) as tar:
-            for member in tqdm.tqdm(
-                tar, desc=&#34;Extracting images&#34;, total=len(tar.getnames())
-            ):
-                tar.extract(member, path=args.dir, filter=&#34;data&#34;)
-
-        print(f&#34;Extracted images: {args.dir}.&#34;)</code></pre>
-</details>
-<div class="desc"><p>Download and unzip the data.</p></div>
+<div class="desc"></div>
+</dd>
+<dt><code class="name"><a title="scripts.docs" href="docs.html">scripts.docs</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt><code class="name"><a title="scripts.make_croissant" href="make_croissant.html">scripts.make_croissant</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt><code class="name"><a title="scripts.make_tables" href="make_tables.html">scripts.make_tables</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt><code class="name"><a title="scripts.paper" href="paper/index.html">scripts.paper</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt><code class="name"><a title="scripts.regressions" href="regressions.html">scripts.regressions</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt><code class="name"><a title="scripts.test_ascii_only" href="test_ascii_only.html">scripts.test_ascii_only</a></code></dt>
+<dd>
+<div class="desc"></div>
 </dd>
 </dl>
 </section>
 <section>
-<h2 class="section-title" id="header-classes">Classes</h2>
-<dl>
-<dt id="biobench.beluga.download.Args"><code class="flex name class">
-<span>class <span class="ident">Args</span></span>
-<span>(</span><span>dir: str = '.',<br>chunk_size_kb: int = 1,<br>download: bool = True,<br>expand: bool = True)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">@dataclasses.dataclass(frozen=True)
-class Args:
-    &#34;&#34;&#34;Configuration.&#34;&#34;&#34;
-
-    dir: str = &#34;.&#34;
-    &#34;&#34;&#34;where to save data.&#34;&#34;&#34;
-    chunk_size_kb: int = 1
-    &#34;&#34;&#34;how many KB to download at a time before writing to file.&#34;&#34;&#34;
-    download: bool = True
-    &#34;&#34;&#34;whether to download images.&#34;&#34;&#34;
-    expand: bool = True
-    &#34;&#34;&#34;whether to expand tarfiles into a folder.&#34;&#34;&#34;</code></pre>
-</details>
-<div class="desc"><p>Configuration.</p></div>
-<h3>Instance variables</h3>
-<dl>
-<dt id="biobench.beluga.download.Args.chunk_size_kb"><code class="name">var <span class="ident">chunk_size_kb</span> : int</code></dt>
-<dd>
-<div class="desc"><p>how many KB to download at a time before writing to file.</p></div>
-</dd>
-<dt id="biobench.beluga.download.Args.dir"><code class="name">var <span class="ident">dir</span> : str</code></dt>
-<dd>
-<div class="desc"><p>where to save data.</p></div>
-</dd>
-<dt id="biobench.beluga.download.Args.download"><code class="name">var <span class="ident">download</span> : bool</code></dt>
-<dd>
-<div class="desc"><p>whether to download images.</p></div>
-</dd>
-<dt id="biobench.beluga.download.Args.expand"><code class="name">var <span class="ident">expand</span> : bool</code></dt>
-<dd>
-<div class="desc"><p>whether to expand tarfiles into a folder.</p></div>
-</dd>
-</dl>
-</dd>
-</dl>
+</section>
+<section>
+</section>
+<section>
 </section>
 </article>
 <nav id="sidebar">
@@ -149,27 +84,15 @@ class Args:
 <ul></ul>
 </div>
 <ul id="index">
-<li><h3>Super-module</h3>
+<li><h3><a href="#header-submodules">Sub-modules</a></h3>
 <ul>
-<li><code><a title="biobench.beluga" href="index.html">biobench.beluga</a></code></li>
-</ul>
-</li>
-<li><h3><a href="#header-functions">Functions</a></h3>
-<ul class="">
-<li><code><a title="biobench.beluga.download.main" href="#biobench.beluga.download.main">main</a></code></li>
-</ul>
-</li>
-<li><h3><a href="#header-classes">Classes</a></h3>
-<ul>
-<li>
-<h4><code><a title="biobench.beluga.download.Args" href="#biobench.beluga.download.Args">Args</a></code></h4>
-<ul class="">
-<li><code><a title="biobench.beluga.download.Args.chunk_size_kb" href="#biobench.beluga.download.Args.chunk_size_kb">chunk_size_kb</a></code></li>
-<li><code><a title="biobench.beluga.download.Args.dir" href="#biobench.beluga.download.Args.dir">dir</a></code></li>
-<li><code><a title="biobench.beluga.download.Args.download" href="#biobench.beluga.download.Args.download">download</a></code></li>
-<li><code><a title="biobench.beluga.download.Args.expand" href="#biobench.beluga.download.Args.expand">expand</a></code></li>
-</ul>
-</li>
+<li><code><a title="scripts.ascii_only" href="ascii_only.html">scripts.ascii_only</a></code></li>
+<li><code><a title="scripts.docs" href="docs.html">scripts.docs</a></code></li>
+<li><code><a title="scripts.make_croissant" href="make_croissant.html">scripts.make_croissant</a></code></li>
+<li><code><a title="scripts.make_tables" href="make_tables.html">scripts.make_tables</a></code></li>
+<li><code><a title="scripts.paper" href="paper/index.html">scripts.paper</a></code></li>
+<li><code><a title="scripts.regressions" href="regressions.html">scripts.regressions</a></code></li>
+<li><code><a title="scripts.test_ascii_only" href="test_ascii_only.html">scripts.test_ascii_only</a></code></li>
 </ul>
 </li>
 </ul>

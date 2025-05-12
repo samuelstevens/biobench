@@ -51,6 +51,10 @@ el.replaceWith(d);
 <section>
 <h2 class="section-title" id="header-submodules">Sub-modules</h2>
 <dl>
+<dt><code class="name"><a title="biobench.fungiclef.baseline" href="baseline.html">biobench.fungiclef.baseline</a></code></dt>
+<dd>
+<div class="desc"><p>Uniform-random baseline for FungiCLEF …</p></div>
+</dd>
 <dt><code class="name"><a title="biobench.fungiclef.download" href="download.html">biobench.fungiclef.download</a></code></dt>
 <dd>
 <div class="desc"><p>Download the FungiCLEF 2023 challenge dataset based on the Danish Fungi 2020 and 2021 preprocessed images and metadata …</p></div>
@@ -84,21 +88,22 @@ Adapted from BohemianVRA's evaluate.py:
 @torch.no_grad()
 def benchmark(cfg: config.Experiment) -&gt; reporting.Report:
     backbone = registry.load_vision_backbone(cfg.model)
-    train_feats = get_features(cfg, backbone, split=&#34;train&#34;, pool=False)
-    val_feats = get_features(cfg, backbone, split=&#34;val&#34;, pool=True)
+    train_feats = get_features(cfg, backbone, is_train=True, pool=False)
+    val_feats = get_features(cfg, backbone, is_train=False, pool=True)
 
     clf = init_clf(cfg)
-    clf = openset.MahalanobisOpenSetClassifier(clf)
     clf.fit(train_feats.x, train_feats.y)
 
+    logger.info(&#34;Classifying %d examples.&#34;, len(val_feats.x))
     preds = clf.predict(val_feats.x)
+    logger.info(&#34;Classified %d examples.&#34;, len(val_feats.x))
 
     # Identify train and test classes
     train_classes = set(np.unique(train_feats.y))
 
     examples = [
         reporting.Prediction(
-            img_id,
+            str(img_id),
             float(p == t),
             {&#34;y_pred&#34;: int(p), &#34;y_true&#34;: int(t), &#34;ood&#34;: t not in train_classes},
         )
@@ -109,7 +114,7 @@ def benchmark(cfg: config.Experiment) -&gt; reporting.Report:
 <div class="desc"></div>
 </dd>
 <dt id="biobench.fungiclef.get_features"><code class="name flex">
-<span>def <span class="ident">get_features</span></span>(<span>cfg: <a title="biobench.config.Experiment" href="../config.html#biobench.config.Experiment">Experiment</a>,<br>backbone: <a title="biobench.registry.VisionBackbone" href="../registry.html#biobench.registry.VisionBackbone">VisionBackbone</a>,<br>*,<br>split: Literal['train', 'val'],<br>pool: bool) ‑> <a title="biobench.fungiclef.Features" href="#biobench.fungiclef.Features">Features</a></span>
+<span>def <span class="ident">get_features</span></span>(<span>cfg: <a title="biobench.config.Experiment" href="../config.html#biobench.config.Experiment">Experiment</a>,<br>backbone: <a title="biobench.registry.VisionBackbone" href="../registry.html#biobench.registry.VisionBackbone">VisionBackbone</a>,<br>*,<br>is_train: bool,<br>pool: bool) ‑> <a title="biobench.fungiclef.Features" href="#biobench.fungiclef.Features">Features</a></span>
 </code></dt>
 <dd>
 <details class="source">
@@ -117,27 +122,21 @@ def benchmark(cfg: config.Experiment) -&gt; reporting.Report:
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">@beartype.beartype
+@torch.no_grad()
 def get_features(
     cfg: config.Experiment,
     backbone: registry.VisionBackbone,
     *,
-    split: typing.Literal[&#34;train&#34;, &#34;val&#34;],
+    is_train: bool,
     pool: bool,
 ) -&gt; Features:
     transform = backbone.make_img_transform()
 
-    csv_fpath = os.path.join(
-        cfg.data.fungiclef, f&#34;FungiCLEF2023_{split}_metadata_PRODUCTION.csv&#34;
-    )
-
-    img_dpath = os.path.join(
-        cfg.data.fungiclef,
-        &#34;DF20_300&#34; if split == &#34;train&#34; else &#34;DF21_300&#34;,
-    )
-    dataset = FungiDataset(csv_fpath, img_dpath, transform)
+    split = &#34;train&#34; if is_train else &#34;val&#34;
+    dataset = FungiDataset(cfg.data.fungiclef, split, transform)
 
     # subsample for train
-    if split == &#34;train&#34; and cfg.n_train &gt; 0:
+    if is_train and cfg.n_train &gt; 0:
         idxs = helpers.balanced_random_sample(dataset.labels, cfg.n_train)
         dataset = torch.utils.data.Subset(dataset, idxs)
 
@@ -146,26 +145,43 @@ def get_features(
         batch_size=cfg.batch_size,
         shuffle=False,
         num_workers=cfg.n_workers,
-        pin_memory=True,
+        pin_memory=False,
     )
 
     backbone = torch.compile(backbone.to(cfg.device))
     feats_list, labs_list, img_ids_list, obs_ids_list = [], [], [], []
 
-    total = len(dataloader) if not cfg.debug else 2
-    it = iter(dataloader)
-    for b in helpers.progress(range(total), every=10, desc=f&#34;fungi/{split}&#34;):
-        batch = next(it)
+    def probe(batch):
         imgs = batch[&#34;img&#34;].to(cfg.device)
-        with torch.amp.autocast(&#34;cuda&#34;):
-            out = backbone.img_encode(imgs).img_features.cpu().numpy()
-        feats_list.append(out)
-        labs_list.append(np.array(batch[&#34;label&#34;], dtype=int))
-        img_ids_list.extend(batch[&#34;img_id&#34;])
-        obs_ids_list.extend(batch[&#34;obs_id&#34;])
+        with torch.amp.autocast(cfg.device):
+            backbone.img_encode(imgs)
+
+    @beartype.beartype
+    def debug_cuda_mem(tag: str):
+        if logger.isEnabledFor(logging.DEBUG):
+            logger.debug(&#34;%s: %d&#34;, tag, torch.cuda.memory_allocated())
+
+    with helpers.auto_batch_size(dataloader, probe=probe):
+        total = len(dataloader) if not cfg.debug else 2
+        it = iter(dataloader)
+        for _ in helpers.progress(range(total), desc=f&#34;fungi/{split}&#34;):
+            debug_cuda_mem(&#34;loop start&#34;)
+            batch = next(it)
+            debug_cuda_mem(&#34;after batch&#34;)
+            imgs = batch[&#34;img&#34;].to(cfg.device, non_blocking=True)
+            debug_cuda_mem(&#34;imgs.to(device)&#34;)
+            with torch.amp.autocast(cfg.device):
+                out = backbone.img_encode(imgs).img_features
+            debug_cuda_mem(&#34;forward pass&#34;)
+            feats_list.append(out.cpu().numpy())
+            debug_cuda_mem(&#34;appended feats&#34;)
+            labs_list.extend(batch[&#34;label&#34;].tolist())
+            img_ids_list.extend(batch[&#34;img_id&#34;])
+            obs_ids_list.extend(batch[&#34;obs_id&#34;].tolist())
+            debug_cuda_mem(&#34;appended metadata&#34;)
 
     x = np.concatenate(feats_list, axis=0)
-    y = np.concatenate(labs_list, axis=0)
+    y = np.array(labs_list)
     img_ids = np.array(img_ids_list)
     obs_ids = np.array(obs_ids_list)
 
@@ -195,10 +211,7 @@ def get_features(
 <pre><code class="python">@beartype.beartype
 def init_clf(cfg: config.Experiment):
     return openset.MahalanobisOpenSetClassifier(
-        sklearn.pipeline.make_pipeline(
-            sklearn.preprocessing.StandardScaler(),
-            simpleshot.SimpleShotClassifier(device=&#34;cuda:0&#34;),
-        ),
+        simpleshot.SimpleShotClassifier(device=&#34;cuda:0&#34;)
     )</code></pre>
 </details>
 <div class="desc"></div>
@@ -222,9 +235,25 @@ def score(preds: list[reporting.Prediction]) -&gt; float:
     * `info[&#39;y_true&#39;]` and `info[&#39;y_pred&#39;]` are ints; unknown is -1.
     * The helper in metrics.py already combines CE and PSC/ESC.
     &#34;&#34;&#34;
-    y_true = np.fromiter((p.info[&#34;y_true&#34;] for p in preds), dtype=int)
+    y_true = np.fromiter(
+        (-1 if p.info[&#34;ood&#34;] else p.info[&#34;y_true&#34;] for p in preds), dtype=int
+    )
     y_pred = np.fromiter((p.info[&#34;y_pred&#34;] for p in preds), dtype=int)
-    return user_loss_score(y_true, y_pred)</code></pre>
+    user_loss = metrics.user_loss_score(y_true, y_pred)
+
+    n = y_true.size
+    n_unknown = (y_true == -1).sum()
+    n_poisonous = np.isin(y_true, metrics.POISONOUS_SPECIES).sum()
+
+    cost_unknown_mis = 10.0
+    cost_psc = 100.0
+    cost_esc = 1.0
+
+    worst_ce = (cost_unknown_mis - 1) * n_unknown / n + 1
+    worst_psc = (cost_psc * n_poisonous + cost_esc * (n - n_poisonous)) / n
+
+    score = 1 - user_loss / (worst_ce + worst_psc)
+    return score</code></pre>
 </details>
 <div class="desc"><p>Return the <strong>User-Focused Loss</strong> used in FungiCLEF:
 user_loss = classification_error + PSC/ESC cost</p>
@@ -275,7 +304,7 @@ class Features:
 </dd>
 <dt id="biobench.fungiclef.FungiDataset"><code class="flex name class">
 <span>class <span class="ident">FungiDataset</span></span>
-<span>(</span><span>csv_fpath: str, img_dpath: str, transform)</span>
+<span>(</span><span>root: str, split: Literal['train', 'val'], transform)</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -284,9 +313,14 @@ class Features:
 </summary>
 <pre><code class="python">@beartype.beartype
 class FungiDataset(torch.utils.data.Dataset):
-    def __init__(self, csv_fpath: str, img_dpath: str, transform):
+    def __init__(self, root: str, split: typing.Literal[&#34;train&#34;, &#34;val&#34;], transform):
+        img_dpath = os.path.join(root, &#34;DF20_300&#34; if split == &#34;train&#34; else &#34;DF21_300&#34;)
         if not os.path.isdir(img_dpath):
             raise RuntimeError(f&#34;Image directory not found: {img_dpath}&#34;)
+
+        csv_fpath = os.path.join(root, f&#34;FungiCLEF2023_{split}_metadata_PRODUCTION.csv&#34;)
+        if not os.path.isfile(csv_fpath):
+            raise RuntimeError(f&#34;CSV not found: {csv_fpath}&#34;)
 
         df = pl.read_csv(csv_fpath)
         self.img_names = df.get_column(&#34;image_path&#34;).to_numpy()
@@ -310,7 +344,7 @@ class FungiDataset(torch.utils.data.Dataset):
             p2 = os.path.join(self.img_dpath, img_name.lower())
             if os.path.exists(p2):
                 path = p2
-                logger.debug(&#34;Using lowercase image path for %s&#34;, img_name)
+                # logger.debug(&#34;Using lowercase image path for %s&#34;, img_name)
             else:
                 raise FileNotFoundError(
                     f&#34;Image &#39;{img_name}&#39; not found in {self.img_dpath} (tried &#39;{p1}&#39;, &#39;{p2}&#39;)&#34;
@@ -364,6 +398,7 @@ dataset with non-integral indices/keys, a custom sampler must be provided.</p>
 </li>
 <li><h3><a href="#header-submodules">Sub-modules</a></h3>
 <ul>
+<li><code><a title="biobench.fungiclef.baseline" href="baseline.html">biobench.fungiclef.baseline</a></code></li>
 <li><code><a title="biobench.fungiclef.download" href="download.html">biobench.fungiclef.download</a></code></li>
 <li><code><a title="biobench.fungiclef.metrics" href="metrics.html">biobench.fungiclef.metrics</a></code></li>
 <li><code><a title="biobench.fungiclef.test_metrics" href="test_metrics.html">biobench.fungiclef.test_metrics</a></code></li>

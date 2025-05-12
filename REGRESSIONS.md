@@ -1,10 +1,12 @@
 # Regressions
 
-Last checked: 2025-05-01
+Last checked: 2025-05-11
 
-# 1 failing test(s)
+# 3 failing test(s)
 
-- biobench/test_auto_batch_size.py::test_schedule_not_materialised
+- biobench/jobkit/test_hooks.py::test_multiple_hooks_each_release_their_own_claims
+- biobench/test_openset.py::test_min_mahalanobis_sq_batched_equal
+- biobench/test_openset.py::test_min_mahalanobis_sq_batched_no_error
 # Coverage
 
-Coverage: 2950/4394 lines (67.1%)
+Coverage: 3056/4902 lines (62.3%)

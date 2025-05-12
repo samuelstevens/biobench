@@ -222,7 +222,7 @@ class Data:
 </dd>
 <dt id="biobench.config.Experiment"><code class="flex name class">
 <span>class <span class="ident">Experiment</span></span>
-<span>(</span><span>model: <a title="biobench.config.Model" href="#biobench.config.Model">Model</a>,<br>slurm_acct: str = '',<br>cfg: str = 'configs/neurips.toml',<br>device: Literal['cpu', 'mps', 'cuda'] = 'cuda',<br>debug: bool = False,<br>n_train: int = -1,<br>ssl: bool = True,<br>n_workers: int = 4,<br>batch_size: int = 32,<br>data: <a title="biobench.config.Data" href="#biobench.config.Data">Data</a> = &lt;factory&gt;,<br>report_to: str = './results',<br>log_to: str = './logs',<br>seed: int = 17,<br>verbose: bool = False)</span>
+<span>(</span><span>model: <a title="biobench.config.Model" href="#biobench.config.Model">Model</a>,<br>slurm_acct: str = '',<br>cfg: str = 'configs/neurips.toml',<br>device: Literal['cpu', 'mps', 'cuda'] = 'cuda',<br>debug: bool = False,<br>n_train: int = -1,<br>ssl: bool = True,<br>n_workers: int = 4,<br>batch_size: int = 8,<br>data: <a title="biobench.config.Data" href="#biobench.config.Data">Data</a> = &lt;factory&gt;,<br>report_to: str = './results',<br>log_to: str = './logs',<br>seed: int = 17,<br>verbose: bool = False)</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -251,7 +251,7 @@ class Experiment:
 
     n_workers: int = 4
     &#34;&#34;&#34;Number of dataloader workers.&#34;&#34;&#34;
-    batch_size: int = 32
+    batch_size: int = 8
     &#34;&#34;&#34;Initial batch size to start with for tuning.&#34;&#34;&#34;
 
     data: Data = dataclasses.field(default_factory=Data)

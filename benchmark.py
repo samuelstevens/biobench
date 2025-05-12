@@ -6,8 +6,6 @@ Run `python benchmark.py --help` to see all the options.
 
 Note that you will have to download all the datasets, but each dataset includes its own download script with instructions.
 For example, see `biobench.newt.download` for an example.
-
-.. include:: ./design.md
 """
 
 import collections
@@ -23,11 +21,7 @@ from biobench import config, helpers, jobkit, reporting
 
 
 @beartype.beartype
-def main(
-    cfgs: list[str] = [os.path.join("configs", "neurips.toml")],
-    dry_run: bool = True,
-    max_pending: int = 8,
-):
+def main(cfgs: list[str], dry_run: bool = True, max_pending: int = 8):
     """
     Launch all jobs, using either a local GPU or a Slurm cluster. Then report results and save to disk.
 

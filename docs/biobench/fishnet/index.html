@@ -58,6 +58,10 @@ We train an two-layer MLP on the visual features extracted by different model ba
 <section>
 <h2 class="section-title" id="header-submodules">Sub-modules</h2>
 <dl>
+<dt><code class="name"><a title="biobench.fishnet.baseline" href="baseline.html">biobench.fishnet.baseline</a></code></dt>
+<dd>
+<div class="desc"><p>Uniform-random baseline for FishNet functional-trait prediction …</p></div>
+</dd>
 <dt><code class="name"><a title="biobench.fishnet.download" href="download.html">biobench.fishnet.download</a></code></dt>
 <dd>
 <div class="desc"><p>A script to download the FishNet dataset …</p></div>
@@ -525,7 +529,19 @@ class ImageDataset(torch.utils.data.Dataset):
         return image, label, image_path
 
     def __len__(self) -&gt; int:
-        return len(self.df)</code></pre>
+        return len(self.df)
+
+    @property
+    def labels(self) -&gt; Int[np.ndarray, &#34;n 9&#34;]:
+        return (
+            self.df.select(pl.nth(self.label_cols))
+            .with_columns(
+                FeedingPath=pl.when(pl.col(&#34;FeedingPath&#34;) == &#34;benthic&#34;)
+                .then(0)
+                .otherwise(1)
+            )
+            .to_numpy()
+        )</code></pre>
 </details>
 <div class="desc"><p>A dataset for CV+ML that loads the required attribute labels.</p></div>
 <h3>Ancestors</h3>
@@ -533,6 +549,29 @@ class ImageDataset(torch.utils.data.Dataset):
 <li>torch.utils.data.dataset.Dataset</li>
 <li>typing.Generic</li>
 </ul>
+<h3>Instance variables</h3>
+<dl>
+<dt id="biobench.fishnet.ImageDataset.labels"><code class="name">prop <span class="ident">labels</span> : jaxtyping.Int[ndarray, 'n 9']</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@property
+def labels(self) -&gt; Int[np.ndarray, &#34;n 9&#34;]:
+    return (
+        self.df.select(pl.nth(self.label_cols))
+        .with_columns(
+            FeedingPath=pl.when(pl.col(&#34;FeedingPath&#34;) == &#34;benthic&#34;)
+            .then(0)
+            .otherwise(1)
+        )
+        .to_numpy()
+    )</code></pre>
+</details>
+<div class="desc"></div>
+</dd>
+</dl>
 </dd>
 </dl>
 </section>
@@ -551,6 +590,7 @@ class ImageDataset(torch.utils.data.Dataset):
 </li>
 <li><h3><a href="#header-submodules">Sub-modules</a></h3>
 <ul>
+<li><code><a title="biobench.fishnet.baseline" href="baseline.html">biobench.fishnet.baseline</a></code></li>
 <li><code><a title="biobench.fishnet.download" href="download.html">biobench.fishnet.download</a></code></li>
 </ul>
 </li>
@@ -577,6 +617,9 @@ class ImageDataset(torch.utils.data.Dataset):
 </li>
 <li>
 <h4><code><a title="biobench.fishnet.ImageDataset" href="#biobench.fishnet.ImageDataset">ImageDataset</a></code></h4>
+<ul class="">
+<li><code><a title="biobench.fishnet.ImageDataset.labels" href="#biobench.fishnet.ImageDataset.labels">labels</a></code></li>
+</ul>
 </li>
 </ul>
 </li>

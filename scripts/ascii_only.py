@@ -44,7 +44,8 @@ mapping = {
     "\u2010": "-",  # hyphen
     "\u2212": "-",  # minus sign
     # Arrows
-    "\u2192": "->",  # right arrow (→)
+    "\u2192": "->",  # right arrow
+    "\u21d2": "=>",  # double right arrow
     # Math
     "\u2264": "<=",
 }

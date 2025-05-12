@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
 <meta name="generator" content="pdoc3 0.11.6">
-<title>biobench.beluga.download API documentation</title>
-<meta name="description" content="Downloads the Begula whale dataset from lila.science.">
+<title>scripts.docs API documentation</title>
+<meta name="description" content="">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
@@ -35,10 +35,9 @@ el.replaceWith(d);
 <main>
 <article id="content">
 <header>
-<h1 class="title">Module <code>biobench.beluga.download</code></h1>
+<h1 class="title">Module <code>scripts.docs</code></h1>
 </header>
 <section id="section-intro">
-<p>Downloads the Begula whale dataset from lila.science.</p>
 </section>
 <section>
 </section>
@@ -47,101 +46,118 @@ el.replaceWith(d);
 <section>
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
-<dt id="biobench.beluga.download.main"><code class="name flex">
-<span>def <span class="ident">main</span></span>(<span>args: <a title="biobench.beluga.download.Args" href="#biobench.beluga.download.Args">Args</a>)</span>
+<dt id="scripts.docs.get_content"><code class="name flex">
+<span>def <span class="ident">get_content</span></span>(<span>fpath: str) ‑> str</span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def main(args: Args):
-    &#34;&#34;&#34;Download and unzip the data.&#34;&#34;&#34;
-    os.makedirs(args.dir, exist_ok=True)
-
-    chunk_size = int(args.chunk_size_kb * 1024)
-
-    images_tar_path = os.path.join(args.dir, &#34;beluga.coco.tar.gz&#34;)
-
-    if args.download:
-        # Download images.
-        r = requests.get(URL, stream=True)
-        r.raise_for_status()
-        t = tqdm.tqdm(
-            total=int(r.headers[&#34;content-length&#34;]),
-            unit=&#34;B&#34;,
-            unit_scale=1,
-            unit_divisor=1024,
-            desc=&#34;Downloading images&#34;,
-        )
-        with open(images_tar_path, &#34;wb&#34;) as fd:
-            for chunk in r.iter_content(chunk_size=chunk_size):
-                fd.write(chunk)
-                t.update(len(chunk))
-        t.close()
-
-        print(f&#34;Downloaded images: {images_tar_path}.&#34;)
-
-    if args.expand:
-        with tarfile.open(images_tar_path, &#34;r&#34;) as tar:
-            for member in tqdm.tqdm(
-                tar, desc=&#34;Extracting images&#34;, total=len(tar.getnames())
-            ):
-                tar.extract(member, path=args.dir, filter=&#34;data&#34;)
-
-        print(f&#34;Extracted images: {args.dir}.&#34;)</code></pre>
+<pre><code class="python">def get_content(fpath: str) -&gt; str:
+    with open(fpath, &#34;r&#34;) as f:
+        rel_path = os.path.relpath(fpath)
+        file_content = f&#34;# {rel_path}\n\n```python\n{f.read()}\n```&#34;
+    return file_content</code></pre>
 </details>
-<div class="desc"><p>Download and unzip the data.</p></div>
+<div class="desc"></div>
+</dd>
+<dt id="scripts.docs.main"><code class="name flex">
+<span>def <span class="ident">main</span></span>(<span>in_paths: list[str], out_fpath: str)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def main(in_paths: list[str], out_fpath: str):
+    &#34;&#34;&#34;
+    Args:
+        in_paths: Directories and paths for source files.
+        out_fpath: Path for output .txt file
+    &#34;&#34;&#34;
+
+    content = []
+    # Get all Python files from input directories
+    for path in in_paths:
+        if os.path.isdir(path):
+            for root, _, files in os.walk(path):
+                for file in files:
+                    if file.endswith(&#34;.py&#34;):
+                        fpath = os.path.join(root, file)
+                        content.append(get_content(fpath))
+        elif os.path.isfile(path):
+            if path.endswith(&#34;.py&#34;):
+                content.append(get_content(path))
+        else:
+            breakpoint()
+
+    # Find all .md files in docs/ except those in docs/api/
+    md_files = [&#34;README.md&#34;]
+    md_files.extend(glob.glob(&#34;docs/**/*.md&#34;, recursive=True))
+    # Filter out docs/api/ files
+    md_files = [f for f in md_files if &#34;docs/api/&#34; not in f]
+
+    # Process markdown files
+    root = os.path.commonpath([os.path.dirname(p) for p in md_files])
+    for md_file in md_files:
+        with open(md_file, &#34;r&#34;) as f:
+            md_content = f.read()
+            content.append(with_header(md_file, md_content, root))
+
+    # Process all modules and write to file
+    with open(out_fpath, &#34;w&#34;) as f:
+        f.write(&#34;\n\n&#34;.join(content))</code></pre>
+</details>
+<div class="desc"><h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>in_paths</code></strong></dt>
+<dd>Directories and paths for source files.</dd>
+<dt><strong><code>out_fpath</code></strong></dt>
+<dd>Path for output .txt file</dd>
+</dl></div>
+</dd>
+<dt id="scripts.docs.with_header"><code class="name flex">
+<span>def <span class="ident">with_header</span></span>(<span>md_file: str, md_content: str, root: str) ‑> str</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def with_header(md_file: str, md_content: str, root: str) -&gt; str:
+    &#34;&#34;&#34;Add a header to markdown content if it doesn&#39;t have one.
+
+    Args:
+        md_file: Path to the markdown file
+        md_content: Content of the markdown file
+        root: root directory of markdown files
+
+    Returns:
+        Content with header added if needed
+    &#34;&#34;&#34;
+
+    if not md_content.lstrip().startswith(&#34;#&#34;):
+        rel_path = os.path.relpath(md_file, root)
+        return f&#34;# {rel_path}\n\n{md_content}&#34;
+    return md_content</code></pre>
+</details>
+<div class="desc"><p>Add a header to markdown content if it doesn't have one.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>md_file</code></strong></dt>
+<dd>Path to the markdown file</dd>
+<dt><strong><code>md_content</code></strong></dt>
+<dd>Content of the markdown file</dd>
+<dt><strong><code>root</code></strong></dt>
+<dd>root directory of markdown files</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>Content with header added if needed</p></div>
 </dd>
 </dl>
 </section>
 <section>
-<h2 class="section-title" id="header-classes">Classes</h2>
-<dl>
-<dt id="biobench.beluga.download.Args"><code class="flex name class">
-<span>class <span class="ident">Args</span></span>
-<span>(</span><span>dir: str = '.',<br>chunk_size_kb: int = 1,<br>download: bool = True,<br>expand: bool = True)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">@dataclasses.dataclass(frozen=True)
-class Args:
-    &#34;&#34;&#34;Configuration.&#34;&#34;&#34;
-
-    dir: str = &#34;.&#34;
-    &#34;&#34;&#34;where to save data.&#34;&#34;&#34;
-    chunk_size_kb: int = 1
-    &#34;&#34;&#34;how many KB to download at a time before writing to file.&#34;&#34;&#34;
-    download: bool = True
-    &#34;&#34;&#34;whether to download images.&#34;&#34;&#34;
-    expand: bool = True
-    &#34;&#34;&#34;whether to expand tarfiles into a folder.&#34;&#34;&#34;</code></pre>
-</details>
-<div class="desc"><p>Configuration.</p></div>
-<h3>Instance variables</h3>
-<dl>
-<dt id="biobench.beluga.download.Args.chunk_size_kb"><code class="name">var <span class="ident">chunk_size_kb</span> : int</code></dt>
-<dd>
-<div class="desc"><p>how many KB to download at a time before writing to file.</p></div>
-</dd>
-<dt id="biobench.beluga.download.Args.dir"><code class="name">var <span class="ident">dir</span> : str</code></dt>
-<dd>
-<div class="desc"><p>where to save data.</p></div>
-</dd>
-<dt id="biobench.beluga.download.Args.download"><code class="name">var <span class="ident">download</span> : bool</code></dt>
-<dd>
-<div class="desc"><p>whether to download images.</p></div>
-</dd>
-<dt id="biobench.beluga.download.Args.expand"><code class="name">var <span class="ident">expand</span> : bool</code></dt>
-<dd>
-<div class="desc"><p>whether to expand tarfiles into a folder.</p></div>
-</dd>
-</dl>
-</dd>
-</dl>
 </section>
 </article>
 <nav id="sidebar">
@@ -151,25 +167,14 @@ class Args:
 <ul id="index">
 <li><h3>Super-module</h3>
 <ul>
-<li><code><a title="biobench.beluga" href="index.html">biobench.beluga</a></code></li>
+<li><code><a title="scripts" href="index.html">scripts</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-functions">Functions</a></h3>
 <ul class="">
-<li><code><a title="biobench.beluga.download.main" href="#biobench.beluga.download.main">main</a></code></li>
-</ul>
-</li>
-<li><h3><a href="#header-classes">Classes</a></h3>
-<ul>
-<li>
-<h4><code><a title="biobench.beluga.download.Args" href="#biobench.beluga.download.Args">Args</a></code></h4>
-<ul class="">
-<li><code><a title="biobench.beluga.download.Args.chunk_size_kb" href="#biobench.beluga.download.Args.chunk_size_kb">chunk_size_kb</a></code></li>
-<li><code><a title="biobench.beluga.download.Args.dir" href="#biobench.beluga.download.Args.dir">dir</a></code></li>
-<li><code><a title="biobench.beluga.download.Args.download" href="#biobench.beluga.download.Args.download">download</a></code></li>
-<li><code><a title="biobench.beluga.download.Args.expand" href="#biobench.beluga.download.Args.expand">expand</a></code></li>
-</ul>
-</li>
+<li><code><a title="scripts.docs.get_content" href="#scripts.docs.get_content">get_content</a></code></li>
+<li><code><a title="scripts.docs.main" href="#scripts.docs.main">main</a></code></li>
+<li><code><a title="scripts.docs.with_header" href="#scripts.docs.with_header">with_header</a></code></li>
 </ul>
 </li>
 </ul>
