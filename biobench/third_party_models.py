@@ -89,7 +89,7 @@ class OpenClip(registry.VisionBackbone):
         # open_clip stores state_dict, optimizer, etc. We want the state_dict.
         state_dict = state_dict.get("state_dict", state_dict)
         # Often a DDP-'module.' prefix.
-        # Strip 'module.' from all key-value pairs in state_dict. AI!
+        state_dict = {k.replace('module.', ''): v for k, v in state_dict.items()}
         for k in drop_keys:
             state_dict.pop(k, None)
         return state_dict
