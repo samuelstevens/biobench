@@ -3,6 +3,7 @@ import os
 
 import beartype
 import einops
+import torch
 from jaxtyping import Float, jaxtyped
 from torch import Tensor
 
@@ -41,7 +42,7 @@ class OpenClip(registry.VisionBackbone):
     For example, to load a ViT-B/16 train on Apple's Data Filtering Networks dataset, you would use `ViT-B-16/dfn2b`.
     """
 
-    def __init__(self, ckpt: str, **kwargs):
+    def __init__(self, ckpt: str, drop_keys: list[str] | None = None, **_):
         super().__init__()
         import open_clip
 
@@ -56,13 +57,13 @@ class OpenClip(registry.VisionBackbone):
         if ckpt.startswith("hf-hub:"):
             clip, self.img_transform = open_clip.create_model_from_pretrained(ckpt)
         elif ckpt.startswith("local:"):
+            breakpoint()
             # Format: "local:ARCH/PATH_TO_CHECKPOINT"
-            parts = ckpt.split("/", 1)
-            arch = parts[0].replace("local:", "")
-            local_path = parts[1]
-            clip, self.img_transform = open_clip.create_model_from_pretrained(
-                arch, pretrained=local_path
-            )
+            ckpt = ckpt.removeprefix("local:")
+            arch, local_path = ckpt.split("/", 1)
+            clip, self.img_transform = self._load_clip_skeleton(arch)
+            state_dict = self._patch_state_dict(local_path, drop_keys or [])
+            clip.load_state_dict(state_dict, strict=True)
         else:
             arch, ckpt = ckpt.split("/")
             clip, self.img_transform = open_clip.create_model_from_pretrained(
@@ -71,6 +72,27 @@ class OpenClip(registry.VisionBackbone):
 
         self.model = clip.visual
         self.model.output_tokens = True  # type: ignore
+
+    @staticmethod
+    def _load_clip_skeleton(arch: str):
+        import open_clip
+
+        # returns (model, eval_transform)
+        model, _, preprocess = open_clip.create_model_and_transforms(
+            arch, pretrained=None
+        )
+        return model, preprocess
+
+    @staticmethod
+    def _patch_state_dict(path: str, drop_keys: list[str]) -> dict:
+        state_dict = torch.load(path, map_location="cpu", weights_only=False)
+        # open_clip stores state_dict, optimizer, etc. We want the state_dict.
+        state_dict = state_dict.get("state_dict", state_dict)
+        # Often a DDP-'module.' prefix.
+        # Strip 'module.' from all key-value pairs in state_dict. AI!
+        for k in drop_keys:
+            state_dict.pop(k, None)
+        return state_dict
 
     def make_img_transform(self):
         return self.img_transform
@@ -172,8 +194,6 @@ class DinoV2(registry.VisionBackbone):
     def __init__(self, ckpt: str, **kwargs):
         super().__init__()
 
-        import torch
-
         self.model = torch.hub.load("facebookresearch/dinov2", ckpt)
 
     def img_encode(
@@ -186,7 +206,6 @@ class DinoV2(registry.VisionBackbone):
         )
 
     def make_img_transform(self):
-        import torch
         from torchvision.transforms import v2
 
         return v2.Compose([
