@@ -58,9 +58,9 @@ def benchmark(cfg: config.Experiment) -> reporting.Report:
     encoder = sklearn.preprocessing.OrdinalEncoder(dtype=int)
     y = encoder.fit_transform(features.labels.reshape(-1, 1)).reshape(-1)
 
-    clf = sklearn.neighbors.NearestNeighbors(n_neighbors=1)
+    clf = sklearn.neighbors.KNeighborsClassifier(n_neighbors=5, weights="uniform")
     clf.fit(features.x, y)
-    preds = clf.kneighbors(return_distance=False)
+    y_hat = clf.predict(None)
 
     preds = [
         reporting.Prediction(
@@ -68,7 +68,7 @@ def benchmark(cfg: config.Experiment) -> reporting.Report:
             float(pred == true),
             {"y_pred": pred.item(), "y_true": true.item()},
         )
-        for img_id, pred, true in zip(features.ids, preds, y)
+        for img_id, pred, true in zip(features.ids, y_hat, y)
     ]
 
     return reporting.Report("beluga", preds, cfg)
