@@ -37,11 +37,11 @@ def main(cfg: str, n: int = 1_000, seed: int = 42):
     n : int, default 1_000
         Number of bootstrap trials.
     seed : int, default 42
-        Seed for NumPy’s `default_rng`.
+        Seed for NumPy's `default_rng`.
 
     Prints
     ------
-    “Mean score: mean (std dev)” where scores are macro-F1 × 100.
+    "Mean score: mean (std dev)" where scores are macro-F1 × 100.
     """
     cfg = next(cfg for cfg in config.load(cfg))
 
