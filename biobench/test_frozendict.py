@@ -121,4 +121,13 @@ def test_json_roundtrip():
     assert hash(original) == hash(deserialized)
 
 
-# add a cloudpickle roundtrip test as well. But make it not fail if cloudpickle is not installed in the environment. AI!
+def test_cloudpickle_roundtrip():
+    pytest.importorskip("cloudpickle")
+    import cloudpickle
+
+    original = FrozenDict(a=1, b=2, c=[3, 4, 5])
+    serialized = cloudpickle.dumps(original)
+    deserialized = cloudpickle.loads(serialized)
+
+    assert original == deserialized
+    assert hash(original) == hash(deserialized)
