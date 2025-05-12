@@ -26,22 +26,16 @@ from . import ImageDataset, score
 
 @beartype.beartype
 def main(cfg: str, n: int = 1_000, seed: int = 42):
-    """
-    Estimate the macro-F1 of uniform random guessing on FishNet.
+    """Estimate the macro-F1 of uniform random guessing on FishNet.
 
-    Parameters
-    ----------
-    cfg : str
-        Path or key understood by `config.load`; must point to an experiment
-        that defines `data.fishnet` and the `verbose` flag.
-    n : int, default 1_000
-        Number of bootstrap trials.
-    seed : int, default 42
-        Seed for NumPy's `default_rng`.
+    Args:
+        cfg: Path or key understood by `config.load`; must point to an experiment
+            that defines `data.fishnet` and the `verbose` flag.
+        n: Number of bootstrap trials. Default is 1_000.
+        seed: Seed for NumPy's `default_rng`. Default is 42.
 
-    Prints
-    ------
-    "Mean score: mean (std dev)" where scores are macro-F1 × 100.
+    Prints:
+        "Mean score: mean (std dev)" where scores are macro-F1 × 100.
     """
     cfg = next(cfg for cfg in config.load(cfg))
 
