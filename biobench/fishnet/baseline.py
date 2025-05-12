@@ -29,13 +29,12 @@ def main(cfg: str, n: int = 1_000, seed: int = 42):
     """Estimate the macro-F1 of uniform random guessing on FishNet.
 
     Args:
-        cfg: Path or key understood by `config.load`; must point to an experiment
-            that defines `data.fishnet` and the `verbose` flag.
+        cfg: Path or key understood by `config.load`; must point to an experiment that defines `data.fishnet` and the `verbose` flag.
         n: Number of bootstrap trials. Default is 1_000.
         seed: Seed for NumPy's `default_rng`. Default is 42.
 
     Prints:
-        "Mean score: mean (std dev)" where scores are macro-F1 × 100.
+        "Mean score: mean (std dev)" where scores are macro-F1 x 100.
     """
     cfg = next(cfg for cfg in config.load(cfg))
 

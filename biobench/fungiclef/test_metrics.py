@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from hypothesis import given
+from hypothesis import assume, given
 from hypothesis import strategies as st
 
 from . import metrics
@@ -93,15 +93,41 @@ def test_all_wrong():
     y_pred=st.lists(st.integers(min_value=-1, max_value=10), min_size=1, max_size=20),
 )
 def test_fuzz_raises_or_returns(y_true, y_pred):
+    assume(len(y_true) == len(y_pred))
     y_t = np.array(y_true)
     y_p = np.array(y_pred)
-    try:
-        out = metrics.evaluate_metrics(y_t, y_p)
-        # Expect dict keys and numeric values
-        assert isinstance(out, dict)
-        for k, v in out.items():
-            assert isinstance(k, str)
-            assert isinstance(v, float)
-    except ValueError:
-        # mismatch lengths should raise
-        assert y_t.shape != y_p.shape
+    out = metrics.evaluate_metrics(y_t, y_p)
+    # Expect dict keys and numeric values
+    assert isinstance(out, dict)
+    for k, v in out.items():
+        assert isinstance(k, str)
+        assert isinstance(v, float)
+
+
+def _gen_labels():
+    """[-1 = unknown] U [0..50], 1 - 100 samples"""
+    return st.lists(st.integers(min_value=-1, max_value=50), min_size=1, max_size=100)
+
+
+@given(y_true=_gen_labels(), y_pred=_gen_labels())
+def test_ce_unknown_in_0_10(y_true, y_pred):
+    assume(len(y_true) == len(y_pred))
+    y_t, y_p = map(np.asarray, (y_true, y_pred))
+    val = metrics.classification_error_with_unknown(y_t, y_p)
+    assert 0.0 <= val <= 10.0
+
+
+@given(y_true=_gen_labels(), y_pred=_gen_labels())
+def test_psc_esc_cost_in_0_100(y_true, y_pred):
+    assume(len(y_true) == len(y_pred))
+    y_t, y_p = map(np.asarray, (y_true, y_pred))
+    val = metrics.psc_esc_cost_score(y_t, y_p)
+    assert 0.0 <= val <= 100.0
+
+
+@given(y_true=_gen_labels(), y_pred=_gen_labels())
+def test_user_loss_in_0_110(y_true, y_pred):
+    assume(len(y_true) == len(y_pred))
+    y_t, y_p = map(np.asarray, (y_true, y_pred))
+    val = metrics.user_loss_score(y_t, y_p)
+    assert 0.0 <= val <= 110.0

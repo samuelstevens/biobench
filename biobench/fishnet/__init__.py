@@ -351,3 +351,15 @@ class ImageDataset(torch.utils.data.Dataset):
 
     def __len__(self) -> int:
         return len(self.df)
+
+    @property
+    def labels(self) -> Int[np.ndarray, "n 9"]:
+        return (
+            self.df.select(pl.nth(self.label_cols))
+            .with_columns(
+                FeedingPath=pl.when(pl.col("FeedingPath") == "benthic")
+                .then(0)
+                .otherwise(1)
+            )
+            .to_numpy()
+        )

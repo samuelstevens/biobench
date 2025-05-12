@@ -23,8 +23,7 @@ def main(cfg: str, n: int = 1_000, seed: int = 42):
     """Evaluate uniform random guessing on FungiCLEF.
 
     Args:
-        cfg: Path or key understood by `config.load`; must point to an experiment 
-            that defines `data.fungiclef` and the `verbose` flag.
+        cfg: Path or key understood by `config.load`; must point to an experiment that defines `data.fungiclef` and the `verbose` flag.
         n: Number of bootstrap trials. Default is 1_000.
         seed: Seed for NumPy's `default_rng`. Default is 42.
 

@@ -103,9 +103,9 @@ def psc_esc_cost_score(
 
 @beartype.beartype
 def user_loss_score(y_true: np.ndarray, y_pred: np.ndarray) -> float:
-    ce = classification_error(y_true, y_pred)
+    ce_unk = classification_error_with_unknown(y_true, y_pred)
     psc = psc_esc_cost_score(y_true, y_pred)
-    return ce + psc
+    return ce_unk + psc
 
 
 @beartype.beartype
@@ -125,7 +125,7 @@ def evaluate_metrics(y_true: np.ndarray, y_pred: np.ndarray) -> dict[str, float]
     ce = classification_error(y_true, y_pred)
     psc = psc_esc_cost_score(y_true, y_pred)
     ce_unk = classification_error_with_unknown(y_true, y_pred)
-    user_loss = ce + psc
+    user_loss = ce_unk + psc
     return {
         "f1_macro": f1,
         "ce": ce,
