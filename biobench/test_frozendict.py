@@ -99,4 +99,12 @@ def test_different_dicts_have_different_hash():
     assert hash(FrozenDict(a=1)) != hash(FrozenDict(b=1))
 
 
-# Add a test that round-trips pickle unpickle. AI!
+def test_pickle_roundtrip():
+    import pickle
+    
+    original = FrozenDict(a=1, b=2, c=[3, 4, 5])
+    serialized = pickle.dumps(original)
+    deserialized = pickle.loads(serialized)
+    
+    assert original == deserialized
+    assert hash(original) == hash(deserialized)
