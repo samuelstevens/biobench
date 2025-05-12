@@ -55,6 +55,14 @@ class OpenClip(registry.VisionBackbone):
 
         if ckpt.startswith("hf-hub:"):
             clip, self.img_transform = open_clip.create_model_from_pretrained(ckpt)
+        elif ckpt.startswith("local:"):
+            # Format: "local:ARCH/PATH_TO_CHECKPOINT"
+            parts = ckpt.split("/", 1)
+            arch = parts[0].replace("local:", "")
+            local_path = parts[1]
+            clip, self.img_transform = open_clip.create_model_from_pretrained(
+                arch, pretrained=local_path
+            )
         else:
             arch, ckpt = ckpt.split("/")
             clip, self.img_transform = open_clip.create_model_from_pretrained(
