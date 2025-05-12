@@ -99,6 +99,9 @@ def test_different_dicts_have_different_hash():
     assert hash(FrozenDict(a=1)) != hash(FrozenDict(b=1))
 
 
+# Update the three tests below to use hypothesis to test lots of different dictionaries, nested and not. AI!
+
+
 def test_pickle_roundtrip():
     import pickle
 
