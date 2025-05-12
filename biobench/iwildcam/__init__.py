@@ -1,7 +1,25 @@
 """
 Fits a linear classifier that is trained using cross-entropy on the training set of iWildCam 2020.
 
+Please cite both the Wilds paper (provides the great package code) and the original iWildCam dataset:
 
+```
+@inproceedings{koh2021wilds,
+  title={Wilds: A benchmark of in-the-wild distribution shifts},
+  author={Koh, Pang Wei and Sagawa, Shiori and Marklund, Henrik and Xie, Sang Michael and Zhang, Marvin and Balsubramani, Akshay and Hu, Weihua and Yasunaga, Michihiro and Phillips, Richard Lanas and Gao, Irena and others},
+  booktitle={International conference on machine learning},
+  pages={5637--5664},
+  year={2021},
+  organization={PMLR}
+}
+
+@article{beery2020iwildcam,
+    title={The iWildCam 2020 Competition Dataset},
+    author={Beery, Sara and Cole, Elijah and Gjoka, Arvi},
+    journal={arXiv preprint arXiv:2004.10340},
+    year={2020}
+}
+```
 """
 
 import dataclasses
