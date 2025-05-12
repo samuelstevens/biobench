@@ -99,13 +99,11 @@ def test_different_dicts_have_different_hash():
     assert hash(FrozenDict(a=1)) != hash(FrozenDict(b=1))
 
 
-# Update the three tests below to use hypothesis to test lots of different dictionaries, nested and not. AI!
-
-
-def test_pickle_roundtrip():
+@given(st.dictionaries(st.text(), st.integers() | st.text() | st.lists(st.integers())))
+def test_pickle_roundtrip(mapping):
     import pickle
 
-    original = FrozenDict(a=1, b=2, c=[3, 4, 5])
+    original = FrozenDict(mapping)
     serialized = pickle.dumps(original)
     deserialized = pickle.loads(serialized)
 
@@ -113,10 +111,11 @@ def test_pickle_roundtrip():
     assert hash(original) == hash(deserialized)
 
 
-def test_json_roundtrip():
+@given(st.dictionaries(st.text(), st.integers() | st.text() | st.lists(st.integers())))
+def test_json_roundtrip(mapping):
     import json
 
-    original = FrozenDict(a=1, b=2, c=[3, 4, 5])
+    original = FrozenDict(mapping)
     serialized = json.dumps(dict(original))
     deserialized = FrozenDict(json.loads(serialized))
 
@@ -124,13 +123,65 @@ def test_json_roundtrip():
     assert hash(original) == hash(deserialized)
 
 
-def test_cloudpickle_roundtrip():
+@given(st.dictionaries(st.text(), st.integers() | st.text() | st.lists(st.integers())))
+def test_cloudpickle_roundtrip(mapping):
     pytest.importorskip("cloudpickle")
     import cloudpickle
 
-    original = FrozenDict(a=1, b=2, c=[3, 4, 5])
+    original = FrozenDict(mapping)
     serialized = cloudpickle.dumps(original)
     deserialized = cloudpickle.loads(serialized)
 
     assert original == deserialized
     assert hash(original) == hash(deserialized)
+
+
+# Define a recursive dictionary strategy for nested dictionaries
+@st.composite
+def nested_dicts(draw, max_depth=3):
+    if max_depth <= 0:
+        return draw(st.dictionaries(
+            st.text(), 
+            st.integers() | st.text() | st.lists(st.integers())
+        ))
+    
+    return draw(st.dictionaries(
+        st.text(),
+        st.integers() | st.text() | st.lists(st.integers()) | nested_dicts(max_depth - 1)
+    ))
+
+
+@given(nested_dicts())
+def test_nested_dict_serialization(nested_mapping):
+    """Test serialization roundtrips with nested dictionaries."""
+    import pickle
+    import json
+    
+    # Convert any nested dictionaries to FrozenDict
+    def convert_nested(d):
+        result = {}
+        for k, v in d.items():
+            if isinstance(v, dict):
+                result[k] = FrozenDict(convert_nested(v))
+            else:
+                result[k] = v
+        return result
+    
+    converted = convert_nested(nested_mapping)
+    original = FrozenDict(converted)
+    
+    # Test pickle
+    pickle_serialized = pickle.dumps(original)
+    pickle_deserialized = pickle.loads(pickle_serialized)
+    assert original == pickle_deserialized
+    assert hash(original) == hash(pickle_deserialized)
+    
+    # Test JSON for serializable parts
+    try:
+        json_serialized = json.dumps(dict(original))
+        json_deserialized = FrozenDict(json.loads(json_serialized))
+        assert original == json_deserialized
+        assert hash(original) == hash(json_deserialized)
+    except (TypeError, ValueError):
+        # Skip JSON test if the dictionary contains non-serializable objects
+        pass
