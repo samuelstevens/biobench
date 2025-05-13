@@ -12,7 +12,7 @@ import time
 import beartype
 import numpy as np
 import sklearn.metrics
-from jaxtyping import jaxtyped
+from jaxtyping import Float, Int, jaxtyped
 
 from . import config, helpers
 
@@ -328,6 +328,54 @@ def macro_f1(preds: list[Prediction]) -> float:
     return sklearn.metrics.f1_score(
         y_true, y_pred, average="macro", labels=np.unique(y_true)
     )
+
+
+@jaxtyped(typechecker=beartype.beartype)
+def macro_f1_batch(
+    y_true: Int[np.ndarray, "*batch n"],
+    y_pred: Int[np.ndarray, "*batch n"],
+    *,
+    labels: Int[np.ndarray, " c"] | None = None,
+) -> Float[np.ndarray, "*batch"]:
+    # Convert this docstring to Google style. AI!
+    """
+    Macro-averaged F1 over the last (sample) axis. Works on an arbitrary *batch* prefix; if you pass a (B, n) bootstrap matrix you get a (B,) vector of F1 scores in one call.
+
+    Parameters
+    ----------
+    y_true, y_pred
+        Integer class labels.  All leading dimensions (*batch*) must match;
+        `n` is the number of examples.
+    labels
+        Optional 1-D array of class ids to average over.
+        If omitted, `np.unique(y_true)` (flattened) is used.
+
+    Returns
+    -------
+    f1 : np.ndarray
+        Shape `batch*`; the macro-F1 for every element of the batch prefix.
+    """
+    if labels is None:
+        labels = np.unique(y_true)
+
+    # one-hot comparisons:  shape (..., n, c)
+    y_true_bin = y_true[..., None] == labels  # broadcast over c
+    y_pred_bin = y_pred[..., None] == labels
+
+    # TP / FP / FN for each class, summed over the example axis (-2)
+    tp = np.logical_and(y_true_bin, y_pred_bin).sum(axis=-2).astype(float)
+    fp = np.logical_and(~y_true_bin, y_pred_bin).sum(axis=-2)
+    fn = np.logical_and(y_true_bin, ~y_pred_bin).sum(axis=-2)
+
+    denom = 2 * tp + fp + fn  # shape *batch c
+    f1_c = np.where(denom, 2 * tp / denom, 0.0)  # avoid div/0
+
+    # macro-average across classes (last axis)
+    mean = f1_c.mean(axis=-1)  # shape *batch
+    if isinstance(mean, np.ndarray):
+        return mean
+    else:
+        return np.array(mean)
 
 
 ##########
