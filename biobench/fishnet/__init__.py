@@ -259,11 +259,15 @@ def get_features(
         shuffle=False,
     )
 
+    @beartype.beartype
+    def debug_cuda_mem(tag: str):
+        if logger.isEnabledFor(logging.DEBUG):
+            logger.debug("%s: %d", tag, torch.cuda.memory_allocated())
+
     def probe(batch):
         imgs, labels, ids = batch
         imgs = imgs.to(cfg.device, non_blocking=True)
-        with torch.amp.autocast(cfg.device):
-            _ = backbone.img_encode(imgs).img_features  # forward only
+        _ = backbone.img_encode(imgs).img_features  # forward only
 
     all_features, all_labels, all_ids = [], [], []
 
@@ -271,10 +275,14 @@ def get_features(
         total = len(dataloader) if not cfg.debug else 2
         it = iter(dataloader)
         for b in helpers.progress(range(total), every=10, desc=f"fish/{file}"):
+            debug_cuda_mem("loop start")
             images, labels, ids = next(it)
+            debug_cuda_mem("after batch")
             images = images.to(cfg.device)
+            debug_cuda_mem("imgs.to(device)")
 
             features = backbone.img_encode(images).img_features
+
             all_features.append(features.cpu())
             all_labels.append(labels)
 

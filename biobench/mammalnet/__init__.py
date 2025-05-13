@@ -24,18 +24,24 @@ If you use this benchmark, please cite the original work:
 import collections.abc
 import csv
 import dataclasses
+import functools
 import logging
 import os
 import os.path
 
 import beartype
 import numpy as np
+import scipy.stats
+import sklearn.linear_model
+import sklearn.model_selection
+import sklearn.pipeline
+import sklearn.preprocessing
 import torch
-from jaxtyping import Float16, Float32, Int, Shaped, jaxtyped
+from jaxtyping import Float, Float16, Int, Shaped, jaxtyped
 from PIL import Image
 from torch import Tensor
 
-from .. import config, helpers, registry, reporting, simpleshot
+from .. import config, helpers, registry, reporting
 
 logger = logging.getLogger(__name__)
 
@@ -74,11 +80,6 @@ def score(preds: list[reporting.Prediction]) -> float:
     return reporting.macro_f1(preds)
 
 
-@beartype.beartype
-def init_clf(cfg: config.Experiment):
-    return simpleshot.SimpleShotClassifier(device="cuda:0")
-
-
 @jaxtyped(typechecker=beartype.beartype)
 @dataclasses.dataclass(frozen=True)
 class Features:
@@ -106,16 +107,22 @@ def get_features(
     """
     img_transform = backbone.make_img_transform()
     backbone = torch.compile(backbone)
-    split = "train" if is_train else "val"
+    split = "train" if is_train else "test"
 
     dataset = Dataset(cfg.data.mammalnet, split=split, transform=img_transform)
+
+    if is_train and cfg.n_train > 0:
+        i = helpers.balanced_random_sample(dataset.labels, cfg.n_train)
+        assert len(i) == cfg.n_train
+        dataset = torch.utils.data.Subset(dataset, i)
+
     dataloader = torch.utils.data.DataLoader(
         dataset,
-        batch_size=cfg.batch_size,
+        batch_size=max(1, cfg.batch_size // 32),
         num_workers=cfg.n_workers,
         drop_last=False,
         shuffle=False,
-        pin_memory=True,
+        pin_memory=False,
     )
 
     def probe(batch):
@@ -126,7 +133,6 @@ def get_features(
             frames = frames.view(bsz * n_frames, c, h, w)
             outputs = backbone.img_encode(frames)
             features = outputs.img_features.view(bsz, n_frames, -1)
-
             features = aggregate_frames(features.to(torch.float16))
 
     all_feats, all_labels, all_ids = [], [], []
@@ -153,6 +159,10 @@ def get_features(
     all_feats = torch.cat(all_feats, dim=0).cpu().numpy()
     all_labels = np.array(all_labels)
     all_ids = np.array(all_ids)
+    assert len(all_ids) == len(dataset)
+
+    if is_train and cfg.n_train >= 0:
+        assert len(all_ids) == len(dataset) == cfg.n_train
 
     return Features(all_feats, all_labels, all_ids)
 
@@ -180,7 +190,7 @@ def find_videos(
 
     with open(os.path.join(root, "annotation", composition, f"{split}.csv")) as fd:
         reader = csv.reader(fd, delimiter=" ")
-        for rel_path, species_id, behavior_id in reader:
+        for rel_path, behavior_id, species_id in reader:
             # the CSV prefixes "trimmed_videos/..."
             _, fname = rel_path.split("/")
             video_id, ext = os.path.splitext(fname)
@@ -211,20 +221,29 @@ class Dataset(torch.utils.data.Dataset):
     _videos: list[Video]
 
     def __init__(self, root: str, *, split: str, transform):
-        self._videos = list(find_videos(root, split=split))
+        self._videos = list(
+            helpers.progress(
+                find_videos(root, split=split), every=500, desc=f"videos/{split}"
+            )
+        )
         self._transform = transform
+        logger.info("Loaded %d videos for split '%s'.", len(self), split)
 
     def __len__(self) -> int:
         return len(self._videos)
 
     def __getitem__(
         self, i
-    ) -> tuple[Float32[Tensor, "n_frames channels width height"], int, str]:
+    ) -> tuple[Float[Tensor, "n_frames channels width height"], int, str]:
         video = self._videos[i]
 
         frames = [self._transform(Image.open(fpath)) for fpath in video.frame_fpaths]
 
         return torch.stack(frames, dim=0), video.behavior_id, video.video_id
+
+    @functools.cached_property
+    def labels(self) -> Int[np.ndarray, " n"]:
+        return np.array([video.behavior_id for video in self._videos])
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -232,3 +251,23 @@ def aggregate_frames(
     features: Float16[Tensor, "batch n_frames dim"],
 ) -> Float16[Tensor, "batch dim"]:
     return torch.max(features, dim=1).values
+
+
+@beartype.beartype
+def init_clf(cfg: config.Experiment):
+    clf = sklearn.pipeline.make_pipeline(
+        sklearn.preprocessing.StandardScaler(),
+        sklearn.linear_model.LogisticRegression(max_iter=200),
+    )
+    if 0 < cfg.n_train <= 1000:
+        return clf
+
+    return sklearn.model_selection.RandomizedSearchCV(
+        clf,
+        {"logisticregression__C": scipy.stats.loguniform(a=1e-2, b=1e2)},
+        n_iter=30,
+        n_jobs=8,
+        verbose=3,
+        random_state=cfg.seed,
+        scoring="f1_macro",
+    )

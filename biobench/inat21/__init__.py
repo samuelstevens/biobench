@@ -30,7 +30,7 @@ import sklearn.pipeline
 import sklearn.preprocessing
 import torch
 import torchvision.datasets
-from jaxtyping import Float, Int, Shaped, jaxtyped
+from jaxtyping import Float16, Int, Shaped, jaxtyped
 
 from biobench import config, helpers, registry, reporting
 
@@ -42,7 +42,7 @@ n_classes = 10_000
 @jaxtyped(typechecker=beartype.beartype)
 @dataclasses.dataclass(frozen=True)
 class Features:
-    x: Float[np.ndarray, "n dim"]
+    x: Float16[np.ndarray, "n dim"]
     y: Int[np.ndarray, " n"]
     ids: Shaped[np.ndarray, " n"]
 
@@ -83,6 +83,11 @@ def benchmark(cfg: config.Experiment) -> reporting.Report:
     ]
 
     return reporting.Report("inat21", preds, cfg)
+
+
+@beartype.beartype
+def score(preds: list[reporting.Prediction]) -> float:
+    return reporting.micro_acc(preds)
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -165,7 +170,7 @@ def get_features(
             all_labels.extend(labels)
             all_ids.extend(ids)
 
-    all_features = torch.cat(all_features, dim=0).cpu().numpy()
+    all_features = torch.cat(all_features, dim=0).cpu().to(torch.float16).numpy()
     all_ids = np.array(all_ids)
     all_labels = torch.tensor(all_labels).numpy()
     if is_train and cfg.n_train > 0:
@@ -182,7 +187,7 @@ def init_clf(cfg: config.Experiment):
 
     clf = sklearn.pipeline.make_pipeline(
         sklearn.preprocessing.StandardScaler(),
-        sklearn.linear_model.RidgeClassifier(solver="saga"),
+        sklearn.linear_model.RidgeClassifier(),
     )
     if 0 < cfg.n_train < 20_000:
         clf
@@ -190,7 +195,7 @@ def init_clf(cfg: config.Experiment):
     return sklearn.model_selection.HalvingGridSearchCV(
         clf,
         {"ridgeclassifier__alpha": alpha},
-        n_jobs=16,
-        verbose=2,
+        n_jobs=8,
+        verbose=3,
         factor=3,
     )

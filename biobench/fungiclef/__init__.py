@@ -119,15 +119,15 @@ def get_features(
     backbone = torch.compile(backbone.to(cfg.device))
     feats_list, labs_list, img_ids_list, obs_ids_list = [], [], [], []
 
-    def probe(batch):
-        imgs = batch["img"].to(cfg.device)
-        with torch.amp.autocast(cfg.device):
-            backbone.img_encode(imgs)
-
     @beartype.beartype
     def debug_cuda_mem(tag: str):
         if logger.isEnabledFor(logging.DEBUG):
             logger.debug("%s: %d", tag, torch.cuda.memory_allocated())
+
+    def probe(batch):
+        imgs = batch["img"].to(cfg.device)
+        with torch.amp.autocast(cfg.device):
+            backbone.img_encode(imgs)
 
     with helpers.auto_batch_size(dataloader, probe=probe):
         total = len(dataloader) if not cfg.debug else 2

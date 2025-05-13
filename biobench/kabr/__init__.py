@@ -188,19 +188,6 @@ def score(preds: list[reporting.Prediction]) -> float:
 def get_features(
     cfg: config.Experiment, backbone: registry.VisionBackbone, *, is_train: bool
 ) -> Features:
-    """
-    Gets all model features and true labels for all frames and all examples in the dataloader.
-
-    Returns it as a pair of big tensors; other tasks use a dedicated class for this, but here it's just a tuple.
-
-    Args:
-        args: KABR task arguments.
-        backbone: Vision backbone.
-        dataloader: Dataloader for whatever data you want to get features for.
-
-    Returns:
-        tuple of model features and true labels. See signature for shape.
-    """
     img_transform = backbone.make_img_transform()
     backbone = torch.compile(backbone)
     split = "train" if is_train else "val"
@@ -208,7 +195,7 @@ def get_features(
     dataset = Dataset(cfg.data.kabr, split, transform=img_transform)
     dataloader = torch.utils.data.DataLoader(
         dataset,
-        batch_size=cfg.batch_size,
+        batch_size=max(1, cfg.batch_size // 32),
         num_workers=cfg.n_workers,
         drop_last=False,
         shuffle=False,

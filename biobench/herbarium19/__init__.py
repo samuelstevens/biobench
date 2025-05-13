@@ -139,7 +139,7 @@ def get_features(
         it = iter(dataloader)
         for b in helpers.progress(range(total), every=10, desc=f"hb19/{split}"):
             batch = next(it)
-            imgs = batch["img"].to(cfg.device)
+            imgs = batch["img"].to(cfg.device, non_blocking=True)
 
             with torch.amp.autocast("cuda"):
                 features = backbone.img_encode(imgs).img_features

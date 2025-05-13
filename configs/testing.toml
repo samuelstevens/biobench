@@ -1,0 +1,13 @@
+n_train = [-1]
+report_to = "results-testing"
+
+[data]
+plantnet = "/research/nfs_su_809/workspace/stevens.994/datasets/plantnet"
+
+[[models]]
+org = "open-clip"
+ckpt = "local:ViT-L-14/./models/vit-l-14-tol50m-laion2b-replay-ep50.pt"
+
+[[models]]
+org = "open-clip"
+ckpt = "local:ViT-L-14/./models/vit-l-14-tol50m-laion2b-replay-ep50.pt"

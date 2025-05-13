@@ -186,9 +186,7 @@ def balanced_random_sample(
 
 
 @beartype.beartype
-def batched_idx(
-    total_size: int, batch_size: int
-) -> collections.abc.Iterator[tuple[int, int]]:
+class batched_idx:
     """
     Iterate over (start, end) indices for total_size examples, where end - start is at most batch_size.
 
@@ -199,18 +197,7 @@ def batched_idx(
     Returns:
         A generator of (int, int) tuples that can slice up a list or a tensor.
     """
-    for start in range(0, total_size, batch_size):
-        stop = min(start + batch_size, total_size)
-        yield start, stop
 
-
-@beartype.beartype
-class BatchedIdx:
-    """
-    Iterable class that yields (start, end) indices for slicing data into batches.
-    
-    Similar to batched_idx function but provides __len__ for progress tracking.
-    """
     def __init__(self, total_size: int, batch_size: int):
         """
         Args:
@@ -219,13 +206,13 @@ class BatchedIdx:
         """
         self.total_size = total_size
         self.batch_size = batch_size
-        
+
     def __iter__(self) -> collections.abc.Iterator[tuple[int, int]]:
         """Yield (start, end) index pairs for batching."""
         for start in range(0, self.total_size, self.batch_size):
             stop = min(start + self.batch_size, self.total_size)
             yield start, stop
-            
+
     def __len__(self) -> int:
         """Return the number of batches."""
         return (self.total_size + self.batch_size - 1) // self.batch_size

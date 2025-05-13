@@ -1,31 +1,43 @@
 n_train = -1
-verbose = false
+verbose = true
 report_to = "/local/scratch/$USER/experiments/biobench"
 
 [data]
 # Benchmark
 beluga = "/research/nfs_su_809/workspace/stevens.994/datasets/beluga"
 fishnet = "/research/nfs_su_809/workspace/stevens.994/datasets/fishnet"
-# fungiclef = "/research/nfs_su_809/workspace/stevens.994/datasets/fungiclef"
+fungiclef = "/research/nfs_su_809/workspace/stevens.994/datasets/fungiclef"
 herbarium19 = "/research/nfs_su_809/workspace/stevens.994/datasets/herbarium19"
 iwildcam = "/research/nfs_su_809/workspace/stevens.994/datasets/iwildcam"
 kabr = "/research/nfs_su_809/workspace/stevens.994/datasets/kabr"
-# mammalnet = "/research/nfs_su_809/workspace/stevens.994/datasets/mammalnet"
+mammalnet = "/research/nfs_su_809/workspace/stevens.994/datasets/mammalnet"
 plankton = "/research/nfs_su_809/workspace/stevens.994/datasets/plankton"
 plantnet = "/research/nfs_su_809/workspace/stevens.994/datasets/plantnet"
 
 # Prior work
-imagenet1k = "huggingface"
-inat21 = "/research/nfs_su_809/workspace/stevens.994/datasets/inat21"
+# imagenet1k = "huggingface"
+# inat21 = "/research/nfs_su_809/workspace/stevens.994/datasets/inat21"
 newt = "/research/nfs_su_809/workspace/stevens.994/datasets/newt"
 
-[[models]]
-org = "vjepa"
-ckpt = "vitl16"
+
+
+#######################################
+# BIOCLIP 2 MODELS; TRY NOT TO COMMIT #
+#######################################
 
 [[models]]
-org = "vjepa"
-ckpt = "vith16"
+org = "open-clip"
+ckpt = "local:ViT-L-14/./models/vit-l-14-tol50m-laion2b-replay-ep50.pt"
+
+[[models]]
+org = "open-clip"
+ckpt = "local:ViT-L-14/./models/vit-l-14-tol50m-laion2b-replay-ep50.pt"
+
+########################
+# END BIOCLIP 2 MODELS #
+########################
+
+
 
 [[models]]
 org = "open-clip"
@@ -74,6 +86,10 @@ ckpt = "ViT-SO400M-14-SigLIP/webli"
 [[models]]
 org = "open-clip"
 ckpt = "ViT-SO400M-14-SigLIP-384/webli"
+
+[[models]]
+org = "timm"
+ckpt = "hf-hub:BVRA/MegaDescriptor-L-384"
 
 [[models]]
 org = "timm"
@@ -156,6 +172,10 @@ org = "open-clip"
 ckpt = "hf-hub:imageomics/bioclip"
 
 [[models]]
+org = "open-clip"
+ckpt = "hf-hub:BGLab/BioTrove-CLIP"
+
+[[models]]
 org = "dinov2"
 ckpt = "dinov2_vitg14_reg"
 
@@ -195,15 +215,19 @@ ckpt = "sam2_hiera_tiny.fb_r896_2pt1"
 org = "sam2"
 ckpt = "sam2_hiera_small.fb_r896_2pt1"
 
-[[models]]
-org = "sam2"
-ckpt = "sam2_hiera_base_plus.fb_r896_2pt1"
+# [[models]]
+# org = "sam2"
+# ckpt = "sam2_hiera_base_plus.fb_r896_2pt1"
 
-[[models]]
-org = "sam2"
-ckpt = "sam2_hiera_large.fb_r1024_2pt1"
+# [[models]]
+# org = "sam2"
+# ckpt = "sam2_hiera_large.fb_r1024_2pt1"
 
 [[models]]
 org = "vjepa"
-ckpt = "vith16-384"
+ckpt = "vitl16"
+
+[[models]]
+org = "vjepa"
+ckpt = "vith16"
 

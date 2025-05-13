@@ -111,7 +111,7 @@ def get_features(args: Args, backbone: registry.VisionBackbone) -> Features:
     total = math.ceil(11984 / args.batch_size) if not args.debug else 2
     it = iter(dataloader)
     logger.debug("Need to embed %d batches of %d images.", total, args.batch_size)
-    for b in helpers.progress(range(total), every=args.log_every, desc="embed"):
+    for b in helpers.progress(range(total), every=args.log_every, desc="rarespecies"):
         batch = next(it)
 
         images = batch["image"].to(args.device)

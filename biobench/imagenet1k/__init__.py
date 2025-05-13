@@ -15,7 +15,7 @@ import sklearn.model_selection
 import sklearn.pipeline
 import sklearn.preprocessing
 import torch
-from jaxtyping import Float, Int, Shaped, jaxtyped
+from jaxtyping import Float16, Int, Shaped, jaxtyped
 
 from biobench import config, helpers, registry, reporting
 
@@ -32,7 +32,7 @@ warnings.filterwarnings(
 @jaxtyped(typechecker=beartype.beartype)
 @dataclasses.dataclass(frozen=True)
 class Features:
-    x: Float[np.ndarray, "n dim"]
+    x: Float16[np.ndarray, "n dim"]
     y: Int[np.ndarray, " n"]
     ids: Shaped[np.ndarray, " n"]
 
@@ -143,7 +143,7 @@ def get_features(
             all_labels.extend(batch["label"])
             all_ids.extend(batch["id"])
 
-    all_features = torch.cat(all_features, dim=0).cpu().numpy()
+    all_features = torch.cat(all_features, dim=0).cpu().to(torch.float16).numpy()
     all_ids = np.array(all_ids)
     all_labels = torch.tensor(all_labels).numpy()
     assert len(all_ids) == len(i) or cfg.n_train < 0
@@ -160,7 +160,7 @@ def init_clf(cfg: config.Experiment):
 
     clf = sklearn.pipeline.make_pipeline(
         sklearn.preprocessing.StandardScaler(),
-        sklearn.linear_model.RidgeClassifier(solver="saga"),
+        sklearn.linear_model.RidgeClassifier(),
     )
     if 0 < cfg.n_train < 2_000:
         return clf
@@ -168,8 +168,8 @@ def init_clf(cfg: config.Experiment):
     return sklearn.model_selection.HalvingGridSearchCV(
         clf,
         {"ridgeclassifier__alpha": alpha},
-        n_jobs=16,
-        verbose=2,
+        n_jobs=8,
+        verbose=3,
         factor=3,
         random_state=cfg.seed,
     )

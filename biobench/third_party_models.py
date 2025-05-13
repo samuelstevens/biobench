@@ -57,7 +57,6 @@ class OpenClip(registry.VisionBackbone):
         if ckpt.startswith("hf-hub:"):
             clip, self.img_transform = open_clip.create_model_from_pretrained(ckpt)
         elif ckpt.startswith("local:"):
-            breakpoint()
             # Format: "local:ARCH/PATH_TO_CHECKPOINT"
             ckpt = ckpt.removeprefix("local:")
             arch, local_path = ckpt.split("/", 1)
@@ -89,7 +88,7 @@ class OpenClip(registry.VisionBackbone):
         # open_clip stores state_dict, optimizer, etc. We want the state_dict.
         state_dict = state_dict.get("state_dict", state_dict)
         # Often a DDP-'module.' prefix.
-        state_dict = {k.replace('module.', ''): v for k, v in state_dict.items()}
+        state_dict = {k.replace("module.", ""): v for k, v in state_dict.items()}
         for k in drop_keys:
             state_dict.pop(k, None)
         return state_dict
@@ -215,21 +214,6 @@ class DinoV2(registry.VisionBackbone):
             v2.ToDtype(torch.float32, scale=True),
             v2.Normalize(mean=[0.4850, 0.4560, 0.4060], std=[0.2290, 0.2240, 0.2250]),
         ])
-
-
-@jaxtyped(typechecker=beartype.beartype)
-class TorchvisionModel(registry.VisionBackbone):
-    def __init__(self, ckpt: str):
-        import torchvision
-
-        arch, weights = ckpt.split("/")
-        self.model = getattr(torchvision, arch)(weights=weights)
-        self.model.eval()
-
-    def img_encode(
-        self, batch: Float[Tensor, "batch 3 width height"]
-    ) -> registry.EncodedImgBatch:
-        breakpoint()
 
 
 @jaxtyped(typechecker=beartype.beartype)

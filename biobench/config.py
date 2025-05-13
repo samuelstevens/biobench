@@ -20,9 +20,16 @@ class Model:
 
     org: str
     ckpt: str
+    _: dataclasses.KW_ONLY
+    drop_keys: tuple[str, ...] = dataclasses.field(default_factory=tuple)
 
     def to_dict(self) -> dict[str, object]:
         return dataclasses.asdict(self)
+
+    @classmethod
+    def from_dict(cls, dct: dict[str, object]) -> "Model":
+        drop_keys = tuple(dct.pop("drop_keys", []))
+        return cls(**dct, drop_keys=drop_keys)
 
 
 @beartype.beartype
@@ -79,7 +86,7 @@ class Experiment:
 
     n_workers: int = 4
     """Number of dataloader workers."""
-    batch_size: int = 16
+    batch_size: int = 8
     """Initial batch size to start with for tuning."""
 
     data: Data = dataclasses.field(default_factory=Data)
@@ -125,7 +132,7 @@ def load(path: str) -> list[Experiment]:
         raise ValueError("models must be a list of tables in TOML")
 
     # Start with models as base experiments
-    experiments = [{"model": Model(**model)} for model in models]
+    experiments = [{"model": Model.from_dict(model)} for model in models]
 
     # Handle data config specially
     data = raw.pop("data", {})

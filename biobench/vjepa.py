@@ -589,7 +589,7 @@ def vit_huge(patch_size: int = 16, **kwargs):
 
 @jaxtyped(typechecker=beartype.beartype)
 class VJEPA(registry.VisionBackbone):
-    def __init__(self, ckpt: str):
+    def __init__(self, ckpt: str, **_):
         super().__init__()
         self.n_frames = 16
         if ckpt == "vitl16":
