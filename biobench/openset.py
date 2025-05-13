@@ -1,8 +1,15 @@
+import logging
+
 import beartype
 import numpy as np
-import scipy.stats
 import sklearn.base
+import sklearn.discriminant_analysis
 import sklearn.utils.validation
+from jaxtyping import Float, jaxtyped
+
+from . import helpers
+
+logger = logging.getLogger(__name__)
 
 
 @beartype.beartype
@@ -31,22 +38,15 @@ class MahalanobisOpenSetClassifier(
         Must implement fit / predict (e.g. a Pipeline with a classifier).
     alpha : float, default=0.95
         Confidence level for the chi-squared cutoff; 1-alpha is the tail mass declared OOD.
-    covariance_estimator : {"empirical", "ledoit"}, default="ledoit"
-        Strategy for covariance. "ledoit" is shrinkage-robust and invertible.
     unknown_label : int | str, default=-1
         Label given to detections outside the known set.
     """
 
     def __init__(
-        self,
-        base_estimator,
-        alpha: float = 0.95,
-        covariance_estimator: str = "ledoit",
-        unknown_label: int | str = -1,
+        self, base_estimator, alpha: float = 0.95, unknown_label: int | str = -1
     ):
         self.base_estimator = base_estimator
         self.alpha = alpha
-        self.covariance_estimator = covariance_estimator
         self.unknown_label = unknown_label
 
     # ---------------- #
@@ -56,53 +56,87 @@ class MahalanobisOpenSetClassifier(
         X, y = sklearn.utils.validation.check_X_y(X, y, accept_sparse=False)
         self.classes_ = np.unique(y)
 
-        # 1. fit the wrapped classifier
         self.clf_ = sklearn.base.clone(self.base_estimator).fit(X, y)
+        logger.info("Fit base estimator.")
 
-        # 2. compute per-class means
-        self.means_ = np.vstack([X[y == c].mean(axis=0) for c in self.classes_])
+        self.lda_ = sklearn.discriminant_analysis.LinearDiscriminantAnalysis(
+            solver="eigen", shrinkage="auto", store_covariance=True
+        )
+        self.lda_.fit(X, y)
+        logger.info("Fit LDA.")
 
-        # 3. shared covariance
-        if self.covariance_estimator == "ledoit":
-            cov = sklearn.covariance.LedoitWolf().fit(X)
-            self.Sigma_inv_ = cov.precision_
-        elif self.covariance_estimator == "empirical":
-            cov = np.cov(X, rowvar=False)
-            self.Sigma_inv_ = np.linalg.pinv(cov)
-        else:
-            raise ValueError("covariance_estimator must be 'empirical' or 'ledoit'")
+        self.means_ = self.lda_.means_
+        self.covariance_ = self.lda_.covariance_
+        try:
+            self.inv_covariance_ = np.linalg.inv(self.covariance_)
+        except np.linalg.LinAlgError:
+            self.inv_covariance_ = np.linalg.pinv(self.covariance_)
+        logger.info("Inverted covariance matrix.")
 
-        # 4. analytic chi-squared cutoff
-        d = X.shape[1]
-        self.tau_ = scipy.stats.chi2.ppf(self.alpha, df=d)
+        train_scores = min_mahalanobis_sq_batched(X, self.means_, self.inv_covariance_)
+        self.tpr_ = np.percentile(train_scores, 95)
+
+        logger.info("Fit.")
         return self
 
     def predict(self, X):
-        sklearn.utils.validation.check_is_fitted(self, "clf_")
-        X = sklearn.utils.validation.check_array(X, accept_sparse=False)
-
-        # Mahalanobis distance to nearest class mean
-        d2 = self._min_mahala_sq(X)
-        is_in = d2 <= self.tau_
+        scores = self.decision_function(X)
 
         pred_known = self.clf_.predict(X)
-        pred = np.where(is_in, pred_known, self.unknown_label)
+        pred = np.where(scores >= 0, pred_known, self.unknown_label)
         return pred
 
     def decision_function(self, X):
-        """Negative min-Mahalanobis distance (higher = more in-dist)."""
         sklearn.utils.validation.check_is_fitted(self, "clf_")
         X = sklearn.utils.validation.check_array(X, accept_sparse=False)
-        return -self._min_mahala_sq(X)
 
-    # ------------------ #
-    # internal utilities #
-    # ------------------ #
-    def _min_mahala_sq(self, X) -> np.ndarray:
-        """
-        Vectorised squared Mahalanobis distance to the *nearest* class mean.
-        """
-        diff = X[:, None, :] - self.means_  # (n, C, d)
-        # (n, C) -> min over C -> (n,)
-        d2 = np.einsum("ncd,dd,ncd->nc", diff, self.Sigma_inv_, diff).min(axis=1)
-        return d2
+        d2 = min_mahalanobis_sq_batched(X, self.means_, self.inv_covariance_)
+        return self.tpr_ - d2
+
+
+@jaxtyped(typechecker=beartype.beartype)
+def min_mahalanobis_sq(
+    X: Float[np.ndarray, "n d"],
+    mu: Float[np.ndarray, "classes d"],
+    cov_inv: Float[np.ndarray, "d d"],
+) -> Float[np.ndarray, " n"]:
+    logger.info(
+        "Calculating min_mahalanobis_sq. n=%d, d=%d, c=%d",
+        X.shape[0],
+        X.shape[1],
+        mu.shape[0],
+    )
+    diff = X[:, None, :] - mu[None, :, :]
+    logger.info("Got diff with shape %s", diff.shape)
+    d2 = np.einsum("ncd,dd,ncd->nc", diff, cov_inv, diff)
+    logger.info("Got d2 with shape %s", d2.shape)
+    out = d2.min(axis=1)
+    logger.info("Got out with shape %s", out.shape)
+    return out.astype(np.float32)
+
+
+@jaxtyped(typechecker=beartype.beartype)
+def min_mahalanobis_sq_batched(
+    X: Float[np.ndarray, "n d"],
+    mu: Float[np.ndarray, "classes d"],
+    cov_inv: Float[np.ndarray, "d d"],
+    *,
+    bsz: int = 256,
+) -> Float[np.ndarray, " n"]:
+    n, d = X.shape
+    L = np.linalg.cholesky(cov_inv)
+    logger.info("Calculated L.")
+
+    Xw = X @ L  # (n, d)  whiten once
+    muw = mu @ L  # (c, d)
+    muw_norm_sq = np.square(muw).sum(axis=1).reshape(1, -1)  # (1, c)
+
+    out = np.full(n, 0.0, dtype=np.float32)
+
+    for start, end in helpers.progress(helpers.batched_idx(n, bsz), desc="mahalanobis"):
+        Xwb = Xw[start:end]  # (bsz, d)
+        Xwb_norm_sq = np.square(Xwb).sum(axis=1, keepdims=True)  # (bsz, 1)
+        d_sq = Xwb_norm_sq + muw_norm_sq - 2.0 * Xwb @ muw.T  # (bsz,C)
+        out[start:end] = d_sq.min(axis=1)
+
+    return out.astype(np.float32)

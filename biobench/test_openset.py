@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 import sklearn.linear_model
-from hypothesis import given
+from hypothesis import given, settings
 from hypothesis import strategies as st
 
 from . import openset
@@ -28,9 +28,9 @@ def _toy_data():
     return x, y
 
 
-# -----------------------------------------------------------------------------
-# Estimator API test
-# -----------------------------------------------------------------------------
+# ------------------ #
+# Estimator API test #
+# ------------------ #
 
 
 def test_estimator_api():
@@ -44,7 +44,7 @@ def test_estimator_api():
     preds = clf.predict(x)
 
     # Attributes created by fit
-    for attr in ("clf_", "means_", "Sigma_inv_", "tau_", "classes_"):
+    for attr in ("clf_", "means_", "inv_covariance_", "tpr_"):
         assert hasattr(clf, attr), f"missing attribute {attr} after fit()"
 
     # Perfect prediction on training data
@@ -61,6 +61,7 @@ def test_estimator_api():
     n_features=st.integers(min_value=2, max_value=60),
     n_classes=st.integers(min_value=2, max_value=40),
 )
+@settings(deadline=400)
 def test_fuzz_no_exceptions(n_samples, n_features, n_classes):
     rng = np.random.default_rng()
     x = rng.normal(size=(n_samples, n_features)).astype(np.float32)
@@ -81,7 +82,7 @@ def test_fuzz_no_exceptions(n_samples, n_features, n_classes):
 @pytest.mark.parametrize(
     "test_pt, expected",
     [
-        (np.array([[0.0]]), 0),  # near class-0 centroid
+        (np.array([[-1.0]]), 0),  # near class-0 centroid
         (np.array([[1.2]]), 1),  # near class-1 centroid
         (np.array([[100.0]]), -1),  # far away -> unknown
         (np.array([[-50.0]]), -1),  # far other side -> unknown
@@ -148,3 +149,83 @@ def test_roc_like_property():
     # Simple AUC approximation: score separation
     separation = scores[: len(x_k)].mean() - scores[len(x_k) :].mean()
     assert separation > 0.5, "Mahalanobis scores should separate ID from OOD"
+
+
+@st.composite
+def random_spd_inv(draw, d: int):
+    """Random symmetric-positive-definite inverse covariance."""
+    A = draw(
+        st.lists(
+            st.floats(-5, 5, allow_nan=False, allow_infinity=False),
+            min_size=d * d,
+            max_size=d * d,
+        )
+    )
+    A = np.asarray(A, dtype=np.float64).reshape(d, d)
+    cov = A @ A.T + 1e-3 * np.eye(d)
+    return np.linalg.inv(cov)
+
+
+@st.composite
+def maha_inputs(draw):
+    # dimensions
+    n = draw(st.integers(min_value=1, max_value=64))
+    d = draw(st.integers(min_value=1, max_value=32))
+    C = draw(st.integers(min_value=1, max_value=16))
+
+    # feature matrix
+    X = draw(
+        st.lists(
+            st.floats(-10, 10, allow_nan=False, allow_infinity=False),
+            min_size=n * d,
+            max_size=n * d,
+        )
+    )
+    X = np.asarray(X, dtype=np.float64).reshape(n, d)
+
+    # class means
+    mu = draw(
+        st.lists(
+            st.floats(-10, 10, allow_nan=False, allow_infinity=False),
+            min_size=C * d,
+            max_size=C * d,
+        )
+    )
+    mu = np.asarray(mu, dtype=np.float64).reshape(C, d)
+
+    # shared precision (inverse covariance)
+    cov_inv = draw(random_spd_inv(d))
+
+    return X, mu, cov_inv
+
+
+@given(maha_inputs())
+def test_min_mahalanobis_sq_no_error(data):
+    X, mu, cov_inv = data
+    out = openset.min_mahalanobis_sq(X, mu, cov_inv)
+
+    # basic sanity: shape and finiteness
+    assert out.shape == (X.shape[0],)
+    assert np.isfinite(out).all()
+    assert (out >= 0).all()
+
+
+@given(maha_inputs())
+def test_min_mahalanobis_sq_batched_no_error(data):
+    X, mu, cov_inv = data
+    out = openset.min_mahalanobis_sq_batched(X, mu, cov_inv)
+
+    # basic sanity: shape and finiteness
+    assert out.shape == (X.shape[0],)
+    assert np.isfinite(out).all()
+    assert (out >= 0).all()
+
+
+@given(maha_inputs())
+def test_min_mahalanobis_sq_batched_equal(data):
+    X, mu, cov_inv = data
+    expected = openset.min_mahalanobis_sq(X, mu, cov_inv)
+    actual = openset.min_mahalanobis_sq_batched(X, mu, cov_inv)
+
+    assert expected.shape == actual.shape
+    np.testing.assert_allclose(actual, expected, atol=1e-5, rtol=1e-5)

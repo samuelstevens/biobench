@@ -35,7 +35,7 @@ class SimpleShotClassifier(sklearn.base.BaseEstimator, sklearn.base.ClassifierMi
         Used only during `predict`; centroids are pushed to this device for fast batched distance computation.
     """
 
-    def __init__(self, batch_size: int = 2048, device: str = "cpu"):
+    def __init__(self, batch_size: int = 512, device: str = "cpu"):
         self.batch_size = batch_size
         self.device = device
 

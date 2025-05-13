@@ -90,7 +90,7 @@ class FungiDataset(torch.utils.data.Dataset):
 
 
 @beartype.beartype
-@torch.no_grad()
+@torch.inference_mode()
 def get_features(
     cfg: config.Experiment,
     backbone: registry.VisionBackbone,
@@ -116,13 +116,13 @@ def get_features(
         pin_memory=False,
     )
 
-    backbone = torch.compile(backbone.to(cfg.device))
+    backbone = backbone.to(cfg.device)
     feats_list, labs_list, img_ids_list, obs_ids_list = [], [], [], []
 
     @beartype.beartype
     def debug_cuda_mem(tag: str):
         if logger.isEnabledFor(logging.DEBUG):
-            logger.debug("%s: %d", tag, torch.cuda.memory_allocated())
+            logger.debug("%s: %s", tag, torch.cuda.memory_summary())
 
     def probe(batch):
         imgs = batch["img"].to(cfg.device)
@@ -130,19 +130,26 @@ def get_features(
             backbone.img_encode(imgs)
 
     with helpers.auto_batch_size(dataloader, probe=probe):
+        backbone = torch.compile(backbone)
         total = len(dataloader) if not cfg.debug else 2
         it = iter(dataloader)
         for _ in helpers.progress(range(total), desc=f"fungi/{split}"):
             debug_cuda_mem("loop start")
             batch = next(it)
             debug_cuda_mem("after batch")
-            imgs = batch["img"].to(cfg.device, non_blocking=True)
+            imgs = batch["img"].to(cfg.device)
             debug_cuda_mem("imgs.to(device)")
             with torch.amp.autocast(cfg.device):
                 out = backbone.img_encode(imgs).img_features
-            debug_cuda_mem("forward pass")
+            debug_cuda_mem("after forward pass")
             feats_list.append(out.cpu().numpy())
             debug_cuda_mem("appended feats")
+
+            # I was getting some CUDA OOM errors due to PyTorch reserving/allocating and memory fragmentation. Rather than adjust the recommended env variable, I added this line manual GC.
+            del out
+            torch.cuda.empty_cache()
+
+            debug_cuda_mem("emptied cache")
             labs_list.extend(batch["label"].tolist())
             img_ids_list.extend(batch["img_id"])
             obs_ids_list.extend(batch["obs_id"].tolist())
@@ -168,11 +175,13 @@ def get_features(
 
 
 @beartype.beartype
-@torch.no_grad()
+@torch.inference_mode()
 def benchmark(cfg: config.Experiment) -> reporting.Report:
     backbone = registry.load_vision_backbone(cfg.model)
     train_feats = get_features(cfg, backbone, is_train=True, pool=False)
     val_feats = get_features(cfg, backbone, is_train=False, pool=True)
+
+    torch.cuda.empty_cache()  # be nice to others on the machine.
 
     clf = init_clf(cfg)
     clf.fit(train_feats.x, train_feats.y)
