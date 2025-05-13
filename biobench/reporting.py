@@ -337,23 +337,21 @@ def macro_f1_batch(
     *,
     labels: Int[np.ndarray, " c"] | None = None,
 ) -> Float[np.ndarray, "*batch"]:
-    # Convert this docstring to Google style. AI!
-    """
-    Macro-averaged F1 over the last (sample) axis. Works on an arbitrary *batch* prefix; if you pass a (B, n) bootstrap matrix you get a (B,) vector of F1 scores in one call.
+    """Calculates macro-averaged F1 over the last (sample) axis.
 
-    Parameters
-    ----------
-    y_true, y_pred
-        Integer class labels.  All leading dimensions (*batch*) must match;
-        `n` is the number of examples.
-    labels
-        Optional 1-D array of class ids to average over.
-        If omitted, `np.unique(y_true)` (flattened) is used.
+    Works on an arbitrary *batch* prefix; if you pass a (B, n) bootstrap matrix
+    you get a (B,) vector of F1 scores in one call.
 
-    Returns
-    -------
-    f1 : np.ndarray
-        Shape `batch*`; the macro-F1 for every element of the batch prefix.
+    Args:
+        y_true: Integer class labels. All leading dimensions (*batch*) must match;
+            n is the number of examples.
+        y_pred: Integer class predictions. All leading dimensions (*batch*) must match;
+            n is the number of examples.
+        labels: Optional 1-D array of class ids to average over.
+            If omitted, np.unique(y_true) (flattened) is used.
+
+    Returns:
+        A numpy array with shape *batch; the macro-F1 for every element of the batch prefix.
     """
     if labels is None:
         labels = np.unique(y_true)
