@@ -54,6 +54,13 @@ def score(preds: list[reporting.Prediction]) -> float:
     return reporting.macro_f1(preds)
 
 
+@jaxtyped(typechecker=beartype.beartype)
+def score_batch(
+    y_true: Int[np.ndarray, "*batch n"], y_pred: Int[np.ndarray, "*batch n"]
+) -> Float[np.ndarray, "*batch"]:
+    return reporting.macro_f1_batch(y_true, y_pred)
+
+
 @beartype.beartype
 def benchmark(cfg: config.Experiment) -> reporting.Report:
     backbone = registry.load_vision_backbone(cfg.model)

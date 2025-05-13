@@ -15,7 +15,7 @@ import sklearn.model_selection
 import sklearn.pipeline
 import sklearn.preprocessing
 import torch
-from jaxtyping import Float16, Int, Shaped, jaxtyped
+from jaxtyping import Float, Float16, Int, Shaped, jaxtyped
 
 from biobench import config, helpers, registry, reporting
 
@@ -70,6 +70,13 @@ def benchmark(cfg: config.Experiment) -> reporting.Report:
 @beartype.beartype
 def score(preds: list[reporting.Prediction]) -> float:
     return reporting.micro_acc(preds)
+
+
+@jaxtyped(typechecker=beartype.beartype)
+def score_batch(
+    y_true: Int[np.ndarray, "*batch n"], y_pred: Int[np.ndarray, "*batch n"]
+) -> Float[np.ndarray, "*batch"]:
+    return reporting.micro_acc_batch(y_true, y_pred)
 
 
 class Transform:

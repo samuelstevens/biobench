@@ -6,6 +6,7 @@ import sqlite3
 import time
 
 import beartype
+import numpy as np
 import pytest
 from hypothesis import given
 from hypothesis import strategies as st
@@ -39,6 +40,27 @@ def _prediction_list(draw):
     return preds
 
 
+@st.composite
+def _prediction_batch(draw):
+    """Generate a *batch* (B ≥ 1) of equal-length prediction lists."""
+    B = draw(st.integers(1, 2))  # batch size
+    n = draw(st.integers(1, 4))  # common sample count
+    batch = []
+    for _ in range(B):
+        y_true = draw(st.lists(st.integers(0, 50), min_size=n, max_size=n))
+        y_pred = draw(st.lists(st.integers(0, 50), min_size=n, max_size=n))
+        preds = [
+            reporting.Prediction(
+                id=str(i),
+                score=float(y_pred[i] == y_true[i]),
+                info={"y_true": y_true[i], "y_pred": y_pred[i]},
+            )
+            for i in range(n)
+        ]
+        batch.append(preds)
+    return batch
+
+
 @given(preds=_prediction_list())
 def test_micro_f1_equals_micro_accuracy(preds):
     """Micro-averaged F1 must equal micro accuracy for single-label data."""
@@ -48,6 +70,97 @@ def test_micro_f1_equals_micro_accuracy(preds):
 
     # Floating math can introduce tiny error, so compare with tolerance
     assert math.isclose(acc, f1, rel_tol=1e-12, abs_tol=1e-12)
+
+
+@given(preds=_prediction_list())
+def test_macro_f1_batch_matches_macro_f1_bsz0(preds):
+    """Vectorised implementation must equal our non-batched macro-F1."""
+    y_true = np.fromiter((p.info["y_true"] for p in preds), dtype=int)
+    y_pred = np.fromiter((p.info["y_pred"] for p in preds), dtype=int)
+
+    ours = reporting.macro_f1_batch(y_true, y_pred)
+    ref = reporting.macro_f1(preds)
+
+    assert math.isclose(ours, ref, rel_tol=1e-12, abs_tol=1e-12)
+
+
+@given(preds=_prediction_list())
+def test_macro_f1_batch_matches_macro_f1_bsz1(preds):
+    """Vectorised implementation must equal our non-batched macro-F1."""
+    y_true = np.fromiter((p.info["y_true"] for p in preds), dtype=int)
+    y_pred = np.fromiter((p.info["y_pred"] for p in preds), dtype=int)
+
+    ours = reporting.macro_f1_batch(y_true[None, :], y_pred[None, :])[0]
+    ref = reporting.macro_f1(preds)
+
+    assert math.isclose(ours, ref, rel_tol=1e-12, abs_tol=1e-12)
+
+
+@given(batch=_prediction_batch())
+def test_macro_f1_batch_matches_macro_f1_bsz_n(batch):
+    """For a true batch (B > 1 possible), vectorised `macro_f1_batch` must equal looping over the legacy `macro_f1`."""
+    # stack into (B, n)
+    y_true = np.stack([
+        np.fromiter((p.info["y_true"] for p in preds), dtype=int) for preds in batch
+    ])
+    y_pred = np.stack([
+        np.fromiter((p.info["y_pred"] for p in preds), dtype=int) for preds in batch
+    ])
+
+    labels = np.unique(np.stack([y_true, y_pred]))
+    labels = np.arange(labels.max() + 1)
+
+    ours = reporting.macro_f1_batch(y_true, y_pred)
+    ref = np.array([
+        reporting.macro_f1(preds, labels=labels.tolist()) for preds in batch
+    ])
+
+    assert np.allclose(ours, ref, rtol=1e-12, atol=1e-12)
+
+
+f1_macro_edgecases = [
+    [[reporting.Prediction(id="0", score=1.0, info={"y_true": 2, "y_pred": 2})]],
+    # [[reporting.Prediction(id="0", score=1.0, info={"y_true": 0, "y_pred": 0})]],
+    # [
+    #     [
+    #         reporting.Prediction(id="0", score=1.0, info={"y_true": 0, "y_pred": 0}),
+    #         reporting.Prediction(id="1", score=0.0, info={"y_true": 1, "y_pred": 0}),
+    #     ],
+    # ],
+    # [
+    #     [
+    #         reporting.Prediction(id="0", score=1.0, info={"y_true": 0, "y_pred": 0}),
+    #         reporting.Prediction(id="1", score=0.0, info={"y_true": 0, "y_pred": 1}),
+    #     ]
+    # ],
+    # [
+    #     [
+    #         reporting.Prediction(id="0", score=1.0, info={"y_true": 0, "y_pred": 0}),
+    #         reporting.Prediction(id="1", score=0.0, info={"y_true": 1, "y_pred": 0}),
+    #     ],
+    #     [
+    #         reporting.Prediction(id="1", score=0.0, info={"y_true": 1, "y_pred": 0}),
+    #         reporting.Prediction(id="1", score=0.0, info={"y_true": 1, "y_pred": 0}),
+    #     ],
+    # ],
+]
+
+
+@pytest.mark.parametrize("batch", f1_macro_edgecases)
+def test_macro_f1_batch_matches_macro_f1_edgecases(batch):
+    """For a true batch (B > 1 possible), vectorised `macro_f1_batch` must equal looping over the legacy `macro_f1`."""
+    # stack into (B, n)
+    y_true = np.stack([
+        np.fromiter((p.info["y_true"] for p in preds), dtype=int) for preds in batch
+    ])
+    y_pred = np.stack([
+        np.fromiter((p.info["y_pred"] for p in preds), dtype=int) for preds in batch
+    ])
+
+    ours = reporting.macro_f1_batch(y_true, y_pred)  # shape (B,)
+    ref = np.array([reporting.macro_f1(preds) for preds in batch])
+
+    assert np.allclose(ours, ref, rtol=1e-12, atol=1e-12)
 
 
 ##############################

@@ -55,6 +55,7 @@ def benchmark(cfg: config.Experiment) -> reporting.Report:
     # 2. Load data.
     test_features = get_features(cfg, backbone, is_train=False)
     train_features = get_features(cfg, backbone, is_train=True)
+    torch.cuda.empty_cache()
 
     # 4. Do simpleshot.
     clf = init_clf(cfg)
@@ -78,6 +79,13 @@ def benchmark(cfg: config.Experiment) -> reporting.Report:
 @beartype.beartype
 def score(preds: list[reporting.Prediction]) -> float:
     return reporting.macro_f1(preds)
+
+
+@jaxtyped(typechecker=beartype.beartype)
+def score_batch(
+    y_true: Int[np.ndarray, "*batch n"], y_pred: Int[np.ndarray, "*batch n"]
+) -> Float[np.ndarray, "*batch"]:
+    return reporting.macro_f1_batch(y_true, y_pred)
 
 
 @jaxtyped(typechecker=beartype.beartype)

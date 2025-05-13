@@ -319,15 +319,49 @@ def micro_f1(preds: list[Prediction]) -> float:
 
 
 @beartype.beartype
-def macro_f1(preds: list[Prediction]) -> float:
+def macro_f1(preds: list[Prediction], *, labels: list[int] | None = None) -> float:
     y_pred = np.array([
         next(p.info[key] for key in ("y_pred", "pred_y") if key in p.info)
         for p in preds
     ])
     y_true = np.array([p.info.get("y_true", p.info.get("true_y")) for p in preds])
+
+    if labels is None:
+        labels = np.unique(np.stack([y_true, y_pred]))
+        labels = np.arange(labels.max() + 1)
+    else:
+        labels = np.array(labels)
+
+    assert (np.arange(labels.size) == labels).all()
+
     return sklearn.metrics.f1_score(
-        y_true, y_pred, average="macro", labels=np.unique(y_true)
+        y_true, y_pred, average="macro", labels=labels, zero_division=0.0
     )
+
+
+@beartype.beartype
+def micro_acc_batch(
+    y_true: Int[np.ndarray, "*batch n"], y_pred: Int[np.ndarray, "*batch n"]
+) -> Float[np.ndarray, "*batch"]:
+    """
+    Vectorised **micro-accuracy** (overall proportion of correct predictions).
+
+    * Works on any leading `*batch` prefix; the final axis `n` is the number of examples.
+    * Complexity O(B·n) time, O(1) extra memory.
+
+    Parameters
+    ----------
+    y_true, y_pred
+        Integer class labels / predictions ≥ 0.  All leading dimensions
+        (`*batch`) must match; `n` is the sample count.
+
+    Returns
+    -------
+    acc : np.ndarray
+        Shape `*batch`; accuracy for every element of the batch prefix.
+    """
+    acc = (y_true == y_pred).mean(axis=-1, dtype=float)
+    return acc
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -337,43 +371,55 @@ def macro_f1_batch(
     *,
     labels: Int[np.ndarray, " c"] | None = None,
 ) -> Float[np.ndarray, "*batch"]:
-    """Calculates macro-averaged F1 over the last (sample) axis.
-
-    Works on an arbitrary *batch* prefix; if you pass a (B, n) bootstrap matrix
-    you get a (B,) vector of F1 scores in one call.
-
-    Args:
-        y_true: Integer class labels. All leading dimensions (*batch*) must match;
-            n is the number of examples.
-        y_pred: Integer class predictions. All leading dimensions (*batch*) must match;
-            n is the number of examples.
-        labels: Optional 1-D array of class ids to average over.
-            If omitted, np.unique(y_true) (flattened) is used.
-
-    Returns:
-        A numpy array with shape *batch; the macro-F1 for every element of the batch prefix.
     """
+    Vectorised macro-F1 for large class counts.
+
+    Accepts any leading `*batch` prefix; the last axis `n` is the number
+    of examples.  Runs in O(B·n) time and O(B·C) memory, where
+    B = prod(*batch) and C = #classes.
+
+    All elements in y_true, y_pred, and labels must be integers ≥ 0. (Negative IDs would break the offset arithmetic; floats break np.bincount.)
+    """
+
+    # flatten batch prefix
+    *batch_shape, n = y_true.shape
+    b = int(np.prod(batch_shape))  # total batches
+
+    y_true = y_true.reshape(b, n)
+    y_pred = y_pred.reshape(b, n)
+
+    # label remapping to dense 0...C-1
     if labels is None:
-        labels = np.unique(y_true)
+        labels = np.unique(np.stack([y_true, y_pred]))
 
-    # one-hot comparisons:  shape (..., n, c)
-    y_true_bin = y_true[..., None] == labels  # broadcast over c
-    y_pred_bin = y_pred[..., None] == labels
+    labels = np.arange(labels.max() + 1)
+    c = labels.size
+    assert (np.arange(c) == labels).all()
 
-    # TP / FP / FN for each class, summed over the example axis (-2)
-    tp = np.logical_and(y_true_bin, y_pred_bin).sum(axis=-2).astype(float)
-    fp = np.logical_and(~y_true_bin, y_pred_bin).sum(axis=-2)
-    fn = np.logical_and(y_true_bin, ~y_pred_bin).sum(axis=-2)
+    # offsets for per-batch bincounts
+    offset = np.arange(b, dtype=np.int64)[:, None] * c  # (b, 1)
+    yz_true = y_true + offset  # (b, n)
+    yz_pred = y_pred + offset  # (b, n)
 
-    denom = 2 * tp + fp + fn  # shape *batch c
-    f1_c = np.where(denom, 2 * tp / denom, 0.0)  # avoid div/0
+    # counts for all examples
+    true_cnt = np.bincount(yz_true.ravel(), minlength=(b * c)).reshape(b, c)
+    pred_cnt = np.bincount(yz_pred.ravel(), minlength=(b * c)).reshape(b, c)
 
-    # macro-average across classes (last axis)
-    mean = f1_c.mean(axis=-1)  # shape *batch
-    if isinstance(mean, np.ndarray):
-        return mean
-    else:
-        return np.array(mean)
+    # true-positives
+    tp_mask = y_true == y_pred  # (B, n)
+    tp_off = yz_true[tp_mask]  # 1-D
+    tp_cnt = np.bincount(tp_off, minlength=(b * c)).reshape(b, c)
+
+    # F1 per class, then macro average
+    fp = pred_cnt - tp_cnt
+    fn = true_cnt - tp_cnt
+    denom = 2 * tp_cnt + fp + fn  # (B, C)
+
+    f1_c = np.zeros_like(denom, dtype=float)
+    np.divide(2 * tp_cnt, denom, out=f1_c, where=denom != 0)
+
+    macro_f1 = f1_c.mean(axis=-1)  # (B,)
+    return macro_f1.reshape(batch_shape)
 
 
 ##########

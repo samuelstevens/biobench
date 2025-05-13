@@ -122,6 +122,13 @@ def score(preds: list[reporting.Prediction]) -> float:
 
 
 @jaxtyped(typechecker=beartype.beartype)
+def score_batch(
+    y_true: Int[np.ndarray, "*batch n"], y_pred: Int[np.ndarray, "*batch n"]
+) -> Float[np.ndarray, "*batch"]:
+    return reporting.macro_f1_batch(y_true, y_pred)
+
+
+@jaxtyped(typechecker=beartype.beartype)
 class Sample(typing.TypedDict):
     """A dictionary representing a single image sample with its metadata.
 

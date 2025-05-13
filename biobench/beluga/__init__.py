@@ -39,7 +39,7 @@ import numpy as np
 import sklearn.neighbors
 import torch
 import torchvision.datasets
-from jaxtyping import Float, Shaped, jaxtyped
+from jaxtyping import Float, Int, Shaped, jaxtyped
 from torch import Tensor
 
 from .. import config, helpers, registry, reporting
@@ -77,6 +77,13 @@ def benchmark(cfg: config.Experiment) -> reporting.Report:
 @beartype.beartype
 def score(preds: list[reporting.Prediction]) -> float:
     return reporting.macro_f1(preds)
+
+
+@jaxtyped(typechecker=beartype.beartype)
+def score_batch(
+    y_true: Int[np.ndarray, "*batch n"], y_pred: Int[np.ndarray, "*batch n"]
+) -> Float[np.ndarray, "*batch"]:
+    return reporting.macro_f1_batch(y_true, y_pred)
 
 
 @jaxtyped(typechecker=beartype.beartype)
