@@ -65,7 +65,7 @@ def load_vision_backbone(model_cfg: config.Model) -> VisionBackbone:
         raise ValueError(f"Org '{model_cfg.org}' not found.")
 
     cls = _global_backbone_registry[model_cfg.org]
-    return cls(model_cfg.ckpt)
+    return cls(model_cfg.ckpt, drop_keys=model_cfg.drop_keys)
 
 
 @beartype.beartype
