@@ -74,6 +74,10 @@ def _(beartype, collections, dataclasses, functools, importlib):
         def score_fn(self) -> collections.abc.Callable:
             return importlib.import_module(f"biobench.{self.name}").score
 
+        @functools.cached_property
+        def score_fn_batch(self) -> collections.abc.Callable:
+            return importlib.import_module(f"biobench.{self.name}").score_batch
+
 
     prior_work_tasks = [
         Task("imagenet1k", "ImageNet-1K", legend="lower left"),
@@ -99,22 +103,47 @@ def _(beartype, collections, dataclasses, functools, importlib):
 
 @app.cell
 def _(mo, os, pl, sqlite3, task_lookup):
-    df = pl.read_database(
-        f"SELECT experiments.task_name, experiments.model_ckpt, predictions.img_id, predictions.score, predictions.info FROM experiments JOIN predictions ON experiments.id = predictions.experiment_id WHERE n_train = -1",
-        sqlite3.connect(
-            os.path.expandvars("/local/scratch/$USER/experiments/biobench/reports.sqlite")
-        ),
-        infer_schema_length=100_000,
-    ).filter(pl.col("task_name").is_in(task_lookup))
+    df = (
+        pl.read_database(
+            f"SELECT experiments.task_name, experiments.model_ckpt, predictions.score, predictions.img_id, predictions.info FROM experiments JOIN predictions ON experiments.id = predictions.experiment_id WHERE n_train = -1",
+            sqlite3.connect(
+                os.path.expandvars(
+                    "/local/scratch/$USER/experiments/biobench/reports.sqlite"
+                )
+            ),
+            infer_schema_length=100_000,
+        )
+        .lazy()
+        .filter(pl.col("task_name").is_in(task_lookup))
+        .with_columns(
+            pl.coalesce(
+                [
+                    pl.col("info").str.json_path_match("$.y_true"),
+                    pl.col("info").str.json_path_match("$.true_y"),
+                ]
+            ).alias("y_true"),
+            pl.coalesce(
+                [
+                    pl.col("info").str.json_path_match("$.y_pred"),
+                    pl.col("info").str.json_path_match("$.pred_y"),
+                ]
+            ).alias("y_pred"),
+        )
+        .select("task_name", "model_ckpt", "img_id", "score", "y_true", "y_pred")
+        .collect()
+    )
     mo.md(f"{len(df):,}")
     return (df,)
 
 
 @app.cell
 def _(df, json, pl, reporting, task_lookup):
-    def _struct_to_pred(row: dict) -> reporting.Prediction:
+    raise ValueError()
+
+
+    def _struct_to_pred(st: dict) -> reporting.Prediction:
         return reporting.Prediction(
-            id=row["img_id"], score=row["score"], info=json.loads(row["info"])
+            id=st["img_id"], score=st["score"], info=json.loads(st["info"])
         )
 
 
@@ -190,23 +219,24 @@ def _(beartype, dataclasses, df, reporting):
         #     reporting.ORANGE_RGB01,
         # ),
         Model("hf-hub:imageomics/bioclip", "BioCLIP ViT-B/16", "cv4ecology"),
-        Model(
-            "local:ViT-L-14/./models/vit-l-14-tol50m-laion2b-replay-ep50.pt",
-            "BioCLIP-2 ViT-L/14 (ToL-50M)",
-            "cv4ecology",
-        ),
-        Model(
-            "local:ViT-L-14/./models/vit-l-14-tol200m-laion2b-replay-ep30.pt",
-            "BioCLIP-2 ViT-L/14 (ToL-200M)",
-            "cv4ecology",
-        ),
+        Model("hf-hub:BGLab/BioTrove-CLIP", "BioTrove ViT-B/16", "cv4ecology"),
+        # Model(
+        #     "local:ViT-L-14/./models/vit-l-14-tol50m-laion2b-replay-ep50.pt",
+        #     "BioCLIP-2 ViT-L/14 (ToL-50M)",
+        #     "cv4ecology",
+        # ),
+        # Model(
+        #     "local:ViT-L-14/./models/vit-l-14-tol200m-laion2b-replay-ep30.pt",
+        #     "BioCLIP-2 ViT-L/14 (ToL-200M)",
+        #     "cv4ecology",
+        # ),
         Model(
             "hf-hub:BVRA/MegaDescriptor-L-384",
             "MegaDescriptor Swin-L/4 (384px)",
             "cv4ecology",
         ),
-        Model("vitl16", "V-JEPA ViT-L/16", "V-JEPA"),
-        Model("vith16", "V-JEPA ViT-H/16", "V-JEPA"),
+        # Model("vitl16", "V-JEPA ViT-L/16", "V-JEPA"),
+        # Model("vith16", "V-JEPA ViT-H/16", "V-JEPA"),
         # Model("vith16-384", "V-JEPA ViT-H/16 (384px)", "V-JEPA"),
         Model("sam2_hiera_tiny.fb_r896_2pt1", "SAM2 Hiera-T", "SAM2"),
         Model("sam2_hiera_small.fb_r896_2pt1", "SAM2 Hiera-S", "SAM2"),
@@ -649,7 +679,122 @@ def _(benchmark_tasks, models, pl, prior_work_tasks, scores):
 
 
 @app.cell
-def _():
+def _(benchmark_tasks, df, models, np, pl, prior_work_tasks):
+    import statsmodels.stats.multitest
+
+
+    def significance_testing():
+        b, alpha = 1_000, 0.05
+        rng = np.random.default_rng(seed=17)
+
+        for task in prior_work_tasks + benchmark_tasks:
+            try:
+                score_batch = task.score_fn_batch
+            except AttributeError:
+                print(f"No `score_batch` for {task.name}")
+                continue
+
+            sub = df.filter(pl.col("task_name") == task.name)
+
+            n, *rest = (
+                sub.group_by("model_ckpt")
+                .agg(pl.len().alias("n"))
+                .get_column("n")
+                .to_list()
+            )
+
+            if task.name == "imagenet1k":
+                # For some reason one of our imagenet-1k things only has 49.3K predictions. So that's what we use. It's probably enough.
+                n = 49364
+            else:
+                assert all(n == i for i in rest)
+
+            idx_bs = rng.integers(0, n, size=(b, n), dtype=np.int32)
+
+            scores = np.zeros((b, len(models)), dtype=np.float32)
+
+            if task.name == "newt":
+                scores_newt_buf = np.empty((b, n), dtype=np.int32)
+
+                for i, model in enumerate(models):
+                    scores_newt = (
+                        sub.filter(pl.col("model_ckpt") == model.ckpt)
+                        .select("img_id", "score")
+                        .unique()
+                        .sort("img_id")
+                        .get_column("score")
+                        .to_numpy()
+                    )
+
+                    if scores_newt.size == 0:
+                        continue
+
+                    np.take(scores_newt, idx_bs, axis=0, out=scores_newt_buf)
+                    scores[:, i] = np.mean(scores_newt, axis=-1)
+            else:
+                y_pred_buf = np.empty((b, n), dtype=np.int32)
+                y_true_buf = np.empty((b, n), dtype=np.int32)
+
+                for i, model in enumerate(models):
+                    # pull y_true and y_pred for *one* model
+                    y_pred = (
+                        sub.filter(pl.col("model_ckpt") == model.ckpt)
+                        .select("img_id", "y_pred")
+                        .unique()
+                        .sort("img_id")
+                        .get_column("y_pred")
+                        .cast(pl.Float32)
+                        .cast(pl.Int32)
+                        .to_numpy()
+                    )
+
+                    y_true = (
+                        sub.filter(pl.col("model_ckpt") == model.ckpt)
+                        .select("img_id", "y_true")
+                        .unique()
+                        .sort("img_id")
+                        .get_column("y_true")
+                        .cast(pl.Float32)
+                        .cast(pl.Int32)
+                        .to_numpy()
+                    )
+
+                    if y_pred.size == 0:
+                        continue
+
+                    assert y_true.size == y_pred.size
+
+                    # bootstrap resample into pre-allocated buffers
+                    np.take(y_pred, idx_bs, axis=0, out=y_pred_buf)
+                    np.take(y_true, idx_bs, axis=0, out=y_true_buf)
+
+                    # ref = sklearn.metrics.f1_score(y_true, y_pred, average="macro")
+                    scores[:, i] = score_batch(y_true_buf, y_pred_buf)
+
+            means = scores.mean(axis=0)
+
+            best_m = means.argmax()
+
+            # Null hypothesis: model m is no worse than best_m. If this is true, then the proportion of scores where scores[:, m] >= scores[:, best_m] is high. If the proportion is low, then model m is likely worse than best_m.
+            pvals = (scores >= scores[:, best_m][:, None]).mean(axis=0)
+            reject, pvals, _, _ = statsmodels.stats.multitest.multipletests(
+                pvals, alpha=alpha, method="holm"
+            )
+
+            # Print bolding
+            bold = [models[i].ckpt for i, r in enumerate(reject) if not r]
+            print(f"{task.name}:", ", ".join(bold))
+
+
+    significance_testing()
+    return significance_testing, statsmodels
+
+
+@app.cell
+def _(df, pl):
+    df.filter(pl.col("task_name") == "imagenet1k").group_by("model_ckpt").agg(
+        pl.len().alias("n")
+    ).get_column("n").unique()
     return
 
 
