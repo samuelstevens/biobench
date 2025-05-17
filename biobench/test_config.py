@@ -2,6 +2,8 @@ import itertools
 import pathlib
 import textwrap
 
+import pytest
+
 from . import config
 
 
@@ -50,3 +52,16 @@ def test_load_returns_full_cartesian_product(tmp_path):
     # data-block propagated
     for exp in exps:
         assert exp.data.newt == "/data/newt"
+
+
+def test_models_must_be_list(tmp_path):
+    bad_file = tmp_path / "bad.toml"
+    bad_file.write_text(
+        textwrap.dedent(
+            """
+            models = { org = "timm", ckpt = "resnet50" }
+            """
+        )
+    )
+    with pytest.raises(ValueError):
+        config.load(str(bad_file))
