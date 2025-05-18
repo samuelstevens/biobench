@@ -513,5 +513,16 @@ Things I want to change after NeurIPS submission:
 1. Splits should be better aligned with either site/location, past/future (time) or other reasonable distribution splits.
 2. We should also report performance for 100 samples, or 1 of each class, whichever is more. Then I can cite both my cv4animals submission and callista's website.
 3. We should use GPU accelerated training for doing sweeps on linear probing for large models like DINOv2's probing code.
+4. Justify the particular task-specific head (ridgeclassifier, logistic regression, simpleshot, svm, etc).
+5. Use [`wildlife_datasets`](https://github.com/WildlifeDatasets/wildlife-datasets) for Beluga data loading.
+6. Plot progress on ImageNet and BioBench over time (normalized to each leaderboard).
 
 Some of these can be worked on before the NeurIPS reviews come out in prep fo rebuttal.
+
+Additional models:
+
+1. SigLIP2
+2. [OpenVision](https://arxiv.org/abs/2505.04601)
+3. [WebSSL](https://huggingface.co/collections/facebook/web-ssl-68094132c15fbd7808d1e9bb)
+4. [CATALOG](https://arxiv.org/pdf/2412.10624)
+5. [WildCLIP](https://github.com/amathislab/wildclip) (see [here](https://zenodo.org/records/11102888) for the checkpoints)
