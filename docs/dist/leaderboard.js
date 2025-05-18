@@ -6316,7 +6316,7 @@ var $author$project$Leaderboard$viewRow = function (r) {
 		$elm$html$Html$tr,
 		_List_fromArray(
 			[
-				$elm$html$Html$Attributes$class('hover:bg-gray-100')
+				$elm$html$Html$Attributes$class('hover:bg-biobench-sea-500')
 			]),
 		_List_fromArray(
 			[
@@ -6404,7 +6404,10 @@ var $author$project$Leaderboard$viewTable = function (payload) {
 					[
 						A2(
 						$elm$html$Html$tr,
-						_List_Nil,
+						_List_fromArray(
+							[
+								$elm$html$Html$Attributes$class('bg-biobench-blue-500 text-white')
+							]),
 						A2(
 							$elm$core$List$map,
 							$author$project$Leaderboard$viewTheadText,

@@ -202,7 +202,7 @@ viewTable : Payload -> Html.Html Msg
 viewTable payload =
     Html.table [ class "w-full text-sm" ]
         [ Html.thead []
-            [ Html.tr []
+            [ Html.tr [ class "bg-biobench-blue-500 text-white" ]
                 (List.map viewTheadText [ "Task", "Model", "Mean", "CI Low", "CI High" ])
             ]
         , Html.tbody []
@@ -217,7 +217,7 @@ viewTheadText s =
 
 viewRow : BenchmarkResult -> Html.Html Msg
 viewRow r =
-    Html.tr [ class "hover:bg-gray-100" ]
+    Html.tr [ class "hover:bg-biobench-sea-500" ]
         [ Html.td [ class "px-2 py-1" ] [ Html.text r.task ]
         , Html.td [ class "px-2 py-1" ] [ Html.text r.model ]
         , Html.td [ class "px-2 py-1 tabular-nums" ] [ Html.text (roundF r.mean) ]
