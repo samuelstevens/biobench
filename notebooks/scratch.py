@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.11.25"
+__generated_with = "0.13.10"
 app = marimo.App(width="full")
 
 
@@ -35,18 +35,15 @@ def _():
     from jaxtyping import Int, Real, jaxtyped
 
     from biobench import reporting, helpers
+
     return (
-        Int,
-        PATH_TO_BIOBENCH,
         Real,
         beartype,
         collections,
         dataclasses,
         functools,
-        helpers,
         importlib,
         jaxtyped,
-        json,
         math,
         matplotlib,
         mo,
@@ -56,10 +53,8 @@ def _():
         plt,
         reporting,
         scipy,
-        sklearn,
         sqlite3,
         statsmodels,
-        sys,
     )
 
 
@@ -76,7 +71,6 @@ def _(beartype, collections, dataclasses, functools, importlib):
         @functools.cached_property
         def bootstrap_scores_fn(self) -> collections.abc.Callable:
             return importlib.import_module(f"biobench.{self.name}").bootstrap_scores
-
 
     prior_work_tasks = [
         Task("imagenet1k", "ImageNet-1K", legend="lower left"),
@@ -97,7 +91,7 @@ def _(beartype, collections, dataclasses, functools, importlib):
     ]
 
     task_lookup = {task.name: task for task in prior_work_tasks + benchmark_tasks}
-    return Task, benchmark_tasks, prior_work_tasks, task_lookup
+    return benchmark_tasks, prior_work_tasks, task_lookup
 
 
 @app.cell
@@ -115,18 +109,14 @@ def _(mo, os, pl, sqlite3, task_lookup):
         .lazy()
         .filter(pl.col("task_name").is_in(task_lookup))
         .with_columns(
-            pl.coalesce(
-                [
-                    pl.col("info").str.json_path_match("$.y_true"),
-                    pl.col("info").str.json_path_match("$.true_y"),
-                ]
-            ).alias("y_true"),
-            pl.coalesce(
-                [
-                    pl.col("info").str.json_path_match("$.y_pred"),
-                    pl.col("info").str.json_path_match("$.pred_y"),
-                ]
-            ).alias("y_pred"),
+            pl.coalesce([
+                pl.col("info").str.json_path_match("$.y_true"),
+                pl.col("info").str.json_path_match("$.true_y"),
+            ]).alias("y_true"),
+            pl.coalesce([
+                pl.col("info").str.json_path_match("$.y_pred"),
+                pl.col("info").str.json_path_match("$.pred_y"),
+            ]).alias("y_pred"),
         )
         .select("task_name", "model_ckpt", "img_id", "score", "y_true", "y_pred")
         .collect()
@@ -162,10 +152,9 @@ def _(Float, benchmark_tasks, df, model_lookup, np, pl, prior_work_tasks):
 
         return pl.DataFrame(rows)
 
-
     scores = make_scores_df()
     scores
-    return make_scores_df, scores
+    return (scores,)
 
 
 @app.cell
@@ -176,7 +165,6 @@ def _(beartype, dataclasses, df, reporting):
         ckpt: str
         display: str
         family: str
-
 
     models = [
         Model("ViT-B-32/openai", "CLIP ViT-B/32", "CLIP"),
@@ -268,7 +256,7 @@ def _(beartype, dataclasses, df, reporting):
         for ckpt in sorted(df.get_column("model_ckpt").unique().to_list())
         if ckpt not in model_lookup
     ]
-    return Model, color_lookup, model_lookup, models
+    return color_lookup, model_lookup, models
 
 
 @app.cell
@@ -312,7 +300,8 @@ def _(
             for ckpt in ckpts:
                 try:
                     score = scores.filter(
-                        (pl.col("model_ckpt") == ckpt) & (pl.col("task_name") == task.name)
+                        (pl.col("model_ckpt") == ckpt)
+                        & (pl.col("task_name") == task.name)
                     ).item(row=0, column="score")
                 except IndexError:
                     print(f"Missing score on {task.name} for {ckpt}.")
@@ -348,9 +337,8 @@ def _(
         fig.savefig(os.path.join("results", "all-tasks.pdf"))
         return fig
 
-
     make_overview_fig()
-    return (make_overview_fig,)
+    return
 
 
 @app.cell
@@ -372,7 +360,6 @@ def _(
         denom = np.sqrt((x**2).sum()) * np.sqrt((y**2).sum())
         return 0.0 if denom == 0 else float((x * y).sum() / denom)
 
-
     @jaxtyped(typechecker=beartype.beartype)
     def spearman_r(x: Real[np.ndarray, " n"], y: Real[np.ndarray, " n"]) -> float:
         def rank(a):
@@ -383,12 +370,10 @@ def _(
 
         return pearson_r(rank(x), rank(y))
 
-
     @jaxtyped(typechecker=beartype.beartype)
     def kendall_tau(x: Real[np.ndarray, " n"], y: Real[np.ndarray, " n"]) -> float:
         """Kendall tau (tau-b) for one-dimensional arrays x, y of equal length."""
         return scipy.stats.kendalltau(x, y).statistic.item()
-
 
     @beartype.beartype
     def make_corr_df(ignore_families: list[str] | None = None):
@@ -405,7 +390,8 @@ def _(
             try:
                 return (
                     scores.filter(
-                        (pl.col("model_ckpt") == ckpt) & (pl.col("task_name") == task_name)
+                        (pl.col("model_ckpt") == ckpt)
+                        & (pl.col("task_name") == task_name)
                     )
                     .group_by("model_ckpt", "task_name")
                     .mean()
@@ -444,7 +430,8 @@ def _(
             rows.append(row)
 
         return pl.DataFrame(rows)
-    return kendall_tau, make_corr_df, pearson_r, spearman_r
+
+    return kendall_tau, make_corr_df, spearman_r
 
 
 @app.cell
@@ -452,7 +439,9 @@ def _(benchmark_tasks, make_corr_df, os, plt, reporting):
     def make_correlation_fig(n_boot: int = 5_000):
         fig_df = make_corr_df(ignore_families=["cv4ecology"])
 
-        task_cols = [task.name for task in benchmark_tasks if task.name in fig_df.columns]
+        task_cols = [
+            task.name for task in benchmark_tasks if task.name in fig_df.columns
+        ]
         xs = fig_df.get_column("imagenet1k").to_numpy() * 100
         ys = fig_df.select(task_cols).to_numpy().mean(axis=1)
 
@@ -479,9 +468,8 @@ def _(benchmark_tasks, make_corr_df, os, plt, reporting):
 
         return fig
 
-
     make_correlation_fig()
-    return (make_correlation_fig,)
+    return
 
 
 @app.cell
@@ -490,7 +478,9 @@ def _(benchmark_tasks, kendall_tau, make_corr_df, np, pl, spearman_r):
         named_fns = [("tau", kendall_tau), ("rho", spearman_r)]
 
         corr_df = make_corr_df(ignore_families=["cv4ecology"])
-        task_cols = [task.name for task in benchmark_tasks if task.name in corr_df.columns]
+        task_cols = [
+            task.name for task in benchmark_tasks if task.name in corr_df.columns
+        ]
         corr_df = corr_df.with_columns(mean=pl.mean_horizontal(task_cols))
 
         rng = np.random.default_rng(0)
@@ -551,9 +541,8 @@ def _(benchmark_tasks, kendall_tau, make_corr_df, np, pl, spearman_r):
                 ci_low, ci_high = np.percentile(boot, [2.5, 97.5])
                 print(f"95 % CI [{ci_low:.3f}, {ci_high:.3f}]")
 
-
     print_rank_stats()
-    return (print_rank_stats,)
+    return
 
 
 @app.cell
@@ -606,18 +595,20 @@ def _(
             hi.append(np.percentile(boots, 97.5))
         return xs, ys, lo, hi
 
-
     @beartype.beartype
     def make_hook_fig():
         fig_df = make_corr_df(ignore_families=["cv4ecology"])
 
         y_tasks = [
-            task_lookup[task_name] for task_name in ("herbarium19", "iwildcam", "beluga")
+            task_lookup[task_name]
+            for task_name in ("herbarium19", "iwildcam", "beluga")
         ]
         letters = "abcdefg"
         colors = [reporting.CYAN_RGB01, reporting.GOLD_RGB01, reporting.SCARLET_RGB01]
 
-        fig, axes = plt.subplots(dpi=300, ncols=len(y_tasks), sharey=False, figsize=(10, 3))
+        fig, axes = plt.subplots(
+            dpi=300, ncols=len(y_tasks), sharey=False, figsize=(10, 3)
+        )
 
         for ax, task, letter, color in zip(axes, y_tasks, letters, colors):
             xs, ys, lo, hi = hook_fig_helper(fig_df, "imagenet1k", y_tasks=[task.name])
@@ -647,9 +638,8 @@ def _(
 
         return fig
 
-
     make_hook_fig()
-    return hook_fig_helper, make_hook_fig
+    return
 
 
 @app.cell
@@ -663,7 +653,8 @@ def _(benchmark_tasks, models, pl, prior_work_tasks, scores):
             for task in prior_work_tasks + benchmark_tasks:
                 try:
                     score = scores.filter(
-                        (pl.col("model_ckpt") == ckpt) & (pl.col("task_name") == task.name)
+                        (pl.col("model_ckpt") == ckpt)
+                        & (pl.col("task_name") == task.name)
                     ).item(row=0, column="score")
                     print(f"{score * 100:.1f}", end=" & ")
                 except IndexError:
@@ -678,13 +669,14 @@ def _(benchmark_tasks, models, pl, prior_work_tasks, scores):
                 print()
                 continue
             mean = (
-                benchmark_scores.group_by("model_ckpt").mean().item(row=0, column="score")
+                benchmark_scores.group_by("model_ckpt")
+                .mean()
+                .item(row=0, column="score")
             )
             print(f"{mean * 100:.1f}")
 
-
     make_overview_table()
-    return (make_overview_table,)
+    return
 
 
 @app.cell
@@ -737,9 +729,8 @@ def _(
             bold = [c for c, r in zip(ckpts, rej) if not r]
             print(f"{task.name} (bold): {', '.join(bold)}")
 
-
     significance_testing()
-    return (significance_testing,)
+    return
 
 
 if __name__ == "__main__":

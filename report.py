@@ -183,8 +183,8 @@ def calc_scores(
         # Calculate reference scores, then compute task-level results.
         for model_ckpt, ref_score in bootstrap_scores(sub).items():
             bootstrap_mean = scores[model_ckpt].mean()
-            low = 0.5 - (1 - alpha) / 2 * 100
-            high = 0.5 + (1 - alpha) / 2 * 100
+            low = (0.5 - (1 - alpha) / 2) * 100
+            high = (0.5 + (1 - alpha) / 2) * 100
             ci_low, ci_high = np.percentile(scores[model_ckpt], (low, high))
 
             scores_rows.append({
@@ -210,11 +210,9 @@ def main(
     n_bootstraps: int = 500,
 ):
     """Generate a JSON report of benchmark results with bootstrap confidence intervals.
-    
-    This function reads experiment results from a SQLite database, calculates bootstrap
-    statistics for each task/model combination, and writes the results to a JSON file
-    for visualization in the documentation.
-    
+
+    This function reads experiment results from a SQLite database, calculates bootstrap statistics for each task/model combination, and writes the results to a JSON file for visualization.
+
     Args:
         db: Path to the SQLite database containing experiment results.
         out: Path where the JSON report will be written.
@@ -222,6 +220,7 @@ def main(
         alpha: Significance level for confidence intervals and hypothesis tests.
         n_bootstraps: Number of bootstrap samples to generate.
     """
+
     stmt = "SELECT experiments.task_name, experiments.model_ckpt, predictions.score, predictions.img_id, predictions.info FROM experiments JOIN predictions ON experiments.id = predictions.experiment_id WHERE n_train = -1"
     df = (
         pl.read_database(stmt, sqlite3.connect(db), infer_schema_length=100_000)
@@ -240,6 +239,7 @@ def main(
         .select("task_name", "model_ckpt", "img_id", "score", "y_true", "y_pred")
         .collect()
     )
+    logger.info("Loaded %d predictions.", df.height)
 
     scores_df, bests_df = calc_scores(
         df, n_bootstraps=n_bootstraps, alpha=alpha, seed=seed
@@ -262,7 +262,7 @@ def main(
     }
     out.parent.mkdir(parents=True, exist_ok=True)
     with open(out, "w") as fd:
-        json.dump(data, fd)
+        json.dump(data, fd, indent=4)
 
 
 if __name__ == "__main__":

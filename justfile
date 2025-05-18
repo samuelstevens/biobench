@@ -1,7 +1,7 @@
 docs: fmt
     yek biobench *.py *.md > docs/llms.txt
     rm -rf docs/biobench docs/benchmark.html
-    uv run pdoc3 --force --html --output-dir docs --config latex_math=True biobench benchmark scripts
+    uv run pdoc3 --force --html --output-dir docs --config latex_math=True biobench benchmark report scripts
 
 test: fmt
     uv run pytest --cov biobench --cov-report term --cov-report json --json-report --json-report-file pytest.json --cov-report html -n 32 biobench || true
@@ -9,8 +9,8 @@ test: fmt
     uv run scripts/regressions.py
 
 lint: fmt
-    uv run ruff check --fix biobench benchmark.py
-    uv run scripts/ascii_only.py --in-paths benchmark.py biobench/ scripts/ --fix
+    uv run ruff check --fix biobench benchmark.py report.py
+    uv run scripts/ascii_only.py --in-paths benchmark.py report.py biobench/ scripts/ --fix
 
 fmt:
     uv run ruff format --preview .
