@@ -11,3 +11,4 @@ results/
 .env
 .DS_Store
 uv.lock
+elm-stuff/

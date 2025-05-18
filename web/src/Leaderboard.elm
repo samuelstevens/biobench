@@ -163,7 +163,7 @@ init : () -> ( Model, Cmd Msg )
 init _ =
     ( { requestedPayload = Loading }
     , Http.get
-        { url = "/data/results.json"
+        { url = "data/results.json"
         , expect = Http.expectJson Fetched payloadDecoder
         }
     )
