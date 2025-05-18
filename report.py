@@ -8,6 +8,7 @@ import os.path
 import pathlib
 import sqlite3
 import subprocess
+import time
 
 import beartype
 import numpy as np
@@ -231,8 +232,7 @@ def main(
     breakpoint()
 
     data = {
-        # TODO: generate a timestamp in milliseconds since Posix. AI!
-        "meta": {"schema": 1, "generated": 0, "git_commit": get_git_hash()},
+        "meta": {"schema": 1, "generated": int(time.time() * 1000), "git_commit": get_git_hash()},
         "models": [model.to_dict() for model in models],
         "benchmark_tasks": [task.to_dict() for task in benchmark_tasks],
         "prior_work_tasks": [task.to_dict() for task in prior_work_tasks],
