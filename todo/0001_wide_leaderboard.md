@@ -7,14 +7,14 @@ Done when
 
 * Elm view renders the new grid.
 * Column order = ImageNet-1K, NeWT, then tasks in benchmark tasks sorted alphabetically.
-* Bold values match argmax(mean) per task.
+* Bold values match BenchmarkBest.ties per task.
 
 Start here:
 
-`src/Main.elm :: renderTable`.
+`web/src/Leaderboard.elm :: viewTable`.
 Use `Html.table` with `thead` from task order.
 
 Avoid:
 
-* Don’t transpose in JS—do it in Elm.
+* Don’t transpose in JS; do it in Elm.
 * Don’t fetch another file; reuse existing JSON.

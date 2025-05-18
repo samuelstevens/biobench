@@ -5,9 +5,8 @@ Why: Visual identity and making it more fun!
 
 Done when:
 
-* Tailwind config extended with `biobench-*` colors from `biobench/reporting.py::COLOR`.
-* Table header background uses neutral, each task column gets a light tint, hover uses darker tint.
-* WCAG AA contrast maintained for text.
+* css extended with `biobench-*` colors from `biobench/reporting.py`.
+* There is at least some color in the webpage.
 
 Start here:
 
