@@ -1,0 +1,399 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+<meta name="generator" content="pdoc3 0.11.6">
+<title>report API documentation</title>
+<meta name="description" content="">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script type="text/x-mathjax-config">MathJax.Hub.Config({ tex2jax: { inlineMath: [ ['$','$'], ["\\(","\\)"] ], processEscapes: true } });</script>
+<script async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS_CHTML" integrity="sha256-kZafAc6mZvK3W3v1pHOcUix30OHQN6pU/NO2oFkqZVw=" crossorigin></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => {
+hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+hljs.highlightAll();
+/* Collapse source docstrings */
+setTimeout(() => {
+[...document.querySelectorAll('.hljs.language-python > .hljs-string')]
+.filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
+.forEach(el => {
+let d = document.createElement('details');
+d.classList.add('hljs-string');
+d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
+el.replaceWith(d);
+});
+}, 100);
+})</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>report</code></h1>
+</header>
+<section id="section-intro">
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-functions">Functions</h2>
+<dl>
+<dt id="report.calc_scores"><code class="name flex">
+<span>def <span class="ident">calc_scores</span></span>(<span>df: polars.dataframe.frame.DataFrame, *, n_bootstraps: int, alpha: float, seed: int) ‑> tuple[polars.dataframe.frame.DataFrame, polars.dataframe.frame.DataFrame]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@beartype.beartype
+def calc_scores(
+    df: pl.DataFrame, *, n_bootstraps: int, alpha: float, seed: int
+) -&gt; tuple[pl.DataFrame, pl.DataFrame]:
+    rng = np.random.default_rng(seed=seed)
+    scores_rows, bests_rows = [], []
+    for task in helpers.progress(
+        prior_work_tasks + benchmark_tasks, every=1, desc=&#34;bootstraps&#34;
+    ):
+        try:
+            bootstrap_scores = task.bootstrap_scores_fn
+        except AttributeError:
+            print(f&#34;No `bootstrap_scores` for {task.name}&#34;)
+            continue
+
+        sub = df.filter(
+            (pl.col(&#34;task_name&#34;) == task.name)
+            &amp; (pl.col(&#34;model_ckpt&#34;).is_in(model_lookup))
+        )
+
+        scores = bootstrap_scores(sub, b=n_bootstraps, rng=rng)
+        # freeze model order once
+        ckpts = sorted(scores)  # list[str]  length = m
+
+        # stack into a (b, m) matrix that matches that order
+        s = np.column_stack([scores[c] for c in ckpts])  # (b, m)
+
+        # locate the empirical best (column index j*)
+        best_j = s.mean(axis=0).argmax()
+        best_c = ckpts[best_j]
+
+        # one-sided p-values against the best
+        p_raw = (s &gt;= s[:, [best_j]]).mean(axis=0)  # vector length m
+        rej, p_adj, *_ = statsmodels.stats.multitest.multipletests(
+            p_raw, alpha=alpha, method=&#34;holm&#34;
+        )
+
+        # list checkpoints that are *not rejected* -&gt; bold
+        ties = [c for c, r in zip(ckpts, rej) if not r]
+        bests_rows.append({&#34;task&#34;: task.name, &#34;best&#34;: best_c, &#34;ties&#34;: ties})
+
+        # Calculate reference scores, then compute task-level results.
+        for model_ckpt, ref_score in bootstrap_scores(sub).items():
+            bootstrap_mean = scores[model_ckpt].mean()
+            low = (0.5 - (1 - alpha) / 2) * 100
+            high = (0.5 + (1 - alpha) / 2) * 100
+            ci_low, ci_high = np.percentile(scores[model_ckpt], (low, high))
+
+            scores_rows.append({
+                &#34;task&#34;: task.name,
+                &#34;model&#34;: model_ckpt,
+                &#34;mean&#34;: ref_score.item(),
+                &#34;bootstrap_mean&#34;: bootstrap_mean.item(),
+                &#34;ci_low&#34;: ci_low.item(),
+                &#34;ci_high&#34;: ci_high.item(),
+            })
+
+    return pl.DataFrame(scores_rows), pl.DataFrame(bests_rows)</code></pre>
+</details>
+<div class="desc"></div>
+</dd>
+<dt id="report.get_git_hash"><code class="name flex">
+<span>def <span class="ident">get_git_hash</span></span>(<span>) ‑> str</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@beartype.beartype
+def get_git_hash() -&gt; str:
+    &#34;&#34;&#34;Returns the hash of the current git commit.
+
+    Returns:
+        str: The hash of the current git commit, assuming we are in a git repo
+    &#34;&#34;&#34;
+    return subprocess.check_output([&#34;git&#34;, &#34;rev-parse&#34;, &#34;HEAD&#34;]).decode(&#34;ascii&#34;).strip()</code></pre>
+</details>
+<div class="desc"><p>Returns the hash of the current git commit.</p>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>str</code></dt>
+<dd>The hash of the current git commit, assuming we are in a git repo</dd>
+</dl></div>
+</dd>
+<dt id="report.main"><code class="name flex">
+<span>def <span class="ident">main</span></span>(<span>db: pathlib.Path = PosixPath('/local/scratch/samstevens/experiments/biobench/reports.sqlite'),<br>out: pathlib.Path = PosixPath('docs/data/results.json'),<br>seed: int = 17,<br>alpha=0.05,<br>n_bootstraps: int = 500)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@beartype.beartype
+def main(
+    db: pathlib.Path = pathlib.Path(
+        os.path.expandvars(&#34;/local/scratch/$USER/experiments/biobench/reports.sqlite&#34;)
+    ),
+    out: pathlib.Path = pathlib.Path(&#34;docs/data/results.json&#34;),
+    seed: int = 17,
+    alpha=0.05,
+    n_bootstraps: int = 500,
+):
+    &#34;&#34;&#34;Generate a JSON report of benchmark results with bootstrap confidence intervals.
+
+    This function reads experiment results from a SQLite database, calculates bootstrap statistics for each task/model combination, and writes the results to a JSON file for visualization.
+
+    Args:
+        db: Path to the SQLite database containing experiment results.
+        out: Path where the JSON report will be written.
+        seed: Random seed for reproducible bootstrapping.
+        alpha: Significance level for confidence intervals and hypothesis tests.
+        n_bootstraps: Number of bootstrap samples to generate.
+    &#34;&#34;&#34;
+
+    stmt = &#34;SELECT experiments.task_name, experiments.model_ckpt, predictions.score, predictions.img_id, predictions.info FROM experiments JOIN predictions ON experiments.id = predictions.experiment_id WHERE n_train = -1&#34;
+    df = (
+        pl.read_database(stmt, sqlite3.connect(db), infer_schema_length=100_000)
+        .lazy()
+        .filter(pl.col(&#34;task_name&#34;).is_in(task_lookup))
+        .with_columns(
+            pl.coalesce([
+                pl.col(&#34;info&#34;).str.json_path_match(&#34;$.y_true&#34;),
+                pl.col(&#34;info&#34;).str.json_path_match(&#34;$.true_y&#34;),
+            ]).alias(&#34;y_true&#34;),
+            pl.coalesce([
+                pl.col(&#34;info&#34;).str.json_path_match(&#34;$.y_pred&#34;),
+                pl.col(&#34;info&#34;).str.json_path_match(&#34;$.pred_y&#34;),
+            ]).alias(&#34;y_pred&#34;),
+        )
+        .select(&#34;task_name&#34;, &#34;model_ckpt&#34;, &#34;img_id&#34;, &#34;score&#34;, &#34;y_true&#34;, &#34;y_pred&#34;)
+        .collect()
+    )
+    logger.info(&#34;Loaded %d predictions.&#34;, df.height)
+
+    scores_df, bests_df = calc_scores(
+        df, n_bootstraps=n_bootstraps, alpha=alpha, seed=seed
+    )
+
+    data = {
+        &#34;meta&#34;: {
+            &#34;schema&#34;: 1,
+            &#34;generated&#34;: int(time.time() * 1000),
+            &#34;git_commit&#34;: get_git_hash(),
+            &#34;seed&#34;: seed,
+            &#34;alpha&#34;: alpha,
+            &#34;n_bootstraps&#34;: n_bootstraps,
+        },
+        &#34;models&#34;: [model.to_dict() for model in models],
+        &#34;benchmark_tasks&#34;: [task.to_dict() for task in benchmark_tasks],
+        &#34;prior_work_tasks&#34;: [task.to_dict() for task in prior_work_tasks],
+        &#34;results&#34;: scores_df.to_dicts(),
+        &#34;bests&#34;: bests_df.to_dicts(),
+    }
+    out.parent.mkdir(parents=True, exist_ok=True)
+    with open(out, &#34;w&#34;) as fd:
+        json.dump(data, fd, indent=4)</code></pre>
+</details>
+<div class="desc"><p>Generate a JSON report of benchmark results with bootstrap confidence intervals.</p>
+<p>This function reads experiment results from a SQLite database, calculates bootstrap statistics for each task/model combination, and writes the results to a JSON file for visualization.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>db</code></strong></dt>
+<dd>Path to the SQLite database containing experiment results.</dd>
+<dt><strong><code>out</code></strong></dt>
+<dd>Path where the JSON report will be written.</dd>
+<dt><strong><code>seed</code></strong></dt>
+<dd>Random seed for reproducible bootstrapping.</dd>
+<dt><strong><code>alpha</code></strong></dt>
+<dd>Significance level for confidence intervals and hypothesis tests.</dd>
+<dt><strong><code>n_bootstraps</code></strong></dt>
+<dd>Number of bootstrap samples to generate.</dd>
+</dl></div>
+</dd>
+</dl>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="report.Model"><code class="flex name class">
+<span>class <span class="ident">Model</span></span>
+<span>(</span><span>ckpt: str, display: str, family: str)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@beartype.beartype
+@dataclasses.dataclass(frozen=True)
+class Model:
+    ckpt: str
+    display: str
+    family: str
+
+    def to_dict(self) -&gt; dict[str, object]:
+        return dataclasses.asdict(self)</code></pre>
+</details>
+<div class="desc"><p>Model(ckpt: str, display: str, family: str)</p></div>
+<h3>Instance variables</h3>
+<dl>
+<dt id="report.Model.ckpt"><code class="name">var <span class="ident">ckpt</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="report.Model.display"><code class="name">var <span class="ident">display</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="report.Model.family"><code class="name">var <span class="ident">family</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="report.Model.to_dict"><code class="name flex">
+<span>def <span class="ident">to_dict</span></span>(<span>self) ‑> dict[str, object]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def to_dict(self) -&gt; dict[str, object]:
+    return dataclasses.asdict(self)</code></pre>
+</details>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="report.Task"><code class="flex name class">
+<span>class <span class="ident">Task</span></span>
+<span>(</span><span>name: str, display: str)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@beartype.beartype
+@dataclasses.dataclass(frozen=True)
+class Task:
+    name: str
+    display: str
+
+    @functools.cached_property
+    def bootstrap_scores_fn(self) -&gt; collections.abc.Callable:
+        mod = importlib.import_module(f&#34;biobench.{self.name}&#34;)
+
+        return mod.bootstrap_scores
+
+    def to_dict(self) -&gt; dict[str, object]:
+        return dataclasses.asdict(self)</code></pre>
+</details>
+<div class="desc"><p>Task(name: str, display: str)</p></div>
+<h3>Instance variables</h3>
+<dl>
+<dt id="report.Task.bootstrap_scores_fn"><code class="name">var <span class="ident">bootstrap_scores_fn</span> : <class 'collections.abc.Callable'></code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@functools.cached_property
+def bootstrap_scores_fn(self) -&gt; collections.abc.Callable:
+    mod = importlib.import_module(f&#34;biobench.{self.name}&#34;)
+
+    return mod.bootstrap_scores</code></pre>
+</details>
+<div class="desc"></div>
+</dd>
+<dt id="report.Task.display"><code class="name">var <span class="ident">display</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="report.Task.name"><code class="name">var <span class="ident">name</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="report.Task.to_dict"><code class="name flex">
+<span>def <span class="ident">to_dict</span></span>(<span>self) ‑> dict[str, object]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def to_dict(self) -&gt; dict[str, object]:
+    return dataclasses.asdict(self)</code></pre>
+</details>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3><a href="#header-functions">Functions</a></h3>
+<ul class="">
+<li><code><a title="report.calc_scores" href="#report.calc_scores">calc_scores</a></code></li>
+<li><code><a title="report.get_git_hash" href="#report.get_git_hash">get_git_hash</a></code></li>
+<li><code><a title="report.main" href="#report.main">main</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="report.Model" href="#report.Model">Model</a></code></h4>
+<ul class="">
+<li><code><a title="report.Model.ckpt" href="#report.Model.ckpt">ckpt</a></code></li>
+<li><code><a title="report.Model.display" href="#report.Model.display">display</a></code></li>
+<li><code><a title="report.Model.family" href="#report.Model.family">family</a></code></li>
+<li><code><a title="report.Model.to_dict" href="#report.Model.to_dict">to_dict</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="report.Task" href="#report.Task">Task</a></code></h4>
+<ul class="">
+<li><code><a title="report.Task.bootstrap_scores_fn" href="#report.Task.bootstrap_scores_fn">bootstrap_scores_fn</a></code></li>
+<li><code><a title="report.Task.display" href="#report.Task.display">display</a></code></li>
+<li><code><a title="report.Task.name" href="#report.Task.name">name</a></code></li>
+<li><code><a title="report.Task.to_dict" href="#report.Task.to_dict">to_dict</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
+</footer>
+</body>
+</html>

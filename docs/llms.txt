@@ -1,4 +1,4 @@
->>>> CONVENTIONS.md
+>>>> AGENTS.md
 # Code Style
 
 - Keep code simple, explicit, typed, test-driven, and ready for automation.
@@ -141,22 +141,18 @@ Because of this, there are two main classes of tasks:
 >>>> REGRESSIONS.md
 # Regressions
 
-Last checked: 2025-05-12
+Last checked: 2025-05-13
 
-# 9 failing test(s)
+# 5 failing test(s)
 
 - biobench/jobkit/test_hooks.py::test_multiple_hooks_each_release_their_own_claims
+- biobench/test_auto_batch_size.py::test_schedule_not_materialised
 - biobench/test_openset.py::test_fuzz_no_exceptions
 - biobench/test_openset.py::test_min_mahalanobis_sq_batched_equal
-- biobench/test_openset.py::test_min_mahalanobis_sq_batched_no_error
-- biobench/test_openset.py::test_min_mahalanobis_sq_no_error
-- biobench/test_reporting.py::test_micro_f1_equals_micro_accuracy
-- scripts/test_ascii_only.py::test_get_unicode_escape[\xe2\x80\x93-\\u2013]
-- scripts/test_ascii_only.py::test_get_unicode_escape[\xe2\x80\x94-\\u2014]
-- scripts/test_ascii_only.py::test_get_unicode_escape[\xe2\x86\x92-\\u2192]
+- biobench/test_reporting.py::test_reclaim_after_failure
 # Coverage
 
-Coverage: 2864/4999 lines (57.3%)
+Coverage: 3147/5106 lines (61.6%)
 
 >>>> __init__.py
 """ """
@@ -508,10 +504,11 @@ import os.path
 
 import beartype
 import numpy as np
+import polars as pl
 import sklearn.neighbors
 import torch
 import torchvision.datasets
-from jaxtyping import Float, Int, Shaped, jaxtyped
+from jaxtyping import Float, Shaped, jaxtyped
 from torch import Tensor
 
 from .. import config, helpers, registry, reporting
@@ -546,16 +543,13 @@ def benchmark(cfg: config.Experiment) -> reporting.Report:
     return reporting.Report("beluga", preds, cfg)
 
 
-@beartype.beartype
-def score(preds: list[reporting.Prediction]) -> float:
-    return reporting.macro_f1(preds)
-
-
 @jaxtyped(typechecker=beartype.beartype)
-def score_batch(
-    y_true: Int[np.ndarray, " batch* n"], y_pred: Int[np.ndarray, " batch* n"]
-) -> Float[np.ndarray, "batch*"]:
-    return reporting.macro_f1_batch(y_true, y_pred)
+def bootstrap_scores(
+    df: pl.DataFrame, *, b: int = 0, rng: np.random.Generator | None = None
+) -> dict[str, Float[np.ndarray, " b"]]:
+    # Assert that all task_name == 'herbarium'
+    assert df.get_column("task_name").unique().to_list() == ["beluga"]
+    return reporting.bootstrap_scores_macro_f1(df, b=b, rng=rng)
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -1249,6 +1243,66 @@ def score(preds: list[reporting.Prediction]) -> float:
     )
 
 
+@jaxtyped(typechecker=beartype.beartype)
+def bootstrap_scores(
+    df: pl.DataFrame, *, b: int = 0, rng: np.random.Generator | None = None
+) -> dict[str, Float[np.ndarray, " b"]]:
+    assert df.get_column("task_name").unique().to_list() == ["fishnet"]
+
+    n, *rest = df.group_by("model_ckpt").agg(n=pl.len()).get_column("n").to_list()
+    assert all(n == i for i in rest)
+
+    if b > 0:
+        assert rng is not None, "must provide rng argument"
+        i_bs = rng.integers(0, n, size=(b, 9, n), dtype=np.int32)
+
+    scores = {}
+
+    y_pred_buf = np.empty((b, 9, n), dtype=np.int32)
+    y_true_buf = np.empty((b, 9, n), dtype=np.int32)
+
+    for model_ckpt in df.get_column("model_ckpt").unique().sort().to_list():
+        # pull y_true and y_pred for *one* model
+        y_pred = (
+            df.filter(pl.col("model_ckpt") == model_ckpt)
+            .select("img_id", "y_pred")
+            .unique()
+            .sort("img_id")
+            .get_column("y_pred")
+            .str.json_decode()
+            .to_numpy()
+        )
+        y_pred = np.stack(y_pred).astype(np.int32).T
+
+        if len(y_pred) == 0:
+            continue
+
+        y_true = (
+            df.filter(pl.col("model_ckpt") == model_ckpt)
+            .select("img_id", "y_true")
+            .unique()
+            .sort("img_id")
+            .get_column("y_true")
+            .str.json_decode()
+            .to_numpy()
+        )
+        y_true = np.stack(y_true).astype(np.int32).T
+
+        assert y_true.size == y_pred.size
+
+        if b > 0:
+            # bootstrap resample into pre-allocated buffers
+            np.take(y_pred, i_bs, axis=None, out=y_pred_buf)
+            np.take(y_true, i_bs, axis=None, out=y_true_buf)
+            score = reporting.macro_f1_batch(y_true_buf, y_pred_buf).mean(axis=-1)
+            scores[model_ckpt] = score
+        else:
+            f1s = reporting.macro_f1_batch(y_true, y_pred)
+            scores[model_ckpt] = f1s.mean(keepdims=True)
+
+    return scores
+
+
 def infinite(dataloader):
     """Creates an infinite iterator from a dataloader by creating a new iterator each time the previous one is exhausted.
 
@@ -1863,6 +1917,63 @@ def init_clf(cfg: config.Experiment):
     )
 
 
+@jaxtyped(typechecker=beartype.beartype)
+def bootstrap_scores(
+    df: pl.DataFrame, *, b: int = 0, rng: np.random.Generator | None = None
+) -> dict[str, Float[np.ndarray, " b"]]:
+    assert df.get_column("task_name").unique().to_list() == ["fungiclef"]
+
+    n, *rest = df.group_by("model_ckpt").agg(n=pl.len()).get_column("n").to_list()
+    assert all(n == i for i in rest)
+
+    if b > 0:
+        assert rng is not None, "must provide rng argument"
+        i_bs = rng.integers(0, n, size=(b, n), dtype=np.int32)
+
+    scores = {}
+
+    y_pred_buf = np.empty((b, n), dtype=np.int32)
+    y_true_buf = np.empty((b, n), dtype=np.int32)
+
+    for model_ckpt in df.get_column("model_ckpt").unique().sort().to_list():
+        y_pred = (
+            df.filter(pl.col("model_ckpt") == model_ckpt)
+            .select("img_id", "y_pred")
+            .unique()
+            .sort("img_id")
+            .get_column("y_pred")
+            .cast(pl.Int32)
+            .to_numpy()
+        )
+
+        if len(y_pred) == 0:
+            continue
+
+        y_true = (
+            df.filter(pl.col("model_ckpt") == model_ckpt)
+            .select("img_id", "y_true")
+            .unique()
+            .sort("img_id")
+            .get_column("y_true")
+            .cast(pl.Int32)
+            .to_numpy()
+        )
+        assert y_true.size == y_pred.size
+
+        if b > 0:
+            # bootstrap resample into pre-allocated buffers
+            np.take(y_pred, i_bs, axis=0, out=y_pred_buf)
+            np.take(y_true, i_bs, axis=0, out=y_true_buf)
+            scores[model_ckpt] = metrics.user_loss_score_normalized(
+                y_true_buf, y_pred_buf
+            )
+        else:
+            scores[model_ckpt] = np.array([
+                metrics.user_loss_score_normalized(y_true, y_pred)
+            ])
+    return scores
+
+
 @beartype.beartype
 def score(preds: list[reporting.Prediction]) -> float:
     """
@@ -2071,6 +2182,7 @@ import beartype
 import numpy as np
 import polars as pl
 import sklearn.metrics
+from jaxtyping import Float, Int, jaxtyped
 
 # Load poison status via Polars
 _poison_df = pl.read_csv(
@@ -2085,13 +2197,14 @@ POISONOUS_SPECIES = (
 )
 
 
-@beartype.beartype
+@jaxtyped(typechecker=beartype.beartype)
 def classification_error_with_unknown(
-    y_true: np.ndarray,
-    y_pred: np.ndarray,
+    y_true: Int[np.ndarray, "*batch n"],
+    y_pred: Int[np.ndarray, "*batch n"],
+    *,
     cost_unknown_mis: float = 10.0,
     cost_mis_as_unknown: float = 0.1,
-) -> float:
+) -> Float[np.ndarray, "*batch"]:
     """
     Classification error allowing for an "unknown" class (encoded as -1).
 
@@ -2104,22 +2217,27 @@ def classification_error_with_unknown(
     Returns:
         normalized error rate
     """
+    *b, n = y_true.shape
     is_true_unknown = y_true == -1
     is_pred_unknown = y_pred == -1
 
-    num_mis_unknown = np.sum(is_true_unknown & ~is_pred_unknown)
-    num_mis_as_unknown = np.sum(~is_true_unknown & is_pred_unknown)
-    num_other = np.sum((y_true != y_pred) & ~is_true_unknown & ~is_pred_unknown)
-    total = y_true.size
-    return (
-        num_other
-        + cost_unknown_mis * num_mis_unknown
-        + cost_mis_as_unknown * num_mis_as_unknown
-    ) / total
+    n_mis_unknown = np.sum(is_true_unknown & ~is_pred_unknown, axis=-1)
+    n_mis_as_unknown = np.sum(~is_true_unknown & is_pred_unknown, axis=-1)
+    n_other = np.sum((y_true != y_pred) & ~is_true_unknown & ~is_pred_unknown, axis=-1)
+
+    err = (
+        n_other
+        + cost_unknown_mis * n_mis_unknown
+        + cost_mis_as_unknown * n_mis_as_unknown
+    ) / n
+
+    return np.asarray(err)
 
 
-@beartype.beartype
-def classification_error(y_true: np.ndarray, y_pred: np.ndarray) -> float:
+@jaxtyped(typechecker=beartype.beartype)
+def classification_error(
+    y_true: Int[np.ndarray, "*batch n"], y_pred: Int[np.ndarray, "*batch n"]
+) -> Float[np.ndarray, "*batch"]:
     """
     Standard classification error (unknown treated as error equally).
     """
@@ -2129,50 +2247,92 @@ def classification_error(y_true: np.ndarray, y_pred: np.ndarray) -> float:
 
 
 @beartype.beartype
-def num_psc_decisions(y_true: np.ndarray, y_pred: np.ndarray) -> int:
+def num_psc_decisions(
+    y_true: Int[np.ndarray, "*batch n"], y_pred: Int[np.ndarray, "*batch n"]
+) -> Int[np.ndarray, "*batch"]:
     """
     Number of poisonous species incorrectly predicted as non-poisonous.
     """
     is_true_poison = np.isin(y_true, POISONOUS_SPECIES)
     is_pred_poison = np.isin(y_pred, POISONOUS_SPECIES)
-    return int(np.sum(is_true_poison & ~is_pred_poison))
+    return np.asarray(np.sum(is_true_poison & ~is_pred_poison, axis=-1))
 
 
 @beartype.beartype
-def num_esc_decisions(y_true: np.ndarray, y_pred: np.ndarray) -> int:
+def num_esc_decisions(
+    y_true: Int[np.ndarray, "*batch n"], y_pred: Int[np.ndarray, "*batch n"]
+) -> Int[np.ndarray, "*batch"]:
     """
     Number of non-poisonous species incorrectly predicted as poisonous.
     """
     is_true_poison = np.isin(y_true, POISONOUS_SPECIES)
     is_pred_poison = np.isin(y_pred, POISONOUS_SPECIES)
-    return int(np.sum(~is_true_poison & is_pred_poison))
+    return np.asarray(np.sum(~is_true_poison & is_pred_poison, axis=-1))
 
 
-@beartype.beartype
+@jaxtyped(typechecker=beartype.beartype)
 def psc_esc_cost_score(
-    y_true: np.ndarray,
-    y_pred: np.ndarray,
+    y_true: Int[np.ndarray, "*batch n"],
+    y_pred: Int[np.ndarray, "*batch n"],
+    *,
     cost_psc: float = 100.0,
     cost_esc: float = 1.0,
-) -> float:
+) -> Float[np.ndarray, "*batch"]:
     """
     Weighted cost for poisonousness confusion per sample.
     """
-    total = y_true.size
+    *batch, n = y_true.shape
     psc = num_psc_decisions(y_true, y_pred)
     esc = num_esc_decisions(y_true, y_pred)
-    return (cost_psc * psc + cost_esc * esc) / total
+    cost = (cost_psc * psc + cost_esc * esc) / n
+    return np.asarray(cost)
 
 
-@beartype.beartype
-def user_loss_score(y_true: np.ndarray, y_pred: np.ndarray) -> float:
-    ce_unk = classification_error_with_unknown(y_true, y_pred)
-    psc = psc_esc_cost_score(y_true, y_pred)
-    return ce_unk + psc
+@jaxtyped(typechecker=beartype.beartype)
+def user_loss_score(
+    y_true: Int[np.ndarray, "*batch n"], y_pred: Int[np.ndarray, "*batch n"]
+) -> Float[np.ndarray, "*batch"]:
+    ce_unk = classification_error_with_unknown(
+        y_true, y_pred, cost_unknown_mis=10.0, cost_mis_as_unknown=0.1
+    )
+    psc = psc_esc_cost_score(y_true, y_pred, cost_psc=100.0, cost_esc=1.0)
+    return np.asarray(ce_unk + psc)
 
 
-@beartype.beartype
-def evaluate_metrics(y_true: np.ndarray, y_pred: np.ndarray) -> dict[str, float]:
+@jaxtyped(typechecker=beartype.beartype)
+def user_loss_score_normalized(
+    y_true: Int[np.ndarray, "*batch n"], y_pred: Int[np.ndarray, "*batch n"]
+) -> Float[np.ndarray, "*batch"]:
+    cost_unknown_mis = 10.0
+    cost_mis_as_unknown = 0.1
+    ce_unk = classification_error_with_unknown(
+        y_true,
+        y_pred,
+        cost_unknown_mis=cost_unknown_mis,
+        cost_mis_as_unknown=cost_mis_as_unknown,
+    )
+    cost_psc = 100.0
+    cost_esc = 1.0
+    psc = psc_esc_cost_score(y_true, y_pred, cost_psc=cost_psc, cost_esc=cost_esc)
+
+    n = y_true.size
+    n_unknown = (y_true == -1).sum()
+    n_poisonous = np.isin(y_true, POISONOUS_SPECIES).sum()
+
+    # breakpoint()
+
+    # TODO: is this 1 supposed to be 0.1?
+    worst_ce = (cost_unknown_mis - 1) * n_unknown / n + 1
+    worst_psc = (cost_psc * n_poisonous + cost_esc * (n - n_poisonous)) / n
+
+    score = 1 - (ce_unk + psc) / (worst_ce + worst_psc)
+    return np.asarray(score)
+
+
+@jaxtyped(typechecker=beartype.beartype)
+def evaluate_metrics(
+    y_true: Int[np.ndarray, "*batch n"], y_pred: Int[np.ndarray, "*batch n"]
+) -> dict[str, Float[np.ndarray, "*batch"]]:
     """
     Compute all four FungiCLEF custom metrics plus macro F1.
 
@@ -2184,11 +2344,11 @@ def evaluate_metrics(y_true: np.ndarray, y_pred: np.ndarray) -> dict[str, float]
             - User_Focused_Loss
             - Classification_Error_with_Unknown
     """
-    f1 = sklearn.metrics.f1_score(y_true, y_pred, average="macro") * 100.0
+    f1 = np.asarray(sklearn.metrics.f1_score(y_true, y_pred, average="macro") * 100.0)
     ce = classification_error(y_true, y_pred)
     psc = psc_esc_cost_score(y_true, y_pred)
     ce_unk = classification_error_with_unknown(y_true, y_pred)
-    user_loss = ce_unk + psc
+    user_loss = np.asarray(ce_unk + psc)
     return {
         "f1_macro": f1,
         "ce": ce,
@@ -2215,9 +2375,9 @@ def stub_poison(monkeypatch):
 def test_classification_error_all_correct():
     y = np.array([0, 1, 2, 3])
     y_pred = y.copy()
-    assert metrics.classification_error(y, y_pred) == 0.0
+    assert metrics.classification_error(y, y_pred).item() == 0.0
     # with unknown costs both = 1 => same
-    assert metrics.classification_error_with_unknown(y, y_pred) == 0.0
+    assert metrics.classification_error_with_unknown(y, y_pred).item() == 0.0
 
 
 def test_classification_error_all_wrong():
@@ -2301,7 +2461,7 @@ def test_fuzz_raises_or_returns(y_true, y_pred):
     assert isinstance(out, dict)
     for k, v in out.items():
         assert isinstance(k, str)
-        assert isinstance(v, float)
+        assert isinstance(v, np.ndarray)
 
 
 def _gen_labels():
@@ -2310,27 +2470,23 @@ def _gen_labels():
 
 
 @given(y_true=_gen_labels(), y_pred=_gen_labels())
-def test_ce_unknown_in_0_10(y_true, y_pred):
+def test_user_loss_score_normalized_in_0_1(y_true, y_pred):
     assume(len(y_true) == len(y_pred))
     y_t, y_p = map(np.asarray, (y_true, y_pred))
-    val = metrics.classification_error_with_unknown(y_t, y_p)
-    assert 0.0 <= val <= 10.0
+    val = metrics.user_loss_score_normalized(y_t, y_p).item()
+    assert 0.0 <= val <= 1.0
 
 
 @given(y_true=_gen_labels(), y_pred=_gen_labels())
-def test_psc_esc_cost_in_0_100(y_true, y_pred):
+def test_user_loss_score_batched(y_true, y_pred):
     assume(len(y_true) == len(y_pred))
     y_t, y_p = map(np.asarray, (y_true, y_pred))
-    val = metrics.psc_esc_cost_score(y_t, y_p)
-    assert 0.0 <= val <= 100.0
-
-
-@given(y_true=_gen_labels(), y_pred=_gen_labels())
-def test_user_loss_in_0_110(y_true, y_pred):
-    assume(len(y_true) == len(y_pred))
-    y_t, y_p = map(np.asarray, (y_true, y_pred))
-    val = metrics.user_loss_score(y_t, y_p)
-    assert 0.0 <= val <= 110.0
+    bsz = 4
+    y_t_b = np.stack([y_t] * bsz)
+    y_p_b = np.stack([y_p] * bsz)
+    vals_b = metrics.user_loss_score_normalized(y_t_b, y_p_b)
+    vals_ref = np.stack([metrics.user_loss_score_normalized(y_t, y_p)] * bsz)
+    np.testing.assert_allclose(vals_b, vals_ref)
 
 >>>> helpers.py
 """
@@ -2859,6 +3015,7 @@ import typing
 
 import beartype
 import numpy as np
+import polars as pl
 import sklearn.linear_model
 import sklearn.model_selection
 import sklearn.pipeline
@@ -2928,16 +3085,12 @@ def benchmark(cfg: config.Experiment) -> reporting.Report:
     return reporting.Report("herbarium19", examples, cfg)
 
 
-@beartype.beartype
-def score(preds: list[reporting.Prediction]) -> float:
-    return reporting.macro_f1(preds)
-
-
 @jaxtyped(typechecker=beartype.beartype)
-def score_batch(
-    y_true: Int[np.ndarray, " batch* n"], y_pred: Int[np.ndarray, " batch* n"]
-) -> Float[np.ndarray, "batch*"]:
-    return reporting.macro_f1_batch(y_true, y_pred)
+def bootstrap_scores(
+    df: pl.DataFrame, *, b: int = 0, rng: np.random.Generator | None = None
+) -> dict[str, Float[np.ndarray, " b"]]:
+    assert df.get_column("task_name").unique().to_list() == ["herbarium19"]
+    return reporting.bootstrap_scores_macro_f1(df, b=b, rng=rng)
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -3171,13 +3324,14 @@ import beartype
 import datasets
 import datasets.formatting.torch_formatter
 import numpy as np
+import polars as pl
 import sklearn.experimental.enable_halving_search_cv
 import sklearn.linear_model
 import sklearn.model_selection
 import sklearn.pipeline
 import sklearn.preprocessing
 import torch
-from jaxtyping import Float16, Int, Shaped, jaxtyped
+from jaxtyping import Float, Float16, Int, Shaped, jaxtyped
 
 from biobench import config, helpers, registry, reporting
 
@@ -3232,6 +3386,59 @@ def benchmark(cfg: config.Experiment) -> reporting.Report:
 @beartype.beartype
 def score(preds: list[reporting.Prediction]) -> float:
     return reporting.micro_acc(preds)
+
+
+@jaxtyped(typechecker=beartype.beartype)
+def bootstrap_scores(
+    df: pl.DataFrame, *, b: int = 0, rng: np.random.Generator | None = None
+) -> dict[str, Float[np.ndarray, " b"]]:
+    assert df.get_column("task_name").unique().to_list() == ["imagenet1k"]
+
+    # For some reason, one of my models only has 49.3K predictions, so I only use that many. Compared to 50K it's probably fine.
+    n = 49_362
+
+    if b > 0:
+        assert rng is not None, "must provide rng argument"
+        i_bs = rng.integers(0, n, size=(b, n), dtype=np.int32)
+
+    scores = {}
+
+    correct_buf = np.zeros((b, n), dtype=bool)
+
+    for model_ckpt in df.get_column("model_ckpt").unique().sort().to_list():
+        # pull y_true and y_pred for *one* model
+        y_pred = (
+            df.filter(pl.col("model_ckpt") == model_ckpt)
+            .select("img_id", "y_pred")
+            .unique()
+            .sort("img_id")
+            .get_column("y_pred")
+            .cast(pl.Int32)
+            .to_numpy()
+        )
+
+        if len(y_pred) == 0:
+            continue
+
+        y_true = (
+            df.filter(pl.col("model_ckpt") == model_ckpt)
+            .select("img_id", "y_true")
+            .unique()
+            .sort("img_id")
+            .get_column("y_true")
+            .cast(pl.Int32)
+            .to_numpy()
+        )
+        assert y_true.size == y_pred.size
+
+        if b > 0:
+            # bootstrap resample into pre-allocated buffers
+            np.take(y_pred == y_true, i_bs, axis=0, out=correct_buf)
+            scores[model_ckpt] = correct_buf.mean(axis=1)
+        else:
+            scores[model_ckpt] = np.array([(y_pred == y_true).mean()])
+
+    return scores
 
 
 class Transform:
@@ -3672,6 +3879,7 @@ import os.path
 
 import beartype
 import numpy as np
+import polars as pl
 import sklearn.model_selection
 import sklearn.pipeline
 import sklearn.preprocessing
@@ -3691,11 +3899,6 @@ class Features:
     x: Float[np.ndarray, "n dim"]
     y: Int[np.ndarray, " n"]
     ids: Shaped[np.ndarray, " n"]
-
-
-@beartype.beartype
-def score(preds: list[reporting.Prediction]) -> float:
-    return reporting.macro_f1(preds)
 
 
 @beartype.beartype
@@ -3731,6 +3934,14 @@ def benchmark(cfg: config.Experiment) -> reporting.Report:
     ]
 
     return reporting.Report("iwildcam", preds, cfg)
+
+
+@jaxtyped(typechecker=beartype.beartype)
+def bootstrap_scores(
+    df: pl.DataFrame, *, b: int = 0, rng: np.random.Generator | None = None
+) -> dict[str, Float[np.ndarray, " b"]]:
+    assert df.get_column("task_name").unique().to_list() == ["iwildcam"]
+    return reporting.bootstrap_scores_macro_f1(df, b=b, rng=rng)
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -4983,6 +5194,7 @@ import os
 
 import beartype
 import numpy as np
+import polars as pl
 import torch
 from jaxtyping import Float, Int, Shaped, jaxtyped
 from PIL import Image
@@ -5138,9 +5350,12 @@ def benchmark(cfg: config.Experiment) -> reporting.Report:
     return reporting.Report("kabr", preds, cfg)
 
 
-@beartype.beartype
-def score(preds: list[reporting.Prediction]) -> float:
-    return reporting.macro_f1(preds)
+@jaxtyped(typechecker=beartype.beartype)
+def bootstrap_scores(
+    df: pl.DataFrame, *, b: int = 0, rng: np.random.Generator | None = None
+) -> dict[str, Float[np.ndarray, " b"]]:
+    assert df.get_column("task_name").unique().to_list() == ["kabr"]
+    return reporting.bootstrap_scores_macro_f1(df, b=b, rng=rng)
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -5924,6 +6139,76 @@ Now I want to track
 And I need to try multi-turn prompts as well.
 Then just show me the freaking graphs baby!
 
+# 03/19/2025
+
+Okay, after abandoning this repo for cv4animals, I am back for a neurips submission.
+I think I need to find some prior work in benchmark papers, and ask around to see if anyone has written one or more benchmark paper for neurips.
+Kazi has, so I'm talking to him
+Yi Tay wrote a great "Benchmark Lottery" paper that I'm going to draw heavily from.
+I think I need to think carefully about which tasks to include when creating a "benchmark suite".
+
+These are some of the tasks we plan to use for BioCLIP 2.
+
+* MammalNet
+* Herbarium19
+* Rolnick's Moth Benchmark (Yuyan's ICML submission); clustering
+* iWildCam
+* KABR
+* NeWT
+* Pl@ntNet
+* Fishnet
+* RareSpecies
+* (Ages)
+
+Detection/Segmentation
+
+* Ciona17 (https://ieeexplore.ieee.org/abstract/document/8287716)
+* MASNet (https://github.com/zhenqifu/MASNet/tree/main)
+* Sawit (https://github.com/dtnguyen0304/sawit)
+
+I think MammalNet and Herbarium19 are excellent.
+Probably each task needs to be considered in terms of what it adds to a benchmark, and its inclusion should be justified.
+
+We can justify decisions with:
+
+* Popularity (citations) as a proxy for a task being important to the community (iNat21)
+* Adding a specific distribution (camera trap classification, for example)
+* Adding a modality (video classification, for example)
+* Adding a specific clade (fish, for example)
+
+Other ideas besides imagenet correlation (or lack thereof)
+
+1. Long-tail Performance Gap - Quantify how dramatically performance drops on rare species vs. common ones across models, showing your benchmark better captures this critical ecological dimension
+2. Data Efficiency Curves - Show learning curves (performance vs. training data size) differ dramatically across ecological tasks compared to generic vision tasks
+3. Task Independence Analysis - Use principal component analysis on task performance to show your tasks capture fundamentally different capabilities -> not sure about PCA but task independence is good for comparing to the openclip zero-shot benchmark or the VTAB benchmark.
+4. Time-Based Evaluation. Plot model performance on imagenet with publication date on x-axis, and model performance on biobench with date on x-axis. Are we improving?
+
+
+So now I will have the following empirical results:
+1. Correlation (or lack thereof) between ImageNet-1K results/rankings and BioBench results/rankings.
+2. Pre-training objective and its effect on BioBench scores (compare DINOv2, CLIP, SigLIP, SAMv2, BioCLIP and V-JEPA)
+3. FLOPS/image, pretraining FLOPs, model parameters and its effect on BioBench scores
+4. Data efficiency (number of training images) and its effect on BioBench scores
+5. Benchmark stability (leave-one-out vs full benchmark)
+
+Is that enough for a benchmark paper? I'm just curating existing datasets.
+
+
+# 03/25/2025
+
+We have actually three parts to the target audience:
+
+1. Reviewers at NeurIPS. They will be CV/ML/AI researchers with an interest in AI in ecology (hopefully) who are looking to poke holes in the submission.
+2. Professors who will read the title, abstract and main figures, then decide whether to share it with their students.
+3. Practitioners and other researchers looking to use our benchmark for evaluating a new methodology (model)
+
+Keep this in mind when writing. We need to convince reviewers, but groups 2 and 3 are more important long-term.
+
+# 03/26/2025
+
+Ecological CV is important.
+Why?
+
 # 04/23/2025
 
 Good outline:
@@ -5933,8 +6218,30 @@ Do we need benchmarks? -> Most AI/ML researchers agree yes. There are good studi
 Are current benchmarks good enough? -> Not anymore. I show that this is true with the statistical graphs. I give an explanation why by showing images in ImageNet-1K, MS-COCO, ADE20K, iNat21 and the tasks in BioBench.
 
 How should we build new benchmarks?
+
 * Engineeering why: benchmarks should help us answer new questions about models, goldilocks zone, etc.
 * Science why: benchmarks should drive progress outside of the benchmark task itself.
+
+# 05/08/2025
+
+Things I want to change after NeurIPS submission:
+
+1. Splits should be better aligned with either site/location, past/future (time) or other reasonable distribution splits.
+2. We should also report performance for 100 samples, or 1 of each class, whichever is more. Then I can cite both my cv4animals submission and callista's website.
+3. We should use GPU accelerated training for doing sweeps on linear probing for large models like DINOv2's probing code.
+4. Justify the particular task-specific head (ridgeclassifier, logistic regression, simpleshot, svm, etc).
+5. Use [`wildlife_datasets`](https://github.com/WildlifeDatasets/wildlife-datasets) for Beluga data loading.
+6. Plot progress on ImageNet and BioBench over time (normalized to each leaderboard).
+
+Some of these can be worked on before the NeurIPS reviews come out in prep fo rebuttal.
+
+Additional models:
+
+1. SigLIP2
+2. [OpenVision](https://arxiv.org/abs/2505.04601)
+3. [WebSSL](https://huggingface.co/collections/facebook/web-ssl-68094132c15fbd7808d1e9bb)
+4. [CATALOG](https://arxiv.org/pdf/2412.10624)
+5. [WildCLIP](https://github.com/amathislab/wildclip) (see [here](https://zenodo.org/records/11102888) for the checkpoints)
 
 >>>> mammalnet/__init__.py
 """
@@ -5970,6 +6277,7 @@ import os.path
 
 import beartype
 import numpy as np
+import polars as pl
 import scipy.stats
 import sklearn.linear_model
 import sklearn.model_selection
@@ -6015,9 +6323,12 @@ def benchmark(cfg: config.Experiment) -> reporting.Report:
     return reporting.Report("mammalnet", preds, cfg)
 
 
-@beartype.beartype
-def score(preds: list[reporting.Prediction]) -> float:
-    return reporting.macro_f1(preds)
+@jaxtyped(typechecker=beartype.beartype)
+def bootstrap_scores(
+    df: pl.DataFrame, *, b: int = 0, rng: np.random.Generator | None = None
+) -> dict[str, Float[np.ndarray, " b"]]:
+    assert df.get_column("task_name").unique().to_list() == ["mammalnet"]
+    return reporting.bootstrap_scores_macro_f1(df, b=b, rng=rng)
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -6716,9 +7027,46 @@ def benchmark(cfg: config.Experiment) -> reporting.Report:
     return reporting.Report("newt", all_preds, cfg)
 
 
-@beartype.beartype
-def score(preds: list[reporting.Prediction]) -> float:
-    return np.mean([p.score for p in preds]).item()
+@jaxtyped(typechecker=beartype.beartype)
+def bootstrap_scores(
+    df: pl.DataFrame, *, b: int = 0, rng: np.random.Generator | None = None
+) -> dict[str, Float[np.ndarray, " b"]]:
+    assert df.get_column("task_name").unique().to_list() == ["newt"]
+
+    n, *rest = df.group_by("model_ckpt").agg(n=pl.len()).get_column("n").to_list()
+    assert all(n == i for i in rest)
+
+    if b > 0:
+        assert rng is not None, "must provide rng argument"
+        i_bs = rng.integers(0, n, size=(b, n), dtype=np.int32)
+
+    scores = {}
+
+    scores_buf = np.empty((b, n), dtype=np.float32)
+
+    for model_ckpt in df.get_column("model_ckpt").unique().sort().to_list():
+        # pull y_true and y_pred for *one* model
+        scores_ = (
+            df.filter(pl.col("model_ckpt") == model_ckpt)
+            .select("img_id", "score")
+            .unique()
+            .sort("img_id")
+            .get_column("score")
+            .cast(pl.Float32)
+            .to_numpy()
+        )
+
+        if len(scores_) == 0:
+            continue
+
+        if b > 0:
+            # bootstrap resample into pre-allocated buffers
+            np.take(scores_, i_bs, axis=0, out=scores_buf)
+            scores[model_ckpt] = scores_buf.mean(axis=1)
+        else:
+            scores[model_ckpt] = np.array([scores_.mean()])
+
+    return scores
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -7317,6 +7665,7 @@ import typing
 
 import beartype
 import numpy as np
+import polars as pl
 import sklearn.naive_bayes
 import sklearn.pipeline
 import sklearn.preprocessing
@@ -7374,9 +7723,12 @@ def benchmark(cfg: config.Experiment) -> reporting.Report:
     return reporting.Report("plankton", preds, cfg)
 
 
-@beartype.beartype
-def score(preds: list[reporting.Prediction]) -> float:
-    return reporting.macro_f1(preds)
+@jaxtyped(typechecker=beartype.beartype)
+def bootstrap_scores(
+    df: pl.DataFrame, *, b: int = 0, rng: np.random.Generator | None = None
+) -> dict[str, Float[np.ndarray, " b"]]:
+    assert df.get_column("task_name").unique().to_list() == ["plankton"]
+    return reporting.bootstrap_scores_macro_f1(df, b=b, rng=rng)
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -7640,6 +7992,7 @@ import typing
 
 import beartype
 import numpy as np
+import polars as pl
 import sklearn.experimental.enable_halving_search_cv
 import sklearn.linear_model
 import sklearn.model_selection
@@ -7707,9 +8060,12 @@ def benchmark(cfg: config.Experiment) -> reporting.Report:
     return reporting.Report("plantnet", preds, cfg)
 
 
-@beartype.beartype
-def score(preds: list[reporting.Prediction]) -> float:
-    return reporting.macro_f1(preds)
+@jaxtyped(typechecker=beartype.beartype)
+def bootstrap_scores(
+    df: pl.DataFrame, *, b: int = 0, rng: np.random.Generator | None = None
+) -> dict[str, Float[np.ndarray, " b"]]:
+    assert df.get_column("task_name").unique().to_list() == ["plantnet"]
+    return reporting.bootstrap_scores_macro_f1(df, b=b, rng=rng)
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -8187,6 +8543,277 @@ def list_vision_backbones() -> list[str]:
     """
     return list(_global_backbone_registry.keys())
 
+>>>> report.py
+import collections.abc
+import dataclasses
+import functools
+import importlib
+import json
+import logging
+import os.path
+import pathlib
+import sqlite3
+import subprocess
+import time
+
+import beartype
+import numpy as np
+import polars as pl
+import statsmodels.stats.multitest
+import tyro
+
+from biobench import helpers
+
+log_format = "[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s"
+logging.basicConfig(level=logging.INFO, format=log_format)
+logger = logging.getLogger("make_json.py")
+
+
+@beartype.beartype
+@dataclasses.dataclass(frozen=True)
+class Task:
+    name: str
+    display: str
+
+    @functools.cached_property
+    def bootstrap_scores_fn(self) -> collections.abc.Callable:
+        mod = importlib.import_module(f"biobench.{self.name}")
+
+        return mod.bootstrap_scores
+
+    def to_dict(self) -> dict[str, object]:
+        return dataclasses.asdict(self)
+
+
+prior_work_tasks = [
+    Task("imagenet1k", "ImageNet-1K"),
+    Task("newt", "NeWT"),
+]
+
+benchmark_tasks = [
+    Task("beluga", "Beluga"),
+    Task("fishnet", "FishNet"),
+    Task("fungiclef", "FungiCLEF"),
+    Task("herbarium19", "Herbarium19"),
+    Task("iwildcam", "iWildCam"),
+    Task("kabr", "KABR"),
+    Task("mammalnet", "MammalNet"),
+    Task("plankton", "Plankton"),
+    Task("plantnet", "Pl@ntNet"),
+]
+
+task_lookup = {task.name: task for task in prior_work_tasks + benchmark_tasks}
+
+
+@beartype.beartype
+@dataclasses.dataclass(frozen=True)
+class Model:
+    ckpt: str
+    display: str
+    family: str
+
+    def to_dict(self) -> dict[str, object]:
+        return dataclasses.asdict(self)
+
+
+models = [
+    Model("ViT-B-32/openai", "CLIP ViT-B/32", "CLIP"),
+    Model("ViT-B-16/openai", "CLIP ViT-B/16", "CLIP"),
+    Model("ViT-L-14/openai", "CLIP ViT-L/14", "CLIP"),
+    Model("ViT-L-14-336/openai", "CLIP ViT-L/14 (336px)", "CLIP"),
+    Model("ViT-B-16-SigLIP/webli", "SigLIP ViT-B/16", "SigLIP"),
+    Model("ViT-B-16-SigLIP-256/webli", "SigLIP ViT-B/16 (256px)", "SigLIP"),
+    Model("ViT-B-16-SigLIP-384/webli", "SigLIP ViT-B/16 (384px)", "SigLIP"),
+    Model("ViT-B-16-SigLIP-512/webli", "SigLIP ViT-B/16 (512px)", "SigLIP"),
+    Model("ViT-L-16-SigLIP-256/webli", "SigLIP ViT-L/16 (256px)", "SigLIP"),
+    Model("ViT-L-16-SigLIP-384/webli", "SigLIP ViT-L/16 (384px)", "SigLIP"),
+    Model("ViT-SO400M-14-SigLIP/webli", "SigLIP SO400M/14", "SigLIP"),
+    Model("ViT-SO400M-14-SigLIP-384/webli", "SigLIP SO400M/14 (384px)", "SigLIP"),
+    Model("dinov2_vits14_reg", "DINOv2 ViT-S/14", "DINOv2"),
+    Model("dinov2_vitb14_reg", "DINOv2 ViT-B/14", "DINOv2"),
+    Model("dinov2_vitl14_reg", "DINOv2 ViT-L/14", "DINOv2"),
+    Model("dinov2_vitg14_reg", "DINOv2 ViT-g/14", "DINOv2"),
+    Model("apple/aimv2-large-patch14-224", "AIMv2 ViT-L/14 (224px)", "AIMv2"),
+    Model("apple/aimv2-large-patch14-336", "AIMv2 ViT-L/14 (336px)", "AIMv2"),
+    Model("apple/aimv2-large-patch14-448", "AIMv2 ViT-L/14 (448px)", "AIMv2"),
+    Model("apple/aimv2-huge-patch14-224", "AIMv2 ViT-H/14 (224px)", "AIMv2"),
+    Model("apple/aimv2-huge-patch14-336", "AIMv2 ViT-H/14 (336px)", "AIMv2"),
+    Model("apple/aimv2-huge-patch14-448", "AIMv2 ViT-H/14 (448px)", "AIMv2"),
+    Model("apple/aimv2-1B-patch14-224", "AIMv2 ViT-1B/14 (224px)", "AIMv2"),
+    Model("apple/aimv2-1B-patch14-336", "AIMv2 ViT-1B/14 (336px)", "AIMv2"),
+    Model("apple/aimv2-1B-patch14-448", "AIMv2 ViT-1B/14 (448px)", "AIMv2"),
+    Model("apple/aimv2-3B-patch14-224", "AIMv2 ViT-3B/14 (224px)", "AIMv2"),
+    Model("apple/aimv2-3B-patch14-336", "AIMv2 ViT-3B/14 (336px)", "AIMv2"),
+    Model("apple/aimv2-3B-patch14-448", "AIMv2 ViT-3B/14 (448px)", "AIMv2"),
+    Model("efficientnet_b0.ra_in1k", "EfficientNet B0", "CNN"),
+    Model("efficientnet_b3.ra2_in1k", "EfficientNet B3", "CNN"),
+    Model("mobilenetv2_100.ra_in1k", "MobileNet V2", "CNN"),
+    Model("mobilenetv3_large_100.ra_in1k", "MobileNet V3 L", "CNN"),
+    Model("resnet18.a1_in1k", "ResNet-18", "CNN"),
+    Model("resnet18d.ra2_in1k", "ResNet-18", "CNN"),
+    Model("resnet50.a1_in1k", "ResNet-50", "CNN"),
+    Model("resnet50d.a1_in1k", "ResNet-50d", "CNN"),
+    Model("convnext_tiny.in12k", "ConvNext-T", "CNN"),
+    Model("convnext_tiny.in12k_ft_in1k", "ConvNext-T (IN1K)", "CNN"),
+    Model("vit_base_patch16_224.augreg2_in21k_ft_in1k", "ViT-B/16 (IN1K)", "ViT"),
+    Model("hf-hub:imageomics/bioclip", "BioCLIP ViT-B/16", "cv4ecology"),
+    Model("hf-hub:BGLab/BioTrove-CLIP", "BioTrove ViT-B/16", "cv4ecology"),
+    Model(
+        "hf-hub:BVRA/MegaDescriptor-L-384",
+        "MegaDescriptor Swin-L/4 (384px)",
+        "cv4ecology",
+    ),
+    Model("vitl16", "V-JEPA ViT-L/16", "V-JEPA"),
+    Model("vith16", "V-JEPA ViT-H/16", "V-JEPA"),
+    Model("sam2_hiera_tiny.fb_r896_2pt1", "SAM2 Hiera-T", "SAM2"),
+    Model("sam2_hiera_small.fb_r896_2pt1", "SAM2 Hiera-S", "SAM2"),
+    Model("sam2_hiera_base_plus.fb_r896_2pt1", "SAM2 Hiera-B+", "SAM2"),
+    Model("sam2_hiera_large.fb_r1024_2pt1", "SAM2 Hiera-L", "SAM2"),
+]
+
+
+model_lookup = {model.ckpt: model for model in models}
+
+
+@beartype.beartype
+def get_git_hash() -> str:
+    """Returns the hash of the current git commit.
+
+    Returns:
+        str: The hash of the current git commit, assuming we are in a git repo
+    """
+    return subprocess.check_output(["git", "rev-parse", "HEAD"]).decode("ascii").strip()
+
+
+@beartype.beartype
+def calc_scores(
+    df: pl.DataFrame, *, n_bootstraps: int, alpha: float, seed: int
+) -> tuple[pl.DataFrame, pl.DataFrame]:
+    rng = np.random.default_rng(seed=seed)
+    scores_rows, bests_rows = [], []
+    for task in helpers.progress(
+        prior_work_tasks + benchmark_tasks, every=1, desc="bootstraps"
+    ):
+        try:
+            bootstrap_scores = task.bootstrap_scores_fn
+        except AttributeError:
+            print(f"No `bootstrap_scores` for {task.name}")
+            continue
+
+        sub = df.filter(
+            (pl.col("task_name") == task.name)
+            & (pl.col("model_ckpt").is_in(model_lookup))
+        )
+
+        scores = bootstrap_scores(sub, b=n_bootstraps, rng=rng)
+        # freeze model order once
+        ckpts = sorted(scores)  # list[str]  length = m
+
+        # stack into a (b, m) matrix that matches that order
+        s = np.column_stack([scores[c] for c in ckpts])  # (b, m)
+
+        # locate the empirical best (column index j*)
+        best_j = s.mean(axis=0).argmax()
+        best_c = ckpts[best_j]
+
+        # one-sided p-values against the best
+        p_raw = (s >= s[:, [best_j]]).mean(axis=0)  # vector length m
+        rej, p_adj, *_ = statsmodels.stats.multitest.multipletests(
+            p_raw, alpha=alpha, method="holm"
+        )
+
+        # list checkpoints that are *not rejected* -> bold
+        ties = [c for c, r in zip(ckpts, rej) if not r]
+        bests_rows.append({"task": task.name, "best": best_c, "ties": ties})
+
+        # Calculate reference scores, then compute task-level results.
+        for model_ckpt, ref_score in bootstrap_scores(sub).items():
+            bootstrap_mean = scores[model_ckpt].mean()
+            low = (0.5 - (1 - alpha) / 2) * 100
+            high = (0.5 + (1 - alpha) / 2) * 100
+            ci_low, ci_high = np.percentile(scores[model_ckpt], (low, high))
+
+            scores_rows.append({
+                "task": task.name,
+                "model": model_ckpt,
+                "mean": ref_score.item(),
+                "bootstrap_mean": bootstrap_mean.item(),
+                "ci_low": ci_low.item(),
+                "ci_high": ci_high.item(),
+            })
+
+    return pl.DataFrame(scores_rows), pl.DataFrame(bests_rows)
+
+
+@beartype.beartype
+def main(
+    db: pathlib.Path = pathlib.Path(
+        os.path.expandvars("/local/scratch/$USER/experiments/biobench/reports.sqlite")
+    ),
+    out: pathlib.Path = pathlib.Path("docs/data/results.json"),
+    seed: int = 17,
+    alpha=0.05,
+    n_bootstraps: int = 500,
+):
+    """Generate a JSON report of benchmark results with bootstrap confidence intervals.
+
+    This function reads experiment results from a SQLite database, calculates bootstrap statistics for each task/model combination, and writes the results to a JSON file for visualization.
+
+    Args:
+        db: Path to the SQLite database containing experiment results.
+        out: Path where the JSON report will be written.
+        seed: Random seed for reproducible bootstrapping.
+        alpha: Significance level for confidence intervals and hypothesis tests.
+        n_bootstraps: Number of bootstrap samples to generate.
+    """
+
+    stmt = "SELECT experiments.task_name, experiments.model_ckpt, predictions.score, predictions.img_id, predictions.info FROM experiments JOIN predictions ON experiments.id = predictions.experiment_id WHERE n_train = -1"
+    df = (
+        pl.read_database(stmt, sqlite3.connect(db), infer_schema_length=100_000)
+        .lazy()
+        .filter(pl.col("task_name").is_in(task_lookup))
+        .with_columns(
+            pl.coalesce([
+                pl.col("info").str.json_path_match("$.y_true"),
+                pl.col("info").str.json_path_match("$.true_y"),
+            ]).alias("y_true"),
+            pl.coalesce([
+                pl.col("info").str.json_path_match("$.y_pred"),
+                pl.col("info").str.json_path_match("$.pred_y"),
+            ]).alias("y_pred"),
+        )
+        .select("task_name", "model_ckpt", "img_id", "score", "y_true", "y_pred")
+        .collect()
+    )
+    logger.info("Loaded %d predictions.", df.height)
+
+    scores_df, bests_df = calc_scores(
+        df, n_bootstraps=n_bootstraps, alpha=alpha, seed=seed
+    )
+
+    data = {
+        "meta": {
+            "schema": 1,
+            "generated": int(time.time() * 1000),
+            "git_commit": get_git_hash(),
+            "seed": seed,
+            "alpha": alpha,
+            "n_bootstraps": n_bootstraps,
+        },
+        "models": [model.to_dict() for model in models],
+        "benchmark_tasks": [task.to_dict() for task in benchmark_tasks],
+        "prior_work_tasks": [task.to_dict() for task in prior_work_tasks],
+        "results": scores_df.to_dicts(),
+        "bests": bests_df.to_dicts(),
+    }
+    out.parent.mkdir(parents=True, exist_ok=True)
+    with open(out, "w") as fd:
+        json.dump(data, fd, indent=4)
+
+
+if __name__ == "__main__":
+    tyro.cli(main)
+
 >>>> reporting.py
 import dataclasses
 import json
@@ -8201,6 +8828,7 @@ import time
 
 import beartype
 import numpy as np
+import polars as pl
 import sklearn.metrics
 from jaxtyping import Float, Int, jaxtyped
 
@@ -8517,13 +9145,41 @@ def macro_f1(preds: list[Prediction], *, labels: list[int] | None = None) -> flo
     y_true = np.array([p.info.get("y_true", p.info.get("true_y")) for p in preds])
 
     if labels is None:
-        labels = np.unique(y_true)
+        labels = np.unique(np.stack([y_true, y_pred]))
+        labels = np.arange(labels.max() + 1)
     else:
         labels = np.array(labels)
+
+    assert (np.arange(labels.size) == labels).all()
 
     return sklearn.metrics.f1_score(
         y_true, y_pred, average="macro", labels=labels, zero_division=0.0
     )
+
+
+@beartype.beartype
+def micro_acc_batch(
+    y_true: Int[np.ndarray, "*batch n"], y_pred: Int[np.ndarray, "*batch n"]
+) -> Float[np.ndarray, "*batch"]:
+    """
+    Vectorised **micro-accuracy** (overall proportion of correct predictions).
+
+    * Works on any leading `*batch` prefix; the final axis `n` is the number of examples.
+    * Complexity O(B·n) time, O(1) extra memory.
+
+    Parameters
+    ----------
+    y_true, y_pred
+        Integer class labels / predictions ≥ 0.  All leading dimensions
+        (`*batch`) must match; `n` is the sample count.
+
+    Returns
+    -------
+    acc : np.ndarray
+        Shape `*batch`; accuracy for every element of the batch prefix.
+    """
+    acc = (y_true == y_pred).mean(axis=-1, dtype=float)
+    return acc
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -8533,40 +9189,116 @@ def macro_f1_batch(
     *,
     labels: Int[np.ndarray, " c"] | None = None,
 ) -> Float[np.ndarray, "*batch"]:
-    """Calculates macro-averaged F1 over the last (sample) axis.
-
-    Works on an arbitrary *batch* prefix; if you pass a (B, n) bootstrap matrix you get a (B,) vector of F1 scores in one call.
-
-    Args:
-        y_true: Integer class labels. All leading dimensions (*batch*) must match; n is the number of examples.
-        y_pred: Integer class predictions. All leading dimensions (*batch*) must match; n is the number of examples.
-        labels: Optional 1-D array of class ids to average over. If omitted, np.unique(y_true) (flattened) is used.
-
-    Returns:
-        A numpy array with shape *batch; the macro-F1 for every element of the batch prefix.
     """
+    Vectorised macro-F1 for large class counts.
+
+    Accepts any leading `*batch` prefix; the last axis `n` is the number
+    of examples.  Runs in O(B·n) time and O(B·C) memory, where
+    B = prod(*batch) and C = #classes.
+
+    All elements in y_true, y_pred, and labels must be integers ≥ 0. (Negative IDs would break the offset arithmetic; floats break np.bincount.)
+    """
+
+    # flatten batch prefix
+    *batch_shape, n = y_true.shape
+    b = int(np.prod(batch_shape))  # total batches
+
+    y_true = y_true.reshape(b, n)
+    y_pred = y_pred.reshape(b, n)
+
+    # label remapping to dense 0...C-1
     if labels is None:
-        labels = np.unique(y_true)
+        labels = np.unique(np.stack([y_true, y_pred]))
 
-    # one-hot comparisons:  shape (..., n, c)
-    y_true_bin = y_true[..., None] == labels  # broadcast over c
-    y_pred_bin = y_pred[..., None] == labels
+    labels = np.arange(labels.max() + 1)
+    c = labels.size
+    assert (np.arange(c) == labels).all()
 
-    # TP / FP / FN for each class, summed over the example axis (-2)
-    tp = np.logical_and(y_true_bin, y_pred_bin).sum(axis=-2).astype(float)
-    fp = np.logical_and(~y_true_bin, y_pred_bin).sum(axis=-2)
-    fn = np.logical_and(y_true_bin, ~y_pred_bin).sum(axis=-2)
+    # offsets for per-batch bincounts
+    offset = np.arange(b, dtype=np.int64)[:, None] * c  # (b, 1)
+    yz_true = y_true + offset  # (b, n)
+    yz_pred = y_pred + offset  # (b, n)
 
-    denom = 2 * tp + fp + fn  # shape *batch c
-    f1_c = np.zeros_like(tp, dtype=float)  # init all-zero
-    np.divide(2 * tp, denom, out=f1_c, where=denom != 0)  # no warning
+    # counts for all examples
+    true_cnt = np.bincount(yz_true.ravel(), minlength=(b * c)).reshape(b, c)
+    pred_cnt = np.bincount(yz_pred.ravel(), minlength=(b * c)).reshape(b, c)
 
-    # macro-average across classes (last axis)
-    mean = f1_c.mean(axis=-1)  # shape *batch
-    if isinstance(mean, np.ndarray):
-        return mean
-    else:
-        return np.array(mean)
+    # true-positives
+    tp_mask = y_true == y_pred  # (B, n)
+    tp_off = yz_true[tp_mask]  # 1-D
+    tp_cnt = np.bincount(tp_off, minlength=(b * c)).reshape(b, c)
+
+    # F1 per class, then macro average
+    fp = pred_cnt - tp_cnt
+    fn = true_cnt - tp_cnt
+    denom = 2 * tp_cnt + fp + fn  # (B, C)
+
+    f1_c = np.zeros_like(denom, dtype=float)
+    np.divide(2 * tp_cnt, denom, out=f1_c, where=denom != 0)
+
+    macro_f1 = f1_c.mean(axis=-1)  # (B,)
+    return macro_f1.reshape(batch_shape)
+
+
+@jaxtyped(typechecker=beartype.beartype)
+def bootstrap_scores_macro_f1(
+    df: pl.DataFrame, *, b: int = 0, rng: np.random.Generator | None = None
+) -> dict[str, Float[np.ndarray, " b"]]:
+    """
+    Polars dataframe with schema
+
+    Schema({'task_name': String, 'model_ckpt': String, 'img_id': String, 'score': Float64, 'y_true': String, 'y_pred': String})
+    """
+
+    n, *rest = df.group_by("model_ckpt").agg(n=pl.len()).get_column("n").to_list()
+    assert all(n == i for i in rest)
+
+    if b > 0:
+        assert rng is not None, "must provide rng argument"
+        i_bs = rng.integers(0, n, size=(b, n), dtype=np.int32)
+
+    scores = {}
+
+    y_pred_buf = np.empty((b, n), dtype=np.int32)
+    y_true_buf = np.empty((b, n), dtype=np.int32)
+
+    for model_ckpt in df.get_column("model_ckpt").unique().sort().to_list():
+        # pull y_true and y_pred for *one* model
+        y_pred = (
+            df.filter(pl.col("model_ckpt") == model_ckpt)
+            .select("img_id", "y_pred")
+            .unique()
+            .sort("img_id")
+            .get_column("y_pred")
+            .cast(pl.Float32)
+            .cast(pl.Int32)
+            .to_numpy()
+        )
+
+        if len(y_pred) == 0:
+            continue
+
+        y_true = (
+            df.filter(pl.col("model_ckpt") == model_ckpt)
+            .select("img_id", "y_true")
+            .unique()
+            .sort("img_id")
+            .get_column("y_true")
+            .cast(pl.Float32)
+            .cast(pl.Int32)
+            .to_numpy()
+        )
+        assert y_true.size == y_pred.size
+
+        if b > 0:
+            # bootstrap resample into pre-allocated buffers
+            np.take(y_pred, i_bs, axis=0, out=y_pred_buf)
+            np.take(y_true, i_bs, axis=0, out=y_true_buf)
+            scores[model_ckpt] = macro_f1_batch(y_true_buf, y_pred_buf)
+        else:
+            scores[model_ckpt] = np.array([macro_f1_batch(y_true, y_pred)])
+
+    return scores
 
 
 ##########
@@ -8671,6 +9403,133 @@ CREATE TABLE IF NOT EXISTS runs (
     pid INTEGER NOT NULL,  -- os.getpid() of the worker
     PRIMARY KEY (task_name, model_org, model_ckpt, n_train)
 );
+
+>>>> scratch.py
+import marimo
+
+__generated_with = "0.11.8"
+app = marimo.App(width="medium")
+
+
+@app.cell
+def _():
+    import marimo as mo
+    import matplotlib.pyplot as plt
+    import numpy as np
+    import matplotlib.animation
+    import beartype
+
+    params = {
+        "ytick.color": "w",
+        "xtick.color": "w",
+        "axes.labelcolor": "w",
+        "axes.edgecolor": "w",
+    }
+    plt.rcParams.update(params)
+    return beartype, matplotlib, mo, np, params, plt
+
+
+@app.cell
+def _(beartype, matplotlib, np, plt):
+    @beartype.beartype
+    def make_anim(
+        data: list[tuple[str, float | int, str]],
+        ylabel: str,
+        n_frames=100,
+    ):
+        # Set random seed for reproducibility
+        np.random.seed(42)
+
+        # Data
+        labels = [label for label, _, _ in data]
+        values = np.array([val for _, val, _ in data])
+        anns = [ann for _, _, ann in data]
+        # Set up the figure and axis
+        fig, ax = plt.subplots(figsize=(4, 3), dpi=600)
+        bars = ax.bar(labels, np.zeros(len(labels)), color="white")
+
+        # Calculate growth rate based on the largest value
+        max_value = max(values)
+        growth_rate = max_value / n_frames
+
+        # Add title and labels
+
+        ax.set_ylabel(ylabel, fontsize=12)
+        ax.set_ylim(0, max(values) * 1.1)  # Set y-limit slightly above max value
+        ax.set_yticks([], [])
+        ax.spines[["top", "right", "left"]].set_visible(False)
+        fig.patch.set_alpha(0)  # Make figure background transparent
+        ax.patch.set_alpha(0)  # Make axis background transparent
+        fig.tight_layout(pad=0)
+
+        # Function to update the bar heights in each frame
+        def update(frame):
+            # Calculate current height based on frame
+            current = np.minimum(frame * growth_rate, values)
+
+            for i, (bar, height, value, ann) in enumerate(
+                zip(bars, current, values, anns)
+            ):
+                bar.set_height(height)
+
+                # Add annotation when the bar reaches its final height
+                if height >= value:
+                    ax.text(
+                        i,
+                        height + 1,
+                        ann,
+                        ha="center",
+                        va="bottom",
+                        color="white",
+                        fontsize=18,
+                    )
+
+            return bars
+
+        # Create animation with 100 frames over 10 seconds (10 FPS)
+        anim = matplotlib.animation.FuncAnimation(
+            fig,
+            update,
+            frames=n_frames + 1,
+            interval=1000 / 60,
+            blit=True,
+            repeat=False,
+        )
+        return anim, fig
+
+    anim, fig = make_anim(
+        [
+            ("iNat2021", 2_700_000, "2.7M"),
+            ("BIOSCAN-1M", 1_000_000, "1M"),
+            ("EOL (ours)", 6_600_000, "6.6M"),
+        ],
+        "Images",
+    )
+    anim.save("images.mp4", fps=60, savefig_kwargs={"transparent": True})
+    fig.savefig("images.png", transparent=True)
+    plt.show()
+
+    anim, fig = make_anim(
+        [
+            ("iNat2021", 10_000, "10K"),
+            ("BIOSCAN-1M", 7_800, "7.8K"),
+            ("EOL (ours)", 448_000, "448K"),
+        ],
+        "Taxa",
+    )
+    anim.save("taxa.mp4", fps=60, savefig_kwargs={"transparent": True})
+    fig.savefig("taxa.png", transparent=True)
+    plt.show()
+    return anim, fig, make_anim
+
+
+@app.cell
+def _():
+    return
+
+
+if __name__ == "__main__":
+    app.run()
 
 >>>> simpleshot.py
 """
@@ -9765,22 +10624,42 @@ def test_macro_f1_batch_matches_macro_f1_bsz_n(batch):
         np.fromiter((p.info["y_pred"] for p in preds), dtype=int) for preds in batch
     ])
 
-    ours = reporting.macro_f1_batch(y_true, y_pred)  # shape (B,)
+    labels = np.unique(np.stack([y_true, y_pred]))
+    labels = np.arange(labels.max() + 1)
+
+    ours = reporting.macro_f1_batch(y_true, y_pred)
     ref = np.array([
-        reporting.macro_f1(preds, labels=np.unique(y_true).tolist()) for preds in batch
+        reporting.macro_f1(preds, labels=labels.tolist()) for preds in batch
     ])
 
     assert np.allclose(ours, ref, rtol=1e-12, atol=1e-12)
 
 
 f1_macro_edgecases = [
-    [
-        [
-            reporting.Prediction(id="0", score=1.0, info={"y_true": 0, "y_pred": 0}),
-            reporting.Prediction(id="1", score=0.0, info={"y_true": 1, "y_pred": 0}),
-        ]
-    ],
-    [[reporting.Prediction(id="0", score=1.0, info={"y_true": 0, "y_pred": 0})]],
+    [[reporting.Prediction(id="0", score=1.0, info={"y_true": 2, "y_pred": 2})]],
+    # [[reporting.Prediction(id="0", score=1.0, info={"y_true": 0, "y_pred": 0})]],
+    # [
+    #     [
+    #         reporting.Prediction(id="0", score=1.0, info={"y_true": 0, "y_pred": 0}),
+    #         reporting.Prediction(id="1", score=0.0, info={"y_true": 1, "y_pred": 0}),
+    #     ],
+    # ],
+    # [
+    #     [
+    #         reporting.Prediction(id="0", score=1.0, info={"y_true": 0, "y_pred": 0}),
+    #         reporting.Prediction(id="1", score=0.0, info={"y_true": 0, "y_pred": 1}),
+    #     ]
+    # ],
+    # [
+    #     [
+    #         reporting.Prediction(id="0", score=1.0, info={"y_true": 0, "y_pred": 0}),
+    #         reporting.Prediction(id="1", score=0.0, info={"y_true": 1, "y_pred": 0}),
+    #     ],
+    #     [
+    #         reporting.Prediction(id="1", score=0.0, info={"y_true": 1, "y_pred": 0}),
+    #         reporting.Prediction(id="1", score=0.0, info={"y_true": 1, "y_pred": 0}),
+    #     ],
+    # ],
 ]
 
 
@@ -9796,9 +10675,7 @@ def test_macro_f1_batch_matches_macro_f1_edgecases(batch):
     ])
 
     ours = reporting.macro_f1_batch(y_true, y_pred)  # shape (B,)
-    ref = np.array([
-        reporting.macro_f1(preds, labels=np.unique(y_true).tolist()) for preds in batch
-    ])
+    ref = np.array([reporting.macro_f1(preds) for preds in batch])
 
     assert np.allclose(ours, ref, rtol=1e-12, atol=1e-12)
 

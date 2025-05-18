@@ -256,9 +256,12 @@ def test_macro_f1_batch_matches_macro_f1_bsz_n(batch):
         np.fromiter((p.info[&#34;y_pred&#34;] for p in preds), dtype=int) for preds in batch
     ])
 
-    ours = reporting.macro_f1_batch(y_true, y_pred)  # shape (B,)
+    labels = np.unique(np.stack([y_true, y_pred]))
+    labels = np.arange(labels.max() + 1)
+
+    ours = reporting.macro_f1_batch(y_true, y_pred)
     ref = np.array([
-        reporting.macro_f1(preds, labels=np.unique(y_true).tolist()) for preds in batch
+        reporting.macro_f1(preds, labels=labels.tolist()) for preds in batch
     ])
 
     assert np.allclose(ours, ref, rtol=1e-12, atol=1e-12)</code></pre>
@@ -285,9 +288,7 @@ def test_macro_f1_batch_matches_macro_f1_edgecases(batch):
     ])
 
     ours = reporting.macro_f1_batch(y_true, y_pred)  # shape (B,)
-    ref = np.array([
-        reporting.macro_f1(preds, labels=np.unique(y_true).tolist()) for preds in batch
-    ])
+    ref = np.array([reporting.macro_f1(preds) for preds in batch])
 
     assert np.allclose(ours, ref, rtol=1e-12, atol=1e-12)</code></pre>
 </details>

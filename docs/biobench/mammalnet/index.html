@@ -123,6 +123,23 @@ def benchmark(cfg: config.Experiment) -&gt; reporting.Report:
 </details>
 <div class="desc"></div>
 </dd>
+<dt id="biobench.mammalnet.bootstrap_scores"><code class="name flex">
+<span>def <span class="ident">bootstrap_scores</span></span>(<span>df: polars.dataframe.frame.DataFrame,<br>*,<br>b: int = 0,<br>rng: numpy.random._generator.Generator | None = None) ‑> dict[str, jaxtyping.Float[ndarray, 'b']]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
+def bootstrap_scores(
+    df: pl.DataFrame, *, b: int = 0, rng: np.random.Generator | None = None
+) -&gt; dict[str, Float[np.ndarray, &#34; b&#34;]]:
+    assert df.get_column(&#34;task_name&#34;).unique().to_list() == [&#34;mammalnet&#34;]
+    return reporting.bootstrap_scores_macro_f1(df, b=b, rng=rng)</code></pre>
+</details>
+<div class="desc"></div>
+</dd>
 <dt id="biobench.mammalnet.find_videos"><code class="name flex">
 <span>def <span class="ident">find_videos</span></span>(<span>root: str, *, split: str, composition: str = 'composition', n_frames: int = 32) ‑> Iterator[<a title="biobench.mammalnet.Video" href="#biobench.mammalnet.Video">Video</a>]</span>
 </code></dt>
@@ -293,20 +310,6 @@ def init_clf(cfg: config.Experiment):
         random_state=cfg.seed,
         scoring=&#34;f1_macro&#34;,
     )</code></pre>
-</details>
-<div class="desc"></div>
-</dd>
-<dt id="biobench.mammalnet.score"><code class="name flex">
-<span>def <span class="ident">score</span></span>(<span>preds: list[<a title="biobench.reporting.Prediction" href="../reporting.html#biobench.reporting.Prediction">Prediction</a>]) ‑> float</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">@beartype.beartype
-def score(preds: list[reporting.Prediction]) -&gt; float:
-    return reporting.macro_f1(preds)</code></pre>
 </details>
 <div class="desc"></div>
 </dd>
@@ -554,10 +557,10 @@ class Video:
 <ul class="two-column">
 <li><code><a title="biobench.mammalnet.aggregate_frames" href="#biobench.mammalnet.aggregate_frames">aggregate_frames</a></code></li>
 <li><code><a title="biobench.mammalnet.benchmark" href="#biobench.mammalnet.benchmark">benchmark</a></code></li>
+<li><code><a title="biobench.mammalnet.bootstrap_scores" href="#biobench.mammalnet.bootstrap_scores">bootstrap_scores</a></code></li>
 <li><code><a title="biobench.mammalnet.find_videos" href="#biobench.mammalnet.find_videos">find_videos</a></code></li>
 <li><code><a title="biobench.mammalnet.get_features" href="#biobench.mammalnet.get_features">get_features</a></code></li>
 <li><code><a title="biobench.mammalnet.init_clf" href="#biobench.mammalnet.init_clf">init_clf</a></code></li>
-<li><code><a title="biobench.mammalnet.score" href="#biobench.mammalnet.score">score</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>

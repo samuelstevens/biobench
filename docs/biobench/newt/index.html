@@ -118,6 +118,57 @@ First, get features for all images.
 Second, select the subsets of features that correspond to different tasks and train an SVM.
 Third, evaluate the SVM and report results.</p></div>
 </dd>
+<dt id="biobench.newt.bootstrap_scores"><code class="name flex">
+<span>def <span class="ident">bootstrap_scores</span></span>(<span>df: polars.dataframe.frame.DataFrame,<br>*,<br>b: int = 0,<br>rng: numpy.random._generator.Generator | None = None) ‑> dict[str, jaxtyping.Float[ndarray, 'b']]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
+def bootstrap_scores(
+    df: pl.DataFrame, *, b: int = 0, rng: np.random.Generator | None = None
+) -&gt; dict[str, Float[np.ndarray, &#34; b&#34;]]:
+    assert df.get_column(&#34;task_name&#34;).unique().to_list() == [&#34;newt&#34;]
+
+    n, *rest = df.group_by(&#34;model_ckpt&#34;).agg(n=pl.len()).get_column(&#34;n&#34;).to_list()
+    assert all(n == i for i in rest)
+
+    if b &gt; 0:
+        assert rng is not None, &#34;must provide rng argument&#34;
+        i_bs = rng.integers(0, n, size=(b, n), dtype=np.int32)
+
+    scores = {}
+
+    scores_buf = np.empty((b, n), dtype=np.float32)
+
+    for model_ckpt in df.get_column(&#34;model_ckpt&#34;).unique().sort().to_list():
+        # pull y_true and y_pred for *one* model
+        scores_ = (
+            df.filter(pl.col(&#34;model_ckpt&#34;) == model_ckpt)
+            .select(&#34;img_id&#34;, &#34;score&#34;)
+            .unique()
+            .sort(&#34;img_id&#34;)
+            .get_column(&#34;score&#34;)
+            .cast(pl.Float32)
+            .to_numpy()
+        )
+
+        if len(scores_) == 0:
+            continue
+
+        if b &gt; 0:
+            # bootstrap resample into pre-allocated buffers
+            np.take(scores_, i_bs, axis=0, out=scores_buf)
+            scores[model_ckpt] = scores_buf.mean(axis=1)
+        else:
+            scores[model_ckpt] = np.array([scores_.mean()])
+
+    return scores</code></pre>
+</details>
+<div class="desc"></div>
+</dd>
 <dt id="biobench.newt.get_all_tasks"><code class="name flex">
 <span>def <span class="ident">get_all_tasks</span></span>(<span>cfg: <a title="biobench.config.Experiment" href="../config.html#biobench.config.Experiment">Experiment</a>) ‑> Iterator[<a title="biobench.newt.Task" href="#biobench.newt.Task">Task</a>]</span>
 </code></dt>
@@ -349,20 +400,6 @@ def sample(rng: np.random.Generator, df: pl.DataFrame, n_train: int) -&gt; pl.Da
 </dl>
 <h2 id="returns">Returns</h2>
 <p>A DataFrame with balanced training samples and all test samples.</p></div>
-</dd>
-<dt id="biobench.newt.score"><code class="name flex">
-<span>def <span class="ident">score</span></span>(<span>preds: list[<a title="biobench.reporting.Prediction" href="../reporting.html#biobench.reporting.Prediction">Prediction</a>]) ‑> float</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">@beartype.beartype
-def score(preds: list[reporting.Prediction]) -&gt; float:
-    return np.mean([p.score for p in preds]).item()</code></pre>
-</details>
-<div class="desc"></div>
 </dd>
 </dl>
 </section>
@@ -628,11 +665,11 @@ def splits(
 <li><h3><a href="#header-functions">Functions</a></h3>
 <ul class="two-column">
 <li><code><a title="biobench.newt.benchmark" href="#biobench.newt.benchmark">benchmark</a></code></li>
+<li><code><a title="biobench.newt.bootstrap_scores" href="#biobench.newt.bootstrap_scores">bootstrap_scores</a></code></li>
 <li><code><a title="biobench.newt.get_all_tasks" href="#biobench.newt.get_all_tasks">get_all_tasks</a></code></li>
 <li><code><a title="biobench.newt.init_svc" href="#biobench.newt.init_svc">init_svc</a></code></li>
 <li><code><a title="biobench.newt.l2_normalize" href="#biobench.newt.l2_normalize">l2_normalize</a></code></li>
 <li><code><a title="biobench.newt.sample" href="#biobench.newt.sample">sample</a></code></li>
-<li><code><a title="biobench.newt.score" href="#biobench.newt.score">score</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>

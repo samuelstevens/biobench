@@ -52,15 +52,17 @@ Adapted from BohemianVRA's evaluate.py:
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
 <dt id="biobench.fungiclef.metrics.classification_error"><code class="name flex">
-<span>def <span class="ident">classification_error</span></span>(<span>y_true: numpy.ndarray, y_pred: numpy.ndarray) ‑> float</span>
+<span>def <span class="ident">classification_error</span></span>(<span>y_true: jaxtyping.Int[ndarray, '*batch n'],<br>y_pred: jaxtyping.Int[ndarray, '*batch n']) ‑> jaxtyping.Float[ndarray, '*batch']</span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">@beartype.beartype
-def classification_error(y_true: np.ndarray, y_pred: np.ndarray) -&gt; float:
+<pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
+def classification_error(
+    y_true: Int[np.ndarray, &#34;*batch n&#34;], y_pred: Int[np.ndarray, &#34;*batch n&#34;]
+) -&gt; Float[np.ndarray, &#34;*batch&#34;]:
     &#34;&#34;&#34;
     Standard classification error (unknown treated as error equally).
     &#34;&#34;&#34;
@@ -71,20 +73,21 @@ def classification_error(y_true: np.ndarray, y_pred: np.ndarray) -&gt; float:
 <div class="desc"><p>Standard classification error (unknown treated as error equally).</p></div>
 </dd>
 <dt id="biobench.fungiclef.metrics.classification_error_with_unknown"><code class="name flex">
-<span>def <span class="ident">classification_error_with_unknown</span></span>(<span>y_true: numpy.ndarray,<br>y_pred: numpy.ndarray,<br>cost_unknown_mis: float = 10.0,<br>cost_mis_as_unknown: float = 0.1) ‑> float</span>
+<span>def <span class="ident">classification_error_with_unknown</span></span>(<span>y_true: jaxtyping.Int[ndarray, '*batch n'],<br>y_pred: jaxtyping.Int[ndarray, '*batch n'],<br>*,<br>cost_unknown_mis: float = 10.0,<br>cost_mis_as_unknown: float = 0.1) ‑> jaxtyping.Float[ndarray, '*batch']</span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">@beartype.beartype
+<pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
 def classification_error_with_unknown(
-    y_true: np.ndarray,
-    y_pred: np.ndarray,
+    y_true: Int[np.ndarray, &#34;*batch n&#34;],
+    y_pred: Int[np.ndarray, &#34;*batch n&#34;],
+    *,
     cost_unknown_mis: float = 10.0,
     cost_mis_as_unknown: float = 0.1,
-) -&gt; float:
+) -&gt; Float[np.ndarray, &#34;*batch&#34;]:
     &#34;&#34;&#34;
     Classification error allowing for an &#34;unknown&#34; class (encoded as -1).
 
@@ -97,18 +100,21 @@ def classification_error_with_unknown(
     Returns:
         normalized error rate
     &#34;&#34;&#34;
+    *b, n = y_true.shape
     is_true_unknown = y_true == -1
     is_pred_unknown = y_pred == -1
 
-    num_mis_unknown = np.sum(is_true_unknown &amp; ~is_pred_unknown)
-    num_mis_as_unknown = np.sum(~is_true_unknown &amp; is_pred_unknown)
-    num_other = np.sum((y_true != y_pred) &amp; ~is_true_unknown &amp; ~is_pred_unknown)
-    total = y_true.size
-    return (
-        num_other
-        + cost_unknown_mis * num_mis_unknown
-        + cost_mis_as_unknown * num_mis_as_unknown
-    ) / total</code></pre>
+    n_mis_unknown = np.sum(is_true_unknown &amp; ~is_pred_unknown, axis=-1)
+    n_mis_as_unknown = np.sum(~is_true_unknown &amp; is_pred_unknown, axis=-1)
+    n_other = np.sum((y_true != y_pred) &amp; ~is_true_unknown &amp; ~is_pred_unknown, axis=-1)
+
+    err = (
+        n_other
+        + cost_unknown_mis * n_mis_unknown
+        + cost_mis_as_unknown * n_mis_as_unknown
+    ) / n
+
+    return np.asarray(err)</code></pre>
 </details>
 <div class="desc"><p>Classification error allowing for an "unknown" class (encoded as -1).</p>
 <h2 id="args">Args</h2>
@@ -126,15 +132,17 @@ def classification_error_with_unknown(
 <p>normalized error rate</p></div>
 </dd>
 <dt id="biobench.fungiclef.metrics.evaluate_metrics"><code class="name flex">
-<span>def <span class="ident">evaluate_metrics</span></span>(<span>y_true: numpy.ndarray, y_pred: numpy.ndarray) ‑> dict[str, float]</span>
+<span>def <span class="ident">evaluate_metrics</span></span>(<span>y_true: jaxtyping.Int[ndarray, '*batch n'],<br>y_pred: jaxtyping.Int[ndarray, '*batch n']) ‑> dict[str, jaxtyping.Float[ndarray, '*batch']]</span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">@beartype.beartype
-def evaluate_metrics(y_true: np.ndarray, y_pred: np.ndarray) -&gt; dict[str, float]:
+<pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
+def evaluate_metrics(
+    y_true: Int[np.ndarray, &#34;*batch n&#34;], y_pred: Int[np.ndarray, &#34;*batch n&#34;]
+) -&gt; dict[str, Float[np.ndarray, &#34;*batch&#34;]]:
     &#34;&#34;&#34;
     Compute all four FungiCLEF custom metrics plus macro F1.
 
@@ -146,11 +154,11 @@ def evaluate_metrics(y_true: np.ndarray, y_pred: np.ndarray) -&gt; dict[str, flo
             - User_Focused_Loss
             - Classification_Error_with_Unknown
     &#34;&#34;&#34;
-    f1 = sklearn.metrics.f1_score(y_true, y_pred, average=&#34;macro&#34;) * 100.0
+    f1 = np.asarray(sklearn.metrics.f1_score(y_true, y_pred, average=&#34;macro&#34;) * 100.0)
     ce = classification_error(y_true, y_pred)
     psc = psc_esc_cost_score(y_true, y_pred)
     ce_unk = classification_error_with_unknown(y_true, y_pred)
-    user_loss = ce_unk + psc
+    user_loss = np.asarray(ce_unk + psc)
     return {
         &#34;f1_macro&#34;: f1,
         &#34;ce&#34;: ce,
@@ -169,7 +177,7 @@ def evaluate_metrics(y_true: np.ndarray, y_pred: np.ndarray) -&gt; dict[str, flo
 - Classification_Error_with_Unknown</p></div>
 </dd>
 <dt id="biobench.fungiclef.metrics.num_esc_decisions"><code class="name flex">
-<span>def <span class="ident">num_esc_decisions</span></span>(<span>y_true: numpy.ndarray, y_pred: numpy.ndarray) ‑> int</span>
+<span>def <span class="ident">num_esc_decisions</span></span>(<span>y_true: jaxtyping.Int[ndarray, '*batch n'],<br>y_pred: jaxtyping.Int[ndarray, '*batch n']) ‑> jaxtyping.Int[ndarray, '*batch']</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -177,18 +185,20 @@ def evaluate_metrics(y_true: np.ndarray, y_pred: np.ndarray) -&gt; dict[str, flo
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">@beartype.beartype
-def num_esc_decisions(y_true: np.ndarray, y_pred: np.ndarray) -&gt; int:
+def num_esc_decisions(
+    y_true: Int[np.ndarray, &#34;*batch n&#34;], y_pred: Int[np.ndarray, &#34;*batch n&#34;]
+) -&gt; Int[np.ndarray, &#34;*batch&#34;]:
     &#34;&#34;&#34;
     Number of non-poisonous species incorrectly predicted as poisonous.
     &#34;&#34;&#34;
     is_true_poison = np.isin(y_true, POISONOUS_SPECIES)
     is_pred_poison = np.isin(y_pred, POISONOUS_SPECIES)
-    return int(np.sum(~is_true_poison &amp; is_pred_poison))</code></pre>
+    return np.asarray(np.sum(~is_true_poison &amp; is_pred_poison, axis=-1))</code></pre>
 </details>
 <div class="desc"><p>Number of non-poisonous species incorrectly predicted as poisonous.</p></div>
 </dd>
 <dt id="biobench.fungiclef.metrics.num_psc_decisions"><code class="name flex">
-<span>def <span class="ident">num_psc_decisions</span></span>(<span>y_true: numpy.ndarray, y_pred: numpy.ndarray) ‑> int</span>
+<span>def <span class="ident">num_psc_decisions</span></span>(<span>y_true: jaxtyping.Int[ndarray, '*batch n'],<br>y_pred: jaxtyping.Int[ndarray, '*batch n']) ‑> jaxtyping.Int[ndarray, '*batch']</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -196,54 +206,101 @@ def num_esc_decisions(y_true: np.ndarray, y_pred: np.ndarray) -&gt; int:
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">@beartype.beartype
-def num_psc_decisions(y_true: np.ndarray, y_pred: np.ndarray) -&gt; int:
+def num_psc_decisions(
+    y_true: Int[np.ndarray, &#34;*batch n&#34;], y_pred: Int[np.ndarray, &#34;*batch n&#34;]
+) -&gt; Int[np.ndarray, &#34;*batch&#34;]:
     &#34;&#34;&#34;
     Number of poisonous species incorrectly predicted as non-poisonous.
     &#34;&#34;&#34;
     is_true_poison = np.isin(y_true, POISONOUS_SPECIES)
     is_pred_poison = np.isin(y_pred, POISONOUS_SPECIES)
-    return int(np.sum(is_true_poison &amp; ~is_pred_poison))</code></pre>
+    return np.asarray(np.sum(is_true_poison &amp; ~is_pred_poison, axis=-1))</code></pre>
 </details>
 <div class="desc"><p>Number of poisonous species incorrectly predicted as non-poisonous.</p></div>
 </dd>
 <dt id="biobench.fungiclef.metrics.psc_esc_cost_score"><code class="name flex">
-<span>def <span class="ident">psc_esc_cost_score</span></span>(<span>y_true: numpy.ndarray,<br>y_pred: numpy.ndarray,<br>cost_psc: float = 100.0,<br>cost_esc: float = 1.0) ‑> float</span>
+<span>def <span class="ident">psc_esc_cost_score</span></span>(<span>y_true: jaxtyping.Int[ndarray, '*batch n'],<br>y_pred: jaxtyping.Int[ndarray, '*batch n'],<br>*,<br>cost_psc: float = 100.0,<br>cost_esc: float = 1.0) ‑> jaxtyping.Float[ndarray, '*batch']</span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">@beartype.beartype
+<pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
 def psc_esc_cost_score(
-    y_true: np.ndarray,
-    y_pred: np.ndarray,
+    y_true: Int[np.ndarray, &#34;*batch n&#34;],
+    y_pred: Int[np.ndarray, &#34;*batch n&#34;],
+    *,
     cost_psc: float = 100.0,
     cost_esc: float = 1.0,
-) -&gt; float:
+) -&gt; Float[np.ndarray, &#34;*batch&#34;]:
     &#34;&#34;&#34;
     Weighted cost for poisonousness confusion per sample.
     &#34;&#34;&#34;
-    total = y_true.size
+    *batch, n = y_true.shape
     psc = num_psc_decisions(y_true, y_pred)
     esc = num_esc_decisions(y_true, y_pred)
-    return (cost_psc * psc + cost_esc * esc) / total</code></pre>
+    cost = (cost_psc * psc + cost_esc * esc) / n
+    return np.asarray(cost)</code></pre>
 </details>
 <div class="desc"><p>Weighted cost for poisonousness confusion per sample.</p></div>
 </dd>
 <dt id="biobench.fungiclef.metrics.user_loss_score"><code class="name flex">
-<span>def <span class="ident">user_loss_score</span></span>(<span>y_true: numpy.ndarray, y_pred: numpy.ndarray) ‑> float</span>
+<span>def <span class="ident">user_loss_score</span></span>(<span>y_true: jaxtyping.Int[ndarray, '*batch n'],<br>y_pred: jaxtyping.Int[ndarray, '*batch n']) ‑> jaxtyping.Float[ndarray, '*batch']</span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">@beartype.beartype
-def user_loss_score(y_true: np.ndarray, y_pred: np.ndarray) -&gt; float:
-    ce_unk = classification_error_with_unknown(y_true, y_pred)
-    psc = psc_esc_cost_score(y_true, y_pred)
-    return ce_unk + psc</code></pre>
+<pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
+def user_loss_score(
+    y_true: Int[np.ndarray, &#34;*batch n&#34;], y_pred: Int[np.ndarray, &#34;*batch n&#34;]
+) -&gt; Float[np.ndarray, &#34;*batch&#34;]:
+    ce_unk = classification_error_with_unknown(
+        y_true, y_pred, cost_unknown_mis=10.0, cost_mis_as_unknown=0.1
+    )
+    psc = psc_esc_cost_score(y_true, y_pred, cost_psc=100.0, cost_esc=1.0)
+    return np.asarray(ce_unk + psc)</code></pre>
+</details>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.fungiclef.metrics.user_loss_score_normalized"><code class="name flex">
+<span>def <span class="ident">user_loss_score_normalized</span></span>(<span>y_true: jaxtyping.Int[ndarray, '*batch n'],<br>y_pred: jaxtyping.Int[ndarray, '*batch n']) ‑> jaxtyping.Float[ndarray, '*batch']</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
+def user_loss_score_normalized(
+    y_true: Int[np.ndarray, &#34;*batch n&#34;], y_pred: Int[np.ndarray, &#34;*batch n&#34;]
+) -&gt; Float[np.ndarray, &#34;*batch&#34;]:
+    cost_unknown_mis = 10.0
+    cost_mis_as_unknown = 0.1
+    ce_unk = classification_error_with_unknown(
+        y_true,
+        y_pred,
+        cost_unknown_mis=cost_unknown_mis,
+        cost_mis_as_unknown=cost_mis_as_unknown,
+    )
+    cost_psc = 100.0
+    cost_esc = 1.0
+    psc = psc_esc_cost_score(y_true, y_pred, cost_psc=cost_psc, cost_esc=cost_esc)
+
+    n = y_true.size
+    n_unknown = (y_true == -1).sum()
+    n_poisonous = np.isin(y_true, POISONOUS_SPECIES).sum()
+
+    # breakpoint()
+
+    # TODO: is this 1 supposed to be 0.1?
+    worst_ce = (cost_unknown_mis - 1) * n_unknown / n + 1
+    worst_psc = (cost_psc * n_poisonous + cost_esc * (n - n_poisonous)) / n
+
+    score = 1 - (ce_unk + psc) / (worst_ce + worst_psc)
+    return np.asarray(score)</code></pre>
 </details>
 <div class="desc"></div>
 </dd>
@@ -271,6 +328,7 @@ def user_loss_score(y_true: np.ndarray, y_pred: np.ndarray) -&gt; float:
 <li><code><a title="biobench.fungiclef.metrics.num_psc_decisions" href="#biobench.fungiclef.metrics.num_psc_decisions">num_psc_decisions</a></code></li>
 <li><code><a title="biobench.fungiclef.metrics.psc_esc_cost_score" href="#biobench.fungiclef.metrics.psc_esc_cost_score">psc_esc_cost_score</a></code></li>
 <li><code><a title="biobench.fungiclef.metrics.user_loss_score" href="#biobench.fungiclef.metrics.user_loss_score">user_loss_score</a></code></li>
+<li><code><a title="biobench.fungiclef.metrics.user_loss_score_normalized" href="#biobench.fungiclef.metrics.user_loss_score_normalized">user_loss_score_normalized</a></code></li>
 </ul>
 </li>
 </ul>

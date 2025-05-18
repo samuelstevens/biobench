@@ -144,6 +144,23 @@ def benchmark(cfg: config.Experiment) -&gt; reporting.Report:
 </details>
 <div class="desc"><p>Runs KABR benchmark.</p></div>
 </dd>
+<dt id="biobench.kabr.bootstrap_scores"><code class="name flex">
+<span>def <span class="ident">bootstrap_scores</span></span>(<span>df: polars.dataframe.frame.DataFrame,<br>*,<br>b: int = 0,<br>rng: numpy.random._generator.Generator | None = None) ‑> dict[str, jaxtyping.Float[ndarray, 'b']]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
+def bootstrap_scores(
+    df: pl.DataFrame, *, b: int = 0, rng: np.random.Generator | None = None
+) -&gt; dict[str, Float[np.ndarray, &#34; b&#34;]]:
+    assert df.get_column(&#34;task_name&#34;).unique().to_list() == [&#34;kabr&#34;]
+    return reporting.bootstrap_scores_macro_f1(df, b=b, rng=rng)</code></pre>
+</details>
+<div class="desc"></div>
+</dd>
 <dt id="biobench.kabr.get_features"><code class="name flex">
 <span>def <span class="ident">get_features</span></span>(<span>cfg: <a title="biobench.config.Experiment" href="../config.html#biobench.config.Experiment">Experiment</a>,<br>backbone: <a title="biobench.registry.VisionBackbone" href="../registry.html#biobench.registry.VisionBackbone">VisionBackbone</a>,<br>*,<br>is_train: bool) ‑> <a title="biobench.kabr.Features" href="#biobench.kabr.Features">Features</a></span>
 </code></dt>
@@ -229,20 +246,6 @@ def get_features(
 <pre><code class="python">@beartype.beartype
 def init_clf(cfg: config.Experiment):
     return simpleshot.SimpleShotClassifier(device=&#34;cuda:0&#34;)</code></pre>
-</details>
-<div class="desc"></div>
-</dd>
-<dt id="biobench.kabr.score"><code class="name flex">
-<span>def <span class="ident">score</span></span>(<span>preds: list[<a title="biobench.reporting.Prediction" href="../reporting.html#biobench.reporting.Prediction">Prediction</a>]) ‑> float</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">@beartype.beartype
-def score(preds: list[reporting.Prediction]) -&gt; float:
-    return reporting.macro_f1(preds)</code></pre>
 </details>
 <div class="desc"></div>
 </dd>
@@ -461,9 +464,9 @@ class Video:
 <li><code><a title="biobench.kabr.aggregate_frames" href="#biobench.kabr.aggregate_frames">aggregate_frames</a></code></li>
 <li><code><a title="biobench.kabr.aggregate_labels" href="#biobench.kabr.aggregate_labels">aggregate_labels</a></code></li>
 <li><code><a title="biobench.kabr.benchmark" href="#biobench.kabr.benchmark">benchmark</a></code></li>
+<li><code><a title="biobench.kabr.bootstrap_scores" href="#biobench.kabr.bootstrap_scores">bootstrap_scores</a></code></li>
 <li><code><a title="biobench.kabr.get_features" href="#biobench.kabr.get_features">get_features</a></code></li>
 <li><code><a title="biobench.kabr.init_clf" href="#biobench.kabr.init_clf">init_clf</a></code></li>
-<li><code><a title="biobench.kabr.score" href="#biobench.kabr.score">score</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>

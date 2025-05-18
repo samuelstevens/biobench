@@ -137,6 +137,75 @@ def benchmark(cfg: config.Experiment) -&gt; reporting.Report:
 </details>
 <div class="desc"><p>The FishNet benchmark.</p></div>
 </dd>
+<dt id="biobench.fishnet.bootstrap_scores"><code class="name flex">
+<span>def <span class="ident">bootstrap_scores</span></span>(<span>df: polars.dataframe.frame.DataFrame,<br>*,<br>b: int = 0,<br>rng: numpy.random._generator.Generator | None = None) ‑> dict[str, jaxtyping.Float[ndarray, 'b']]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
+def bootstrap_scores(
+    df: pl.DataFrame, *, b: int = 0, rng: np.random.Generator | None = None
+) -&gt; dict[str, Float[np.ndarray, &#34; b&#34;]]:
+    assert df.get_column(&#34;task_name&#34;).unique().to_list() == [&#34;fishnet&#34;]
+
+    n, *rest = df.group_by(&#34;model_ckpt&#34;).agg(n=pl.len()).get_column(&#34;n&#34;).to_list()
+    assert all(n == i for i in rest)
+
+    if b &gt; 0:
+        assert rng is not None, &#34;must provide rng argument&#34;
+        i_bs = rng.integers(0, n, size=(b, 9, n), dtype=np.int32)
+
+    scores = {}
+
+    y_pred_buf = np.empty((b, 9, n), dtype=np.int32)
+    y_true_buf = np.empty((b, 9, n), dtype=np.int32)
+
+    for model_ckpt in df.get_column(&#34;model_ckpt&#34;).unique().sort().to_list():
+        # pull y_true and y_pred for *one* model
+        y_pred = (
+            df.filter(pl.col(&#34;model_ckpt&#34;) == model_ckpt)
+            .select(&#34;img_id&#34;, &#34;y_pred&#34;)
+            .unique()
+            .sort(&#34;img_id&#34;)
+            .get_column(&#34;y_pred&#34;)
+            .str.json_decode()
+            .to_numpy()
+        )
+        y_pred = np.stack(y_pred).astype(np.int32).T
+
+        if len(y_pred) == 0:
+            continue
+
+        y_true = (
+            df.filter(pl.col(&#34;model_ckpt&#34;) == model_ckpt)
+            .select(&#34;img_id&#34;, &#34;y_true&#34;)
+            .unique()
+            .sort(&#34;img_id&#34;)
+            .get_column(&#34;y_true&#34;)
+            .str.json_decode()
+            .to_numpy()
+        )
+        y_true = np.stack(y_true).astype(np.int32).T
+
+        assert y_true.size == y_pred.size
+
+        if b &gt; 0:
+            # bootstrap resample into pre-allocated buffers
+            np.take(y_pred, i_bs, axis=None, out=y_pred_buf)
+            np.take(y_true, i_bs, axis=None, out=y_true_buf)
+            score = reporting.macro_f1_batch(y_true_buf, y_pred_buf).mean(axis=-1)
+            scores[model_ckpt] = score
+        else:
+            f1s = reporting.macro_f1_batch(y_true, y_pred)
+            scores[model_ckpt] = f1s.mean(keepdims=True)
+
+    return scores</code></pre>
+</details>
+<div class="desc"></div>
+</dd>
 <dt id="biobench.fishnet.get_features"><code class="name flex">
 <span>def <span class="ident">get_features</span></span>(<span>cfg: <a title="biobench.config.Experiment" href="../config.html#biobench.config.Experiment">Experiment</a>,<br>backbone: <a title="biobench.registry.VisionBackbone" href="../registry.html#biobench.registry.VisionBackbone">VisionBackbone</a>,<br>*,<br>is_train: bool) ‑> <a title="biobench.fishnet.Features" href="#biobench.fishnet.Features">Features</a></span>
 </code></dt>
@@ -605,6 +674,7 @@ def labels(self) -&gt; Int[np.ndarray, &#34;n 9&#34;]:
 <li><h3><a href="#header-functions">Functions</a></h3>
 <ul class="two-column">
 <li><code><a title="biobench.fishnet.benchmark" href="#biobench.fishnet.benchmark">benchmark</a></code></li>
+<li><code><a title="biobench.fishnet.bootstrap_scores" href="#biobench.fishnet.bootstrap_scores">bootstrap_scores</a></code></li>
 <li><code><a title="biobench.fishnet.get_features" href="#biobench.fishnet.get_features">get_features</a></code></li>
 <li><code><a title="biobench.fishnet.infinite" href="#biobench.fishnet.infinite">infinite</a></code></li>
 <li><code><a title="biobench.fishnet.init_clf" href="#biobench.fishnet.init_clf">init_clf</a></code></li>

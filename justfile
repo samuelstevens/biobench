@@ -3,6 +3,11 @@ docs: fmt
     rm -rf docs/biobench docs/benchmark.html
     uv run pdoc3 --force --html --output-dir docs --config latex_math=True biobench benchmark report scripts
 
+leaderboard: fmt
+    cp web/index.html docs/index.html
+    cd web && elm make src/Leaderboard.elm --output ../docs/dist/leaderboard.js --optimize
+    cd web && tailwindcss --input main.css --output ../docs/dist/main.css --minify
+
 test: fmt
     uv run pytest --cov biobench --cov-report term --cov-report json --json-report --json-report-file pytest.json --cov-report html -n 32 biobench || true
     uv run coverage-badge -o docs/coverage.svg -f
@@ -14,6 +19,7 @@ lint: fmt
 
 fmt:
     uv run ruff format --preview .
+    fd -e elm | xargs elm-format --yes
 
 clean:
     rm -f .coverage*

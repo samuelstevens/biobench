@@ -90,23 +90,6 @@ def stub_poison(monkeypatch):
 </details>
 <div class="desc"></div>
 </dd>
-<dt id="biobench.fungiclef.test_metrics.test_ce_unknown_in_0_10"><code class="name flex">
-<span>def <span class="ident">test_ce_unknown_in_0_10</span></span>(<span>) ‑> None</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">@given(y_true=_gen_labels(), y_pred=_gen_labels())
-def test_ce_unknown_in_0_10(y_true, y_pred):
-    assume(len(y_true) == len(y_pred))
-    y_t, y_p = map(np.asarray, (y_true, y_pred))
-    val = metrics.classification_error_with_unknown(y_t, y_p)
-    assert 0.0 &lt;= val &lt;= 10.0</code></pre>
-</details>
-<div class="desc"></div>
-</dd>
 <dt id="biobench.fungiclef.test_metrics.test_classification_error_all_correct"><code class="name flex">
 <span>def <span class="ident">test_classification_error_all_correct</span></span>(<span>)</span>
 </code></dt>
@@ -118,9 +101,9 @@ def test_ce_unknown_in_0_10(y_true, y_pred):
 <pre><code class="python">def test_classification_error_all_correct():
     y = np.array([0, 1, 2, 3])
     y_pred = y.copy()
-    assert metrics.classification_error(y, y_pred) == 0.0
+    assert metrics.classification_error(y, y_pred).item() == 0.0
     # with unknown costs both = 1 =&gt; same
-    assert metrics.classification_error_with_unknown(y, y_pred) == 0.0</code></pre>
+    assert metrics.classification_error_with_unknown(y, y_pred).item() == 0.0</code></pre>
 </details>
 <div class="desc"></div>
 </dd>
@@ -206,7 +189,7 @@ def test_fuzz_raises_or_returns(y_true, y_pred):
     assert isinstance(out, dict)
     for k, v in out.items():
         assert isinstance(k, str)
-        assert isinstance(v, float)</code></pre>
+        assert isinstance(v, np.ndarray)</code></pre>
 </details>
 <div class="desc"></div>
 </dd>
@@ -233,23 +216,6 @@ def test_fuzz_raises_or_returns(y_true, y_pred):
 </details>
 <div class="desc"></div>
 </dd>
-<dt id="biobench.fungiclef.test_metrics.test_psc_esc_cost_in_0_100"><code class="name flex">
-<span>def <span class="ident">test_psc_esc_cost_in_0_100</span></span>(<span>) ‑> None</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">@given(y_true=_gen_labels(), y_pred=_gen_labels())
-def test_psc_esc_cost_in_0_100(y_true, y_pred):
-    assume(len(y_true) == len(y_pred))
-    y_t, y_p = map(np.asarray, (y_true, y_pred))
-    val = metrics.psc_esc_cost_score(y_t, y_p)
-    assert 0.0 &lt;= val &lt;= 100.0</code></pre>
-</details>
-<div class="desc"></div>
-</dd>
 <dt id="biobench.fungiclef.test_metrics.test_psc_esc_cost_score_default_costs"><code class="name flex">
 <span>def <span class="ident">test_psc_esc_cost_score_default_costs</span></span>(<span>)</span>
 </code></dt>
@@ -267,8 +233,8 @@ def test_psc_esc_cost_in_0_100(y_true, y_pred):
 </details>
 <div class="desc"></div>
 </dd>
-<dt id="biobench.fungiclef.test_metrics.test_user_loss_in_0_110"><code class="name flex">
-<span>def <span class="ident">test_user_loss_in_0_110</span></span>(<span>) ‑> None</span>
+<dt id="biobench.fungiclef.test_metrics.test_user_loss_score_batched"><code class="name flex">
+<span>def <span class="ident">test_user_loss_score_batched</span></span>(<span>) ‑> None</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -276,11 +242,32 @@ def test_psc_esc_cost_in_0_100(y_true, y_pred):
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">@given(y_true=_gen_labels(), y_pred=_gen_labels())
-def test_user_loss_in_0_110(y_true, y_pred):
+def test_user_loss_score_batched(y_true, y_pred):
     assume(len(y_true) == len(y_pred))
     y_t, y_p = map(np.asarray, (y_true, y_pred))
-    val = metrics.user_loss_score(y_t, y_p)
-    assert 0.0 &lt;= val &lt;= 110.0</code></pre>
+    bsz = 4
+    y_t_b = np.stack([y_t] * bsz)
+    y_p_b = np.stack([y_p] * bsz)
+    vals_b = metrics.user_loss_score_normalized(y_t_b, y_p_b)
+    vals_ref = np.stack([metrics.user_loss_score_normalized(y_t, y_p)] * bsz)
+    np.testing.assert_allclose(vals_b, vals_ref)</code></pre>
+</details>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.fungiclef.test_metrics.test_user_loss_score_normalized_in_0_1"><code class="name flex">
+<span>def <span class="ident">test_user_loss_score_normalized_in_0_1</span></span>(<span>) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@given(y_true=_gen_labels(), y_pred=_gen_labels())
+def test_user_loss_score_normalized_in_0_1(y_true, y_pred):
+    assume(len(y_true) == len(y_pred))
+    y_t, y_p = map(np.asarray, (y_true, y_pred))
+    val = metrics.user_loss_score_normalized(y_t, y_p).item()
+    assert 0.0 &lt;= val &lt;= 1.0</code></pre>
 </details>
 <div class="desc"></div>
 </dd>
@@ -304,16 +291,15 @@ def test_user_loss_in_0_110(y_true, y_pred):
 <li><code><a title="biobench.fungiclef.test_metrics.stub_poison" href="#biobench.fungiclef.test_metrics.stub_poison">stub_poison</a></code></li>
 <li><code><a title="biobench.fungiclef.test_metrics.test_all_correct" href="#biobench.fungiclef.test_metrics.test_all_correct">test_all_correct</a></code></li>
 <li><code><a title="biobench.fungiclef.test_metrics.test_all_wrong" href="#biobench.fungiclef.test_metrics.test_all_wrong">test_all_wrong</a></code></li>
-<li><code><a title="biobench.fungiclef.test_metrics.test_ce_unknown_in_0_10" href="#biobench.fungiclef.test_metrics.test_ce_unknown_in_0_10">test_ce_unknown_in_0_10</a></code></li>
 <li><code><a title="biobench.fungiclef.test_metrics.test_classification_error_all_correct" href="#biobench.fungiclef.test_metrics.test_classification_error_all_correct">test_classification_error_all_correct</a></code></li>
 <li><code><a title="biobench.fungiclef.test_metrics.test_classification_error_all_wrong" href="#biobench.fungiclef.test_metrics.test_classification_error_all_wrong">test_classification_error_all_wrong</a></code></li>
 <li><code><a title="biobench.fungiclef.test_metrics.test_classification_error_with_unknown_edge" href="#biobench.fungiclef.test_metrics.test_classification_error_with_unknown_edge">test_classification_error_with_unknown_edge</a></code></li>
 <li><code><a title="biobench.fungiclef.test_metrics.test_evaluate_metrics_basic" href="#biobench.fungiclef.test_metrics.test_evaluate_metrics_basic">test_evaluate_metrics_basic</a></code></li>
 <li><code><a title="biobench.fungiclef.test_metrics.test_fuzz_raises_or_returns" href="#biobench.fungiclef.test_metrics.test_fuzz_raises_or_returns">test_fuzz_raises_or_returns</a></code></li>
 <li><code><a title="biobench.fungiclef.test_metrics.test_num_psc_decisions_and_num_esc_decisions" href="#biobench.fungiclef.test_metrics.test_num_psc_decisions_and_num_esc_decisions">test_num_psc_decisions_and_num_esc_decisions</a></code></li>
-<li><code><a title="biobench.fungiclef.test_metrics.test_psc_esc_cost_in_0_100" href="#biobench.fungiclef.test_metrics.test_psc_esc_cost_in_0_100">test_psc_esc_cost_in_0_100</a></code></li>
 <li><code><a title="biobench.fungiclef.test_metrics.test_psc_esc_cost_score_default_costs" href="#biobench.fungiclef.test_metrics.test_psc_esc_cost_score_default_costs">test_psc_esc_cost_score_default_costs</a></code></li>
-<li><code><a title="biobench.fungiclef.test_metrics.test_user_loss_in_0_110" href="#biobench.fungiclef.test_metrics.test_user_loss_in_0_110">test_user_loss_in_0_110</a></code></li>
+<li><code><a title="biobench.fungiclef.test_metrics.test_user_loss_score_batched" href="#biobench.fungiclef.test_metrics.test_user_loss_score_batched">test_user_loss_score_batched</a></code></li>
+<li><code><a title="biobench.fungiclef.test_metrics.test_user_loss_score_normalized_in_0_1" href="#biobench.fungiclef.test_metrics.test_user_loss_score_normalized_in_0_1">test_user_loss_score_normalized_in_0_1</a></code></li>
 </ul>
 </li>
 </ul>
