@@ -346,7 +346,7 @@ def macro_acc(preds: list[Prediction]) -&gt; float:
 <div class="desc"></div>
 </dd>
 <dt id="biobench.reporting.macro_f1"><code class="name flex">
-<span>def <span class="ident">macro_f1</span></span>(<span>preds: list[<a title="biobench.reporting.Prediction" href="#biobench.reporting.Prediction">Prediction</a>]) ‑> float</span>
+<span>def <span class="ident">macro_f1</span></span>(<span>preds: list[<a title="biobench.reporting.Prediction" href="#biobench.reporting.Prediction">Prediction</a>],<br>*,<br>labels: list[int] | None = None) ‑> float</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -354,17 +354,87 @@ def macro_acc(preds: list[Prediction]) -&gt; float:
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">@beartype.beartype
-def macro_f1(preds: list[Prediction]) -&gt; float:
+def macro_f1(preds: list[Prediction], *, labels: list[int] | None = None) -&gt; float:
     y_pred = np.array([
         next(p.info[key] for key in (&#34;y_pred&#34;, &#34;pred_y&#34;) if key in p.info)
         for p in preds
     ])
     y_true = np.array([p.info.get(&#34;y_true&#34;, p.info.get(&#34;true_y&#34;)) for p in preds])
+
+    if labels is None:
+        labels = np.unique(y_true)
+    else:
+        labels = np.array(labels)
+
     return sklearn.metrics.f1_score(
-        y_true, y_pred, average=&#34;macro&#34;, labels=np.unique(y_true)
+        y_true, y_pred, average=&#34;macro&#34;, labels=labels, zero_division=0.0
     )</code></pre>
 </details>
 <div class="desc"></div>
+</dd>
+<dt id="biobench.reporting.macro_f1_batch"><code class="name flex">
+<span>def <span class="ident">macro_f1_batch</span></span>(<span>y_true: jaxtyping.Int[ndarray, '*batch n'],<br>y_pred: jaxtyping.Int[ndarray, '*batch n'],<br>*,<br>labels: jaxtyping.Int[ndarray, 'c'] | None = None) ‑> jaxtyping.Float[ndarray, '*batch']</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
+def macro_f1_batch(
+    y_true: Int[np.ndarray, &#34;*batch n&#34;],
+    y_pred: Int[np.ndarray, &#34;*batch n&#34;],
+    *,
+    labels: Int[np.ndarray, &#34; c&#34;] | None = None,
+) -&gt; Float[np.ndarray, &#34;*batch&#34;]:
+    &#34;&#34;&#34;Calculates macro-averaged F1 over the last (sample) axis.
+
+    Works on an arbitrary *batch* prefix; if you pass a (B, n) bootstrap matrix you get a (B,) vector of F1 scores in one call.
+
+    Args:
+        y_true: Integer class labels. All leading dimensions (*batch*) must match; n is the number of examples.
+        y_pred: Integer class predictions. All leading dimensions (*batch*) must match; n is the number of examples.
+        labels: Optional 1-D array of class ids to average over. If omitted, np.unique(y_true) (flattened) is used.
+
+    Returns:
+        A numpy array with shape *batch; the macro-F1 for every element of the batch prefix.
+    &#34;&#34;&#34;
+    if labels is None:
+        labels = np.unique(y_true)
+
+    # one-hot comparisons:  shape (..., n, c)
+    y_true_bin = y_true[..., None] == labels  # broadcast over c
+    y_pred_bin = y_pred[..., None] == labels
+
+    # TP / FP / FN for each class, summed over the example axis (-2)
+    tp = np.logical_and(y_true_bin, y_pred_bin).sum(axis=-2).astype(float)
+    fp = np.logical_and(~y_true_bin, y_pred_bin).sum(axis=-2)
+    fn = np.logical_and(y_true_bin, ~y_pred_bin).sum(axis=-2)
+
+    denom = 2 * tp + fp + fn  # shape *batch c
+    f1_c = np.zeros_like(tp, dtype=float)  # init all-zero
+    np.divide(2 * tp, denom, out=f1_c, where=denom != 0)  # no warning
+
+    # macro-average across classes (last axis)
+    mean = f1_c.mean(axis=-1)  # shape *batch
+    if isinstance(mean, np.ndarray):
+        return mean
+    else:
+        return np.array(mean)</code></pre>
+</details>
+<div class="desc"><p>Calculates macro-averaged F1 over the last (sample) axis.</p>
+<p>Works on an arbitrary <em>batch</em> prefix; if you pass a (B, n) bootstrap matrix you get a (B,) vector of F1 scores in one call.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>y_true</code></strong></dt>
+<dd>Integer class labels. All leading dimensions (<em>batch</em>) must match; n is the number of examples.</dd>
+<dt><strong><code>y_pred</code></strong></dt>
+<dd>Integer class predictions. All leading dimensions (<em>batch</em>) must match; n is the number of examples.</dd>
+<dt><strong><code>labels</code></strong></dt>
+<dd>Optional 1-D array of class ids to average over. If omitted, np.unique(y_true) (flattened) is used.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>A numpy array with shape *batch; the macro-F1 for every element of the batch prefix.</p></div>
 </dd>
 <dt id="biobench.reporting.micro_acc"><code class="name flex">
 <span>def <span class="ident">micro_acc</span></span>(<span>preds: list[<a title="biobench.reporting.Prediction" href="#biobench.reporting.Prediction">Prediction</a>]) ‑> float</span>
@@ -492,7 +562,7 @@ class Prediction:
 </dd>
 <dt id="biobench.reporting.Report"><code class="flex name class">
 <span>class <span class="ident">Report</span></span>
-<span>(</span><span>task_name: str,<br>predictions: list[<a title="biobench.reporting.Prediction" href="#biobench.reporting.Prediction">Prediction</a>],<br>cfg: <a title="biobench.config.Experiment" href="config.html#biobench.config.Experiment">Experiment</a>,<br>*,<br>splits: dict[str, float] = &lt;factory&gt;,<br>argv: list[str] = &lt;factory&gt;,<br>git_commit: str = 'a45a3bbfcdaf59a104a1754b583e46c907bc41bd',<br>posix: float = &lt;factory&gt;,<br>gpu_name: str = &lt;factory&gt;,<br>hostname: str = &lt;factory&gt;)</span>
+<span>(</span><span>task_name: str,<br>predictions: list[<a title="biobench.reporting.Prediction" href="#biobench.reporting.Prediction">Prediction</a>],<br>cfg: <a title="biobench.config.Experiment" href="config.html#biobench.config.Experiment">Experiment</a>,<br>*,<br>splits: dict[str, float] = &lt;factory&gt;,<br>argv: list[str] = &lt;factory&gt;,<br>git_commit: str = '4e4e1cfca4d7964ca07aacc529b7aa8c6335cdec',<br>posix: float = &lt;factory&gt;,<br>gpu_name: str = &lt;factory&gt;,<br>hostname: str = &lt;factory&gt;)</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -689,6 +759,7 @@ def write(self) -&gt; None:
 <li><code><a title="biobench.reporting.is_claimed" href="#biobench.reporting.is_claimed">is_claimed</a></code></li>
 <li><code><a title="biobench.reporting.macro_acc" href="#biobench.reporting.macro_acc">macro_acc</a></code></li>
 <li><code><a title="biobench.reporting.macro_f1" href="#biobench.reporting.macro_f1">macro_f1</a></code></li>
+<li><code><a title="biobench.reporting.macro_f1_batch" href="#biobench.reporting.macro_f1_batch">macro_f1_batch</a></code></li>
 <li><code><a title="biobench.reporting.micro_acc" href="#biobench.reporting.micro_acc">micro_acc</a></code></li>
 <li><code><a title="biobench.reporting.micro_f1" href="#biobench.reporting.micro_f1">micro_f1</a></code></li>
 <li><code><a title="biobench.reporting.release_run" href="#biobench.reporting.release_run">release_run</a></code></li>

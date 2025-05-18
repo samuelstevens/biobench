@@ -36,10 +36,11 @@ import os.path
 
 import beartype
 import numpy as np
+import polars as pl
 import sklearn.neighbors
 import torch
 import torchvision.datasets
-from jaxtyping import Float, Int, Shaped, jaxtyped
+from jaxtyping import Float, Shaped, jaxtyped
 from torch import Tensor
 
 from .. import config, helpers, registry, reporting
@@ -74,16 +75,13 @@ def benchmark(cfg: config.Experiment) -> reporting.Report:
     return reporting.Report("beluga", preds, cfg)
 
 
-@beartype.beartype
-def score(preds: list[reporting.Prediction]) -> float:
-    return reporting.macro_f1(preds)
-
-
 @jaxtyped(typechecker=beartype.beartype)
-def score_batch(
-    y_true: Int[np.ndarray, "*batch n"], y_pred: Int[np.ndarray, "*batch n"]
-) -> Float[np.ndarray, "*batch"]:
-    return reporting.macro_f1_batch(y_true, y_pred)
+def bootstrap_scores(
+    df: pl.DataFrame, *, b: int = 0, rng: np.random.Generator | None = None
+) -> dict[str, Float[np.ndarray, " b"]]:
+    # Assert that all task_name == 'herbarium'
+    assert df.get_column("task_name").unique().to_list() == ["beluga"]
+    return reporting.bootstrap_scores_macro_f1(df, b=b, rng=rng)
 
 
 @jaxtyped(typechecker=beartype.beartype)

@@ -132,6 +132,66 @@ def score(preds: list[reporting.Prediction]) -> float:
     )
 
 
+@jaxtyped(typechecker=beartype.beartype)
+def bootstrap_scores(
+    df: pl.DataFrame, *, b: int = 0, rng: np.random.Generator | None = None
+) -> dict[str, Float[np.ndarray, " b"]]:
+    assert df.get_column("task_name").unique().to_list() == ["fishnet"]
+
+    n, *rest = df.group_by("model_ckpt").agg(n=pl.len()).get_column("n").to_list()
+    assert all(n == i for i in rest)
+
+    if b > 0:
+        assert rng is not None, "must provide rng argument"
+        i_bs = rng.integers(0, n, size=(b, 9, n), dtype=np.int32)
+
+    scores = {}
+
+    y_pred_buf = np.empty((b, 9, n), dtype=np.int32)
+    y_true_buf = np.empty((b, 9, n), dtype=np.int32)
+
+    for model_ckpt in df.get_column("model_ckpt").unique().sort().to_list():
+        # pull y_true and y_pred for *one* model
+        y_pred = (
+            df.filter(pl.col("model_ckpt") == model_ckpt)
+            .select("img_id", "y_pred")
+            .unique()
+            .sort("img_id")
+            .get_column("y_pred")
+            .str.json_decode()
+            .to_numpy()
+        )
+        y_pred = np.stack(y_pred).astype(np.int32).T
+
+        if len(y_pred) == 0:
+            continue
+
+        y_true = (
+            df.filter(pl.col("model_ckpt") == model_ckpt)
+            .select("img_id", "y_true")
+            .unique()
+            .sort("img_id")
+            .get_column("y_true")
+            .str.json_decode()
+            .to_numpy()
+        )
+        y_true = np.stack(y_true).astype(np.int32).T
+
+        assert y_true.size == y_pred.size
+
+        if b > 0:
+            # bootstrap resample into pre-allocated buffers
+            np.take(y_pred, i_bs, axis=None, out=y_pred_buf)
+            np.take(y_true, i_bs, axis=None, out=y_true_buf)
+            score = reporting.macro_f1_batch(y_true_buf, y_pred_buf).mean(axis=-1)
+            scores[model_ckpt] = score
+        else:
+            f1s = reporting.macro_f1_batch(y_true, y_pred)
+            scores[model_ckpt] = f1s.mean(keepdims=True)
+
+    return scores
+
+
 def infinite(dataloader):
     """Creates an infinite iterator from a dataloader by creating a new iterator each time the previous one is exhausted.
 

@@ -30,6 +30,7 @@ dependencies = [
     "einops>=0.8.1",
     "scipy>=1.15.2",
     "mlcroissant>=1.0.17",
+    "statsmodels>=0.14.4",
 ]
 
 [tool.ruff.lint]

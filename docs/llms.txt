@@ -141,16 +141,22 @@ Because of this, there are two main classes of tasks:
 >>>> REGRESSIONS.md
 # Regressions
 
-Last checked: 2025-05-11
+Last checked: 2025-05-12
 
-# 3 failing test(s)
+# 9 failing test(s)
 
 - biobench/jobkit/test_hooks.py::test_multiple_hooks_each_release_their_own_claims
+- biobench/test_openset.py::test_fuzz_no_exceptions
 - biobench/test_openset.py::test_min_mahalanobis_sq_batched_equal
 - biobench/test_openset.py::test_min_mahalanobis_sq_batched_no_error
+- biobench/test_openset.py::test_min_mahalanobis_sq_no_error
+- biobench/test_reporting.py::test_micro_f1_equals_micro_accuracy
+- scripts/test_ascii_only.py::test_get_unicode_escape[\xe2\x80\x93-\\u2013]
+- scripts/test_ascii_only.py::test_get_unicode_escape[\xe2\x80\x94-\\u2014]
+- scripts/test_ascii_only.py::test_get_unicode_escape[\xe2\x86\x92-\\u2192]
 # Coverage
 
-Coverage: 3056/4902 lines (62.3%)
+Coverage: 2864/4999 lines (57.3%)
 
 >>>> __init__.py
 """ """
@@ -505,7 +511,7 @@ import numpy as np
 import sklearn.neighbors
 import torch
 import torchvision.datasets
-from jaxtyping import Float, Shaped, jaxtyped
+from jaxtyping import Float, Int, Shaped, jaxtyped
 from torch import Tensor
 
 from .. import config, helpers, registry, reporting
@@ -543,6 +549,13 @@ def benchmark(cfg: config.Experiment) -> reporting.Report:
 @beartype.beartype
 def score(preds: list[reporting.Prediction]) -> float:
     return reporting.macro_f1(preds)
+
+
+@jaxtyped(typechecker=beartype.beartype)
+def score_batch(
+    y_true: Int[np.ndarray, " batch* n"], y_pred: Int[np.ndarray, " batch* n"]
+) -> Float[np.ndarray, "batch*"]:
+    return reporting.macro_f1_batch(y_true, y_pred)
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -959,9 +972,16 @@ class Model:
 
     org: str
     ckpt: str
+    _: dataclasses.KW_ONLY
+    drop_keys: tuple[str, ...] = dataclasses.field(default_factory=tuple)
 
     def to_dict(self) -> dict[str, object]:
         return dataclasses.asdict(self)
+
+    @classmethod
+    def from_dict(cls, dct: dict[str, object]) -> "Model":
+        drop_keys = tuple(dct.pop("drop_keys", []))
+        return cls(**dct, drop_keys=drop_keys)
 
 
 @beartype.beartype
@@ -1064,7 +1084,7 @@ def load(path: str) -> list[Experiment]:
         raise ValueError("models must be a list of tables in TOML")
 
     # Start with models as base experiments
-    experiments = [{"model": Model(**model)} for model in models]
+    experiments = [{"model": Model.from_dict(model)} for model in models]
 
     # Handle data config specially
     data = raw.pop("data", {})
@@ -1356,11 +1376,15 @@ def get_features(
         shuffle=False,
     )
 
+    @beartype.beartype
+    def debug_cuda_mem(tag: str):
+        if logger.isEnabledFor(logging.DEBUG):
+            logger.debug("%s: %d", tag, torch.cuda.memory_allocated())
+
     def probe(batch):
         imgs, labels, ids = batch
         imgs = imgs.to(cfg.device, non_blocking=True)
-        with torch.amp.autocast(cfg.device):
-            _ = backbone.img_encode(imgs).img_features  # forward only
+        _ = backbone.img_encode(imgs).img_features  # forward only
 
     all_features, all_labels, all_ids = [], [], []
 
@@ -1368,10 +1392,14 @@ def get_features(
         total = len(dataloader) if not cfg.debug else 2
         it = iter(dataloader)
         for b in helpers.progress(range(total), every=10, desc=f"fish/{file}"):
+            debug_cuda_mem("loop start")
             images, labels, ids = next(it)
+            debug_cuda_mem("after batch")
             images = images.to(cfg.device)
+            debug_cuda_mem("imgs.to(device)")
 
             features = backbone.img_encode(images).img_features
+
             all_features.append(features.cpu())
             all_labels.append(labels)
 
@@ -1714,7 +1742,7 @@ class FungiDataset(torch.utils.data.Dataset):
 
 
 @beartype.beartype
-@torch.no_grad()
+@torch.inference_mode()
 def get_features(
     cfg: config.Experiment,
     backbone: registry.VisionBackbone,
@@ -1740,33 +1768,40 @@ def get_features(
         pin_memory=False,
     )
 
-    backbone = torch.compile(backbone.to(cfg.device))
+    backbone = backbone.to(cfg.device)
     feats_list, labs_list, img_ids_list, obs_ids_list = [], [], [], []
+
+    @beartype.beartype
+    def debug_cuda_mem(tag: str):
+        if logger.isEnabledFor(logging.DEBUG):
+            logger.debug("%s: %s", tag, torch.cuda.memory_summary())
 
     def probe(batch):
         imgs = batch["img"].to(cfg.device)
         with torch.amp.autocast(cfg.device):
             backbone.img_encode(imgs)
 
-    @beartype.beartype
-    def debug_cuda_mem(tag: str):
-        if logger.isEnabledFor(logging.DEBUG):
-            logger.debug("%s: %d", tag, torch.cuda.memory_allocated())
-
     with helpers.auto_batch_size(dataloader, probe=probe):
+        backbone = torch.compile(backbone)
         total = len(dataloader) if not cfg.debug else 2
         it = iter(dataloader)
         for _ in helpers.progress(range(total), desc=f"fungi/{split}"):
             debug_cuda_mem("loop start")
             batch = next(it)
             debug_cuda_mem("after batch")
-            imgs = batch["img"].to(cfg.device, non_blocking=True)
+            imgs = batch["img"].to(cfg.device)
             debug_cuda_mem("imgs.to(device)")
             with torch.amp.autocast(cfg.device):
                 out = backbone.img_encode(imgs).img_features
-            debug_cuda_mem("forward pass")
+            debug_cuda_mem("after forward pass")
             feats_list.append(out.cpu().numpy())
             debug_cuda_mem("appended feats")
+
+            # I was getting some CUDA OOM errors due to PyTorch reserving/allocating and memory fragmentation. Rather than adjust the recommended env variable, I added this line manual GC.
+            del out
+            torch.cuda.empty_cache()
+
+            debug_cuda_mem("emptied cache")
             labs_list.extend(batch["label"].tolist())
             img_ids_list.extend(batch["img_id"])
             obs_ids_list.extend(batch["obs_id"].tolist())
@@ -1792,11 +1827,13 @@ def get_features(
 
 
 @beartype.beartype
-@torch.no_grad()
+@torch.inference_mode()
 def benchmark(cfg: config.Experiment) -> reporting.Report:
     backbone = registry.load_vision_backbone(cfg.model)
     train_feats = get_features(cfg, backbone, is_train=True, pool=False)
     val_feats = get_features(cfg, backbone, is_train=False, pool=True)
+
+    torch.cuda.empty_cache()  # be nice to others on the machine.
 
     clf = init_clf(cfg)
     clf.fit(train_feats.x, train_feats.y)
@@ -2897,6 +2934,13 @@ def score(preds: list[reporting.Prediction]) -> float:
 
 
 @jaxtyped(typechecker=beartype.beartype)
+def score_batch(
+    y_true: Int[np.ndarray, " batch* n"], y_pred: Int[np.ndarray, " batch* n"]
+) -> Float[np.ndarray, "batch*"]:
+    return reporting.macro_f1_batch(y_true, y_pred)
+
+
+@jaxtyped(typechecker=beartype.beartype)
 @dataclasses.dataclass(frozen=True)
 class Features:
     x: Float[np.ndarray, "n dim"]
@@ -2943,7 +2987,7 @@ def get_features(
         it = iter(dataloader)
         for b in helpers.progress(range(total), every=10, desc=f"hb19/{split}"):
             batch = next(it)
-            imgs = batch["img"].to(cfg.device)
+            imgs = batch["img"].to(cfg.device, non_blocking=True)
 
             with torch.amp.autocast("cuda"):
                 features = backbone.img_encode(imgs).img_features
@@ -5950,6 +5994,7 @@ def benchmark(cfg: config.Experiment) -> reporting.Report:
     # 2. Load data.
     test_features = get_features(cfg, backbone, is_train=False)
     train_features = get_features(cfg, backbone, is_train=True)
+    torch.cuda.empty_cache()
 
     # 4. Do simpleshot.
     clf = init_clf(cfg)
@@ -8123,7 +8168,7 @@ def load_vision_backbone(model_cfg: config.Model) -> VisionBackbone:
         raise ValueError(f"Org '{model_cfg.org}' not found.")
 
     cls = _global_backbone_registry[model_cfg.org]
-    return cls(model_cfg.ckpt)
+    return cls(model_cfg.ckpt, drop_keys=model_cfg.drop_keys)
 
 
 @beartype.beartype
@@ -8157,7 +8202,7 @@ import time
 import beartype
 import numpy as np
 import sklearn.metrics
-from jaxtyping import jaxtyped
+from jaxtyping import Float, Int, jaxtyped
 
 from . import config, helpers
 
@@ -8464,15 +8509,64 @@ def micro_f1(preds: list[Prediction]) -> float:
 
 
 @beartype.beartype
-def macro_f1(preds: list[Prediction]) -> float:
+def macro_f1(preds: list[Prediction], *, labels: list[int] | None = None) -> float:
     y_pred = np.array([
         next(p.info[key] for key in ("y_pred", "pred_y") if key in p.info)
         for p in preds
     ])
     y_true = np.array([p.info.get("y_true", p.info.get("true_y")) for p in preds])
+
+    if labels is None:
+        labels = np.unique(y_true)
+    else:
+        labels = np.array(labels)
+
     return sklearn.metrics.f1_score(
-        y_true, y_pred, average="macro", labels=np.unique(y_true)
+        y_true, y_pred, average="macro", labels=labels, zero_division=0.0
     )
+
+
+@jaxtyped(typechecker=beartype.beartype)
+def macro_f1_batch(
+    y_true: Int[np.ndarray, "*batch n"],
+    y_pred: Int[np.ndarray, "*batch n"],
+    *,
+    labels: Int[np.ndarray, " c"] | None = None,
+) -> Float[np.ndarray, "*batch"]:
+    """Calculates macro-averaged F1 over the last (sample) axis.
+
+    Works on an arbitrary *batch* prefix; if you pass a (B, n) bootstrap matrix you get a (B,) vector of F1 scores in one call.
+
+    Args:
+        y_true: Integer class labels. All leading dimensions (*batch*) must match; n is the number of examples.
+        y_pred: Integer class predictions. All leading dimensions (*batch*) must match; n is the number of examples.
+        labels: Optional 1-D array of class ids to average over. If omitted, np.unique(y_true) (flattened) is used.
+
+    Returns:
+        A numpy array with shape *batch; the macro-F1 for every element of the batch prefix.
+    """
+    if labels is None:
+        labels = np.unique(y_true)
+
+    # one-hot comparisons:  shape (..., n, c)
+    y_true_bin = y_true[..., None] == labels  # broadcast over c
+    y_pred_bin = y_pred[..., None] == labels
+
+    # TP / FP / FN for each class, summed over the example axis (-2)
+    tp = np.logical_and(y_true_bin, y_pred_bin).sum(axis=-2).astype(float)
+    fp = np.logical_and(~y_true_bin, y_pred_bin).sum(axis=-2)
+    fn = np.logical_and(y_true_bin, ~y_pred_bin).sum(axis=-2)
+
+    denom = 2 * tp + fp + fn  # shape *batch c
+    f1_c = np.zeros_like(tp, dtype=float)  # init all-zero
+    np.divide(2 * tp, denom, out=f1_c, where=denom != 0)  # no warning
+
+    # macro-average across classes (last axis)
+    mean = f1_c.mean(axis=-1)  # shape *batch
+    if isinstance(mean, np.ndarray):
+        return mean
+    else:
+        return np.array(mean)
 
 
 ##########
@@ -9570,6 +9664,7 @@ import sqlite3
 import time
 
 import beartype
+import numpy as np
 import pytest
 from hypothesis import given
 from hypothesis import strategies as st
@@ -9603,6 +9698,27 @@ def _prediction_list(draw):
     return preds
 
 
+@st.composite
+def _prediction_batch(draw):
+    """Generate a *batch* (B ≥ 1) of equal-length prediction lists."""
+    B = draw(st.integers(1, 2))  # batch size
+    n = draw(st.integers(1, 4))  # common sample count
+    batch = []
+    for _ in range(B):
+        y_true = draw(st.lists(st.integers(0, 50), min_size=n, max_size=n))
+        y_pred = draw(st.lists(st.integers(0, 50), min_size=n, max_size=n))
+        preds = [
+            reporting.Prediction(
+                id=str(i),
+                score=float(y_pred[i] == y_true[i]),
+                info={"y_true": y_true[i], "y_pred": y_pred[i]},
+            )
+            for i in range(n)
+        ]
+        batch.append(preds)
+    return batch
+
+
 @given(preds=_prediction_list())
 def test_micro_f1_equals_micro_accuracy(preds):
     """Micro-averaged F1 must equal micro accuracy for single-label data."""
@@ -9612,6 +9728,79 @@ def test_micro_f1_equals_micro_accuracy(preds):
 
     # Floating math can introduce tiny error, so compare with tolerance
     assert math.isclose(acc, f1, rel_tol=1e-12, abs_tol=1e-12)
+
+
+@given(preds=_prediction_list())
+def test_macro_f1_batch_matches_macro_f1_bsz0(preds):
+    """Vectorised implementation must equal our non-batched macro-F1."""
+    y_true = np.fromiter((p.info["y_true"] for p in preds), dtype=int)
+    y_pred = np.fromiter((p.info["y_pred"] for p in preds), dtype=int)
+
+    ours = reporting.macro_f1_batch(y_true, y_pred)
+    ref = reporting.macro_f1(preds)
+
+    assert math.isclose(ours, ref, rel_tol=1e-12, abs_tol=1e-12)
+
+
+@given(preds=_prediction_list())
+def test_macro_f1_batch_matches_macro_f1_bsz1(preds):
+    """Vectorised implementation must equal our non-batched macro-F1."""
+    y_true = np.fromiter((p.info["y_true"] for p in preds), dtype=int)
+    y_pred = np.fromiter((p.info["y_pred"] for p in preds), dtype=int)
+
+    ours = reporting.macro_f1_batch(y_true[None, :], y_pred[None, :])[0]
+    ref = reporting.macro_f1(preds)
+
+    assert math.isclose(ours, ref, rel_tol=1e-12, abs_tol=1e-12)
+
+
+@given(batch=_prediction_batch())
+def test_macro_f1_batch_matches_macro_f1_bsz_n(batch):
+    """For a true batch (B > 1 possible), vectorised `macro_f1_batch` must equal looping over the legacy `macro_f1`."""
+    # stack into (B, n)
+    y_true = np.stack([
+        np.fromiter((p.info["y_true"] for p in preds), dtype=int) for preds in batch
+    ])
+    y_pred = np.stack([
+        np.fromiter((p.info["y_pred"] for p in preds), dtype=int) for preds in batch
+    ])
+
+    ours = reporting.macro_f1_batch(y_true, y_pred)  # shape (B,)
+    ref = np.array([
+        reporting.macro_f1(preds, labels=np.unique(y_true).tolist()) for preds in batch
+    ])
+
+    assert np.allclose(ours, ref, rtol=1e-12, atol=1e-12)
+
+
+f1_macro_edgecases = [
+    [
+        [
+            reporting.Prediction(id="0", score=1.0, info={"y_true": 0, "y_pred": 0}),
+            reporting.Prediction(id="1", score=0.0, info={"y_true": 1, "y_pred": 0}),
+        ]
+    ],
+    [[reporting.Prediction(id="0", score=1.0, info={"y_true": 0, "y_pred": 0})]],
+]
+
+
+@pytest.mark.parametrize("batch", f1_macro_edgecases)
+def test_macro_f1_batch_matches_macro_f1_edgecases(batch):
+    """For a true batch (B > 1 possible), vectorised `macro_f1_batch` must equal looping over the legacy `macro_f1`."""
+    # stack into (B, n)
+    y_true = np.stack([
+        np.fromiter((p.info["y_true"] for p in preds), dtype=int) for preds in batch
+    ])
+    y_pred = np.stack([
+        np.fromiter((p.info["y_pred"] for p in preds), dtype=int) for preds in batch
+    ])
+
+    ours = reporting.macro_f1_batch(y_true, y_pred)  # shape (B,)
+    ref = np.array([
+        reporting.macro_f1(preds, labels=np.unique(y_true).tolist()) for preds in batch
+    ])
+
+    assert np.allclose(ours, ref, rtol=1e-12, atol=1e-12)
 
 
 ##############################
@@ -10002,6 +10191,7 @@ import os
 
 import beartype
 import einops
+import torch
 from jaxtyping import Float, jaxtyped
 from torch import Tensor
 
@@ -10040,7 +10230,7 @@ class OpenClip(registry.VisionBackbone):
     For example, to load a ViT-B/16 train on Apple's Data Filtering Networks dataset, you would use `ViT-B-16/dfn2b`.
     """
 
-    def __init__(self, ckpt: str, **kwargs):
+    def __init__(self, ckpt: str, drop_keys: list[str] | None = None, **_):
         super().__init__()
         import open_clip
 
@@ -10054,6 +10244,13 @@ class OpenClip(registry.VisionBackbone):
 
         if ckpt.startswith("hf-hub:"):
             clip, self.img_transform = open_clip.create_model_from_pretrained(ckpt)
+        elif ckpt.startswith("local:"):
+            # Format: "local:ARCH/PATH_TO_CHECKPOINT"
+            ckpt = ckpt.removeprefix("local:")
+            arch, local_path = ckpt.split("/", 1)
+            clip, self.img_transform = self._load_clip_skeleton(arch)
+            state_dict = self._patch_state_dict(local_path, drop_keys or [])
+            clip.load_state_dict(state_dict, strict=True)
         else:
             arch, ckpt = ckpt.split("/")
             clip, self.img_transform = open_clip.create_model_from_pretrained(
@@ -10062,6 +10259,27 @@ class OpenClip(registry.VisionBackbone):
 
         self.model = clip.visual
         self.model.output_tokens = True  # type: ignore
+
+    @staticmethod
+    def _load_clip_skeleton(arch: str):
+        import open_clip
+
+        # returns (model, eval_transform)
+        model, _, preprocess = open_clip.create_model_and_transforms(
+            arch, pretrained=None
+        )
+        return model, preprocess
+
+    @staticmethod
+    def _patch_state_dict(path: str, drop_keys: list[str]) -> dict:
+        state_dict = torch.load(path, map_location="cpu", weights_only=False)
+        # open_clip stores state_dict, optimizer, etc. We want the state_dict.
+        state_dict = state_dict.get("state_dict", state_dict)
+        # Often a DDP-'module.' prefix.
+        state_dict = {k.replace("module.", ""): v for k, v in state_dict.items()}
+        for k in drop_keys:
+            state_dict.pop(k, None)
+        return state_dict
 
     def make_img_transform(self):
         return self.img_transform
@@ -10163,8 +10381,6 @@ class DinoV2(registry.VisionBackbone):
     def __init__(self, ckpt: str, **kwargs):
         super().__init__()
 
-        import torch
-
         self.model = torch.hub.load("facebookresearch/dinov2", ckpt)
 
     def img_encode(
@@ -10177,7 +10393,6 @@ class DinoV2(registry.VisionBackbone):
         )
 
     def make_img_transform(self):
-        import torch
         from torchvision.transforms import v2
 
         return v2.Compose([
@@ -10187,21 +10402,6 @@ class DinoV2(registry.VisionBackbone):
             v2.ToDtype(torch.float32, scale=True),
             v2.Normalize(mean=[0.4850, 0.4560, 0.4060], std=[0.2290, 0.2240, 0.2250]),
         ])
-
-
-@jaxtyped(typechecker=beartype.beartype)
-class TorchvisionModel(registry.VisionBackbone):
-    def __init__(self, ckpt: str):
-        import torchvision
-
-        arch, weights = ckpt.split("/")
-        self.model = getattr(torchvision, arch)(weights=weights)
-        self.model.eval()
-
-    def img_encode(
-        self, batch: Float[Tensor, "batch 3 width height"]
-    ) -> registry.EncodedImgBatch:
-        breakpoint()
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -10829,7 +11029,7 @@ def vit_huge(patch_size: int = 16, **kwargs):
 
 @jaxtyped(typechecker=beartype.beartype)
 class VJEPA(registry.VisionBackbone):
-    def __init__(self, ckpt: str):
+    def __init__(self, ckpt: str, **_):
         super().__init__()
         self.n_frames = 16
         if ckpt == "vitl16":

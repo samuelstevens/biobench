@@ -73,7 +73,7 @@ el.replaceWith(d);
         raise ValueError(&#34;models must be a list of tables in TOML&#34;)
 
     # Start with models as base experiments
-    experiments = [{&#34;model&#34;: Model(**model)} for model in models]
+    experiments = [{&#34;model&#34;: Model.from_dict(model)} for model in models]
 
     # Handle data config specially
     data = raw.pop(&#34;data&#34;, {})
@@ -375,7 +375,7 @@ class Experiment:
 </dd>
 <dt id="biobench.config.Model"><code class="flex name class">
 <span>class <span class="ident">Model</span></span>
-<span>(</span><span>org: str, ckpt: str)</span>
+<span>(</span><span>org: str, ckpt: str, *, drop_keys: tuple[str, ...] = &lt;factory&gt;)</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -396,9 +396,16 @@ class Model:
 
     org: str
     ckpt: str
+    _: dataclasses.KW_ONLY
+    drop_keys: tuple[str, ...] = dataclasses.field(default_factory=tuple)
 
     def to_dict(self) -&gt; dict[str, object]:
-        return dataclasses.asdict(self)</code></pre>
+        return dataclasses.asdict(self)
+
+    @classmethod
+    def from_dict(cls, dct: dict[str, object]) -&gt; &#34;Model&#34;:
+        drop_keys = tuple(dct.pop(&#34;drop_keys&#34;, []))
+        return cls(**dct, drop_keys=drop_keys)</code></pre>
 </details>
 <div class="desc"><p>Configuration for a model to be evaluated.</p>
 <p>This class defines the essential parameters needed to identify and load a specific model for evaluation in the benchmark.</p>
@@ -409,9 +416,31 @@ class Model:
 <dt><strong><code>ckpt</code></strong></dt>
 <dd>Checkpoint or specific model identifier (e.g., "ViT-B-16/openai").</dd>
 </dl></div>
+<h3>Static methods</h3>
+<dl>
+<dt id="biobench.config.Model.from_dict"><code class="name flex">
+<span>def <span class="ident">from_dict</span></span>(<span>cls, dct: dict[str, object]) ‑> <a title="biobench.config.Model" href="#biobench.config.Model">Model</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@classmethod
+def from_dict(cls, dct: dict[str, object]) -&gt; &#34;Model&#34;:
+    drop_keys = tuple(dct.pop(&#34;drop_keys&#34;, []))
+    return cls(**dct, drop_keys=drop_keys)</code></pre>
+</details>
+<div class="desc"></div>
+</dd>
+</dl>
 <h3>Instance variables</h3>
 <dl>
 <dt id="biobench.config.Model.ckpt"><code class="name">var <span class="ident">ckpt</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.config.Model.drop_keys"><code class="name">var <span class="ident">drop_keys</span> : tuple[str, ...]</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -500,6 +529,8 @@ class Model:
 <h4><code><a title="biobench.config.Model" href="#biobench.config.Model">Model</a></code></h4>
 <ul class="">
 <li><code><a title="biobench.config.Model.ckpt" href="#biobench.config.Model.ckpt">ckpt</a></code></li>
+<li><code><a title="biobench.config.Model.drop_keys" href="#biobench.config.Model.drop_keys">drop_keys</a></code></li>
+<li><code><a title="biobench.config.Model.from_dict" href="#biobench.config.Model.from_dict">from_dict</a></code></li>
 <li><code><a title="biobench.config.Model.org" href="#biobench.config.Model.org">org</a></code></li>
 <li><code><a title="biobench.config.Model.to_dict" href="#biobench.config.Model.to_dict">to_dict</a></code></li>
 </ul>

@@ -9,6 +9,7 @@ import beartype
 import datasets
 import datasets.formatting.torch_formatter
 import numpy as np
+import polars as pl
 import sklearn.experimental.enable_halving_search_cv
 import sklearn.linear_model
 import sklearn.model_selection
@@ -73,10 +74,56 @@ def score(preds: list[reporting.Prediction]) -> float:
 
 
 @jaxtyped(typechecker=beartype.beartype)
-def score_batch(
-    y_true: Int[np.ndarray, "*batch n"], y_pred: Int[np.ndarray, "*batch n"]
-) -> Float[np.ndarray, "*batch"]:
-    return reporting.micro_acc_batch(y_true, y_pred)
+def bootstrap_scores(
+    df: pl.DataFrame, *, b: int = 0, rng: np.random.Generator | None = None
+) -> dict[str, Float[np.ndarray, " b"]]:
+    assert df.get_column("task_name").unique().to_list() == ["imagenet1k"]
+
+    # For some reason, one of my models only has 49.3K predictions, so I only use that many. Compared to 50K it's probably fine.
+    n = 49_362
+
+    if b > 0:
+        assert rng is not None, "must provide rng argument"
+        i_bs = rng.integers(0, n, size=(b, n), dtype=np.int32)
+
+    scores = {}
+
+    correct_buf = np.zeros((b, n), dtype=bool)
+
+    for model_ckpt in df.get_column("model_ckpt").unique().sort().to_list():
+        # pull y_true and y_pred for *one* model
+        y_pred = (
+            df.filter(pl.col("model_ckpt") == model_ckpt)
+            .select("img_id", "y_pred")
+            .unique()
+            .sort("img_id")
+            .get_column("y_pred")
+            .cast(pl.Int32)
+            .to_numpy()
+        )
+
+        if len(y_pred) == 0:
+            continue
+
+        y_true = (
+            df.filter(pl.col("model_ckpt") == model_ckpt)
+            .select("img_id", "y_true")
+            .unique()
+            .sort("img_id")
+            .get_column("y_true")
+            .cast(pl.Int32)
+            .to_numpy()
+        )
+        assert y_true.size == y_pred.size
+
+        if b > 0:
+            # bootstrap resample into pre-allocated buffers
+            np.take(y_pred == y_true, i_bs, axis=0, out=correct_buf)
+            scores[model_ckpt] = correct_buf.mean(axis=1)
+        else:
+            scores[model_ckpt] = np.array([(y_pred == y_true).mean()])
+
+    return scores
 
 
 class Transform:

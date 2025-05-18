@@ -85,11 +85,13 @@ Adapted from BohemianVRA's evaluate.py:
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">@beartype.beartype
-@torch.no_grad()
+@torch.inference_mode()
 def benchmark(cfg: config.Experiment) -&gt; reporting.Report:
     backbone = registry.load_vision_backbone(cfg.model)
     train_feats = get_features(cfg, backbone, is_train=True, pool=False)
     val_feats = get_features(cfg, backbone, is_train=False, pool=True)
+
+    torch.cuda.empty_cache()  # be nice to others on the machine.
 
     clf = init_clf(cfg)
     clf.fit(train_feats.x, train_feats.y)
@@ -122,7 +124,7 @@ def benchmark(cfg: config.Experiment) -&gt; reporting.Report:
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">@beartype.beartype
-@torch.no_grad()
+@torch.inference_mode()
 def get_features(
     cfg: config.Experiment,
     backbone: registry.VisionBackbone,
@@ -148,33 +150,40 @@ def get_features(
         pin_memory=False,
     )
 
-    backbone = torch.compile(backbone.to(cfg.device))
+    backbone = backbone.to(cfg.device)
     feats_list, labs_list, img_ids_list, obs_ids_list = [], [], [], []
+
+    @beartype.beartype
+    def debug_cuda_mem(tag: str):
+        if logger.isEnabledFor(logging.DEBUG):
+            logger.debug(&#34;%s: %s&#34;, tag, torch.cuda.memory_summary())
 
     def probe(batch):
         imgs = batch[&#34;img&#34;].to(cfg.device)
         with torch.amp.autocast(cfg.device):
             backbone.img_encode(imgs)
 
-    @beartype.beartype
-    def debug_cuda_mem(tag: str):
-        if logger.isEnabledFor(logging.DEBUG):
-            logger.debug(&#34;%s: %d&#34;, tag, torch.cuda.memory_allocated())
-
     with helpers.auto_batch_size(dataloader, probe=probe):
+        backbone = torch.compile(backbone)
         total = len(dataloader) if not cfg.debug else 2
         it = iter(dataloader)
         for _ in helpers.progress(range(total), desc=f&#34;fungi/{split}&#34;):
             debug_cuda_mem(&#34;loop start&#34;)
             batch = next(it)
             debug_cuda_mem(&#34;after batch&#34;)
-            imgs = batch[&#34;img&#34;].to(cfg.device, non_blocking=True)
+            imgs = batch[&#34;img&#34;].to(cfg.device)
             debug_cuda_mem(&#34;imgs.to(device)&#34;)
             with torch.amp.autocast(cfg.device):
                 out = backbone.img_encode(imgs).img_features
-            debug_cuda_mem(&#34;forward pass&#34;)
+            debug_cuda_mem(&#34;after forward pass&#34;)
             feats_list.append(out.cpu().numpy())
             debug_cuda_mem(&#34;appended feats&#34;)
+
+            # I was getting some CUDA OOM errors due to PyTorch reserving/allocating and memory fragmentation. Rather than adjust the recommended env variable, I added this line manual GC.
+            del out
+            torch.cuda.empty_cache()
+
+            debug_cuda_mem(&#34;emptied cache&#34;)
             labs_list.extend(batch[&#34;label&#34;].tolist())
             img_ids_list.extend(batch[&#34;img_id&#34;])
             obs_ids_list.extend(batch[&#34;obs_id&#34;].tolist())

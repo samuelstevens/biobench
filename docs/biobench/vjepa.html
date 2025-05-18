@@ -784,7 +784,7 @@ registered hooks while the latter silently ignores them.</p>
 </dd>
 <dt id="biobench.vjepa.VJEPA"><code class="flex name class">
 <span>class <span class="ident">VJEPA</span></span>
-<span>(</span><span>ckpt: str)</span>
+<span>(</span><span>ckpt: str, **_)</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -793,7 +793,7 @@ registered hooks while the latter silently ignores them.</p>
 </summary>
 <pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
 class VJEPA(registry.VisionBackbone):
-    def __init__(self, ckpt: str):
+    def __init__(self, ckpt: str, **_):
         super().__init__()
         self.n_frames = 16
         if ckpt == &#34;vitl16&#34;:

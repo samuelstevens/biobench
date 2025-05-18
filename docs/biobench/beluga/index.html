@@ -228,6 +228,22 @@ def score(preds: list[reporting.Prediction]) -&gt; float:
 </details>
 <div class="desc"></div>
 </dd>
+<dt id="biobench.beluga.score_batch"><code class="name flex">
+<span>def <span class="ident">score_batch</span></span>(<span>y_true: jaxtyping.Int[ndarray, 'batch* n'],<br>y_pred: jaxtyping.Int[ndarray, 'batch* n']) ‑> jaxtyping.Float[ndarray, 'batch*']</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
+def score_batch(
+    y_true: Int[np.ndarray, &#34; batch* n&#34;], y_pred: Int[np.ndarray, &#34; batch* n&#34;]
+) -&gt; Float[np.ndarray, &#34;batch*&#34;]:
+    return reporting.macro_f1_batch(y_true, y_pred)</code></pre>
+</details>
+<div class="desc"></div>
+</dd>
 </dl>
 </section>
 <section>
@@ -330,6 +346,7 @@ def n(self) -&gt; int:
 <li><code><a title="biobench.beluga.collate_fn" href="#biobench.beluga.collate_fn">collate_fn</a></code></li>
 <li><code><a title="biobench.beluga.get_features" href="#biobench.beluga.get_features">get_features</a></code></li>
 <li><code><a title="biobench.beluga.score" href="#biobench.beluga.score">score</a></code></li>
+<li><code><a title="biobench.beluga.score_batch" href="#biobench.beluga.score_batch">score_batch</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>

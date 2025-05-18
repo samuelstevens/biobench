@@ -103,8 +103,6 @@ class DinoV2(registry.VisionBackbone):
     def __init__(self, ckpt: str, **kwargs):
         super().__init__()
 
-        import torch
-
         self.model = torch.hub.load(&#34;facebookresearch/dinov2&#34;, ckpt)
 
     def img_encode(
@@ -117,7 +115,6 @@ class DinoV2(registry.VisionBackbone):
         )
 
     def make_img_transform(self):
-        import torch
         from torchvision.transforms import v2
 
         return v2.Compose([
@@ -149,7 +146,7 @@ See <code><a title="biobench.registry" href="registry.html">biobench.registry</a
 </dd>
 <dt id="biobench.third_party_models.OpenClip"><code class="flex name class">
 <span>class <span class="ident">OpenClip</span></span>
-<span>(</span><span>ckpt: str, **kwargs)</span>
+<span>(</span><span>ckpt: str, drop_keys: list[str] | None = None, **_)</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -166,7 +163,7 @@ class OpenClip(registry.VisionBackbone):
     For example, to load a ViT-B/16 train on Apple&#39;s Data Filtering Networks dataset, you would use `ViT-B-16/dfn2b`.
     &#34;&#34;&#34;
 
-    def __init__(self, ckpt: str, **kwargs):
+    def __init__(self, ckpt: str, drop_keys: list[str] | None = None, **_):
         super().__init__()
         import open_clip
 
@@ -180,6 +177,13 @@ class OpenClip(registry.VisionBackbone):
 
         if ckpt.startswith(&#34;hf-hub:&#34;):
             clip, self.img_transform = open_clip.create_model_from_pretrained(ckpt)
+        elif ckpt.startswith(&#34;local:&#34;):
+            # Format: &#34;local:ARCH/PATH_TO_CHECKPOINT&#34;
+            ckpt = ckpt.removeprefix(&#34;local:&#34;)
+            arch, local_path = ckpt.split(&#34;/&#34;, 1)
+            clip, self.img_transform = self._load_clip_skeleton(arch)
+            state_dict = self._patch_state_dict(local_path, drop_keys or [])
+            clip.load_state_dict(state_dict, strict=True)
         else:
             arch, ckpt = ckpt.split(&#34;/&#34;)
             clip, self.img_transform = open_clip.create_model_from_pretrained(
@@ -188,6 +192,27 @@ class OpenClip(registry.VisionBackbone):
 
         self.model = clip.visual
         self.model.output_tokens = True  # type: ignore
+
+    @staticmethod
+    def _load_clip_skeleton(arch: str):
+        import open_clip
+
+        # returns (model, eval_transform)
+        model, _, preprocess = open_clip.create_model_and_transforms(
+            arch, pretrained=None
+        )
+        return model, preprocess
+
+    @staticmethod
+    def _patch_state_dict(path: str, drop_keys: list[str]) -&gt; dict:
+        state_dict = torch.load(path, map_location=&#34;cpu&#34;, weights_only=False)
+        # open_clip stores state_dict, optimizer, etc. We want the state_dict.
+        state_dict = state_dict.get(&#34;state_dict&#34;, state_dict)
+        # Often a DDP-&#39;module.&#39; prefix.
+        state_dict = {k.replace(&#34;module.&#34;, &#34;&#34;): v for k, v in state_dict.items()}
+        for k in drop_keys:
+            state_dict.pop(k, None)
+        return state_dict
 
     def make_img_transform(self):
         return self.img_transform
@@ -394,48 +419,6 @@ as a vision backbone in the biobench framework.</p>
 </li>
 </ul>
 </dd>
-<dt id="biobench.third_party_models.TorchvisionModel"><code class="flex name class">
-<span>class <span class="ident">TorchvisionModel</span></span>
-<span>(</span><span>ckpt: str)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
-class TorchvisionModel(registry.VisionBackbone):
-    def __init__(self, ckpt: str):
-        import torchvision
-
-        arch, weights = ckpt.split(&#34;/&#34;)
-        self.model = getattr(torchvision, arch)(weights=weights)
-        self.model.eval()
-
-    def img_encode(
-        self, batch: Float[Tensor, &#34;batch 3 width height&#34;]
-    ) -&gt; registry.EncodedImgBatch:
-        breakpoint()</code></pre>
-</details>
-<div class="desc"><p>A frozen vision model that embeds batches of images into batches of vectors.</p>
-<p>To add new models to the benchmark, you can simply create a new class that satisfies this interface and register it.
-See <code><a title="biobench.registry" href="registry.html">biobench.registry</a></code> for a tutorial on adding new vision backbones.</p>
-<p>Initialize internal Module state, shared by both nn.Module and ScriptModule.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li><a title="biobench.registry.VisionBackbone" href="registry.html#biobench.registry.VisionBackbone">VisionBackbone</a></li>
-<li>torch.nn.modules.module.Module</li>
-</ul>
-<h3>Inherited members</h3>
-<ul class="hlist">
-<li><code><b><a title="biobench.registry.VisionBackbone" href="registry.html#biobench.registry.VisionBackbone">VisionBackbone</a></b></code>:
-<ul class="hlist">
-<li><code><a title="biobench.registry.VisionBackbone.img_encode" href="registry.html#biobench.registry.VisionBackbone.img_encode">img_encode</a></code></li>
-<li><code><a title="biobench.registry.VisionBackbone.make_img_transform" href="registry.html#biobench.registry.VisionBackbone.make_img_transform">make_img_transform</a></code></li>
-</ul>
-</li>
-</ul>
-</dd>
 </dl>
 </section>
 </article>
@@ -467,9 +450,6 @@ See <code><a title="biobench.registry" href="registry.html">biobench.registry</a
 </li>
 <li>
 <h4><code><a title="biobench.third_party_models.Timm" href="#biobench.third_party_models.Timm">Timm</a></code></h4>
-</li>
-<li>
-<h4><code><a title="biobench.third_party_models.TorchvisionModel" href="#biobench.third_party_models.TorchvisionModel">TorchvisionModel</a></code></h4>
 </li>
 </ul>
 </li>

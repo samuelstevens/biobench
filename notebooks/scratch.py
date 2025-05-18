@@ -31,10 +31,12 @@ def _():
     import scipy.stats
     import sklearn.linear_model
     import sklearn.metrics
-    from jaxtyping import Real, jaxtyped
+    import statsmodels.stats.multitest
+    from jaxtyping import Int, Real, jaxtyped
 
     from biobench import reporting, helpers
     return (
+        Int,
         PATH_TO_BIOBENCH,
         Real,
         beartype,
@@ -56,6 +58,7 @@ def _():
         scipy,
         sklearn,
         sqlite3,
+        statsmodels,
         sys,
     )
 
@@ -71,12 +74,8 @@ def _(beartype, collections, dataclasses, functools, importlib):
         legend: str | None = None
 
         @functools.cached_property
-        def score_fn(self) -> collections.abc.Callable:
-            return importlib.import_module(f"biobench.{self.name}").score
-
-        @functools.cached_property
-        def score_fn_batch(self) -> collections.abc.Callable:
-            return importlib.import_module(f"biobench.{self.name}").score_batch
+        def bootstrap_scores_fn(self) -> collections.abc.Callable:
+            return importlib.import_module(f"biobench.{self.name}").bootstrap_scores
 
 
     prior_work_tasks = [
@@ -137,31 +136,36 @@ def _(mo, os, pl, sqlite3, task_lookup):
 
 
 @app.cell
-def _(df, json, pl, reporting, task_lookup):
-    raise ValueError()
+def _(Float, benchmark_tasks, df, model_lookup, np, pl, prior_work_tasks):
+    def make_scores_df():
+        rows = []
+        for task in prior_work_tasks + benchmark_tasks:
+            try:
+                bootstrap_scores = task.bootstrap_scores_fn
+            except AttributeError:
+                print(f"No `bootstrap_scores` for {task.name}")
+                continue
+
+            sub = df.filter(
+                (pl.col("task_name") == task.name)
+                & (pl.col("model_ckpt").is_in(model_lookup))
+            )
+
+            scores: dict[str, Float[np.ndarray, " b"]] = bootstrap_scores(sub)
+            for model_ckpt, score in bootstrap_scores(sub).items():
+                row = {
+                    "model_ckpt": model_ckpt,
+                    "task_name": task.name,
+                    "score": score.item(),
+                }
+                rows.append(row)
+
+        return pl.DataFrame(rows)
 
 
-    def _struct_to_pred(st: dict) -> reporting.Prediction:
-        return reporting.Prediction(
-            id=st["img_id"], score=st["score"], info=json.loads(st["info"])
-        )
-
-
-    def _metric_udf(exprs):
-        structs, task_names = exprs
-        preds = [_struct_to_pred(st) for st in structs]
-        return task_lookup[task_names[0]].score_fn(preds)
-
-
-    scores = df.group_by("model_ckpt", "task_name").agg(
-        score=pl.map_groups(
-            [pl.struct("img_id", "score", "info"), "task_name"],
-            _metric_udf,
-            return_dtype=pl.Float64,
-        )
-    )
+    scores = make_scores_df()
     scores
-    return (scores,)
+    return make_scores_df, scores
 
 
 @app.cell
@@ -235,8 +239,8 @@ def _(beartype, dataclasses, df, reporting):
             "MegaDescriptor Swin-L/4 (384px)",
             "cv4ecology",
         ),
-        # Model("vitl16", "V-JEPA ViT-L/16", "V-JEPA"),
-        # Model("vith16", "V-JEPA ViT-H/16", "V-JEPA"),
+        Model("vitl16", "V-JEPA ViT-L/16", "V-JEPA"),
+        Model("vith16", "V-JEPA ViT-H/16", "V-JEPA"),
         # Model("vith16-384", "V-JEPA ViT-H/16 (384px)", "V-JEPA"),
         Model("sam2_hiera_tiny.fb_r896_2pt1", "SAM2 Hiera-T", "SAM2"),
         Model("sam2_hiera_small.fb_r896_2pt1", "SAM2 Hiera-S", "SAM2"),
@@ -387,8 +391,13 @@ def _(
 
 
     @beartype.beartype
-    def make_corr_df():
-        ckpts = [model.ckpt for model in models]
+    def make_corr_df(ignore_families: list[str] | None = None):
+        if ignore_families is None:
+            ignore_families = set()
+        else:
+            ignore_families = set(ignore_families)
+
+        ckpts = [model.ckpt for model in models if model.family not in ignore_families]
         ignore = {task.name for task in prior_work_tasks}
         task_names = set(scores.get_column("task_name").to_list()) - ignore
 
@@ -441,7 +450,7 @@ def _(
 @app.cell
 def _(benchmark_tasks, make_corr_df, os, plt, reporting):
     def make_correlation_fig(n_boot: int = 5_000):
-        fig_df = make_corr_df()
+        fig_df = make_corr_df(ignore_families=["cv4ecology"])
 
         task_cols = [task.name for task in benchmark_tasks if task.name in fig_df.columns]
         xs = fig_df.get_column("imagenet1k").to_numpy() * 100
@@ -480,7 +489,7 @@ def _(benchmark_tasks, kendall_tau, make_corr_df, np, pl, spearman_r):
     def print_rank_stats(n_boot: int = 5_000):
         named_fns = [("tau", kendall_tau), ("rho", spearman_r)]
 
-        corr_df = make_corr_df()
+        corr_df = make_corr_df(ignore_families=["cv4ecology"])
         task_cols = [task.name for task in benchmark_tasks if task.name in corr_df.columns]
         corr_df = corr_df.with_columns(mean=pl.mean_horizontal(task_cols))
 
@@ -600,7 +609,7 @@ def _(
 
     @beartype.beartype
     def make_hook_fig():
-        fig_df = make_corr_df()
+        fig_df = make_corr_df(ignore_families=["cv4ecology"])
 
         y_tasks = [
             task_lookup[task_name] for task_name in ("herbarium19", "iwildcam", "beluga")
@@ -679,123 +688,58 @@ def _(benchmark_tasks, models, pl, prior_work_tasks, scores):
 
 
 @app.cell
-def _(benchmark_tasks, df, models, np, pl, prior_work_tasks):
-    import statsmodels.stats.multitest
-
-
+def _(
+    Float,
+    benchmark_tasks,
+    df,
+    model_lookup,
+    np,
+    pl,
+    prior_work_tasks,
+    statsmodels,
+):
     def significance_testing():
-        b, alpha = 1_000, 0.05
+        b, alpha = 100, 0.05
         rng = np.random.default_rng(seed=17)
 
         for task in prior_work_tasks + benchmark_tasks:
             try:
-                score_batch = task.score_fn_batch
+                bootstrap_scores = task.bootstrap_scores_fn
             except AttributeError:
-                print(f"No `score_batch` for {task.name}")
+                print(f"No `bootstrap_scores` for {task.name}")
                 continue
 
-            sub = df.filter(pl.col("task_name") == task.name)
-
-            n, *rest = (
-                sub.group_by("model_ckpt")
-                .agg(pl.len().alias("n"))
-                .get_column("n")
-                .to_list()
+            sub = df.filter(
+                (pl.col("task_name") == task.name)
+                & (pl.col("model_ckpt").is_in(model_lookup))
             )
 
-            if task.name == "imagenet1k":
-                # For some reason one of our imagenet-1k things only has 49.3K predictions. So that's what we use. It's probably enough.
-                n = 49364
-            else:
-                assert all(n == i for i in rest)
+            scores: dict[str, Float[np.ndarray, " b "]] = bootstrap_scores(
+                sub, b=b, rng=rng
+            )
+            # freeze model order once
+            ckpts = sorted(scores)  # list[str]  length = m
 
-            idx_bs = rng.integers(0, n, size=(b, n), dtype=np.int32)
+            # stack into a (b, m) matrix that matches that order
+            s = np.column_stack([scores[c] for c in ckpts])  #  (b, m)
 
-            scores = np.zeros((b, len(models)), dtype=np.float32)
+            # locate the empirical best (column index j*)
+            best_j = s.mean(axis=0).argmax()
+            best_c = ckpts[best_j]
 
-            if task.name == "newt":
-                scores_newt_buf = np.empty((b, n), dtype=np.int32)
-
-                for i, model in enumerate(models):
-                    scores_newt = (
-                        sub.filter(pl.col("model_ckpt") == model.ckpt)
-                        .select("img_id", "score")
-                        .unique()
-                        .sort("img_id")
-                        .get_column("score")
-                        .to_numpy()
-                    )
-
-                    if scores_newt.size == 0:
-                        continue
-
-                    np.take(scores_newt, idx_bs, axis=0, out=scores_newt_buf)
-                    scores[:, i] = np.mean(scores_newt, axis=-1)
-            else:
-                y_pred_buf = np.empty((b, n), dtype=np.int32)
-                y_true_buf = np.empty((b, n), dtype=np.int32)
-
-                for i, model in enumerate(models):
-                    # pull y_true and y_pred for *one* model
-                    y_pred = (
-                        sub.filter(pl.col("model_ckpt") == model.ckpt)
-                        .select("img_id", "y_pred")
-                        .unique()
-                        .sort("img_id")
-                        .get_column("y_pred")
-                        .cast(pl.Float32)
-                        .cast(pl.Int32)
-                        .to_numpy()
-                    )
-
-                    y_true = (
-                        sub.filter(pl.col("model_ckpt") == model.ckpt)
-                        .select("img_id", "y_true")
-                        .unique()
-                        .sort("img_id")
-                        .get_column("y_true")
-                        .cast(pl.Float32)
-                        .cast(pl.Int32)
-                        .to_numpy()
-                    )
-
-                    if y_pred.size == 0:
-                        continue
-
-                    assert y_true.size == y_pred.size
-
-                    # bootstrap resample into pre-allocated buffers
-                    np.take(y_pred, idx_bs, axis=0, out=y_pred_buf)
-                    np.take(y_true, idx_bs, axis=0, out=y_true_buf)
-
-                    # ref = sklearn.metrics.f1_score(y_true, y_pred, average="macro")
-                    scores[:, i] = score_batch(y_true_buf, y_pred_buf)
-
-            means = scores.mean(axis=0)
-
-            best_m = means.argmax()
-
-            # Null hypothesis: model m is no worse than best_m. If this is true, then the proportion of scores where scores[:, m] >= scores[:, best_m] is high. If the proportion is low, then model m is likely worse than best_m.
-            pvals = (scores >= scores[:, best_m][:, None]).mean(axis=0)
-            reject, pvals, _, _ = statsmodels.stats.multitest.multipletests(
-                pvals, alpha=alpha, method="holm"
+            # one-sided p-values against the best
+            p_raw = (s >= s[:, [best_j]]).mean(axis=0)  # vector length m
+            rej, p_adj, *_ = statsmodels.stats.multitest.multipletests(
+                p_raw, alpha=alpha, method="holm"
             )
 
-            # Print bolding
-            bold = [models[i].ckpt for i, r in enumerate(reject) if not r]
-            print(f"{task.name}:", ", ".join(bold))
+            # list checkpoints that are *not rejected* -> bold
+            bold = [c for c, r in zip(ckpts, rej) if not r]
+            print(f"{task.name} (bold): {', '.join(bold)}")
 
 
     significance_testing()
-    return significance_testing, statsmodels
-
-
-@app.cell
-def _(df, pl):
-    df.filter(pl.col("task_name") == "imagenet1k").group_by("model_ckpt").agg(
-        pl.len().alias("n")
-    ).get_column("n").unique()
-    return
+    return (significance_testing,)
 
 
 if __name__ == "__main__":

@@ -15,9 +15,9 @@ def stub_poison(monkeypatch):
 def test_classification_error_all_correct():
     y = np.array([0, 1, 2, 3])
     y_pred = y.copy()
-    assert metrics.classification_error(y, y_pred) == 0.0
+    assert metrics.classification_error(y, y_pred).item() == 0.0
     # with unknown costs both = 1 => same
-    assert metrics.classification_error_with_unknown(y, y_pred) == 0.0
+    assert metrics.classification_error_with_unknown(y, y_pred).item() == 0.0
 
 
 def test_classification_error_all_wrong():
@@ -101,7 +101,7 @@ def test_fuzz_raises_or_returns(y_true, y_pred):
     assert isinstance(out, dict)
     for k, v in out.items():
         assert isinstance(k, str)
-        assert isinstance(v, float)
+        assert isinstance(v, np.ndarray)
 
 
 def _gen_labels():
@@ -110,24 +110,20 @@ def _gen_labels():
 
 
 @given(y_true=_gen_labels(), y_pred=_gen_labels())
-def test_ce_unknown_in_0_10(y_true, y_pred):
+def test_user_loss_score_normalized_in_0_1(y_true, y_pred):
     assume(len(y_true) == len(y_pred))
     y_t, y_p = map(np.asarray, (y_true, y_pred))
-    val = metrics.classification_error_with_unknown(y_t, y_p)
-    assert 0.0 <= val <= 10.0
+    val = metrics.user_loss_score_normalized(y_t, y_p).item()
+    assert 0.0 <= val <= 1.0
 
 
 @given(y_true=_gen_labels(), y_pred=_gen_labels())
-def test_psc_esc_cost_in_0_100(y_true, y_pred):
+def test_user_loss_score_batched(y_true, y_pred):
     assume(len(y_true) == len(y_pred))
     y_t, y_p = map(np.asarray, (y_true, y_pred))
-    val = metrics.psc_esc_cost_score(y_t, y_p)
-    assert 0.0 <= val <= 100.0
-
-
-@given(y_true=_gen_labels(), y_pred=_gen_labels())
-def test_user_loss_in_0_110(y_true, y_pred):
-    assume(len(y_true) == len(y_pred))
-    y_t, y_p = map(np.asarray, (y_true, y_pred))
-    val = metrics.user_loss_score(y_t, y_p)
-    assert 0.0 <= val <= 110.0
+    bsz = 4
+    y_t_b = np.stack([y_t] * bsz)
+    y_p_b = np.stack([y_p] * bsz)
+    vals_b = metrics.user_loss_score_normalized(y_t_b, y_p_b)
+    vals_ref = np.stack([metrics.user_loss_score_normalized(y_t, y_p)] * bsz)
+    np.testing.assert_allclose(vals_b, vals_ref)

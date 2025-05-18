@@ -101,6 +101,7 @@ def benchmark(cfg: config.Experiment) -&gt; reporting.Report:
     # 2. Load data.
     test_features = get_features(cfg, backbone, is_train=False)
     train_features = get_features(cfg, backbone, is_train=True)
+    torch.cuda.empty_cache()
 
     # 4. Do simpleshot.
     clf = init_clf(cfg)

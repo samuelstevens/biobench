@@ -84,7 +84,7 @@ def load_vision_backbone(model_cfg: config.Model) -&gt; VisionBackbone:
         raise ValueError(f&#34;Org &#39;{model_cfg.org}&#39; not found.&#34;)
 
     cls = _global_backbone_registry[model_cfg.org]
-    return cls(model_cfg.ckpt)</code></pre>
+    return cls(model_cfg.ckpt, drop_keys=model_cfg.drop_keys)</code></pre>
 </details>
 <div class="desc"><p>Load a pretrained vision backbone.</p></div>
 </dd>
@@ -192,7 +192,6 @@ See <code><a title="biobench.registry" href="#biobench.registry">biobench.regist
 <li><a title="biobench.third_party_models.OpenClip" href="third_party_models.html#biobench.third_party_models.OpenClip">OpenClip</a></li>
 <li><a title="biobench.third_party_models.SAM2" href="third_party_models.html#biobench.third_party_models.SAM2">SAM2</a></li>
 <li><a title="biobench.third_party_models.Timm" href="third_party_models.html#biobench.third_party_models.Timm">Timm</a></li>
-<li><a title="biobench.third_party_models.TorchvisionModel" href="third_party_models.html#biobench.third_party_models.TorchvisionModel">TorchvisionModel</a></li>
 <li><a title="biobench.vjepa.VJEPA" href="vjepa.html#biobench.vjepa.VJEPA">VJEPA</a></li>
 </ul>
 <h3>Methods</h3>

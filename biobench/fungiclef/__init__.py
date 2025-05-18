@@ -211,6 +211,63 @@ def init_clf(cfg: config.Experiment):
     )
 
 
+@jaxtyped(typechecker=beartype.beartype)
+def bootstrap_scores(
+    df: pl.DataFrame, *, b: int = 0, rng: np.random.Generator | None = None
+) -> dict[str, Float[np.ndarray, " b"]]:
+    assert df.get_column("task_name").unique().to_list() == ["fungiclef"]
+
+    n, *rest = df.group_by("model_ckpt").agg(n=pl.len()).get_column("n").to_list()
+    assert all(n == i for i in rest)
+
+    if b > 0:
+        assert rng is not None, "must provide rng argument"
+        i_bs = rng.integers(0, n, size=(b, n), dtype=np.int32)
+
+    scores = {}
+
+    y_pred_buf = np.empty((b, n), dtype=np.int32)
+    y_true_buf = np.empty((b, n), dtype=np.int32)
+
+    for model_ckpt in df.get_column("model_ckpt").unique().sort().to_list():
+        y_pred = (
+            df.filter(pl.col("model_ckpt") == model_ckpt)
+            .select("img_id", "y_pred")
+            .unique()
+            .sort("img_id")
+            .get_column("y_pred")
+            .cast(pl.Int32)
+            .to_numpy()
+        )
+
+        if len(y_pred) == 0:
+            continue
+
+        y_true = (
+            df.filter(pl.col("model_ckpt") == model_ckpt)
+            .select("img_id", "y_true")
+            .unique()
+            .sort("img_id")
+            .get_column("y_true")
+            .cast(pl.Int32)
+            .to_numpy()
+        )
+        assert y_true.size == y_pred.size
+
+        if b > 0:
+            # bootstrap resample into pre-allocated buffers
+            np.take(y_pred, i_bs, axis=0, out=y_pred_buf)
+            np.take(y_true, i_bs, axis=0, out=y_true_buf)
+            scores[model_ckpt] = metrics.user_loss_score_normalized(
+                y_true_buf, y_pred_buf
+            )
+        else:
+            scores[model_ckpt] = np.array([
+                metrics.user_loss_score_normalized(y_true, y_pred)
+            ])
+    return scores
+
+
 @beartype.beartype
 def score(preds: list[reporting.Prediction]) -> float:
     """

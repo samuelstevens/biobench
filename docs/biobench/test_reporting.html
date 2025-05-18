@@ -195,6 +195,104 @@ def test_exact_cutoff_not_deleted(tmp_path, monkeypatch, hrs):
 </details>
 <div class="desc"></div>
 </dd>
+<dt id="biobench.test_reporting.test_macro_f1_batch_matches_macro_f1_bsz0"><code class="name flex">
+<span>def <span class="ident">test_macro_f1_batch_matches_macro_f1_bsz0</span></span>(<span>) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@given(preds=_prediction_list())
+def test_macro_f1_batch_matches_macro_f1_bsz0(preds):
+    &#34;&#34;&#34;Vectorised implementation must equal our non-batched macro-F1.&#34;&#34;&#34;
+    y_true = np.fromiter((p.info[&#34;y_true&#34;] for p in preds), dtype=int)
+    y_pred = np.fromiter((p.info[&#34;y_pred&#34;] for p in preds), dtype=int)
+
+    ours = reporting.macro_f1_batch(y_true, y_pred)
+    ref = reporting.macro_f1(preds)
+
+    assert math.isclose(ours, ref, rel_tol=1e-12, abs_tol=1e-12)</code></pre>
+</details>
+<div class="desc"><p>Vectorised implementation must equal our non-batched macro-F1.</p></div>
+</dd>
+<dt id="biobench.test_reporting.test_macro_f1_batch_matches_macro_f1_bsz1"><code class="name flex">
+<span>def <span class="ident">test_macro_f1_batch_matches_macro_f1_bsz1</span></span>(<span>) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@given(preds=_prediction_list())
+def test_macro_f1_batch_matches_macro_f1_bsz1(preds):
+    &#34;&#34;&#34;Vectorised implementation must equal our non-batched macro-F1.&#34;&#34;&#34;
+    y_true = np.fromiter((p.info[&#34;y_true&#34;] for p in preds), dtype=int)
+    y_pred = np.fromiter((p.info[&#34;y_pred&#34;] for p in preds), dtype=int)
+
+    ours = reporting.macro_f1_batch(y_true[None, :], y_pred[None, :])[0]
+    ref = reporting.macro_f1(preds)
+
+    assert math.isclose(ours, ref, rel_tol=1e-12, abs_tol=1e-12)</code></pre>
+</details>
+<div class="desc"><p>Vectorised implementation must equal our non-batched macro-F1.</p></div>
+</dd>
+<dt id="biobench.test_reporting.test_macro_f1_batch_matches_macro_f1_bsz_n"><code class="name flex">
+<span>def <span class="ident">test_macro_f1_batch_matches_macro_f1_bsz_n</span></span>(<span>) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@given(batch=_prediction_batch())
+def test_macro_f1_batch_matches_macro_f1_bsz_n(batch):
+    &#34;&#34;&#34;For a true batch (B &gt; 1 possible), vectorised `macro_f1_batch` must equal looping over the legacy `macro_f1`.&#34;&#34;&#34;
+    # stack into (B, n)
+    y_true = np.stack([
+        np.fromiter((p.info[&#34;y_true&#34;] for p in preds), dtype=int) for preds in batch
+    ])
+    y_pred = np.stack([
+        np.fromiter((p.info[&#34;y_pred&#34;] for p in preds), dtype=int) for preds in batch
+    ])
+
+    ours = reporting.macro_f1_batch(y_true, y_pred)  # shape (B,)
+    ref = np.array([
+        reporting.macro_f1(preds, labels=np.unique(y_true).tolist()) for preds in batch
+    ])
+
+    assert np.allclose(ours, ref, rtol=1e-12, atol=1e-12)</code></pre>
+</details>
+<div class="desc"><p>For a true batch (B &gt; 1 possible), vectorised <code>macro_f1_batch</code> must equal looping over the legacy <code>macro_f1</code>.</p></div>
+</dd>
+<dt id="biobench.test_reporting.test_macro_f1_batch_matches_macro_f1_edgecases"><code class="name flex">
+<span>def <span class="ident">test_macro_f1_batch_matches_macro_f1_edgecases</span></span>(<span>batch)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@pytest.mark.parametrize(&#34;batch&#34;, f1_macro_edgecases)
+def test_macro_f1_batch_matches_macro_f1_edgecases(batch):
+    &#34;&#34;&#34;For a true batch (B &gt; 1 possible), vectorised `macro_f1_batch` must equal looping over the legacy `macro_f1`.&#34;&#34;&#34;
+    # stack into (B, n)
+    y_true = np.stack([
+        np.fromiter((p.info[&#34;y_true&#34;] for p in preds), dtype=int) for preds in batch
+    ])
+    y_pred = np.stack([
+        np.fromiter((p.info[&#34;y_pred&#34;] for p in preds), dtype=int) for preds in batch
+    ])
+
+    ours = reporting.macro_f1_batch(y_true, y_pred)  # shape (B,)
+    ref = np.array([
+        reporting.macro_f1(preds, labels=np.unique(y_true).tolist()) for preds in batch
+    ])
+
+    assert np.allclose(ours, ref, rtol=1e-12, atol=1e-12)</code></pre>
+</details>
+<div class="desc"><p>For a true batch (B &gt; 1 possible), vectorised <code>macro_f1_batch</code> must equal looping over the legacy <code>macro_f1</code>.</p></div>
+</dd>
 <dt id="biobench.test_reporting.test_micro_f1_equals_micro_accuracy"><code class="name flex">
 <span>def <span class="ident">test_micro_f1_equals_micro_accuracy</span></span>(<span>) ‑> None</span>
 </code></dt>
@@ -408,6 +506,10 @@ def test_micro_f1_equals_micro_accuracy(preds):
 <li><code><a title="biobench.test_reporting.test_fresh_kept" href="#biobench.test_reporting.test_fresh_kept">test_fresh_kept</a></code></li>
 <li><code><a title="biobench.test_reporting.test_future_schema_extra_column" href="#biobench.test_reporting.test_future_schema_extra_column">test_future_schema_extra_column</a></code></li>
 <li><code><a title="biobench.test_reporting.test_idempotent" href="#biobench.test_reporting.test_idempotent">test_idempotent</a></code></li>
+<li><code><a title="biobench.test_reporting.test_macro_f1_batch_matches_macro_f1_bsz0" href="#biobench.test_reporting.test_macro_f1_batch_matches_macro_f1_bsz0">test_macro_f1_batch_matches_macro_f1_bsz0</a></code></li>
+<li><code><a title="biobench.test_reporting.test_macro_f1_batch_matches_macro_f1_bsz1" href="#biobench.test_reporting.test_macro_f1_batch_matches_macro_f1_bsz1">test_macro_f1_batch_matches_macro_f1_bsz1</a></code></li>
+<li><code><a title="biobench.test_reporting.test_macro_f1_batch_matches_macro_f1_bsz_n" href="#biobench.test_reporting.test_macro_f1_batch_matches_macro_f1_bsz_n">test_macro_f1_batch_matches_macro_f1_bsz_n</a></code></li>
+<li><code><a title="biobench.test_reporting.test_macro_f1_batch_matches_macro_f1_edgecases" href="#biobench.test_reporting.test_macro_f1_batch_matches_macro_f1_edgecases">test_macro_f1_batch_matches_macro_f1_edgecases</a></code></li>
 <li><code><a title="biobench.test_reporting.test_micro_f1_equals_micro_accuracy" href="#biobench.test_reporting.test_micro_f1_equals_micro_accuracy">test_micro_f1_equals_micro_accuracy</a></code></li>
 <li><code><a title="biobench.test_reporting.test_mixed_rows" href="#biobench.test_reporting.test_mixed_rows">test_mixed_rows</a></code></li>
 <li><code><a title="biobench.test_reporting.test_one_winner_many_launchers" href="#biobench.test_reporting.test_one_winner_many_launchers">test_one_winner_many_launchers</a></code></li>

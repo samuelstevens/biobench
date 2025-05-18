@@ -83,14 +83,46 @@ def benchmark(cfg: config.Experiment) -> reporting.Report:
     return reporting.Report("newt", all_preds, cfg)
 
 
-@beartype.beartype
-def score(preds: list[reporting.Prediction]) -> float:
-    return np.mean([p.score for p in preds]).item()
-
-
 @jaxtyped(typechecker=beartype.beartype)
-def score_batch(scores: Int[np.ndarray, "*batch n"]) -> Float[np.ndarray, "*batch"]:
-    return np.mean(scores, axis=-1)
+def bootstrap_scores(
+    df: pl.DataFrame, *, b: int = 0, rng: np.random.Generator | None = None
+) -> dict[str, Float[np.ndarray, " b"]]:
+    assert df.get_column("task_name").unique().to_list() == ["newt"]
+
+    n, *rest = df.group_by("model_ckpt").agg(n=pl.len()).get_column("n").to_list()
+    assert all(n == i for i in rest)
+
+    if b > 0:
+        assert rng is not None, "must provide rng argument"
+        i_bs = rng.integers(0, n, size=(b, n), dtype=np.int32)
+
+    scores = {}
+
+    scores_buf = np.empty((b, n), dtype=np.float32)
+
+    for model_ckpt in df.get_column("model_ckpt").unique().sort().to_list():
+        # pull y_true and y_pred for *one* model
+        scores_ = (
+            df.filter(pl.col("model_ckpt") == model_ckpt)
+            .select("img_id", "score")
+            .unique()
+            .sort("img_id")
+            .get_column("score")
+            .cast(pl.Float32)
+            .to_numpy()
+        )
+
+        if len(scores_) == 0:
+            continue
+
+        if b > 0:
+            # bootstrap resample into pre-allocated buffers
+            np.take(scores_, i_bs, axis=0, out=scores_buf)
+            scores[model_ckpt] = scores_buf.mean(axis=1)
+        else:
+            scores[model_ckpt] = np.array([scores_.mean()])
+
+    return scores
 
 
 @jaxtyped(typechecker=beartype.beartype)

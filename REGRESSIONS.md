@@ -1,17 +1,14 @@
 # Regressions
 
-Last checked: 2025-05-11
+Last checked: 2025-05-13
 
-# 8 failing test(s)
+# 5 failing test(s)
 
 - biobench/jobkit/test_hooks.py::test_multiple_hooks_each_release_their_own_claims
 - biobench/test_auto_batch_size.py::test_schedule_not_materialised
 - biobench/test_openset.py::test_fuzz_no_exceptions
 - biobench/test_openset.py::test_min_mahalanobis_sq_batched_equal
-- biobench/test_openset.py::test_min_mahalanobis_sq_batched_no_error
-- scripts/test_ascii_only.py::test_get_unicode_escape[\xe2\x80\x93-\\u2013]
-- scripts/test_ascii_only.py::test_get_unicode_escape[\xe2\x80\x94-\\u2014]
-- scripts/test_ascii_only.py::test_get_unicode_escape[\xe2\x86\x92-\\u2192]
+- biobench/test_reporting.py::test_reclaim_after_failure
 # Coverage
 
-Coverage: 3058/4971 lines (61.5%)
+Coverage: 3147/5106 lines (61.6%)
