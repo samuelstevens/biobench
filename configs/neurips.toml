@@ -1,5 +1,5 @@
 n_train = -1
-verbose = true
+verbose = false
 report_to = "/local/scratch/$USER/experiments/biobench"
 
 [data]
@@ -15,28 +15,8 @@ plankton = "/research/nfs_su_809/workspace/stevens.994/datasets/plankton"
 plantnet = "/research/nfs_su_809/workspace/stevens.994/datasets/plantnet"
 
 # Prior work
-# imagenet1k = "huggingface"
-# inat21 = "/research/nfs_su_809/workspace/stevens.994/datasets/inat21"
+imagenet1k = "huggingface"
 newt = "/research/nfs_su_809/workspace/stevens.994/datasets/newt"
-
-
-
-#######################################
-# BIOCLIP 2 MODELS; TRY NOT TO COMMIT #
-#######################################
-
-[[models]]
-org = "open-clip"
-ckpt = "local:ViT-L-14/./models/vit-l-14-tol50m-laion2b-replay-ep50.pt"
-
-[[models]]
-org = "open-clip"
-ckpt = "local:ViT-L-14/./models/vit-l-14-tol50m-laion2b-replay-ep50.pt"
-
-########################
-# END BIOCLIP 2 MODELS #
-########################
-
 
 
 [[models]]
@@ -215,19 +195,19 @@ ckpt = "sam2_hiera_tiny.fb_r896_2pt1"
 org = "sam2"
 ckpt = "sam2_hiera_small.fb_r896_2pt1"
 
-# [[models]]
-# org = "sam2"
-# ckpt = "sam2_hiera_base_plus.fb_r896_2pt1"
+[[models]]
+org = "sam2"
+ckpt = "sam2_hiera_base_plus.fb_r896_2pt1"
 
-# [[models]]
-# org = "sam2"
-# ckpt = "sam2_hiera_large.fb_r1024_2pt1"
+[[models]]
+org = "sam2"
+ckpt = "sam2_hiera_large.fb_r1024_2pt1"
 
 [[models]]
 org = "vjepa"
 ckpt = "vitl16"
 
-[[models]]
-org = "vjepa"
-ckpt = "vith16"
+# [[models]]
+# org = "vjepa"
+# ckpt = "vith16"
 
