@@ -6234,7 +6234,7 @@ var $author$project$Leaderboard$init = function (_v0) {
 		$elm$http$Http$get(
 			{
 				aJ: A2($elm$http$Http$expectJson, $elm$core$Basics$identity, $author$project$Leaderboard$payloadDecoder),
-				ba: '/data/results.json'
+				ba: 'data/results.json'
 			}));
 };
 var $elm$core$Platform$Sub$batch = _Platform_batch;
