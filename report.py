@@ -141,11 +141,13 @@ def get_git_hash() -> str:
 
 @beartype.beartype
 def calc_scores(
-    df: pl.DataFrame, *, n_bootstrap: int, alpha: float, seed: int
+    df: pl.DataFrame, *, n_bootstraps: int, alpha: float, seed: int
 ) -> tuple[pl.DataFrame, pl.DataFrame]:
     rng = np.random.default_rng(seed=seed)
     scores_rows, bests_rows = [], []
-    for task in helpers.progress(prior_work_tasks + benchmark_tasks, every=1):
+    for task in helpers.progress(
+        prior_work_tasks + benchmark_tasks, every=1, desc="bootstraps"
+    ):
         try:
             bootstrap_scores = task.bootstrap_scores_fn
         except AttributeError:
@@ -157,7 +159,7 @@ def calc_scores(
             & (pl.col("model_ckpt").is_in(model_lookup))
         )
 
-        scores = bootstrap_scores(sub, b=n_bootstrap, rng=rng)
+        scores = bootstrap_scores(sub, b=n_bootstraps, rng=rng)
         # freeze model order once
         ckpts = sorted(scores)  # list[str]  length = m
 
@@ -181,8 +183,9 @@ def calc_scores(
         # Calculate reference scores, then compute task-level results.
         for model_ckpt, ref_score in bootstrap_scores(sub).items():
             bootstrap_mean = scores[model_ckpt].mean()
-            low = 0.5 - (1 - alpha) / 2
-            high = 0.5 + (1 - alpha) / 2
+            low = 0.5 - (1 - alpha) / 2 * 100
+            high = 0.5 + (1 - alpha) / 2 * 100
+            breakpoint()
             ci_low, ci_high = np.percentile(scores[model_ckpt], (low, high))
 
             scores_rows.append({
@@ -205,8 +208,9 @@ def main(
     out: pathlib.Path = pathlib.Path("docs/data/results.json"),
     seed: int = 17,
     alpha=0.05,
-    n_bootstrap: int = 500,
+    n_bootstraps: int = 500,
 ):
+    # Add a google-style docstring documenting these args and the function. AI!
     stmt = "SELECT experiments.task_name, experiments.model_ckpt, predictions.score, predictions.img_id, predictions.info FROM experiments JOIN predictions ON experiments.id = predictions.experiment_id WHERE n_train = -1"
     df = (
         pl.read_database(stmt, sqlite3.connect(db), infer_schema_length=100_000)
@@ -227,17 +231,23 @@ def main(
     )
 
     scores_df, bests_df = calc_scores(
-        df, n_bootstrap=n_bootstrap, alpha=alpha, seed=seed
+        df, n_bootstraps=n_bootstraps, alpha=alpha, seed=seed
     )
-    breakpoint()
 
     data = {
-        "meta": {"schema": 1, "generated": int(time.time() * 1000), "git_commit": get_git_hash()},
+        "meta": {
+            "schema": 1,
+            "generated": int(time.time() * 1000),
+            "git_commit": get_git_hash(),
+            "seed": seed,
+            "alpha": alpha,
+            "n_bootstraps": n_bootstraps,
+        },
         "models": [model.to_dict() for model in models],
         "benchmark_tasks": [task.to_dict() for task in benchmark_tasks],
         "prior_work_tasks": [task.to_dict() for task in prior_work_tasks],
-        "results": [],
-        "significance": [],
+        "results": scores_df.to_dicts(),
+        "bests": bests_df.to_dicts(),
     }
     out.parent.mkdir(parents=True, exist_ok=True)
     with open(out, "w") as fd:
