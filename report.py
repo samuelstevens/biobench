@@ -185,7 +185,6 @@ def calc_scores(
             bootstrap_mean = scores[model_ckpt].mean()
             low = 0.5 - (1 - alpha) / 2 * 100
             high = 0.5 + (1 - alpha) / 2 * 100
-            breakpoint()
             ci_low, ci_high = np.percentile(scores[model_ckpt], (low, high))
 
             scores_rows.append({
@@ -210,7 +209,19 @@ def main(
     alpha=0.05,
     n_bootstraps: int = 500,
 ):
-    # Add a google-style docstring documenting these args and the function. AI!
+    """Generate a JSON report of benchmark results with bootstrap confidence intervals.
+    
+    This function reads experiment results from a SQLite database, calculates bootstrap
+    statistics for each task/model combination, and writes the results to a JSON file
+    for visualization in the documentation.
+    
+    Args:
+        db: Path to the SQLite database containing experiment results.
+        out: Path where the JSON report will be written.
+        seed: Random seed for reproducible bootstrapping.
+        alpha: Significance level for confidence intervals and hypothesis tests.
+        n_bootstraps: Number of bootstrap samples to generate.
+    """
     stmt = "SELECT experiments.task_name, experiments.model_ckpt, predictions.score, predictions.img_id, predictions.info FROM experiments JOIN predictions ON experiments.id = predictions.experiment_id WHERE n_train = -1"
     df = (
         pl.read_database(stmt, sqlite3.connect(db), infer_schema_length=100_000)
