@@ -6571,7 +6571,7 @@ var $elm$html$Html$tbody = _VirtualDom_node('tbody');
 var $elm$html$Html$th = _VirtualDom_node('th');
 var $elm$html$Html$thead = _VirtualDom_node('thead');
 var $elm$html$Html$tr = _VirtualDom_node('tr');
-var $elm$core$String$fromFloat = _String_fromNumber;
+var $elm$core$Basics$round = _Basics_round;
 var $elm$core$Tuple$second = function (_v0) {
 	var y = _v0.b;
 	return y;
@@ -6606,7 +6606,8 @@ var $author$project$Leaderboard$viewRow = function (row) {
 					_List_fromArray(
 						[
 							$elm$html$Html$text(
-							$elm$core$String$fromFloat(row.J))
+							$elm$core$String$fromInt(
+								$elm$core$Basics$round(100 * row.J)))
 						])),
 					A2(
 					$elm$html$Html$td,
@@ -6617,14 +6618,15 @@ var $author$project$Leaderboard$viewRow = function (row) {
 					_List_fromArray(
 						[
 							$elm$html$Html$text(
-							$elm$core$String$fromFloat(row.K))
+							$elm$core$String$fromInt(
+								$elm$core$Basics$round(100 * row.K)))
 						]))
 				]),
 			A2(
 				$elm$core$List$map,
 				function (pair) {
 					return A2(
-						$elm$html$Html$th,
+						$elm$html$Html$td,
 						_List_fromArray(
 							[
 								$elm$html$Html$Attributes$class('px-2 py-1')
@@ -6632,7 +6634,8 @@ var $author$project$Leaderboard$viewRow = function (row) {
 						_List_fromArray(
 							[
 								$elm$html$Html$text(
-								$elm$core$String$fromFloat(pair.b))
+								$elm$core$String$fromInt(
+									$elm$core$Basics$round(100 * pair.b)))
 							]));
 				},
 				A2(

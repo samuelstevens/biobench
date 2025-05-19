@@ -1,16 +1,17 @@
 docs: fmt
-    yek biobench *.py *.md > docs/llms.txt
-    rm -rf docs/biobench docs/benchmark.html
-    uv run pdoc3 --force --html --output-dir docs --config latex_math=True biobench benchmark report scripts
+    rm -rf docs/api
+    mkdir -p docs/api
+    yek biobench *.py *.md > docs/api/llms.txt
+    uv run pdoc3 --force --html --output-dir docs/api --config latex_math=True biobench benchmark report scripts
 
 leaderboard: fmt
     cp web/index.html docs/index.html
-    cd web && elm make src/Leaderboard.elm --output ../docs/dist/leaderboard.js --optimize
-    cd web && tailwindcss --input main.css --output ../docs/dist/main.css
+    cd web && elm make src/Leaderboard.elm --output ../docs/assets/dist/leaderboard.js --optimize
+    cd web && tailwindcss --input main.css --output ../docs/assets/dist/main.css
 
 test: fmt
     uv run pytest --cov biobench --cov-report term --cov-report json --json-report --json-report-file pytest.json --cov-report html -n 32 biobench || true
-    uv run coverage-badge -o docs/coverage.svg -f
+    uv run coverage-badge -o docs/assets/coverage.svg -f
     uv run scripts/regressions.py
 
 lint: fmt

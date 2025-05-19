@@ -271,15 +271,15 @@ viewRow : Row -> Html.Html Msg
 viewRow row =
     Html.tr [ class "hover:bg-biobench-cream-500" ]
         ([ Html.td [ class "px-2 py-1" ] [ Html.text row.checkpoint.display ]
-         , Html.td [ class "px-2 py-1" ] [ Html.text (String.fromFloat row.imagenet1k) ]
-         , Html.td [ class "px-2 py-1" ] [ Html.text (String.fromFloat row.newt) ]
+         , Html.td [ class "px-2 py-1" ] [ Html.text (row.imagenet1k |> (*) 100 |> round |> String.fromInt) ]
+         , Html.td [ class "px-2 py-1" ] [ Html.text (row.newt |> (*) 100 |> round |> String.fromInt) ]
          ]
             ++ (row.scores
                     |> Dict.toList
                     |> List.sortBy (\pair -> Tuple.first pair)
                     |> List.map
                         (\pair ->
-                            Html.th [ class "px-2 py-1" ] [ Html.text (pair |> Tuple.second |> String.fromFloat) ]
+                            Html.td [ class "px-2 py-1" ] [ Html.text (pair |> Tuple.second |> (*) 100 |> round |> String.fromInt) ]
                         )
                )
         )
