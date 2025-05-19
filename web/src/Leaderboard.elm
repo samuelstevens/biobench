@@ -1,9 +1,11 @@
 module Leaderboard exposing (..)
 
+import Benchmark
 import Browser
 import Dict
 import Html
 import Html.Attributes exposing (class)
+import Html.Events
 import Http
 import Json.Decode as D
 import Set
@@ -21,6 +23,7 @@ main =
 
 type Msg
     = Fetched (Result Http.Error Payload)
+    | Sort SortKey
 
 
 type Requested a e
@@ -31,11 +34,11 @@ type Requested a e
 
 type alias Payload =
     { meta : Metadata
-    , models : List BenchmarkModel
-    , priorTasks : List BenchmarkTask
-    , benchmarkTasks : List BenchmarkTask
-    , results : List BenchmarkResult
-    , bests : List BenchmarkBest
+    , checkpoints : List Benchmark.Checkpoint
+    , priorTasks : List Benchmark.Task
+    , benchmarkTasks : List Benchmark.Task
+    , scores : List Benchmark.Score
+    , bests : List Benchmark.Best
     }
 
 
@@ -49,45 +52,15 @@ type alias Metadata =
     }
 
 
-type alias BenchmarkModel =
-    { checkpoint : String
-    , display : String
-    , family : String
-    }
-
-
-type alias BenchmarkTask =
-    { name : String
-    , display : String
-    }
-
-
-type alias BenchmarkResult =
-    { task : String
-    , model : String
-    , mean : Float
-    , meanBootstrap : Float
-    , low : Float
-    , high : Float
-    }
-
-
-type alias BenchmarkBest =
-    { task : String
-    , best : String
-    , ties : Set.Set String
-    }
-
-
 payloadDecoder : D.Decoder Payload
 payloadDecoder =
     D.map6 Payload
         (D.field "meta" metadataDecoder)
-        (D.field "models" (D.list benchmarkModelDecoder))
-        (D.field "prior_work_tasks" (D.list benchmarkTaskDecoder))
-        (D.field "benchmark_tasks" (D.list benchmarkTaskDecoder))
-        (D.field "results" (D.list benchmarkResultDecoder))
-        (D.field "bests" (D.list benchmarkBestDecoder))
+        (D.field "models" (D.list Benchmark.checkpointDecoder))
+        (D.field "prior_work_tasks" (D.list Benchmark.taskDecoder))
+        (D.field "benchmark_tasks" (D.list Benchmark.taskDecoder))
+        (D.field "results" (D.list Benchmark.scoreDecoder))
+        (D.field "bests" (D.list Benchmark.bestDecoder))
 
 
 metadataDecoder : D.Decoder Metadata
@@ -99,42 +72,6 @@ metadataDecoder =
         (D.field "seed" D.int)
         (D.field "alpha" D.float)
         (D.field "n_bootstraps" D.int)
-
-
-benchmarkResultDecoder : D.Decoder BenchmarkResult
-benchmarkResultDecoder =
-    D.map6 BenchmarkResult
-        (D.field "task" D.string)
-        (D.field "model" D.string)
-        (D.field "mean" D.float)
-        (D.field "bootstrap_mean" D.float)
-        (D.field "ci_low" D.float)
-        (D.field "ci_high" D.float)
-
-
-benchmarkTaskDecoder : D.Decoder BenchmarkTask
-benchmarkTaskDecoder =
-    D.map2 BenchmarkTask
-        (D.field "name" D.string)
-        (D.field "display" D.string)
-
-
-benchmarkModelDecoder : D.Decoder BenchmarkModel
-benchmarkModelDecoder =
-    D.map3 BenchmarkModel
-        (D.field "ckpt" D.string)
-        (D.field "display" D.string)
-        (D.field "family" D.string)
-
-
-benchmarkBestDecoder : D.Decoder BenchmarkBest
-benchmarkBestDecoder =
-    D.map3 BenchmarkBest
-        (D.field "task" D.string)
-        (D.field "best" D.string)
-        (D.field "ties"
-            (D.map Set.fromList (D.list D.string))
-        )
 
 
 explainHttpError : Http.Error -> String
@@ -157,12 +94,40 @@ explainHttpError err =
 
 
 type alias Model =
-    { requestedPayload : Requested Payload String }
+    { requestedPayload : Requested Payload String
+    , sortKey : SortKey
+    , sortOrder : SortOrder
+    }
+
+
+type SortKey
+    = CheckpointDisplay
+    | ImageNet1K
+    | Newt
+    | TaskName String
+
+
+type SortOrder
+    = Increasing
+    | Decreasing
+
+
+opposite : SortOrder -> SortOrder
+opposite o =
+    case o of
+        Increasing ->
+            Decreasing
+
+        Decreasing ->
+            Increasing
 
 
 init : () -> ( Model, Cmd Msg )
 init _ =
-    ( { requestedPayload = Loading }
+    ( { requestedPayload = Loading
+      , sortKey = ImageNet1K
+      , sortOrder = Decreasing
+      }
     , Http.get
         { url = "data/results.json"
         , expect = Http.expectJson Fetched payloadDecoder
@@ -185,6 +150,43 @@ update msg model =
                     , Cmd.none
                     )
 
+        Sort key ->
+            case ( model.sortKey, key ) of
+                ( CheckpointDisplay, CheckpointDisplay ) ->
+                    ( { model
+                        | sortOrder = opposite model.sortOrder
+                      }
+                    , Cmd.none
+                    )
+
+                ( ImageNet1K, ImageNet1K ) ->
+                    ( { model
+                        | sortOrder = opposite model.sortOrder
+                      }
+                    , Cmd.none
+                    )
+
+                ( Newt, Newt ) ->
+                    ( { model
+                        | sortOrder = opposite model.sortOrder
+                      }
+                    , Cmd.none
+                    )
+
+                ( TaskName old, TaskName new ) ->
+                    if old == new then
+                        ( { model
+                            | sortOrder = opposite model.sortOrder
+                          }
+                        , Cmd.none
+                        )
+
+                    else
+                        ( { model | sortKey = key }, Cmd.none )
+
+                ( _, _ ) ->
+                    ( { model | sortKey = key }, Cmd.none )
+
 
 view : Model -> Html.Html Msg
 view model =
@@ -196,11 +198,11 @@ view model =
             Html.div [] [ Html.text ("Failed: " ++ err) ]
 
         Loaded payload ->
-            viewTable payload
+            viewTable payload model.sortKey model.sortOrder
 
 
-viewTable : Payload -> Html.Html Msg
-viewTable payload =
+viewTable : Payload -> SortKey -> SortOrder -> Html.Html Msg
+viewTable payload key order =
     let
         ( header, rows ) =
             pivotPayload payload
@@ -208,61 +210,126 @@ viewTable payload =
     Html.table [ class "w-full text-sm" ]
         [ Html.thead [ class "border-t border-b" ]
             [ Html.tr []
-                (List.map viewTheadText header)
+                ([ Html.th
+                    [ class "text-left font-medium px-2 py-1", Html.Events.onClick (Sort CheckpointDisplay) ]
+                    [ Html.text "Checkpoint" ]
+                 , Html.th
+                    [ class "text-left font-medium px-2 py-1", Html.Events.onClick (Sort ImageNet1K) ]
+                    [ Html.text "ImageNet-1K" ]
+                 , Html.th
+                    [ class "text-left font-medium px-2 py-1", Html.Events.onClick (Sort Newt) ]
+                    [ Html.text "NeWT" ]
+                 ]
+                    ++ List.map
+                        (\task ->
+                            Html.th
+                                [ class "text-left font-medium px-2 py-1", Html.Events.onClick (Sort (TaskName task.name)) ]
+                                [ Html.text task.display ]
+                        )
+                        payload.benchmarkTasks
+                )
             ]
-        , Html.tbody [ class "border-b" ]
-            (List.map viewRow rows)
+        , Html.tbody
+            [ class "border-b" ]
+            (rows |> sortRows key order |> List.map viewRow)
         ]
 
 
-viewTheadText : String -> Html.Html msg
-viewTheadText s =
-    Html.th [ class "text-left font-medium px-2 py-1" ] [ Html.text s ]
+sortRows : SortKey -> SortOrder -> List Row -> List Row
+sortRows key order rows =
+    let
+        ordered =
+            case key of
+                CheckpointDisplay ->
+                    List.sortBy (.checkpoint >> .display) rows
+
+                ImageNet1K ->
+                    List.sortBy .imagenet1k rows
+
+                Newt ->
+                    List.sortBy .newt rows
+
+                TaskName t ->
+                    List.sortBy (.scores >> Dict.get t >> Maybe.withDefault (-1 / 0)) rows
+    in
+    case order of
+        Increasing ->
+            ordered
+
+        Decreasing ->
+            List.reverse ordered
 
 
-viewRow : List String -> Html.Html Msg
+type alias Row =
+    { checkpoint : Benchmark.Checkpoint
+    , imagenet1k : Float
+    , newt : Float
+    , scores : Dict.Dict String Float
+    }
+
+
+viewTh : String -> Html.Html Msg
+viewTh s =
+    Html.th [ class "text-left font-medium px-2 py-1", Html.Events.onClick (Sort CheckpointDisplay) ] [ Html.text s ]
+
+
+viewRow : Row -> Html.Html Msg
 viewRow row =
     Html.tr [ class "hover:bg-biobench-cream-500" ]
-        (List.map (\txt -> Html.td [ class "px-2 py-1" ] [ Html.text txt ]) row)
+        ([ Html.td [ class "px-2 py-1" ] [ Html.text row.checkpoint.display ]
+         , Html.td [ class "px-2 py-1" ] [ Html.text (String.fromFloat row.imagenet1k) ]
+         , Html.td [ class "px-2 py-1" ] [ Html.text (String.fromFloat row.newt) ]
+         ]
+            ++ (row.scores
+                    |> Dict.toList
+                    |> List.sortBy (\pair -> Tuple.first pair)
+                    |> List.map
+                        (\pair ->
+                            Html.th [ class "px-2 py-1" ] [ Html.text (pair |> Tuple.second |> String.fromFloat) ]
+                        )
+               )
+        )
 
 
-pivotPayload : Payload -> ( List String, List (List String) )
+
+-- (List.map (\txt -> Html.td [ class "px-2 py-1" ] [ Html.text txt ]) row)
+
+
+pivotPayload : Payload -> ( List String, List Row )
 pivotPayload payload =
     ( [ "Model", "ImageNet-1K", "NeWT" ]
         ++ (List.map .display payload.benchmarkTasks |> List.sort)
-    , List.map (pivotModelRow payload) payload.models
+    , List.map (pivotModelRow payload) payload.checkpoints
     )
 
 
-pivotModelRow : Payload -> BenchmarkModel -> List String
-pivotModelRow payload model =
+pivotModelRow : Payload -> Benchmark.Checkpoint -> Row
+pivotModelRow payload checkpoint =
     let
         imagenet1k =
-            findResult payload.results model.checkpoint "imagenet1k"
-                |> Maybe.withDefault "-"
+            findResult payload.scores checkpoint "imagenet1k"
+                |> Maybe.withDefault (-1 / 0)
 
         newt =
-            findResult payload.results model.checkpoint "newt"
-                |> Maybe.withDefault "-"
+            findResult payload.scores checkpoint "newt"
+                |> Maybe.withDefault (-1 / 0)
 
         others =
             payload.benchmarkTasks
                 |> List.map .name
-                |> List.map (findResult payload.results model.checkpoint)
-                |> List.map (Maybe.withDefault "-")
+                |> List.map (findResult payload.scores checkpoint)
+                |> List.map (Maybe.withDefault (-1 / 0))
     in
-    [ model.display, imagenet1k, newt ] ++ others
+    { checkpoint = checkpoint
+    , imagenet1k = imagenet1k
+    , newt = newt
+    , scores = Dict.empty
+    }
 
 
-findResult : List BenchmarkResult -> String -> String -> Maybe String
-findResult results model task =
-    results
-        |> List.filter (\result -> result.task == task && result.model == model)
+findResult : List Benchmark.Score -> Benchmark.Checkpoint -> String -> Maybe Float
+findResult scores checkpoint task =
+    scores
+        |> List.filter (\result -> result.task == task && result.checkpoint == checkpoint.checkpoint)
         |> List.map .mean
-        |> List.map toPercent
         |> List.head
-
-
-toPercent : Float -> String
-toPercent f =
-    String.fromFloat (toFloat (round (f * 1000)) / 10)
