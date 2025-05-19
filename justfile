@@ -6,7 +6,7 @@ docs: fmt
 leaderboard: fmt
     cp web/index.html docs/index.html
     cd web && elm make src/Leaderboard.elm --output ../docs/dist/leaderboard.js --optimize
-    cd web && tailwindcss --input main.css --output ../docs/dist/main.css --minify
+    cd web && tailwindcss --input main.css --output ../docs/dist/main.css
 
 test: fmt
     uv run pytest --cov biobench --cov-report term --cov-report json --json-report --json-report-file pytest.json --cov-report html -n 32 biobench || true

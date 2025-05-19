@@ -1,6 +1,7 @@
 module Leaderboard exposing (..)
 
 import Browser
+import Dict
 import Html
 import Html.Attributes exposing (class)
 import Http
@@ -200,32 +201,68 @@ view model =
 
 viewTable : Payload -> Html.Html Msg
 viewTable payload =
+    let
+        ( header, rows ) =
+            pivotPayload payload
+    in
     Html.table [ class "w-full text-sm" ]
-        [ Html.thead []
-            [ Html.tr [ class "bg-biobench-blue-500 text-white" ]
-                (List.map viewTheadText [ "Task", "Model", "Mean", "CI Low", "CI High" ])
+        [ Html.thead [ class "border-t border-b" ]
+            [ Html.tr []
+                (List.map viewTheadText header)
             ]
-        , Html.tbody []
-            (List.map viewRow payload.results)
+        , Html.tbody [ class "border-b" ]
+            (List.map viewRow rows)
         ]
 
 
 viewTheadText : String -> Html.Html msg
 viewTheadText s =
-    Html.th [ class "text-left font-medium px-2 py-1 border-b" ] [ Html.text s ]
+    Html.th [ class "text-left font-medium px-2 py-1" ] [ Html.text s ]
 
 
-viewRow : BenchmarkResult -> Html.Html Msg
-viewRow r =
-    Html.tr [ class "hover:bg-biobench-sea-500" ]
-        [ Html.td [ class "px-2 py-1" ] [ Html.text r.task ]
-        , Html.td [ class "px-2 py-1" ] [ Html.text r.model ]
-        , Html.td [ class "px-2 py-1 tabular-nums" ] [ Html.text (roundF r.mean) ]
-        , Html.td [ class "px-2 py-1 tabular-nums" ] [ Html.text (roundF r.low) ]
-        , Html.td [ class "px-2 py-1 tabular-nums" ] [ Html.text (roundF r.high) ]
-        ]
+viewRow : List String -> Html.Html Msg
+viewRow row =
+    Html.tr [ class "hover:bg-biobench-cream-500" ]
+        (List.map (\txt -> Html.td [ class "px-2 py-1" ] [ Html.text txt ]) row)
 
 
-roundF : Float -> String
-roundF f =
-    String.fromFloat (toFloat (round (f * 1000)) / 1000)
+pivotPayload : Payload -> ( List String, List (List String) )
+pivotPayload payload =
+    ( [ "Model", "ImageNet-1K", "NeWT" ]
+        ++ (List.map .display payload.benchmarkTasks |> List.sort)
+    , List.map (pivotModelRow payload) payload.models
+    )
+
+
+pivotModelRow : Payload -> BenchmarkModel -> List String
+pivotModelRow payload model =
+    let
+        imagenet1k =
+            findResult payload.results model.checkpoint "imagenet1k"
+                |> Maybe.withDefault "-"
+
+        newt =
+            findResult payload.results model.checkpoint "newt"
+                |> Maybe.withDefault "-"
+
+        others =
+            payload.benchmarkTasks
+                |> List.map .name
+                |> List.map (findResult payload.results model.checkpoint)
+                |> List.map (Maybe.withDefault "-")
+    in
+    [ model.display, imagenet1k, newt ] ++ others
+
+
+findResult : List BenchmarkResult -> String -> String -> Maybe String
+findResult results model task =
+    results
+        |> List.filter (\result -> result.task == task && result.model == model)
+        |> List.map .mean
+        |> List.map toPercent
+        |> List.head
+
+
+toPercent : Float -> String
+toPercent f =
+    String.fromFloat (toFloat (round (f * 1000)) / 10)
