@@ -268,9 +268,6 @@ type alias Row =
     }
 
 
-viewTh : String -> Html.Html Msg
-viewTh s =
-    Html.th [ class "text-left font-medium px-2 py-1", Html.Events.onClick (Sort CheckpointDisplay) ] [ Html.text s ]
 
 
 viewRow : Row -> Html.Html Msg
