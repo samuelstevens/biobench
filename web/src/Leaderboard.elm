@@ -8,7 +8,6 @@ import Html.Attributes exposing (class)
 import Html.Events
 import Http
 import Json.Decode as D
-import Set
 import Time
 
 
