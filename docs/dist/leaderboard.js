@@ -6447,9 +6447,25 @@ var $author$project$Leaderboard$findResult = F3(
 					},
 					scores)));
 	});
+var $elm$core$Dict$fromList = function (assocs) {
+	return A3(
+		$elm$core$List$foldl,
+		F2(
+			function (_v0, dict) {
+				var key = _v0.a;
+				var value = _v0.b;
+				return A3($elm$core$Dict$insert, key, value, dict);
+			}),
+		$elm$core$Dict$empty,
+		assocs);
+};
 var $elm$core$Basics$negate = function (n) {
 	return -n;
 };
+var $elm$core$Tuple$pair = F2(
+	function (a, b) {
+		return _Utils_Tuple2(a, b);
+	});
 var $elm$core$Maybe$withDefault = F2(
 	function (_default, maybe) {
 		if (!maybe.$) {
@@ -6477,33 +6493,27 @@ var $author$project$Leaderboard$pivotModelRow = F2(
 			$elm$core$Maybe$withDefault,
 			(-1) / 0,
 			A3($author$project$Leaderboard$findResult, payload.r, checkpoint, 'newt'));
+		var names = A2(
+			$elm$core$List$map,
+			function ($) {
+				return $.aZ;
+			},
+			payload.I);
+		var scoreDict = $elm$core$Dict$fromList(
+			A3($elm$core$List$map2, $elm$core$Tuple$pair, names, others));
 		var imagenet1k = A2(
 			$elm$core$Maybe$withDefault,
 			(-1) / 0,
 			A3($author$project$Leaderboard$findResult, payload.r, checkpoint, 'imagenet1k'));
-		return {T: checkpoint, J: imagenet1k, K: newt, r: $elm$core$Dict$empty};
+		return {T: checkpoint, J: imagenet1k, K: newt, r: scoreDict};
 	});
-var $elm$core$List$sortBy = _List_sortBy;
-var $elm$core$List$sort = function (xs) {
-	return A2($elm$core$List$sortBy, $elm$core$Basics$identity, xs);
-};
 var $author$project$Leaderboard$pivotPayload = function (payload) {
-	return _Utils_Tuple2(
-		_Utils_ap(
-			_List_fromArray(
-				['Model', 'ImageNet-1K', 'NeWT']),
-			$elm$core$List$sort(
-				A2(
-					$elm$core$List$map,
-					function ($) {
-						return $.W;
-					},
-					payload.I))),
-		A2(
-			$elm$core$List$map,
-			$author$project$Leaderboard$pivotModelRow(payload),
-			payload.U));
+	return A2(
+		$elm$core$List$map,
+		$author$project$Leaderboard$pivotModelRow(payload),
+		payload.U);
 };
+var $elm$core$List$sortBy = _List_sortBy;
 var $author$project$Leaderboard$sortRows = F3(
 	function (key, order, rows) {
 		var ordered = function () {
@@ -6634,9 +6644,7 @@ var $author$project$Leaderboard$viewRow = function (row) {
 };
 var $author$project$Leaderboard$viewTable = F3(
 	function (payload, key, order) {
-		var _v0 = $author$project$Leaderboard$pivotPayload(payload);
-		var header = _v0.a;
-		var rows = _v0.b;
+		var rows = $author$project$Leaderboard$pivotPayload(payload);
 		return A2(
 			$elm$html$Html$table,
 			_List_fromArray(

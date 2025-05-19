@@ -204,7 +204,7 @@ view model =
 viewTable : Payload -> SortKey -> SortOrder -> Html.Html Msg
 viewTable payload key order =
     let
-        ( header, rows ) =
+        rows =
             pivotPayload payload
     in
     Html.table [ class "w-full text-sm" ]
@@ -268,8 +268,6 @@ type alias Row =
     }
 
 
-
-
 viewRow : Row -> Html.Html Msg
 viewRow row =
     Html.tr [ class "hover:bg-biobench-cream-500" ]
@@ -292,12 +290,9 @@ viewRow row =
 -- (List.map (\txt -> Html.td [ class "px-2 py-1" ] [ Html.text txt ]) row)
 
 
-pivotPayload : Payload -> ( List String, List Row )
+pivotPayload : Payload -> List Row
 pivotPayload payload =
-    ( [ "Model", "ImageNet-1K", "NeWT" ]
-        ++ (List.map .display payload.benchmarkTasks |> List.sort)
-    , List.map (pivotModelRow payload) payload.checkpoints
-    )
+    List.map (pivotModelRow payload) payload.checkpoints
 
 
 pivotModelRow : Payload -> Benchmark.Checkpoint -> Row
