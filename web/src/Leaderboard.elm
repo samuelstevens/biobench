@@ -316,11 +316,19 @@ pivotModelRow payload checkpoint =
                 |> List.map .name
                 |> List.map (findResult payload.scores checkpoint)
                 |> List.map (Maybe.withDefault (-1 / 0))
+
+        names =
+            payload.benchmarkTasks
+                |> List.map .name
+
+        scoreDict =
+            List.map2 Tuple.pair names others
+                |> Dict.fromList
     in
     { checkpoint = checkpoint
     , imagenet1k = imagenet1k
     , newt = newt
-    , scores = Dict.empty
+    , scores = scoreDict
     }
 
 
