@@ -9,6 +9,7 @@ import Html.Events
 import Http
 import Json.Decode as D
 import Round
+import Set
 import Time
 
 
@@ -102,8 +103,6 @@ type alias Model =
 
 type SortKey
     = CheckpointDisplay
-    | ImageNet1K
-    | Newt
     | TaskName String
 
 
@@ -124,16 +123,15 @@ opposite o =
 
 type alias Row =
     { checkpoint : Benchmark.Checkpoint
-    , imagenet1k : Float
-    , newt : Float
     , scores : Dict.Dict String Float
+    , best : Set.Set String
     }
 
 
 init : () -> ( Model, Cmd Msg )
 init _ =
     ( { requestedPayload = Loading
-      , sortKey = ImageNet1K
+      , sortKey = TaskName "beluga"
       , sortOrder = Decreasing
       }
     , Http.get
@@ -161,20 +159,6 @@ update msg model =
         Sort key ->
             case ( model.sortKey, key ) of
                 ( CheckpointDisplay, CheckpointDisplay ) ->
-                    ( { model
-                        | sortOrder = opposite model.sortOrder
-                      }
-                    , Cmd.none
-                    )
-
-                ( ImageNet1K, ImageNet1K ) ->
-                    ( { model
-                        | sortOrder = opposite model.sortOrder
-                      }
-                    , Cmd.none
-                    )
-
-                ( Newt, Newt ) ->
                     ( { model
                         | sortOrder = opposite model.sortOrder
                       }
@@ -215,31 +199,21 @@ viewTable payload key order =
         rows =
             pivotPayload payload
     in
-    Html.table [ class "w-full text-sm" ]
+    Html.table [ class "" ]
         [ Html.thead [ class "border-t border-b" ]
             [ Html.tr []
                 ([ Html.th
                     [ class "text-left font-medium", Html.Events.onClick (Sort CheckpointDisplay) ]
                     [ Html.text "Checkpoint" ]
-                 , Html.th
-                    [ class "text-right font-medium", Html.Events.onClick (Sort ImageNet1K) ]
-                    [ Html.text "ImageNet-1K" ]
-                 , Html.th
-                    [ class "text-right font-medium", Html.Events.onClick (Sort Newt) ]
-                    [ Html.text "NeWT" ]
                  ]
                     ++ List.map
-                        (\task ->
-                            Html.th
-                                [ class "text-right font-medium ", Html.Events.onClick (Sort (TaskName task.name)) ]
-                                [ Html.text task.display ]
-                        )
+                        (viewTaskHeader key order)
                         payload.benchmarkTasks
                 )
             ]
         , Html.tbody
             [ class "border-b" ]
-            (rows |> sortRows key order |> List.map viewRow)
+            (rows |> sortRows key order |> List.map (viewRow key))
         ]
 
 
@@ -250,12 +224,6 @@ sortRows key order rows =
             case key of
                 CheckpointDisplay ->
                     List.sortBy (.checkpoint >> .display) rows
-
-                ImageNet1K ->
-                    List.sortBy .imagenet1k rows
-
-                Newt ->
-                    List.sortBy .newt rows
 
                 TaskName t ->
                     List.sortBy (.scores >> Dict.get t >> Maybe.withDefault (-1 / 0)) rows
@@ -268,30 +236,80 @@ sortRows key order rows =
             List.reverse ordered
 
 
-viewRow : String -> Row -> Html.Html Msg
-viewRow bolded row =
+viewTaskHeader : SortKey -> SortOrder -> Benchmark.Task -> Html.Html Msg
+viewTaskHeader key order task =
     let
-        benchmarkScores =
+        suffix =
+            case ( key, order ) of
+                ( CheckpointDisplay, _ ) ->
+                    ""
+
+                ( TaskName name, Increasing ) ->
+                    if name == task.name then
+                        downArrow
+
+                    else
+                        ""
+
+                ( TaskName name, Decreasing ) ->
+                    if name == task.name then
+                        upArrow
+
+                    else
+                        ""
+    in
+    Html.th
+        [ class "text-right pl-2", Html.Events.onClick (Sort <| TaskName task.name) ]
+        [ Html.text (task.display ++ suffix) ]
+
+
+viewRow : SortKey -> Row -> Html.Html Msg
+viewRow highlight row =
+    let
+        scores =
             row.scores
                 |> Dict.toList
                 |> List.sortBy (\pair -> Tuple.first pair)
-                |> List.map Tuple.second
 
-        scores =
-            [ row.imagenet1k, row.newt ] ++ benchmarkScores
+        bests =
+            scores
+                |> List.map Tuple.first
+                |> List.map (\t -> Set.member t row.best)
     in
     Html.tr
         [ class "hover:bg-biobench-cream-500" ]
         (Html.td
             [ class "text-left" ]
             [ Html.text row.checkpoint.display ]
-            :: List.map viewScoreCell scores
+            :: List.map2 (viewScoreCell highlight) bests scores
         )
 
 
-viewScoreCell : Float -> Html.Html Msg
-viewScoreCell score =
-    Html.td [ class "text-right font-mono" ] [ Html.text (viewScore score) ]
+viewScoreCell : SortKey -> Bool -> ( String, Float ) -> Html.Html Msg
+viewScoreCell key best ( task, score ) =
+    let
+        highlight =
+            case key of
+                TaskName name ->
+                    if name == task then
+                        " italic"
+
+                    else
+                        ""
+
+                _ ->
+                    ""
+
+        bold =
+            if best then
+                " font-bold"
+
+            else
+                ""
+    in
+    Html.td
+        [ class ("text-right font-mono" ++ highlight ++ bold) ]
+        [ Html.text (viewScore score) ]
 
 
 viewScore : Float -> String
@@ -311,15 +329,7 @@ pivotPayload payload =
 pivotModelRow : Payload -> Benchmark.Checkpoint -> Row
 pivotModelRow payload checkpoint =
     let
-        imagenet1k =
-            findResult payload.scores checkpoint "imagenet1k"
-                |> Maybe.withDefault (-1 / 0)
-
-        newt =
-            findResult payload.scores checkpoint "newt"
-                |> Maybe.withDefault (-1 / 0)
-
-        others =
+        scores =
             payload.benchmarkTasks
                 |> List.map .name
                 |> List.map (findResult payload.scores checkpoint)
@@ -330,14 +340,24 @@ pivotModelRow payload checkpoint =
                 |> List.map .name
 
         scoreDict =
-            List.map2 Tuple.pair names others
+            List.map2 Tuple.pair names scores
                 |> Dict.fromList
+
+        bests =
+            payload.bests
+                |> List.filter (.ties >> Set.member checkpoint.checkpoint)
+                |> List.map .task
+                |> Set.fromList
     in
     { checkpoint = checkpoint
-    , imagenet1k = imagenet1k
-    , newt = newt
     , scores = scoreDict
+    , best = bests
     }
+
+
+
+-- belongs : SortKey -> String -> Bool
+-- belongs
 
 
 findResult : List Benchmark.Score -> Benchmark.Checkpoint -> String -> Maybe Float
@@ -346,3 +366,13 @@ findResult scores checkpoint task =
         |> List.filter (\result -> result.task == task && result.checkpoint == checkpoint.checkpoint)
         |> List.map .mean
         |> List.head
+
+
+downArrow : String
+downArrow =
+    String.fromChar (Char.fromCode 9650)
+
+
+upArrow : String
+upArrow =
+    String.fromChar (Char.fromCode 9660)

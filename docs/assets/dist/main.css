@@ -17,6 +17,7 @@
     --text-3xl--line-height: calc(2.25 / 1.875);
     --font-weight-medium: 500;
     --font-weight-semibold: 600;
+    --font-weight-bold: 700;
     --default-font-family: var(--font-sans);
     --default-mono-font-family: var(--font-mono);
     --color-biobench-cream-500: #e9d8a6;
@@ -180,9 +181,6 @@
   .table {
     display: table;
   }
-  .w-full {
-    width: 100%;
-  }
   .max-w-prose {
     max-width: 65ch;
   }
@@ -213,6 +211,9 @@
   .p-4 {
     padding: calc(var(--spacing) * 4);
   }
+  .pl-2 {
+    padding-left: calc(var(--spacing) * 2);
+  }
   .text-left {
     text-align: left;
   }
@@ -230,6 +231,10 @@
     font-size: var(--text-sm);
     line-height: var(--tw-leading, var(--text-sm--line-height));
   }
+  .font-bold {
+    --tw-font-weight: var(--font-weight-bold);
+    font-weight: var(--font-weight-bold);
+  }
   .font-medium {
     --tw-font-weight: var(--font-weight-medium);
     font-weight: var(--font-weight-medium);
@@ -244,6 +249,9 @@
   .text-gray-600 {
     color: var(--color-gray-600);
   }
+  .italic {
+    font-style: italic;
+  }
   .underline {
     text-decoration-line: underline;
   }
@@ -257,6 +265,11 @@
       }
     }
   }
+}
+* {
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 @property --tw-space-y-reverse {
   syntax: "*";

@@ -12,3 +12,9 @@
   --color-biobench-scarlet-500: #ae2012;
   --color-biobench-red-500: #9b2226;
 }
+
+* {
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
