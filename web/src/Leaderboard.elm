@@ -8,6 +8,7 @@ import Html.Attributes exposing (class)
 import Html.Events
 import Http
 import Json.Decode as D
+import Round
 import Time
 
 
@@ -121,6 +122,14 @@ opposite o =
             Increasing
 
 
+type alias Row =
+    { checkpoint : Benchmark.Checkpoint
+    , imagenet1k : Float
+    , newt : Float
+    , scores : Dict.Dict String Float
+    }
+
+
 init : () -> ( Model, Cmd Msg )
 init _ =
     ( { requestedPayload = Loading
@@ -210,19 +219,19 @@ viewTable payload key order =
         [ Html.thead [ class "border-t border-b" ]
             [ Html.tr []
                 ([ Html.th
-                    [ class "text-left font-medium px-2 py-1", Html.Events.onClick (Sort CheckpointDisplay) ]
+                    [ class "text-left font-medium", Html.Events.onClick (Sort CheckpointDisplay) ]
                     [ Html.text "Checkpoint" ]
                  , Html.th
-                    [ class "text-left font-medium px-2 py-1", Html.Events.onClick (Sort ImageNet1K) ]
+                    [ class "text-right font-medium", Html.Events.onClick (Sort ImageNet1K) ]
                     [ Html.text "ImageNet-1K" ]
                  , Html.th
-                    [ class "text-left font-medium px-2 py-1", Html.Events.onClick (Sort Newt) ]
+                    [ class "text-right font-medium", Html.Events.onClick (Sort Newt) ]
                     [ Html.text "NeWT" ]
                  ]
                     ++ List.map
                         (\task ->
                             Html.th
-                                [ class "text-left font-medium px-2 py-1", Html.Events.onClick (Sort (TaskName task.name)) ]
+                                [ class "text-right font-medium ", Html.Events.onClick (Sort (TaskName task.name)) ]
                                 [ Html.text task.display ]
                         )
                         payload.benchmarkTasks
@@ -259,34 +268,39 @@ sortRows key order rows =
             List.reverse ordered
 
 
-type alias Row =
-    { checkpoint : Benchmark.Checkpoint
-    , imagenet1k : Float
-    , newt : Float
-    , scores : Dict.Dict String Float
-    }
+viewRow : String -> Row -> Html.Html Msg
+viewRow bolded row =
+    let
+        benchmarkScores =
+            row.scores
+                |> Dict.toList
+                |> List.sortBy (\pair -> Tuple.first pair)
+                |> List.map Tuple.second
 
-
-viewRow : Row -> Html.Html Msg
-viewRow row =
-    Html.tr [ class "hover:bg-biobench-cream-500" ]
-        ([ Html.td [ class "px-2 py-1" ] [ Html.text row.checkpoint.display ]
-         , Html.td [ class "px-2 py-1" ] [ Html.text (row.imagenet1k |> (*) 100 |> round |> String.fromInt) ]
-         , Html.td [ class "px-2 py-1" ] [ Html.text (row.newt |> (*) 100 |> round |> String.fromInt) ]
-         ]
-            ++ (row.scores
-                    |> Dict.toList
-                    |> List.sortBy (\pair -> Tuple.first pair)
-                    |> List.map
-                        (\pair ->
-                            Html.td [ class "px-2 py-1" ] [ Html.text (pair |> Tuple.second |> (*) 100 |> round |> String.fromInt) ]
-                        )
-               )
+        scores =
+            [ row.imagenet1k, row.newt ] ++ benchmarkScores
+    in
+    Html.tr
+        [ class "hover:bg-biobench-cream-500" ]
+        (Html.td
+            [ class "text-left" ]
+            [ Html.text row.checkpoint.display ]
+            :: List.map viewScoreCell scores
         )
 
 
+viewScoreCell : Float -> Html.Html Msg
+viewScoreCell score =
+    Html.td [ class "text-right font-mono" ] [ Html.text (viewScore score) ]
 
--- (List.map (\txt -> Html.td [ class "px-2 py-1" ] [ Html.text txt ]) row)
+
+viewScore : Float -> String
+viewScore score =
+    if score < 0 then
+        "-"
+
+    else
+        score * 100 |> Round.round 1
 
 
 pivotPayload : Payload -> List Row
