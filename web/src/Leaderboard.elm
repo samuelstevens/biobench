@@ -1,6 +1,5 @@
 module Leaderboard exposing (..)
 
-import Benchmark
 import Browser
 import Dict
 import Html
@@ -23,8 +22,8 @@ main =
 
 
 type Msg
-    = Fetched (Result Http.Error Payload)
-    | Sort SortKey
+    = Fetched (Result Http.Error Table)
+    | Sort String
 
 
 type Requested a e
@@ -33,13 +32,26 @@ type Requested a e
     | Failed e
 
 
-type alias Payload =
-    { meta : Metadata
-    , checkpoints : List Benchmark.Checkpoint
-    , priorTasks : List Benchmark.Task
-    , benchmarkTasks : List Benchmark.Task
-    , scores : List Benchmark.Score
-    , bests : List Benchmark.Best
+type alias Table =
+    { cols : List Column
+    , rows : List Row
+    , metadata : Metadata
+    }
+
+
+type alias Column =
+    { name : String
+    , display : String
+    }
+
+
+type alias Row =
+    { checkpoint : Checkpoint
+    , imagenet1k : Float
+    , newt : Float
+    , mean : Float
+    , scores : Dict.Dict String Float
+    , sota : Set.Set String
     }
 
 
@@ -53,15 +65,246 @@ type alias Metadata =
     }
 
 
+type alias Model =
+    { requestedTable : Requested Table String
+    , sortKey : String
+    , sortDecreasing : Bool
+    }
+
+
+init : () -> ( Model, Cmd Msg )
+init _ =
+    ( { requestedTable = Loading
+      , sortKey = "mean"
+      , sortDecreasing = True
+      }
+    , Http.get
+        { url = "data/results.json"
+        , expect = Http.expectJson Fetched tableDecoder
+        }
+    )
+
+
+update : Msg -> Model -> ( Model, Cmd Msg )
+update msg model =
+    case msg of
+        Fetched result ->
+            case result of
+                Ok table ->
+                    ( { model | requestedTable = Loaded table }, Cmd.none )
+
+                Err err ->
+                    ( { model
+                        | requestedTable = Failed (explainHttpError err)
+                      }
+                    , Cmd.none
+                    )
+
+        Sort key ->
+            if model.sortKey == key then
+                ( { model
+                    | sortDecreasing = not model.sortDecreasing
+                  }
+                , Cmd.none
+                )
+
+            else
+                ( { model | sortKey = key }, Cmd.none )
+
+
+view : Model -> Html.Html Msg
+view model =
+    case model.requestedTable of
+        Loading ->
+            Html.div [] [ Html.text "Loading..." ]
+
+        Failed err ->
+            Html.div [] [ Html.text ("Failed: " ++ err) ]
+
+        Loaded table ->
+            viewTable table model.sortKey model.sortDecreasing
+
+
+viewTable : Table -> String -> Bool -> Html.Html Msg
+viewTable table key decreasing =
+    Html.table
+        [ class "" ]
+        [ Html.thead
+            [ class "border-t border-b" ]
+            [ Html.tr
+                []
+                (List.map (viewHeaderCell key decreasing) table.cols)
+            ]
+        , Html.tbody
+            [ class "border-b" ]
+            (table.rows
+                |> orderedBy key decreasing
+                |> List.map (viewTableRow key)
+            )
+        ]
+
+
+orderedBy : String -> Bool -> List Row -> List Row
+orderedBy key decreasing rows =
+    let
+        ordered =
+            case key of
+                "checkpoint" ->
+                    List.sortBy (.checkpoint >> .display) rows
+
+                "params" ->
+                    List.sortBy (.checkpoint >> .params) rows
+
+                "release" ->
+                    List.sortBy (.checkpoint >> .release >> Time.posixToMillis) rows
+
+                "imagenet1k" ->
+                    List.sortBy .imagenet1k rows
+
+                "newt" ->
+                    List.sortBy .newt rows
+
+                "mean" ->
+                    List.sortBy .mean rows
+
+                name ->
+                    List.sortBy (.scores >> Dict.get name >> Maybe.withDefault (-1 / 0)) rows
+    in
+    if decreasing then
+        List.reverse ordered
+
+    else
+        ordered
+
+
+viewHeaderCell : String -> Bool -> Column -> Html.Html Msg
+viewHeaderCell key decreasing col =
+    let
+        suffix =
+            if key == col.name then
+                if decreasing then
+                    upArrow
+
+                else
+                    downArrow
+
+            else
+                ""
+    in
+    Html.th
+        [ class "text-right pl-2", Html.Events.onClick (Sort col.name) ]
+        [ Html.text (col.display ++ suffix) ]
+
+
+viewTableRow : String -> Row -> Html.Html Msg
+viewTableRow key row =
+    let
+        scores =
+            row.scores
+                |> Dict.toList
+                |> List.sortBy (\pair -> Tuple.first pair)
+
+        bests =
+            scores
+                |> List.map Tuple.first
+                |> List.map (\t -> Set.member t row.sota)
+
+        benchmarkCells =
+            List.map2 (viewScoreCell key) bests scores
+    in
+    Html.tr
+        [ class "hover:bg-biobench-cream-500" ]
+        ([ Html.td
+            [ class "text-left" ]
+            [ Html.text row.checkpoint.display ]
+
+         -- , Html.td
+         --    [ class "text-right" ]
+         --    [ Html.text (String.fromInt row.checkpoint.params) ]
+         -- , Html.td
+         --    [ class "text-right" ]
+         --    [ Html.text "TODO" ]
+         , viewScoreCell key (Set.member "imagenet1k" row.sota) ( "imagenet1k", row.imagenet1k )
+         , viewScoreCell key (Set.member "newt" row.sota) ( "newt", row.newt )
+         , viewScoreCell key (Set.member "mean" row.sota) ( "mean", row.mean )
+         ]
+            ++ benchmarkCells
+        )
+
+
+viewScoreCell : String -> Bool -> ( String, Float ) -> Html.Html Msg
+viewScoreCell key best ( task, score ) =
+    let
+        highlight =
+            if key == task then
+                " italic"
+
+            else
+                ""
+
+        bold =
+            if best then
+                " font-bold"
+
+            else
+                ""
+    in
+    Html.td
+        [ class ("text-right font-mono" ++ highlight ++ bold) ]
+        [ Html.text (viewScore score) ]
+
+
+viewScore : Float -> String
+viewScore score =
+    if score < 0 then
+        "-"
+
+    else
+        score * 100 |> Round.round 1
+
+
+
+-- CONSTANTS
+
+
+downArrow : String
+downArrow =
+    String.fromChar (Char.fromCode 9650)
+
+
+upArrow : String
+upArrow =
+    String.fromChar (Char.fromCode 9660)
+
+
+
+-- HTTP API
+
+
+tableDecoder : D.Decoder Table
+tableDecoder =
+    D.map pivotPayload payloadDecoder
+
+
+type alias Payload =
+    { metadata : Metadata
+    , checkpoints : List Checkpoint
+    , priorTasks : List Task
+    , benchmarkTasks : List Task
+    , scores : List Score
+    , bests : List Best
+    }
+
+
 payloadDecoder : D.Decoder Payload
 payloadDecoder =
     D.map6 Payload
         (D.field "meta" metadataDecoder)
-        (D.field "models" (D.list Benchmark.checkpointDecoder))
-        (D.field "prior_work_tasks" (D.list Benchmark.taskDecoder))
-        (D.field "benchmark_tasks" (D.list Benchmark.taskDecoder))
-        (D.field "results" (D.list Benchmark.scoreDecoder))
-        (D.field "bests" (D.list Benchmark.bestDecoder))
+        (D.field "models" (D.list checkpointDecoder))
+        (D.field "prior_work_tasks" (D.list taskDecoder))
+        (D.field "benchmark_tasks" (D.list taskDecoder))
+        (D.field "results" (D.list scoreDecoder))
+        (D.field "bests" (D.list bestDecoder))
 
 
 metadataDecoder : D.Decoder Metadata
@@ -94,285 +337,141 @@ explainHttpError err =
             "Bad body: " ++ msg
 
 
-type alias Model =
-    { requestedPayload : Requested Payload String
-    , sortKey : SortKey
-    , sortOrder : SortOrder
-    }
-
-
-type SortKey
-    = CheckpointDisplay
-    | TaskName String
-
-
-type SortOrder
-    = Increasing
-    | Decreasing
-
-
-opposite : SortOrder -> SortOrder
-opposite o =
-    case o of
-        Increasing ->
-            Decreasing
-
-        Decreasing ->
-            Increasing
-
-
-type alias Row =
-    { checkpoint : Benchmark.Checkpoint
-    , scores : Dict.Dict String Float
-    , best : Set.Set String
-    }
-
-
-init : () -> ( Model, Cmd Msg )
-init _ =
-    ( { requestedPayload = Loading
-      , sortKey = TaskName "beluga"
-      , sortOrder = Decreasing
-      }
-    , Http.get
-        { url = "data/results.json"
-        , expect = Http.expectJson Fetched payloadDecoder
-        }
-    )
-
-
-update : Msg -> Model -> ( Model, Cmd Msg )
-update msg model =
-    case msg of
-        Fetched result ->
-            case result of
-                Ok payload ->
-                    ( { model | requestedPayload = Loaded payload }, Cmd.none )
-
-                Err err ->
-                    ( { model
-                        | requestedPayload = Failed (explainHttpError err)
-                      }
-                    , Cmd.none
-                    )
-
-        Sort key ->
-            case ( model.sortKey, key ) of
-                ( CheckpointDisplay, CheckpointDisplay ) ->
-                    ( { model
-                        | sortOrder = opposite model.sortOrder
-                      }
-                    , Cmd.none
-                    )
-
-                ( TaskName old, TaskName new ) ->
-                    if old == new then
-                        ( { model
-                            | sortOrder = opposite model.sortOrder
-                          }
-                        , Cmd.none
-                        )
-
-                    else
-                        ( { model | sortKey = key }, Cmd.none )
-
-                ( _, _ ) ->
-                    ( { model | sortKey = key }, Cmd.none )
-
-
-view : Model -> Html.Html Msg
-view model =
-    case model.requestedPayload of
-        Loading ->
-            Html.div [] [ Html.text "Loading..." ]
-
-        Failed err ->
-            Html.div [] [ Html.text ("Failed: " ++ err) ]
-
-        Loaded payload ->
-            viewTable payload model.sortKey model.sortOrder
-
-
-viewTable : Payload -> SortKey -> SortOrder -> Html.Html Msg
-viewTable payload key order =
-    let
-        rows =
-            pivotPayload payload
-    in
-    Html.table [ class "" ]
-        [ Html.thead [ class "border-t border-b" ]
-            [ Html.tr []
-                ([ Html.th
-                    [ class "text-left font-medium", Html.Events.onClick (Sort CheckpointDisplay) ]
-                    [ Html.text "Checkpoint" ]
-                 ]
-                    ++ List.map
-                        (viewTaskHeader key order)
-                        payload.benchmarkTasks
-                )
-            ]
-        , Html.tbody
-            [ class "border-b" ]
-            (rows |> sortRows key order |> List.map (viewRow key))
-        ]
-
-
-sortRows : SortKey -> SortOrder -> List Row -> List Row
-sortRows key order rows =
-    let
-        ordered =
-            case key of
-                CheckpointDisplay ->
-                    List.sortBy (.checkpoint >> .display) rows
-
-                TaskName t ->
-                    List.sortBy (.scores >> Dict.get t >> Maybe.withDefault (-1 / 0)) rows
-    in
-    case order of
-        Increasing ->
-            ordered
-
-        Decreasing ->
-            List.reverse ordered
-
-
-viewTaskHeader : SortKey -> SortOrder -> Benchmark.Task -> Html.Html Msg
-viewTaskHeader key order task =
-    let
-        suffix =
-            case ( key, order ) of
-                ( CheckpointDisplay, _ ) ->
-                    ""
-
-                ( TaskName name, Increasing ) ->
-                    if name == task.name then
-                        downArrow
-
-                    else
-                        ""
-
-                ( TaskName name, Decreasing ) ->
-                    if name == task.name then
-                        upArrow
-
-                    else
-                        ""
-    in
-    Html.th
-        [ class "text-right pl-2", Html.Events.onClick (Sort <| TaskName task.name) ]
-        [ Html.text (task.display ++ suffix) ]
-
-
-viewRow : SortKey -> Row -> Html.Html Msg
-viewRow highlight row =
-    let
-        scores =
-            row.scores
-                |> Dict.toList
-                |> List.sortBy (\pair -> Tuple.first pair)
-
-        bests =
-            scores
-                |> List.map Tuple.first
-                |> List.map (\t -> Set.member t row.best)
-    in
-    Html.tr
-        [ class "hover:bg-biobench-cream-500" ]
-        (Html.td
-            [ class "text-left" ]
-            [ Html.text row.checkpoint.display ]
-            :: List.map2 (viewScoreCell highlight) bests scores
-        )
-
-
-viewScoreCell : SortKey -> Bool -> ( String, Float ) -> Html.Html Msg
-viewScoreCell key best ( task, score ) =
-    let
-        highlight =
-            case key of
-                TaskName name ->
-                    if name == task then
-                        " italic"
-
-                    else
-                        ""
-
-                _ ->
-                    ""
-
-        bold =
-            if best then
-                " font-bold"
-
-            else
-                ""
-    in
-    Html.td
-        [ class ("text-right font-mono" ++ highlight ++ bold) ]
-        [ Html.text (viewScore score) ]
-
-
-viewScore : Float -> String
-viewScore score =
-    if score < 0 then
-        "-"
-
-    else
-        score * 100 |> Round.round 1
-
-
-pivotPayload : Payload -> List Row
+pivotPayload : Payload -> Table
 pivotPayload payload =
-    List.map (pivotModelRow payload) payload.checkpoints
+    let
+        cols =
+            [ { name = "checkpoint", display = "Checkpoint" }
+
+            -- , { name = "params", display = "Params (M)" }
+            -- , { name = "date", display = "Release" }
+            , { name = "imagenet1k", display = "ImageNet-1K" }
+            , { name = "newt", display = "NeWT" }
+            , { name = "mean", display = "Mean" }
+            ]
+                ++ payload.benchmarkTasks
+
+        rows =
+            List.map (makeRow payload) payload.checkpoints
+    in
+    { cols = cols, rows = Debug.log "rows" rows, metadata = payload.metadata }
 
 
-pivotModelRow : Payload -> Benchmark.Checkpoint -> Row
-pivotModelRow payload checkpoint =
+makeRow : Payload -> Checkpoint -> Row
+makeRow payload checkpoint =
     let
         scores =
-            payload.benchmarkTasks
-                |> List.map .name
-                |> List.map (findResult payload.scores checkpoint)
-                |> List.map (Maybe.withDefault (-1 / 0))
-
-        names =
-            payload.benchmarkTasks
-                |> List.map .name
-
-        scoreDict =
-            List.map2 Tuple.pair names scores
-                |> Dict.fromList
-
-        bests =
-            payload.bests
-                |> List.filter (.ties >> Set.member checkpoint.checkpoint)
-                |> List.map .task
-                |> Set.fromList
+            getScores checkpoint payload.scores
     in
     { checkpoint = checkpoint
-    , scores = scoreDict
-    , best = bests
+    , imagenet1k = getScore checkpoint "imagenet1k" payload.scores
+    , newt = getScore checkpoint "newt" payload.scores
+    , mean = scores |> Dict.toList |> List.map Tuple.second |> mean
+    , scores = scores
+    , sota = getSotas checkpoint payload.bests
     }
 
 
-
--- belongs : SortKey -> String -> Bool
--- belongs
-
-
-findResult : List Benchmark.Score -> Benchmark.Checkpoint -> String -> Maybe Float
-findResult scores checkpoint task =
+getScore : Checkpoint -> String -> List Score -> Float
+getScore checkpoint task scores =
     scores
-        |> List.filter (\result -> result.task == task && result.checkpoint == checkpoint.checkpoint)
+        |> List.filter (\score -> score.task == task && score.checkpoint == checkpoint.name)
         |> List.map .mean
         |> List.head
+        |> Maybe.withDefault (-1 / 0)
 
 
-downArrow : String
-downArrow =
-    String.fromChar (Char.fromCode 9650)
+getScores : Checkpoint -> List Score -> Dict.Dict String Float
+getScores checkpoint scores =
+    scores
+        |> List.filter (\score -> score.task /= "imagenet1k" && score.task /= "newt" && score.checkpoint == checkpoint.name)
+        |> List.map (\score -> ( score.task, score.mean ))
+        |> Dict.fromList
 
 
-upArrow : String
-upArrow =
-    String.fromChar (Char.fromCode 9660)
+getSotas : Checkpoint -> List Best -> Set.Set String
+getSotas checkpoint bests =
+    bests
+        |> List.filter (\best -> Set.member checkpoint.name best.ties)
+        |> List.map .task
+        |> Set.fromList
+
+
+mean : List Float -> Float
+mean xs =
+    case xs of
+        [] ->
+            0
+
+        _ ->
+            List.sum xs / toFloat (List.length xs)
+
+
+type alias Checkpoint =
+    { name : String
+    , display : String
+    , family : String
+    , params : Int
+    , release : Time.Posix
+    }
+
+
+checkpointDecoder : D.Decoder Checkpoint
+checkpointDecoder =
+    D.map5 Checkpoint
+        (D.field "ckpt" D.string)
+        (D.field "display" D.string)
+        (D.field "family" D.string)
+        (D.succeed 0)
+        (D.succeed (Time.millisToPosix 0))
+
+
+type alias Task =
+    { name : String
+    , display : String
+    }
+
+
+taskDecoder : D.Decoder Task
+taskDecoder =
+    D.map2 Task
+        (D.field "name" D.string)
+        (D.field "display" D.string)
+
+
+type alias Score =
+    { task : String
+    , checkpoint : String
+    , mean : Float
+    , bootstrapMean : Float
+    , low : Float
+    , high : Float
+    }
+
+
+scoreDecoder : D.Decoder Score
+scoreDecoder =
+    D.map6 Score
+        (D.field "task" D.string)
+        (D.field "model" D.string)
+        (D.field "mean" D.float)
+        (D.field "bootstrap_mean" D.float)
+        (D.field "ci_low" D.float)
+        (D.field "ci_high" D.float)
+
+
+type alias Best =
+    { task : String
+    , best : String
+    , ties : Set.Set String
+    }
+
+
+bestDecoder : D.Decoder Best
+bestDecoder =
+    D.map3 Best
+        (D.field "task" D.string)
+        (D.field "best" D.string)
+        (D.field "ties"
+            (D.map Set.fromList (D.list D.string))
+        )

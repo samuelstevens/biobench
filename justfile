@@ -6,7 +6,7 @@ docs: fmt
 
 leaderboard: fmt
     cp web/index.html docs/index.html
-    cd web && elm make src/Leaderboard.elm --output ../docs/assets/dist/leaderboard.js --optimize
+    cd web && elm make src/Leaderboard.elm --output ../docs/assets/dist/leaderboard.js --debug
     cd web && tailwindcss --input main.css --output ../docs/assets/dist/main.css
 
 test: fmt
