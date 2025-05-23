@@ -353,7 +353,7 @@ def micro_acc_batch(
     Parameters
     ----------
     y_true, y_pred
-        Integer class labels / predictions ≥ 0.  All leading dimensions
+        Integer class labels / predictions >= 0.  All leading dimensions
         (`*batch`) must match; `n` is the sample count.
 
     Returns
@@ -379,7 +379,7 @@ def macro_f1_batch(
     of examples.  Runs in O(B·n) time and O(B·C) memory, where
     B = prod(*batch) and C = #classes.
 
-    All elements in y_true, y_pred, and labels must be integers ≥ 0. (Negative IDs would break the offset arithmetic; floats break np.bincount.)
+    All elements in y_true, y_pred, and labels must be integers >= 0. (Negative IDs would break the offset arithmetic; floats break np.bincount.)
     """
 
     # flatten batch prefix

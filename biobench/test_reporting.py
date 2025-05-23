@@ -42,7 +42,7 @@ def _prediction_list(draw):
 
 @st.composite
 def _prediction_batch(draw):
-    """Generate a *batch* (B ≥ 1) of equal-length prediction lists."""
+    """Generate a *batch* (B >= 1) of equal-length prediction lists."""
     B = draw(st.integers(1, 2))  # batch size
     n = draw(st.integers(1, 4))  # common sample count
     batch = []

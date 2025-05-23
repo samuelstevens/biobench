@@ -43,11 +43,13 @@ mapping = {
     # Hyphens and dashes that appear in the errors
     "\u2010": "-",  # hyphen
     "\u2212": "-",  # minus sign
+    "\u2022": "*",
     # Arrows
     "\u2192": "->",  # right arrow
     "\u21d2": "=>",  # double right arrow
     # Math
     "\u2264": "<=",
+    "\u2265": ">=",
 }
 
 

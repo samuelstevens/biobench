@@ -1,5 +1,4 @@
 n_train = -1
-verbose = false
 report_to = "/local/scratch/$USER/experiments/biobench"
 
 [data]

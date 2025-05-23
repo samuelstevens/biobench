@@ -146,7 +146,10 @@ def get_features(
     split = "train" if is_train else "validation"
 
     dataset = datasets.load_dataset(
-        "ILSVRC/imagenet-1k", split=split, cache_dir=helpers.get_cache_dir()
+        "ILSVRC/imagenet-1k",
+        split=split,
+        cache_dir=helpers.get_cache_dir(),
+        trust_remote_code=True,
     )
 
     if is_train and cfg.n_train > 0:

@@ -33,7 +33,7 @@ def main(cfg: str, n: int = 1_000, seed: int = 42):
     cfg = next(cfg for cfg in config.load(cfg))
 
     log_format = "[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s"
-    level = logging.DEBUG if cfg.verbose else logging.INFO
+    level = logging.DEBUG if cfg.debug else logging.INFO
     logging.basicConfig(level=level, format=log_format)
     logger = logging.getLogger(__name__)
 

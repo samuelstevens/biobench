@@ -97,8 +97,6 @@ class Experiment:
     """where to save logs to."""
     seed: int = 17
     """Random seed."""
-    verbose: bool = False
-    """DEBUG logging or not."""
 
     def to_dict(self) -> dict[str, object]:
         return dataclasses.asdict(self)
