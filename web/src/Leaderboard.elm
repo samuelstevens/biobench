@@ -12,7 +12,7 @@ import Http
 import Json.Decode as D
 import Round
 import Set
-import Svg.Attributes
+import Svg
 import Time
 
 
@@ -478,19 +478,20 @@ viewCharts selectedCols selectedFamilies table =
             table.rows
                 |> List.filter (\r -> Set.member r.checkpoint.family selectedFamilies)
 
+        -- I want a list of getters (TableRow -> Maybe Float) and a list of titles (TableCol.display) AI!
         getters =
             table.cols
                 |> List.filter (\c -> Set.member c.key selectedCols)
-                |> List.filterMap (.sortType >> getNumeric)
+                |> List.filterMap (\c -> .sortType >> getNumeric)
                 |> List.map (\fn -> fn selectedCols)
     in
     Html.div
         [ class "grid grid-cols-3 gap-2" ]
-        (List.map (viewBarChart rows) getters)
+        (List.map2 (viewBarChart rows) getters)
 
 
-viewBarChart : List TableRow -> (TableRow -> Maybe Float) -> Html Msg
-viewBarChart rows getter =
+viewBarChart : List TableRow -> String -> (TableRow -> Maybe Float) -> Html Msg
+viewBarChart rows title getter =
     case List.filterMap (withFamily getter) rows of
         [] ->
             Html.div [ class "hidden" ] []
@@ -511,7 +512,7 @@ viewBarChart rows getter =
                         , CA.highest 100 CA.exactly
                         ]
                     , CA.htmlAttrs
-                        [ class "border-1" ]
+                        [ class "" ]
                     ]
                     [ C.yLabels [ CA.amount 3 ]
                     , C.yTicks [ CA.amount 3 ]
@@ -524,6 +525,11 @@ viewBarChart rows getter =
                                 )
                         ]
                         data
+                    , C.labelAt
+                        CA.middle
+                        .max
+                        [ CA.fontSize 14, CA.moveUp 12 ]
+                        [ Svg.text title ]
                     ]
                 ]
 
