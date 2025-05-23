@@ -71,9 +71,14 @@ layoutEq a b =
         ( TableOnly, TableOnly ) ->
             True
 
+        ( ChartsOnly, ChartsOnly ) ->
+            True
 
+        ( Split _, Split _ ) ->
+            True
 
--- Finish these case statements. Don't compare the floats in Split. AI!
+        _ ->
+            False
 
 
 type alias Table =
