@@ -7,18 +7,17 @@ Why: Adds another task objective (counting, object tracking) and another modalit
 Done when:
 
 1. `biobench.fishcounting` and `biobench.fishcounting.download` are valid modules in BioBench.
-2. `fishcounting` module has the following functions:
+2. Fill out the following functions in the `biobench/fishcounting/__init__.py` module:
 
 ```py
 @beartype.beartype
 def benchmark(cfg: config.Experiment) -> reporting.Report: ...
-```
 
-```py
+
 @jaxtyped(typechecker=beartype.beartype)
 def bootstrap_scores(
     df: pl.DataFrame, *, b: int = 0, rng: np.random.Generator | None = None
-) -> dict[str, Float[np.ndarray, " b"]]:
+) -> dict[str, Float[np.ndarray, " b"]]: ...
 ```
 
 3. `uv run benchmark.py --cfgs configs/testing.toml` works, where `testing.toml` has the following content:
