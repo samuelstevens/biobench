@@ -1,6 +1,8 @@
 module Leaderboard exposing (..)
 
 import Browser
+import Chart as C
+import Chart.Attributes as CA
 import Dict
 import Html exposing (Html)
 import Html.Attributes exposing (class, style)
@@ -10,6 +12,7 @@ import Http
 import Json.Decode as D
 import Round
 import Set
+import Svg.Attributes
 import Time
 
 
@@ -109,6 +112,16 @@ type SortType
     = SortNumeric (Set.Set String -> TableRow -> Maybe Float)
     | SortString (Set.Set String -> TableRow -> Maybe String)
     | NotSortable
+
+
+getNumeric : SortType -> Maybe (Set.Set String -> TableRow -> Maybe Float)
+getNumeric sortType =
+    case sortType of
+        SortNumeric fn ->
+            Just fn
+
+        _ ->
+            Nothing
 
 
 type alias TableCol =
@@ -233,12 +246,12 @@ view model =
                     viewTable model.selectedCols model.selectedFamilies model.sortKey model.sortOrder table
 
                 chartContent =
-                    Html.div [] []
+                    viewCharts model.selectedCols model.selectedFamilies table
             in
             Html.div []
                 [ viewPickers model.layout model.selectedCols model.selectedFamilies table
                 , Html.div
-                    []
+                    [ class "flex" ]
                     (case model.layout of
                         TableOnly ->
                             [ viewTablePane tableContent 100 ]
@@ -247,9 +260,9 @@ view model =
                             [ viewChartPane chartContent 100 ]
 
                         Split pct ->
-                            [ viewTablePane tableContent (pct * 100)
+                            [ viewTablePane tableContent ((pct - 0.01) * 100)
                             , viewDragHandle
-                            , viewChartPane chartContent (100 - pct * 100)
+                            , viewChartPane chartContent (100 - (pct + 0.01) * 100)
                             ]
                     )
                 ]
@@ -259,7 +272,7 @@ viewTablePane : Html Msg -> Float -> Html Msg
 viewTablePane content w =
     Html.div
         [ style "width" (String.fromFloat w ++ "%")
-        , class "min-w-[24rem] overflow-x-auto"
+        , class "overflow-x-auto"
         ]
         [ content ]
 
@@ -296,50 +309,41 @@ viewPickers layout selectedCols selectedFamilies table =
     in
     Html.div
         [ class "flex flex-wrap gap-2" ]
-        [ Html.fieldset
-            [ class "border border-biobench-black p-2" ]
-            [ Html.legend
-                [ class "text-xs font-semibold tracking-tight px-1 -ml-1 " ]
-                [ Html.text "Panes" ]
-            , Html.div
-                [ class "flex flex-wrap gap-x-4 gap-y-2" ]
-                [ viewLabeledRadio "table-only" False (\_ -> SetLayout TableOnly) "Tables"
-                , viewLabeledRadio "split" False (\_ -> SetLayout (Split 0.5)) "Both"
-                , viewLabeledRadio "chart-only" False (\_ -> SetLayout ChartsOnly) "Charts"
-                ]
+        [ viewFieldset "Panes"
+            [ viewLabeledRadio
+                "table-only"
+                (layoutEq layout TableOnly)
+                (\_ -> SetLayout TableOnly)
+                "Tables"
+            , viewLabeledRadio
+                "split"
+                (layoutEq layout (Split -1))
+                (\_ -> SetLayout (Split 0.5))
+                "Both"
+            , viewLabeledRadio
+                "charts-only"
+                (layoutEq layout ChartsOnly)
+                (\_ -> SetLayout ChartsOnly)
+                "Charts"
             ]
-        , Html.fieldset
-            [ class "border border-biobench-black p-2" ]
-            [ Html.legend
-                [ class "text-xs font-semibold tracking-tight px-1 -ml-1 " ]
-                [ Html.text "Columns" ]
-            , Html.div
-                [ class "flex flex-wrap gap-x-4 gap-y-2" ]
-                (List.map
-                    (\col ->
-                        viewColCheckbox
-                            (Set.member col.key selectedCols)
-                            col
-                    )
-                    table.cols
+        , viewFieldset "Columns"
+            (List.map
+                (\col ->
+                    viewColCheckbox
+                        (Set.member col.key selectedCols)
+                        col
                 )
-            ]
-        , Html.fieldset
-            [ class "border border-biobench-black p-2" ]
-            [ Html.legend
-                [ class "text-xs font-semibold tracking-tight px-1 -ml-1 " ]
-                [ Html.text "Model Families" ]
-            , Html.div
-                [ class "flex flex-wrap gap-x-4 gap-y-2" ]
-                (List.map
-                    (\family ->
-                        viewFamilyCheckbox
-                            (Set.member family selectedFamilies)
-                            family
-                    )
-                    allFamilies
+                table.cols
+            )
+        , viewFieldset "Model Families"
+            (List.map
+                (\family ->
+                    viewFamilyCheckbox
+                        (Set.member family selectedFamilies)
+                        family
                 )
-            ]
+                allFamilies
+            )
         ]
 
 
@@ -445,7 +449,7 @@ viewTr selectedCols allCols row =
                 |> List.filter (\col -> Set.member col.key selectedCols)
     in
     Html.tr
-        [ class "py-1 hover:bg-biobench-cyan/20 transition-colors" ]
+        [ class "py-1 hover:bg-biobench-cream/20 transition-colors" ]
         (List.map (viewTd selectedCols row) cols)
 
 
@@ -467,58 +471,71 @@ viewTd selectedCols row col =
         [ Html.text text ]
 
 
-scoreColor : Float -> String
-scoreColor x =
+viewCharts : Set.Set String -> Set.Set String -> Table -> Html Msg
+viewCharts selectedCols selectedFamilies table =
     let
-        clamped =
-            clamp 0 1 x
+        rows =
+            table.rows
+                |> List.filter (\r -> Set.member r.checkpoint.family selectedFamilies)
+
+        getters =
+            table.cols
+                |> List.filter (\c -> Set.member c.key selectedCols)
+                |> List.filterMap (.sortType >> getNumeric)
+                |> List.map (\fn -> fn selectedCols)
     in
-    if clamped < 0.2 then
-        -- map 0‒0.2 → dark → light red
-        let
-            t =
-                clamped / 0.2
-
-            -- 0‒1
-            r =
-                round (interpolate 155 238 t)
-
-            -- 9b2226 → ee9b00
-            g =
-                round (interpolate 34 70 t)
-
-            b =
-                round (interpolate 38 70 t)
-        in
-        "rgb(" ++ String.fromInt r ++ "," ++ String.fromInt g ++ "," ++ String.fromInt b ++ ")"
-
-    else if clamped < 0.8 then
-        "rgb(255,255,255)"
-        -- neutral white
-
-    else
-        -- map 0.8‒1 → light → dark green
-        let
-            t =
-                (clamped - 0.8) / 0.2
-
-            -- 0‒1
-            r =
-                round (interpolate 148 0 t)
-
-            -- 94d2bd → 005f73
-            g =
-                round (interpolate 210 95 t)
-
-            b =
-                round (interpolate 189 115 t)
-        in
-        "rgb(" ++ String.fromInt r ++ "," ++ String.fromInt g ++ "," ++ String.fromInt b ++ ")"
+    Html.div
+        [ class "grid grid-cols-3 gap-2" ]
+        (List.map (viewBarChart rows) getters)
 
 
-interpolate : Float -> Float -> Float -> Float
-interpolate a b t =
-    a + (b - a) * t
+viewBarChart : List TableRow -> (TableRow -> Maybe Float) -> Html Msg
+viewBarChart rows getter =
+    case List.filterMap (withFamily getter) rows of
+        [] ->
+            Html.div [ class "hidden" ] []
+
+        data ->
+            Html.div [ class "" ]
+                [ C.chart
+                    [ CA.height 200
+                    , CA.width 200
+                    , CA.margin
+                        { top = 25
+                        , bottom = 10
+                        , left = 37
+                        , right = 10
+                        }
+                    , CA.domain
+                        [ CA.lowest 0 CA.exactly
+                        , CA.highest 100 CA.exactly
+                        ]
+                    , CA.htmlAttrs
+                        [ class "border-1" ]
+                    ]
+                    [ C.yLabels [ CA.amount 3 ]
+                    , C.yTicks [ CA.amount 3 ]
+                    , C.bars
+                        []
+                        [ C.bar (.score >> (*) 100) []
+                            |> C.variation
+                                (\index datum ->
+                                    [ CA.color (datum.family |> familyColor |> toCssColorVar) ]
+                                )
+                        ]
+                        data
+                    ]
+                ]
+
+
+withFamily : (TableRow -> Maybe Float) -> TableRow -> Maybe { score : Float, family : String }
+withFamily getter row =
+    case getter row of
+        Nothing ->
+            Nothing
+
+        Just score ->
+            Just { score = score, family = row.checkpoint.family }
 
 
 viewScore : Maybe Float -> String
@@ -558,7 +575,7 @@ getMeanScore tasks selectedCols row =
     in
     -- selectedCols can be more than 9 (includes imagenet1k, newt, checkpoint, mean, etc).
     -- I think I might have to hardcode the benchmark tasks somewhere.
-    if Debug.log "length" (List.length selectedScores) == Debug.log "size" (tasks |> Set.intersect selectedCols |> Set.size) then
+    if List.length selectedScores == (tasks |> Set.intersect selectedCols |> Set.size) then
         mean selectedScores
 
     else
@@ -640,6 +657,57 @@ downArrow =
 maxString : String
 maxString =
     String.repeat 50 "\u{10FFFF}"
+
+
+familyColor : String -> String
+familyColor fam =
+    -- Include all bg-VAR as comments to force tailwind to include all the colors as variables in the final CSS.
+    -- This is an example of a comment changing system behavior!!
+    case fam of
+        "CLIP" ->
+            -- bg-biobench-blue
+            "biobench-blue"
+
+        "SigLIP" ->
+            -- bg-biobench-cyan
+            "biobench-cyan"
+
+        "DINOv2" ->
+            -- bg-biobench-sea
+            "biobench-sea"
+
+        "AIMv2" ->
+            -- bg-biobench-gold
+            "biobench-gold"
+
+        "CNN" ->
+            -- bg-biobench-orange
+            "biobench-orange"
+
+        "cv4ecology" ->
+            -- bg-biobench-cream
+            "biobench-cream"
+
+        "V-JEPA" ->
+            -- bg-biobench-rust
+            "biobench-rust"
+
+        "SAM2" ->
+            -- bg-biobench-scarlet
+            "biobench-scarlet"
+
+        _ ->
+            -- bg-biobench-black
+            "biobench-black"
+
+
+
+-- CSS
+
+
+toCssColorVar : String -> String
+toCssColorVar color =
+    "var(--color-" ++ color ++ ")"
 
 
 
@@ -837,6 +905,19 @@ bestDecoder =
 
 
 -- Components
+
+
+viewFieldset : String -> List (Html Msg) -> Html Msg
+viewFieldset title content =
+    Html.fieldset
+        [ class "border border-biobench-black p-2" ]
+        [ Html.legend
+            [ class "text-xs font-semibold tracking-tight px-1 -ml-1 " ]
+            [ Html.text title ]
+        , Html.div
+            [ class "flex flex-wrap gap-x-4 gap-y-2" ]
+            content
+        ]
 
 
 viewLabeledCheckbox : Bool -> (Bool -> Msg) -> String -> Html Msg
