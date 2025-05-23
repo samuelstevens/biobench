@@ -11023,11 +11023,26 @@ var $author$project$Leaderboard$Checkpoint = F6(
 		return {display: display, family: family, name: name, params: params, release: release, resolution: resolution};
 	});
 var $elm$json$Json$Decode$map6 = _Json_map6;
+var $author$project$Leaderboard$nonbreakingDash = '‑';
+var $author$project$Leaderboard$nonbreakingSpace = '\u00A0';
+var $elm$core$String$replace = F3(
+	function (before, after, string) {
+		return A2(
+			$elm$core$String$join,
+			after,
+			A2($elm$core$String$split, before, string));
+	});
 var $author$project$Leaderboard$checkpointDecoder = A7(
 	$elm$json$Json$Decode$map6,
 	$author$project$Leaderboard$Checkpoint,
 	A2($elm$json$Json$Decode$field, 'ckpt', $elm$json$Json$Decode$string),
-	A2($elm$json$Json$Decode$field, 'display', $elm$json$Json$Decode$string),
+	A2(
+		$elm$json$Json$Decode$map,
+		A2(
+			$elm$core$Basics$composeR,
+			A2($elm$core$String$replace, ' ', $author$project$Leaderboard$nonbreakingSpace),
+			A2($elm$core$String$replace, '-', $author$project$Leaderboard$nonbreakingDash)),
+		A2($elm$json$Json$Decode$field, 'display', $elm$json$Json$Decode$string)),
 	A2($elm$json$Json$Decode$field, 'family', $elm$json$Json$Decode$string),
 	$elm$json$Json$Decode$succeed($elm$core$Maybe$Nothing),
 	$elm$json$Json$Decode$succeed($elm$core$Maybe$Nothing),
@@ -11111,31 +11126,6 @@ var $author$project$Leaderboard$getBenchmarkScore = F3(
 var $author$project$Leaderboard$getCheckpoint = F2(
 	function (cols, row) {
 		return $elm$core$Maybe$Just(row.checkpoint.display);
-	});
-var $elm$core$Maybe$map = F2(
-	function (f, maybe) {
-		if (maybe.$ === 'Just') {
-			var value = maybe.a;
-			return $elm$core$Maybe$Just(
-				f(value));
-		} else {
-			return $elm$core$Maybe$Nothing;
-		}
-	});
-var $author$project$Leaderboard$getCheckpointParams = F2(
-	function (_v0, row) {
-		return A2($elm$core$Maybe$map, $elm$core$Basics$toFloat, row.checkpoint.params);
-	});
-var $elm$time$Time$posixToMillis = function (_v0) {
-	var millis = _v0.a;
-	return millis;
-};
-var $author$project$Leaderboard$getCheckpointRelease = F2(
-	function (_v0, row) {
-		return A2(
-			$elm$core$Maybe$map,
-			A2($elm$core$Basics$composeR, $elm$time$Time$posixToMillis, $elm$core$Basics$toFloat),
-			row.checkpoint.release);
 	});
 var $elm$core$Dict$filter = F2(
 	function (isGood, dict) {
@@ -11330,6 +11320,16 @@ var $myrho$elm_round$Round$increaseNum = function (_v0) {
 };
 var $elm$core$Basics$isInfinite = _Basics_isInfinite;
 var $elm$core$Basics$isNaN = _Basics_isNaN;
+var $elm$core$Maybe$map = F2(
+	function (f, maybe) {
+		if (maybe.$ === 'Just') {
+			var value = maybe.a;
+			return $elm$core$Maybe$Just(
+				f(value));
+		} else {
+			return $elm$core$Maybe$Nothing;
+		}
+	});
 var $elm$core$String$fromChar = function (_char) {
 	return A2($elm$core$String$cons, _char, '');
 };
@@ -11534,102 +11534,6 @@ var $author$project$Leaderboard$viewCheckpoint = F2(
 	function (cols, row) {
 		return _Utils_Tuple2('text-left', row.checkpoint.display);
 	});
-var $author$project$Leaderboard$viewCheckpointParams = F2(
-	function (selectedCols, row) {
-		return _Utils_Tuple2(
-			'text-left',
-			A2(
-				$elm$core$Maybe$withDefault,
-				'',
-				A2(
-					$elm$core$Maybe$map,
-					$myrho$elm_round$Round$round(1),
-					A2(
-						$elm$core$Maybe$map,
-						$elm$core$Basics$fdiv(
-							A2($elm$core$Basics$pow, 10, 6)),
-						A2($author$project$Leaderboard$getCheckpointParams, selectedCols, row)))));
-	});
-var $elm$time$Time$flooredDiv = F2(
-	function (numerator, denominator) {
-		return $elm$core$Basics$floor(numerator / denominator);
-	});
-var $elm$time$Time$toAdjustedMinutesHelp = F3(
-	function (defaultOffset, posixMinutes, eras) {
-		toAdjustedMinutesHelp:
-		while (true) {
-			if (!eras.b) {
-				return posixMinutes + defaultOffset;
-			} else {
-				var era = eras.a;
-				var olderEras = eras.b;
-				if (_Utils_cmp(era.start, posixMinutes) < 0) {
-					return posixMinutes + era.offset;
-				} else {
-					var $temp$defaultOffset = defaultOffset,
-						$temp$posixMinutes = posixMinutes,
-						$temp$eras = olderEras;
-					defaultOffset = $temp$defaultOffset;
-					posixMinutes = $temp$posixMinutes;
-					eras = $temp$eras;
-					continue toAdjustedMinutesHelp;
-				}
-			}
-		}
-	});
-var $elm$time$Time$toAdjustedMinutes = F2(
-	function (_v0, time) {
-		var defaultOffset = _v0.a;
-		var eras = _v0.b;
-		return A3(
-			$elm$time$Time$toAdjustedMinutesHelp,
-			defaultOffset,
-			A2(
-				$elm$time$Time$flooredDiv,
-				$elm$time$Time$posixToMillis(time),
-				60000),
-			eras);
-	});
-var $elm$time$Time$toCivil = function (minutes) {
-	var rawDay = A2($elm$time$Time$flooredDiv, minutes, 60 * 24) + 719468;
-	var era = (((rawDay >= 0) ? rawDay : (rawDay - 146096)) / 146097) | 0;
-	var dayOfEra = rawDay - (era * 146097);
-	var yearOfEra = ((((dayOfEra - ((dayOfEra / 1460) | 0)) + ((dayOfEra / 36524) | 0)) - ((dayOfEra / 146096) | 0)) / 365) | 0;
-	var dayOfYear = dayOfEra - (((365 * yearOfEra) + ((yearOfEra / 4) | 0)) - ((yearOfEra / 100) | 0));
-	var mp = (((5 * dayOfYear) + 2) / 153) | 0;
-	var month = mp + ((mp < 10) ? 3 : (-9));
-	var year = yearOfEra + (era * 400);
-	return {
-		day: (dayOfYear - ((((153 * mp) + 2) / 5) | 0)) + 1,
-		month: month,
-		year: year + ((month <= 2) ? 1 : 0)
-	};
-};
-var $elm$time$Time$toYear = F2(
-	function (zone, time) {
-		return $elm$time$Time$toCivil(
-			A2($elm$time$Time$toAdjustedMinutes, zone, time)).year;
-	});
-var $elm$time$Time$Zone = F2(
-	function (a, b) {
-		return {$: 'Zone', a: a, b: b};
-	});
-var $elm$time$Time$utc = A2($elm$time$Time$Zone, 0, _List_Nil);
-var $author$project$Leaderboard$viewCheckpointRelease = F2(
-	function (_v0, row) {
-		return _Utils_Tuple2(
-			'text-left',
-			A2(
-				$elm$core$Maybe$withDefault,
-				'unknown',
-				A2(
-					$elm$core$Maybe$map,
-					A2(
-						$elm$core$Basics$composeR,
-						$elm$time$Time$toYear($elm$time$Time$utc),
-						$elm$core$String$fromInt),
-					row.checkpoint.release)));
-	});
 var $author$project$Leaderboard$viewMeanScore = F3(
 	function (tasks, selectedCols, row) {
 		return _Utils_Tuple2(
@@ -11656,18 +11560,6 @@ var $author$project$Leaderboard$pivotPayload = function (payload) {
 			format: $author$project$Leaderboard$viewCheckpoint,
 			key: 'checkpoint',
 			sortType: $author$project$Leaderboard$SortString($author$project$Leaderboard$getCheckpoint)
-		},
-			{
-			display: 'Params (M)',
-			format: $author$project$Leaderboard$viewCheckpointParams,
-			key: 'params',
-			sortType: $author$project$Leaderboard$SortNumeric($author$project$Leaderboard$getCheckpointParams)
-		},
-			{
-			display: 'Released',
-			format: $author$project$Leaderboard$viewCheckpointRelease,
-			key: 'release',
-			sortType: $author$project$Leaderboard$SortNumeric($author$project$Leaderboard$getCheckpointRelease)
 		},
 			{
 			display: 'Imagenet-1K',
@@ -11710,6 +11602,7 @@ var $author$project$Leaderboard$tableDecoder = A2($elm$json$Json$Decode$map, $au
 var $author$project$Leaderboard$init = function (_v0) {
 	return _Utils_Tuple2(
 		{
+			drag: $elm$core$Maybe$Nothing,
 			layout: $author$project$Leaderboard$Split(0.5),
 			paramCountRange: _Utils_Tuple2(
 				0,
@@ -11726,14 +11619,233 @@ var $author$project$Leaderboard$init = function (_v0) {
 				url: 'data/results.json'
 			}));
 };
+var $author$project$Leaderboard$DragMove = function (a) {
+	return {$: 'DragMove', a: a};
+};
+var $author$project$Leaderboard$DragStop = {$: 'DragStop'};
 var $elm$core$Platform$Sub$batch = _Platform_batch;
+var $author$project$Leaderboard$mouseX = A2($elm$json$Json$Decode$field, 'clientX', $elm$json$Json$Decode$float);
 var $elm$core$Platform$Sub$none = $elm$core$Platform$Sub$batch(_List_Nil);
+var $elm$browser$Browser$Events$Document = {$: 'Document'};
+var $elm$browser$Browser$Events$MySub = F3(
+	function (a, b, c) {
+		return {$: 'MySub', a: a, b: b, c: c};
+	});
+var $elm$browser$Browser$Events$State = F2(
+	function (subs, pids) {
+		return {pids: pids, subs: subs};
+	});
+var $elm$browser$Browser$Events$init = $elm$core$Task$succeed(
+	A2($elm$browser$Browser$Events$State, _List_Nil, $elm$core$Dict$empty));
+var $elm$browser$Browser$Events$nodeToKey = function (node) {
+	if (node.$ === 'Document') {
+		return 'd_';
+	} else {
+		return 'w_';
+	}
+};
+var $elm$browser$Browser$Events$addKey = function (sub) {
+	var node = sub.a;
+	var name = sub.b;
+	return _Utils_Tuple2(
+		_Utils_ap(
+			$elm$browser$Browser$Events$nodeToKey(node),
+			name),
+		sub);
+};
+var $elm$browser$Browser$Events$Event = F2(
+	function (key, event) {
+		return {event: event, key: key};
+	});
+var $elm$browser$Browser$Events$spawn = F3(
+	function (router, key, _v0) {
+		var node = _v0.a;
+		var name = _v0.b;
+		var actualNode = function () {
+			if (node.$ === 'Document') {
+				return _Browser_doc;
+			} else {
+				return _Browser_window;
+			}
+		}();
+		return A2(
+			$elm$core$Task$map,
+			function (value) {
+				return _Utils_Tuple2(key, value);
+			},
+			A3(
+				_Browser_on,
+				actualNode,
+				name,
+				function (event) {
+					return A2(
+						$elm$core$Platform$sendToSelf,
+						router,
+						A2($elm$browser$Browser$Events$Event, key, event));
+				}));
+	});
+var $elm$core$Dict$union = F2(
+	function (t1, t2) {
+		return A3($elm$core$Dict$foldl, $elm$core$Dict$insert, t2, t1);
+	});
+var $elm$browser$Browser$Events$onEffects = F3(
+	function (router, subs, state) {
+		var stepRight = F3(
+			function (key, sub, _v6) {
+				var deads = _v6.a;
+				var lives = _v6.b;
+				var news = _v6.c;
+				return _Utils_Tuple3(
+					deads,
+					lives,
+					A2(
+						$elm$core$List$cons,
+						A3($elm$browser$Browser$Events$spawn, router, key, sub),
+						news));
+			});
+		var stepLeft = F3(
+			function (_v4, pid, _v5) {
+				var deads = _v5.a;
+				var lives = _v5.b;
+				var news = _v5.c;
+				return _Utils_Tuple3(
+					A2($elm$core$List$cons, pid, deads),
+					lives,
+					news);
+			});
+		var stepBoth = F4(
+			function (key, pid, _v2, _v3) {
+				var deads = _v3.a;
+				var lives = _v3.b;
+				var news = _v3.c;
+				return _Utils_Tuple3(
+					deads,
+					A3($elm$core$Dict$insert, key, pid, lives),
+					news);
+			});
+		var newSubs = A2($elm$core$List$map, $elm$browser$Browser$Events$addKey, subs);
+		var _v0 = A6(
+			$elm$core$Dict$merge,
+			stepLeft,
+			stepBoth,
+			stepRight,
+			state.pids,
+			$elm$core$Dict$fromList(newSubs),
+			_Utils_Tuple3(_List_Nil, $elm$core$Dict$empty, _List_Nil));
+		var deadPids = _v0.a;
+		var livePids = _v0.b;
+		var makeNewPids = _v0.c;
+		return A2(
+			$elm$core$Task$andThen,
+			function (pids) {
+				return $elm$core$Task$succeed(
+					A2(
+						$elm$browser$Browser$Events$State,
+						newSubs,
+						A2(
+							$elm$core$Dict$union,
+							livePids,
+							$elm$core$Dict$fromList(pids))));
+			},
+			A2(
+				$elm$core$Task$andThen,
+				function (_v1) {
+					return $elm$core$Task$sequence(makeNewPids);
+				},
+				$elm$core$Task$sequence(
+					A2($elm$core$List$map, $elm$core$Process$kill, deadPids))));
+	});
+var $elm$browser$Browser$Events$onSelfMsg = F3(
+	function (router, _v0, state) {
+		var key = _v0.key;
+		var event = _v0.event;
+		var toMessage = function (_v2) {
+			var subKey = _v2.a;
+			var _v3 = _v2.b;
+			var node = _v3.a;
+			var name = _v3.b;
+			var decoder = _v3.c;
+			return _Utils_eq(subKey, key) ? A2(_Browser_decodeEvent, decoder, event) : $elm$core$Maybe$Nothing;
+		};
+		var messages = A2($elm$core$List$filterMap, toMessage, state.subs);
+		return A2(
+			$elm$core$Task$andThen,
+			function (_v1) {
+				return $elm$core$Task$succeed(state);
+			},
+			$elm$core$Task$sequence(
+				A2(
+					$elm$core$List$map,
+					$elm$core$Platform$sendToApp(router),
+					messages)));
+	});
+var $elm$browser$Browser$Events$subMap = F2(
+	function (func, _v0) {
+		var node = _v0.a;
+		var name = _v0.b;
+		var decoder = _v0.c;
+		return A3(
+			$elm$browser$Browser$Events$MySub,
+			node,
+			name,
+			A2($elm$json$Json$Decode$map, func, decoder));
+	});
+_Platform_effectManagers['Browser.Events'] = _Platform_createManager($elm$browser$Browser$Events$init, $elm$browser$Browser$Events$onEffects, $elm$browser$Browser$Events$onSelfMsg, 0, $elm$browser$Browser$Events$subMap);
+var $elm$browser$Browser$Events$subscription = _Platform_leaf('Browser.Events');
+var $elm$browser$Browser$Events$on = F3(
+	function (node, name, decoder) {
+		return $elm$browser$Browser$Events$subscription(
+			A3($elm$browser$Browser$Events$MySub, node, name, decoder));
+	});
+var $elm$browser$Browser$Events$onMouseMove = A2($elm$browser$Browser$Events$on, $elm$browser$Browser$Events$Document, 'mousemove');
+var $elm$browser$Browser$Events$onMouseUp = A2($elm$browser$Browser$Events$on, $elm$browser$Browser$Events$Document, 'mouseup');
+var $author$project$Leaderboard$subscriptions = function (model) {
+	var _v0 = model.drag;
+	if (_v0.$ === 'Nothing') {
+		return $elm$core$Platform$Sub$none;
+	} else {
+		return $elm$core$Platform$Sub$batch(
+			_List_fromArray(
+				[
+					$elm$browser$Browser$Events$onMouseMove(
+					A2($elm$json$Json$Decode$map, $author$project$Leaderboard$DragMove, $author$project$Leaderboard$mouseX)),
+					$elm$browser$Browser$Events$onMouseUp(
+					$elm$json$Json$Decode$succeed($author$project$Leaderboard$DragStop))
+				]));
+	}
+};
+var $author$project$Leaderboard$ChartsOnly = {$: 'ChartsOnly'};
+var $author$project$Leaderboard$DragStart = function (a) {
+	return {$: 'DragStart', a: a};
+};
 var $author$project$Leaderboard$Failed = function (a) {
 	return {$: 'Failed', a: a};
 };
 var $author$project$Leaderboard$Loaded = function (a) {
 	return {$: 'Loaded', a: a};
 };
+var $author$project$Leaderboard$NoOp = {$: 'NoOp'};
+var $author$project$Leaderboard$TableOnly = {$: 'TableOnly'};
+var $elm$core$Task$onError = _Scheduler_onError;
+var $elm$core$Task$attempt = F2(
+	function (resultToMessage, task) {
+		return $elm$core$Task$command(
+			$elm$core$Task$Perform(
+				A2(
+					$elm$core$Task$onError,
+					A2(
+						$elm$core$Basics$composeL,
+						A2($elm$core$Basics$composeL, $elm$core$Task$succeed, resultToMessage),
+						$elm$core$Result$Err),
+					A2(
+						$elm$core$Task$andThen,
+						A2(
+							$elm$core$Basics$composeL,
+							A2($elm$core$Basics$composeL, $elm$core$Task$succeed, resultToMessage),
+							$elm$core$Result$Ok),
+						task))));
+	});
+var $elm$browser$Browser$Dom$getViewportOf = _Browser_getViewportOf;
 var $author$project$Leaderboard$Ascending = {$: 'Ascending'};
 var $author$project$Leaderboard$opposite = function (order) {
 	if (order.$ === 'Ascending') {
@@ -11751,6 +11863,8 @@ var $elm$core$Set$remove = F2(
 var $author$project$Leaderboard$update = F2(
 	function (msg, model) {
 		switch (msg.$) {
+			case 'NoOp':
+				return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
 			case 'Fetched':
 				var result = msg.a;
 				if (result.$ === 'Ok') {
@@ -11834,12 +11948,67 @@ var $author$project$Leaderboard$update = F2(
 							selectedFamilies: A2($elm$core$Set$insert, key, model.selectedFamilies)
 						}),
 					$elm$core$Platform$Cmd$none);
-			default:
+			case 'SetLayout':
 				var layout = msg.a;
 				return _Utils_Tuple2(
 					_Utils_update(
 						model,
 						{layout: layout}),
+					$elm$core$Platform$Cmd$none);
+			case 'MouseDown':
+				var x = msg.a;
+				return _Utils_Tuple2(
+					model,
+					A2(
+						$elm$core$Task$attempt,
+						function (result) {
+							if (result.$ === 'Err') {
+								var err = result.a;
+								return $author$project$Leaderboard$NoOp;
+							} else {
+								var viewport = result.a;
+								return $author$project$Leaderboard$DragStart(
+									{viewport: viewport, x: x});
+							}
+						},
+						$elm$browser$Browser$Dom$getViewportOf('split-root')));
+			case 'DragStart':
+				var info = msg.a;
+				var pct = (info.x - info.viewport.viewport.x) / info.viewport.viewport.width;
+				return _Utils_Tuple2(
+					_Utils_update(
+						model,
+						{
+							drag: $elm$core$Maybe$Just(info),
+							layout: $author$project$Leaderboard$Split(pct)
+						}),
+					$elm$core$Platform$Cmd$none);
+			case 'DragMove':
+				var x = msg.a;
+				var _v3 = model.drag;
+				if (_v3.$ === 'Just') {
+					var info = _v3.a;
+					var pct = (info.x - info.viewport.viewport.x) / info.viewport.viewport.width;
+					var layout = (pct < 0.01) ? $author$project$Leaderboard$ChartsOnly : ((pct > 0.99) ? $author$project$Leaderboard$TableOnly : $author$project$Leaderboard$Split(pct));
+					return _Utils_Tuple2(
+						_Utils_update(
+							model,
+							{
+								drag: $elm$core$Maybe$Just(
+									_Utils_update(
+										info,
+										{x: x})),
+								layout: layout
+							}),
+						$elm$core$Platform$Cmd$none);
+				} else {
+					return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
+				}
+			default:
+				return _Utils_Tuple2(
+					_Utils_update(
+						model,
+						{drag: $elm$core$Maybe$Nothing}),
 					$elm$core$Platform$Cmd$none);
 		}
 	});
@@ -11875,13 +12044,22 @@ var $author$project$Leaderboard$viewChartPane = F2(
 			_List_fromArray(
 				[content]));
 	});
-var $author$project$Leaderboard$getNumeric = function (sortType) {
-	if (sortType.$ === 'SortNumeric') {
-		var fn = sortType.a;
-		return $elm$core$Maybe$Just(fn);
-	} else {
-		return $elm$core$Maybe$Nothing;
-	}
+var $elm$core$List$unzip = function (pairs) {
+	var step = F2(
+		function (_v0, _v1) {
+			var x = _v0.a;
+			var y = _v0.b;
+			var xs = _v1.a;
+			var ys = _v1.b;
+			return _Utils_Tuple2(
+				A2($elm$core$List$cons, x, xs),
+				A2($elm$core$List$cons, y, ys));
+		});
+	return A3(
+		$elm$core$List$foldr,
+		step,
+		_Utils_Tuple2(_List_Nil, _List_Nil),
+		pairs);
 };
 var $terezka$elm_charts$Internal$Helpers$Attribute = function (a) {
 	return {$: 'Attribute', a: a};
@@ -12632,13 +12810,6 @@ var $elm$svg$Svg$pattern = $elm$svg$Svg$trustedNode('pattern');
 var $elm$svg$Svg$Attributes$patternTransform = _VirtualDom_attribute('patternTransform');
 var $elm$svg$Svg$Attributes$patternUnits = _VirtualDom_attribute('patternUnits');
 var $elm$svg$Svg$Attributes$r = _VirtualDom_attribute('r');
-var $elm$core$String$replace = F3(
-	function (before, after, string) {
-		return A2(
-			$elm$core$String$join,
-			after,
-			A2($elm$core$String$split, before, string));
-	});
 var $elm$svg$Svg$stop = $elm$svg$Svg$trustedNode('stop');
 var $elm$svg$Svg$Attributes$stopColor = _VirtualDom_attribute('stop-color');
 var $elm$svg$Svg$Attributes$width = _VirtualDom_attribute('width');
@@ -15282,6 +15453,16 @@ var $author$project$Leaderboard$familyColor = function (fam) {
 			return 'biobench-black';
 	}
 };
+var $terezka$elm_charts$Chart$Attributes$fontSize = function (v) {
+	return $terezka$elm_charts$Internal$Helpers$Attribute(
+		function (config) {
+			return _Utils_update(
+				config,
+				{
+					fontSize: $elm$core$Maybe$Just(v)
+				});
+		});
+};
 var $terezka$elm_charts$Chart$Attributes$height = function (v) {
 	return $terezka$elm_charts$Internal$Helpers$Attribute(
 		function (config) {
@@ -15309,12 +15490,223 @@ var $terezka$elm_charts$Chart$Attributes$htmlAttrs = function (v) {
 				{htmlAttrs: v});
 		});
 };
+var $terezka$elm_charts$Chart$SvgElement = function (a) {
+	return {$: 'SvgElement', a: a};
+};
+var $terezka$elm_charts$Internal$Svg$defaultLabel = {anchor: $elm$core$Maybe$Nothing, attrs: _List_Nil, border: 'white', borderWidth: 0, color: '#808BAB', ellipsis: $elm$core$Maybe$Nothing, fontSize: $elm$core$Maybe$Nothing, hideOverflow: false, rotate: 0, uppercase: false, xOff: 0, yOff: 0};
+var $elm$html$Html$Attributes$attribute = $elm$virtual_dom$VirtualDom$attribute;
+var $elm$svg$Svg$foreignObject = $elm$svg$Svg$trustedNode('foreignObject');
+var $terezka$elm_charts$Internal$Svg$position = F6(
+	function (plane, rotation, x_, y_, xOff_, yOff_) {
+		return $elm$svg$Svg$Attributes$transform(
+			'translate(' + ($elm$core$String$fromFloat(
+				A2($terezka$elm_charts$Internal$Coordinates$toSVGX, plane, x_) + xOff_) + (',' + ($elm$core$String$fromFloat(
+				A2($terezka$elm_charts$Internal$Coordinates$toSVGY, plane, y_) + yOff_) + (') rotate(' + ($elm$core$String$fromFloat(rotation) + ')'))))));
+	});
+var $elm$svg$Svg$text_ = $elm$svg$Svg$trustedNode('text');
+var $elm$svg$Svg$tspan = $elm$svg$Svg$trustedNode('tspan');
+var $terezka$elm_charts$Internal$Svg$label = F4(
+	function (plane, config, inner, point) {
+		var _v0 = config.ellipsis;
+		if (_v0.$ === 'Nothing') {
+			var withOverflowWrap = function (el) {
+				return config.hideOverflow ? A2(
+					$elm$svg$Svg$g,
+					_List_fromArray(
+						[
+							$terezka$elm_charts$Internal$Svg$withinChartArea(plane)
+						]),
+					_List_fromArray(
+						[el])) : el;
+			};
+			var uppercaseStyle = config.uppercase ? 'text-transform: uppercase;' : '';
+			var fontStyle = function () {
+				var _v5 = config.fontSize;
+				if (_v5.$ === 'Just') {
+					var size_ = _v5.a;
+					return 'font-size: ' + ($elm$core$String$fromInt(size_) + 'px;');
+				} else {
+					return '';
+				}
+			}();
+			var anchorStyle = function () {
+				var _v1 = config.anchor;
+				if (_v1.$ === 'Nothing') {
+					return 'text-anchor: middle;';
+				} else {
+					switch (_v1.a.$) {
+						case 'End':
+							var _v2 = _v1.a;
+							return 'text-anchor: end;';
+						case 'Start':
+							var _v3 = _v1.a;
+							return 'text-anchor: start;';
+						default:
+							var _v4 = _v1.a;
+							return 'text-anchor: middle;';
+					}
+				}
+			}();
+			return withOverflowWrap(
+				A4(
+					$terezka$elm_charts$Internal$Svg$withAttrs,
+					config.attrs,
+					$elm$svg$Svg$text_,
+					_List_fromArray(
+						[
+							$elm$svg$Svg$Attributes$class('elm-charts__label'),
+							$elm$svg$Svg$Attributes$stroke(config.border),
+							$elm$svg$Svg$Attributes$strokeWidth(
+							$elm$core$String$fromFloat(config.borderWidth)),
+							$elm$svg$Svg$Attributes$fill(config.color),
+							A6($terezka$elm_charts$Internal$Svg$position, plane, -config.rotate, point.x, point.y, config.xOff, config.yOff),
+							$elm$svg$Svg$Attributes$style(
+							A2(
+								$elm$core$String$join,
+								' ',
+								_List_fromArray(
+									['pointer-events: none;', fontStyle, anchorStyle, uppercaseStyle])))
+						]),
+					_List_fromArray(
+						[
+							A2($elm$svg$Svg$tspan, _List_Nil, inner)
+						])));
+		} else {
+			var ellipsis = _v0.a;
+			var xOffWithAnchor = function () {
+				var _v11 = config.anchor;
+				if (_v11.$ === 'Nothing') {
+					return config.xOff - (ellipsis.width / 2);
+				} else {
+					switch (_v11.a.$) {
+						case 'End':
+							var _v12 = _v11.a;
+							return config.xOff - ellipsis.width;
+						case 'Start':
+							var _v13 = _v11.a;
+							return config.xOff;
+						default:
+							var _v14 = _v11.a;
+							return config.xOff - (ellipsis.width / 2);
+					}
+				}
+			}();
+			var withOverflowWrap = function (el) {
+				return config.hideOverflow ? A2(
+					$elm$svg$Svg$g,
+					_List_fromArray(
+						[
+							$terezka$elm_charts$Internal$Svg$withinChartArea(plane)
+						]),
+					_List_fromArray(
+						[el])) : el;
+			};
+			var uppercaseStyle = config.uppercase ? A2($elm$html$Html$Attributes$style, 'text-transform', 'uppercase') : A2($elm$html$Html$Attributes$style, '', '');
+			var fontStyle = function () {
+				var _v10 = config.fontSize;
+				if (_v10.$ === 'Just') {
+					var size_ = _v10.a;
+					return A2(
+						$elm$html$Html$Attributes$style,
+						'font-size',
+						$elm$core$String$fromInt(size_) + 'px');
+				} else {
+					return A2($elm$html$Html$Attributes$style, '', '');
+				}
+			}();
+			var anchorStyle = function () {
+				var _v6 = config.anchor;
+				if (_v6.$ === 'Nothing') {
+					return A2($elm$html$Html$Attributes$style, 'text-align', 'center');
+				} else {
+					switch (_v6.a.$) {
+						case 'End':
+							var _v7 = _v6.a;
+							return A2($elm$html$Html$Attributes$style, 'text-align', 'right');
+						case 'Start':
+							var _v8 = _v6.a;
+							return A2($elm$html$Html$Attributes$style, 'text-align', 'left');
+						default:
+							var _v9 = _v6.a;
+							return A2($elm$html$Html$Attributes$style, 'text-align', 'center');
+					}
+				}
+			}();
+			return withOverflowWrap(
+				A4(
+					$terezka$elm_charts$Internal$Svg$withAttrs,
+					config.attrs,
+					$elm$svg$Svg$foreignObject,
+					_List_fromArray(
+						[
+							$elm$svg$Svg$Attributes$class('elm-charts__label'),
+							$elm$svg$Svg$Attributes$class('elm-charts__html-label'),
+							$elm$svg$Svg$Attributes$width(
+							$elm$core$String$fromFloat(ellipsis.width)),
+							$elm$svg$Svg$Attributes$height(
+							$elm$core$String$fromFloat(ellipsis.height)),
+							A6($terezka$elm_charts$Internal$Svg$position, plane, -config.rotate, point.x, point.y, xOffWithAnchor, config.yOff - 10)
+						]),
+					_List_fromArray(
+						[
+							A2(
+							$elm$html$Html$div,
+							_List_fromArray(
+								[
+									A2($elm$html$Html$Attributes$attribute, 'xmlns', 'http://www.w3.org/1999/xhtml'),
+									A2($elm$html$Html$Attributes$style, 'white-space', 'nowrap'),
+									A2($elm$html$Html$Attributes$style, 'overflow', 'hidden'),
+									A2($elm$html$Html$Attributes$style, 'text-overflow', 'ellipsis'),
+									A2($elm$html$Html$Attributes$style, 'height', '100%'),
+									A2($elm$html$Html$Attributes$style, 'pointer-events', 'none'),
+									A2($elm$html$Html$Attributes$style, 'color', config.color),
+									fontStyle,
+									uppercaseStyle,
+									anchorStyle
+								]),
+							inner)
+						])));
+		}
+	});
+var $terezka$elm_charts$Chart$Svg$label = F2(
+	function (plane, edits) {
+		return A2(
+			$terezka$elm_charts$Internal$Svg$label,
+			plane,
+			A2($terezka$elm_charts$Internal$Helpers$apply, edits, $terezka$elm_charts$Internal$Svg$defaultLabel));
+	});
+var $terezka$elm_charts$Chart$labelAt = F4(
+	function (toX, toY, attrs, inner) {
+		return $terezka$elm_charts$Chart$SvgElement(
+			function (p) {
+				return A4(
+					$terezka$elm_charts$Chart$Svg$label,
+					p,
+					attrs,
+					inner,
+					{
+						x: toX(p.x),
+						y: toY(p.y)
+					});
+			});
+	});
 var $terezka$elm_charts$Chart$Attributes$margin = function (v) {
 	return $terezka$elm_charts$Internal$Helpers$Attribute(
 		function (config) {
 			return _Utils_update(
 				config,
 				{margin: v});
+		});
+};
+var $terezka$elm_charts$Chart$Attributes$middle = function (b) {
+	return b.min + ((b.max - b.min) / 2);
+};
+var $terezka$elm_charts$Chart$Attributes$moveUp = function (v) {
+	return $terezka$elm_charts$Internal$Helpers$Attribute(
+		function (config) {
+			return _Utils_update(
+				config,
+				{yOff: config.yOff - v});
 		});
 };
 var $author$project$Leaderboard$toCssColorVar = function (color) {
@@ -15372,7 +15764,6 @@ var $terezka$elm_charts$Chart$LabelsElement = F3(
 		return {$: 'LabelsElement', a: a, b: b, c: c};
 	});
 var $terezka$elm_charts$Internal$Svg$Start = {$: 'Start'};
-var $terezka$elm_charts$Internal$Svg$defaultLabel = {anchor: $elm$core$Maybe$Nothing, attrs: _List_Nil, border: 'white', borderWidth: 0, color: '#808BAB', ellipsis: $elm$core$Maybe$Nothing, fontSize: $elm$core$Maybe$Nothing, hideOverflow: false, rotate: 0, uppercase: false, xOff: 0, yOff: 0};
 var $terezka$elm_charts$Internal$Svg$Generator = function (a) {
 	return {$: 'Generator', a: a};
 };
@@ -15659,6 +16050,50 @@ var $ryan_haskell$date_format$DateFormat$Language$english = A6(
 		$elm$core$String$left(3)),
 	$ryan_haskell$date_format$DateFormat$Language$toEnglishAmPm,
 	$ryan_haskell$date_format$DateFormat$Language$toEnglishSuffix);
+var $elm$time$Time$flooredDiv = F2(
+	function (numerator, denominator) {
+		return $elm$core$Basics$floor(numerator / denominator);
+	});
+var $elm$time$Time$posixToMillis = function (_v0) {
+	var millis = _v0.a;
+	return millis;
+};
+var $elm$time$Time$toAdjustedMinutesHelp = F3(
+	function (defaultOffset, posixMinutes, eras) {
+		toAdjustedMinutesHelp:
+		while (true) {
+			if (!eras.b) {
+				return posixMinutes + defaultOffset;
+			} else {
+				var era = eras.a;
+				var olderEras = eras.b;
+				if (_Utils_cmp(era.start, posixMinutes) < 0) {
+					return posixMinutes + era.offset;
+				} else {
+					var $temp$defaultOffset = defaultOffset,
+						$temp$posixMinutes = posixMinutes,
+						$temp$eras = olderEras;
+					defaultOffset = $temp$defaultOffset;
+					posixMinutes = $temp$posixMinutes;
+					eras = $temp$eras;
+					continue toAdjustedMinutesHelp;
+				}
+			}
+		}
+	});
+var $elm$time$Time$toAdjustedMinutes = F2(
+	function (_v0, time) {
+		var defaultOffset = _v0.a;
+		var eras = _v0.b;
+		return A3(
+			$elm$time$Time$toAdjustedMinutesHelp,
+			defaultOffset,
+			A2(
+				$elm$time$Time$flooredDiv,
+				$elm$time$Time$posixToMillis(time),
+				60000),
+			eras);
+	});
 var $elm$time$Time$toHour = F2(
 	function (zone, time) {
 		return A2(
@@ -15674,6 +16109,21 @@ var $ryan_haskell$date_format$DateFormat$amPm = F3(
 		return language.toAmPm(
 			A2($elm$time$Time$toHour, zone, posix));
 	});
+var $elm$time$Time$toCivil = function (minutes) {
+	var rawDay = A2($elm$time$Time$flooredDiv, minutes, 60 * 24) + 719468;
+	var era = (((rawDay >= 0) ? rawDay : (rawDay - 146096)) / 146097) | 0;
+	var dayOfEra = rawDay - (era * 146097);
+	var yearOfEra = ((((dayOfEra - ((dayOfEra / 1460) | 0)) + ((dayOfEra / 36524) | 0)) - ((dayOfEra / 146096) | 0)) / 365) | 0;
+	var dayOfYear = dayOfEra - (((365 * yearOfEra) + ((yearOfEra / 4) | 0)) - ((yearOfEra / 100) | 0));
+	var mp = (((5 * dayOfYear) + 2) / 153) | 0;
+	var month = mp + ((mp < 10) ? 3 : (-9));
+	var year = yearOfEra + (era * 400);
+	return {
+		day: (dayOfYear - ((((153 * mp) + 2) / 5) | 0)) + 1,
+		month: month,
+		year: year + ((month <= 2) ? 1 : 0)
+	};
+};
 var $elm$time$Time$toDay = F2(
 	function (zone, time) {
 		return $elm$time$Time$toCivil(
@@ -15984,6 +16434,11 @@ var $elm$core$List$takeFast = F3(
 var $elm$core$List$take = F2(
 	function (n, list) {
 		return A3($elm$core$List$takeFast, 0, n, list);
+	});
+var $elm$time$Time$toYear = F2(
+	function (zone, time) {
+		return $elm$time$Time$toCivil(
+			A2($elm$time$Time$toAdjustedMinutes, zone, time)).year;
 	});
 var $ryan_haskell$date_format$DateFormat$dayOfYear = F2(
 	function (zone, posix) {
@@ -17537,180 +17992,6 @@ var $terezka$elm_charts$Chart$generateValues = F4(
 						axis));
 		}
 	});
-var $elm$html$Html$Attributes$attribute = $elm$virtual_dom$VirtualDom$attribute;
-var $elm$svg$Svg$foreignObject = $elm$svg$Svg$trustedNode('foreignObject');
-var $terezka$elm_charts$Internal$Svg$position = F6(
-	function (plane, rotation, x_, y_, xOff_, yOff_) {
-		return $elm$svg$Svg$Attributes$transform(
-			'translate(' + ($elm$core$String$fromFloat(
-				A2($terezka$elm_charts$Internal$Coordinates$toSVGX, plane, x_) + xOff_) + (',' + ($elm$core$String$fromFloat(
-				A2($terezka$elm_charts$Internal$Coordinates$toSVGY, plane, y_) + yOff_) + (') rotate(' + ($elm$core$String$fromFloat(rotation) + ')'))))));
-	});
-var $elm$svg$Svg$text_ = $elm$svg$Svg$trustedNode('text');
-var $elm$svg$Svg$tspan = $elm$svg$Svg$trustedNode('tspan');
-var $terezka$elm_charts$Internal$Svg$label = F4(
-	function (plane, config, inner, point) {
-		var _v0 = config.ellipsis;
-		if (_v0.$ === 'Nothing') {
-			var withOverflowWrap = function (el) {
-				return config.hideOverflow ? A2(
-					$elm$svg$Svg$g,
-					_List_fromArray(
-						[
-							$terezka$elm_charts$Internal$Svg$withinChartArea(plane)
-						]),
-					_List_fromArray(
-						[el])) : el;
-			};
-			var uppercaseStyle = config.uppercase ? 'text-transform: uppercase;' : '';
-			var fontStyle = function () {
-				var _v5 = config.fontSize;
-				if (_v5.$ === 'Just') {
-					var size_ = _v5.a;
-					return 'font-size: ' + ($elm$core$String$fromInt(size_) + 'px;');
-				} else {
-					return '';
-				}
-			}();
-			var anchorStyle = function () {
-				var _v1 = config.anchor;
-				if (_v1.$ === 'Nothing') {
-					return 'text-anchor: middle;';
-				} else {
-					switch (_v1.a.$) {
-						case 'End':
-							var _v2 = _v1.a;
-							return 'text-anchor: end;';
-						case 'Start':
-							var _v3 = _v1.a;
-							return 'text-anchor: start;';
-						default:
-							var _v4 = _v1.a;
-							return 'text-anchor: middle;';
-					}
-				}
-			}();
-			return withOverflowWrap(
-				A4(
-					$terezka$elm_charts$Internal$Svg$withAttrs,
-					config.attrs,
-					$elm$svg$Svg$text_,
-					_List_fromArray(
-						[
-							$elm$svg$Svg$Attributes$class('elm-charts__label'),
-							$elm$svg$Svg$Attributes$stroke(config.border),
-							$elm$svg$Svg$Attributes$strokeWidth(
-							$elm$core$String$fromFloat(config.borderWidth)),
-							$elm$svg$Svg$Attributes$fill(config.color),
-							A6($terezka$elm_charts$Internal$Svg$position, plane, -config.rotate, point.x, point.y, config.xOff, config.yOff),
-							$elm$svg$Svg$Attributes$style(
-							A2(
-								$elm$core$String$join,
-								' ',
-								_List_fromArray(
-									['pointer-events: none;', fontStyle, anchorStyle, uppercaseStyle])))
-						]),
-					_List_fromArray(
-						[
-							A2($elm$svg$Svg$tspan, _List_Nil, inner)
-						])));
-		} else {
-			var ellipsis = _v0.a;
-			var xOffWithAnchor = function () {
-				var _v11 = config.anchor;
-				if (_v11.$ === 'Nothing') {
-					return config.xOff - (ellipsis.width / 2);
-				} else {
-					switch (_v11.a.$) {
-						case 'End':
-							var _v12 = _v11.a;
-							return config.xOff - ellipsis.width;
-						case 'Start':
-							var _v13 = _v11.a;
-							return config.xOff;
-						default:
-							var _v14 = _v11.a;
-							return config.xOff - (ellipsis.width / 2);
-					}
-				}
-			}();
-			var withOverflowWrap = function (el) {
-				return config.hideOverflow ? A2(
-					$elm$svg$Svg$g,
-					_List_fromArray(
-						[
-							$terezka$elm_charts$Internal$Svg$withinChartArea(plane)
-						]),
-					_List_fromArray(
-						[el])) : el;
-			};
-			var uppercaseStyle = config.uppercase ? A2($elm$html$Html$Attributes$style, 'text-transform', 'uppercase') : A2($elm$html$Html$Attributes$style, '', '');
-			var fontStyle = function () {
-				var _v10 = config.fontSize;
-				if (_v10.$ === 'Just') {
-					var size_ = _v10.a;
-					return A2(
-						$elm$html$Html$Attributes$style,
-						'font-size',
-						$elm$core$String$fromInt(size_) + 'px');
-				} else {
-					return A2($elm$html$Html$Attributes$style, '', '');
-				}
-			}();
-			var anchorStyle = function () {
-				var _v6 = config.anchor;
-				if (_v6.$ === 'Nothing') {
-					return A2($elm$html$Html$Attributes$style, 'text-align', 'center');
-				} else {
-					switch (_v6.a.$) {
-						case 'End':
-							var _v7 = _v6.a;
-							return A2($elm$html$Html$Attributes$style, 'text-align', 'right');
-						case 'Start':
-							var _v8 = _v6.a;
-							return A2($elm$html$Html$Attributes$style, 'text-align', 'left');
-						default:
-							var _v9 = _v6.a;
-							return A2($elm$html$Html$Attributes$style, 'text-align', 'center');
-					}
-				}
-			}();
-			return withOverflowWrap(
-				A4(
-					$terezka$elm_charts$Internal$Svg$withAttrs,
-					config.attrs,
-					$elm$svg$Svg$foreignObject,
-					_List_fromArray(
-						[
-							$elm$svg$Svg$Attributes$class('elm-charts__label'),
-							$elm$svg$Svg$Attributes$class('elm-charts__html-label'),
-							$elm$svg$Svg$Attributes$width(
-							$elm$core$String$fromFloat(ellipsis.width)),
-							$elm$svg$Svg$Attributes$height(
-							$elm$core$String$fromFloat(ellipsis.height)),
-							A6($terezka$elm_charts$Internal$Svg$position, plane, -config.rotate, point.x, point.y, xOffWithAnchor, config.yOff - 10)
-						]),
-					_List_fromArray(
-						[
-							A2(
-							$elm$html$Html$div,
-							_List_fromArray(
-								[
-									A2($elm$html$Html$Attributes$attribute, 'xmlns', 'http://www.w3.org/1999/xhtml'),
-									A2($elm$html$Html$Attributes$style, 'white-space', 'nowrap'),
-									A2($elm$html$Html$Attributes$style, 'overflow', 'hidden'),
-									A2($elm$html$Html$Attributes$style, 'text-overflow', 'ellipsis'),
-									A2($elm$html$Html$Attributes$style, 'height', '100%'),
-									A2($elm$html$Html$Attributes$style, 'pointer-events', 'none'),
-									A2($elm$html$Html$Attributes$style, 'color', config.color),
-									fontStyle,
-									uppercaseStyle,
-									anchorStyle
-								]),
-							inner)
-						])));
-		}
-	});
 var $terezka$elm_charts$Chart$Attributes$zero = function (b) {
 	return A3($elm$core$Basics$clamp, b.min, b.max, 0);
 };
@@ -17911,8 +18192,8 @@ var $terezka$elm_charts$Chart$yTicks = function (edits) {
 					toTicks(p)));
 		});
 };
-var $author$project$Leaderboard$viewBarChart = F2(
-	function (rows, getter) {
+var $author$project$Leaderboard$viewBarChart = F3(
+	function (rows, title, getter) {
 		var _v0 = A2(
 			$elm$core$List$filterMap,
 			$author$project$Leaderboard$withFamily(getter),
@@ -17939,8 +18220,8 @@ var $author$project$Leaderboard$viewBarChart = F2(
 						$terezka$elm_charts$Chart$chart,
 						_List_fromArray(
 							[
-								$terezka$elm_charts$Chart$Attributes$height(200),
-								$terezka$elm_charts$Chart$Attributes$width(200),
+								$terezka$elm_charts$Chart$Attributes$height(300),
+								$terezka$elm_charts$Chart$Attributes$width(300),
 								$terezka$elm_charts$Chart$Attributes$margin(
 								{bottom: 10, left: 37, right: 10, top: 25}),
 								$terezka$elm_charts$Chart$Attributes$domain(
@@ -17952,7 +18233,7 @@ var $author$project$Leaderboard$viewBarChart = F2(
 								$terezka$elm_charts$Chart$Attributes$htmlAttrs(
 								_List_fromArray(
 									[
-										$elm$html$Html$Attributes$class('border-1')
+										$elm$html$Html$Attributes$class('')
 									]))
 							]),
 						_List_fromArray(
@@ -17993,7 +18274,22 @@ var $author$project$Leaderboard$viewBarChart = F2(
 												$elm$core$Basics$mul(100)),
 											_List_Nil))
 									]),
-								data)
+								data),
+								A4(
+								$terezka$elm_charts$Chart$labelAt,
+								$terezka$elm_charts$Chart$Attributes$middle,
+								function ($) {
+									return $.max;
+								},
+								_List_fromArray(
+									[
+										$terezka$elm_charts$Chart$Attributes$fontSize(24),
+										$terezka$elm_charts$Chart$Attributes$moveUp(6)
+									]),
+								_List_fromArray(
+									[
+										$elm$svg$Svg$text(title)
+									]))
 							]))
 					]));
 		}
@@ -18006,48 +18302,114 @@ var $author$project$Leaderboard$viewCharts = F3(
 				return A2($elm$core$Set$member, r.checkpoint.family, selectedFamilies);
 			},
 			table.rows);
-		var getters = A2(
-			$elm$core$List$map,
-			function (fn) {
-				return fn(selectedCols);
+		var filteredCols = A2(
+			$elm$core$List$filter,
+			function (c) {
+				return A2($elm$core$Set$member, c.key, selectedCols);
 			},
+			table.cols);
+		var _v0 = $elm$core$List$unzip(
 			A2(
 				$elm$core$List$filterMap,
-				A2(
-					$elm$core$Basics$composeR,
-					function ($) {
-						return $.sortType;
-					},
-					$author$project$Leaderboard$getNumeric),
-				A2(
-					$elm$core$List$filter,
-					function (c) {
-						return A2($elm$core$Set$member, c.key, selectedCols);
-					},
-					table.cols)));
+				function (c) {
+					var _v1 = c.sortType;
+					if (_v1.$ === 'SortNumeric') {
+						var fn = _v1.a;
+						return $elm$core$Maybe$Just(
+							_Utils_Tuple2(
+								fn(selectedCols),
+								c.display));
+					} else {
+						return $elm$core$Maybe$Nothing;
+					}
+				},
+				filteredCols));
+		var getters = _v0.a;
+		var titles = _v0.b;
 		return A2(
 			$elm$html$Html$div,
 			_List_fromArray(
 				[
-					$elm$html$Html$Attributes$class('grid grid-cols-3 gap-2')
+					$elm$html$Html$Attributes$class('grid grid-cols-3 gap-2 mt-t')
 				]),
-			A2(
-				$elm$core$List$map,
+			A3(
+				$elm$core$List$map2,
 				$author$project$Leaderboard$viewBarChart(rows),
+				titles,
 				getters));
 	});
-var $author$project$Leaderboard$viewDragHandle = A2(
-	$elm$html$Html$div,
-	_List_fromArray(
-		[
-			$elm$html$Html$Attributes$class('w-1 bg-black/10 hover:bg-gold cursor-col-resize select-none')
-		]),
-	_List_Nil);
-var $author$project$Leaderboard$ChartsOnly = {$: 'ChartsOnly'};
+var $author$project$Leaderboard$MouseDown = function (a) {
+	return {$: 'MouseDown', a: a};
+};
+var $elm$svg$Svg$Attributes$points = _VirtualDom_attribute('points');
+var $elm$svg$Svg$polygon = $elm$svg$Svg$trustedNode('polygon');
+var $author$project$Leaderboard$viewDragHandle = function (info) {
+	var _v0 = function () {
+		if (info.$ === 'Just') {
+			return _Utils_Tuple2('bg-biobench-gold', 'fill-biobench-gold');
+		} else {
+			return _Utils_Tuple2('bg-biobench-black', 'fill-biobench-black');
+		}
+	}();
+	var bg = _v0.a;
+	var fill = _v0.b;
+	return A2(
+		$elm$html$Html$div,
+		_List_fromArray(
+			[
+				$elm$html$Html$Attributes$class('group relative w-1 hover:bg-biobench-gold cursor-col-resize select-none flex flex-col items-center z-40 drop-shadow-lg rounded-full'),
+				$elm$html$Html$Attributes$class(bg),
+				A2(
+				$elm$html$Html$Events$on,
+				'mousedown',
+				A2($elm$json$Json$Decode$map, $author$project$Leaderboard$MouseDown, $author$project$Leaderboard$mouseX))
+			]),
+		_List_fromArray(
+			[
+				A2(
+				$elm$html$Html$div,
+				_List_fromArray(
+					[
+						$elm$html$Html$Attributes$class('mt-6')
+					]),
+				_List_fromArray(
+					[
+						A2(
+						$elm$svg$Svg$svg,
+						_List_fromArray(
+							[
+								$elm$svg$Svg$Attributes$viewBox('0 0 40 40 '),
+								$elm$svg$Svg$Attributes$width('40 '),
+								$elm$svg$Svg$Attributes$height('40 ')
+							]),
+						_List_fromArray(
+							[
+								A2(
+								$elm$svg$Svg$circle,
+								_List_fromArray(
+									[
+										$elm$svg$Svg$Attributes$cx('20 '),
+										$elm$svg$Svg$Attributes$cy('20 '),
+										$elm$svg$Svg$Attributes$r('20'),
+										$elm$svg$Svg$Attributes$class('group-hover:fill-biobench-gold '),
+										$elm$svg$Svg$Attributes$class(fill)
+									]),
+								_List_Nil),
+								A2(
+								$elm$svg$Svg$polygon,
+								_List_fromArray(
+									[
+										$elm$svg$Svg$Attributes$points('4,20 12,28 12,24 28,24 28,28 36,20 28,12, 28,16 12,16 12,12'),
+										$elm$svg$Svg$Attributes$fill('white')
+									]),
+								_List_Nil)
+							]))
+					]))
+			]));
+};
 var $author$project$Leaderboard$SetLayout = function (a) {
 	return {$: 'SetLayout', a: a};
 };
-var $author$project$Leaderboard$TableOnly = {$: 'TableOnly'};
 var $author$project$Leaderboard$layoutEq = F2(
 	function (a, b) {
 		var _v0 = _Utils_Tuple2(a, b);
@@ -18263,7 +18625,7 @@ var $author$project$Leaderboard$viewPickers = F4(
 				[
 					A2(
 					$author$project$Leaderboard$viewFieldset,
-					'Panes',
+					'Windows',
 					_List_fromArray(
 						[
 							A4(
@@ -18440,29 +18802,36 @@ var $author$project$Leaderboard$upArrow = $elm$core$String$fromChar(
 	$elm$core$Char$fromCode(9650));
 var $author$project$Leaderboard$viewTh = F3(
 	function (sortKey, sortOrder, col) {
-		var extra = function () {
+		var _v0 = function () {
 			if (_Utils_eq(sortKey, col.key)) {
 				if (sortOrder.$ === 'Descending') {
-					return $author$project$Leaderboard$downArrow;
+					return _Utils_Tuple2(
+						_Utils_ap($author$project$Leaderboard$nonbreakingSpace, $author$project$Leaderboard$downArrow),
+						'font-bold');
 				} else {
-					return $author$project$Leaderboard$upArrow;
+					return _Utils_Tuple2(
+						_Utils_ap($author$project$Leaderboard$nonbreakingSpace, $author$project$Leaderboard$upArrow),
+						'font-bold');
 				}
 			} else {
-				return '';
+				return _Utils_Tuple2('', 'font-medium');
 			}
 		}();
+		var suffix = _v0.a;
+		var extra = _v0.b;
 		return A2(
 			$elm$html$Html$th,
 			_List_fromArray(
 				[
 					$elm$html$Html$Attributes$class('px-2'),
+					$elm$html$Html$Attributes$class(extra),
 					$elm$html$Html$Events$onClick(
 					$author$project$Leaderboard$Sort(col.key))
 				]),
 			_List_fromArray(
 				[
 					$elm$html$Html$text(
-					_Utils_ap(col.display, extra))
+					_Utils_ap(col.display, suffix))
 				]));
 	});
 var $author$project$Leaderboard$viewThead = F4(
@@ -18471,7 +18840,7 @@ var $author$project$Leaderboard$viewThead = F4(
 			$elm$html$Html$thead,
 			_List_fromArray(
 				[
-					$elm$html$Html$Attributes$class('border-t border-b py-1')
+					$elm$html$Html$Attributes$class('border-t border-b py-1 ')
 				]),
 			A2(
 				$elm$core$List$map,
@@ -18507,10 +18876,47 @@ var $author$project$Leaderboard$viewTablePane = F2(
 					$elm$html$Html$Attributes$style,
 					'width',
 					$elm$core$String$fromFloat(w) + '%'),
-					$elm$html$Html$Attributes$class('overflow-x-auto')
+					A2($elm$html$Html$Attributes$style, 'position', 'relative')
 				]),
 			_List_fromArray(
-				[content]));
+				[
+					A2(
+					$elm$html$Html$div,
+					_List_fromArray(
+						[
+							$elm$html$Html$Attributes$class('overflow-x-auto')
+						]),
+					_List_fromArray(
+						[content])),
+					A2(
+					$elm$html$Html$div,
+					_List_fromArray(
+						[
+							A2($elm$html$Html$Attributes$style, 'position', 'absolute'),
+							A2($elm$html$Html$Attributes$style, 'left', '0'),
+							A2($elm$html$Html$Attributes$style, 'top', '0'),
+							A2($elm$html$Html$Attributes$style, 'bottom', '0'),
+							A2($elm$html$Html$Attributes$style, 'width', '20px'),
+							A2($elm$html$Html$Attributes$style, 'background', 'linear-gradient(to right, white, transparent)'),
+							A2($elm$html$Html$Attributes$style, 'pointer-events', 'none'),
+							A2($elm$html$Html$Attributes$style, 'z-index', '1')
+						]),
+					_List_Nil),
+					A2(
+					$elm$html$Html$div,
+					_List_fromArray(
+						[
+							A2($elm$html$Html$Attributes$style, 'position', 'absolute'),
+							A2($elm$html$Html$Attributes$style, 'right', '0'),
+							A2($elm$html$Html$Attributes$style, 'top', '0'),
+							A2($elm$html$Html$Attributes$style, 'bottom', '0'),
+							A2($elm$html$Html$Attributes$style, 'width', '20px'),
+							A2($elm$html$Html$Attributes$style, 'background', 'linear-gradient(to left, white, transparent)'),
+							A2($elm$html$Html$Attributes$style, 'pointer-events', 'none'),
+							A2($elm$html$Html$Attributes$style, 'z-index', '1')
+						]),
+					_List_Nil)
+				]));
 	});
 var $author$project$Leaderboard$view = function (model) {
 	var _v0 = model.requestedTable;
@@ -18547,7 +18953,8 @@ var $author$project$Leaderboard$view = function (model) {
 						$elm$html$Html$div,
 						_List_fromArray(
 							[
-								$elm$html$Html$Attributes$class('flex')
+								$elm$html$Html$Attributes$class('flex'),
+								$elm$html$Html$Attributes$id('split-root')
 							]),
 						function () {
 							var _v1 = model.layout;
@@ -18555,11 +18962,13 @@ var $author$project$Leaderboard$view = function (model) {
 								case 'TableOnly':
 									return _List_fromArray(
 										[
-											A2($author$project$Leaderboard$viewTablePane, tableContent, 100)
+											A2($author$project$Leaderboard$viewTablePane, tableContent, 100),
+											$author$project$Leaderboard$viewDragHandle(model.drag)
 										]);
 								case 'ChartsOnly':
 									return _List_fromArray(
 										[
+											$author$project$Leaderboard$viewDragHandle(model.drag),
 											A2($author$project$Leaderboard$viewChartPane, chartContent, 100)
 										]);
 								default:
@@ -18567,7 +18976,7 @@ var $author$project$Leaderboard$view = function (model) {
 									return _List_fromArray(
 										[
 											A2($author$project$Leaderboard$viewTablePane, tableContent, (pct - 0.01) * 100),
-											$author$project$Leaderboard$viewDragHandle,
+											$author$project$Leaderboard$viewDragHandle(model.drag),
 											A2($author$project$Leaderboard$viewChartPane, chartContent, 100 - ((pct + 0.01) * 100))
 										]);
 							}
@@ -18576,13 +18985,6 @@ var $author$project$Leaderboard$view = function (model) {
 	}
 };
 var $author$project$Leaderboard$main = $elm$browser$Browser$element(
-	{
-		init: $author$project$Leaderboard$init,
-		subscriptions: function (_v0) {
-			return $elm$core$Platform$Sub$none;
-		},
-		update: $author$project$Leaderboard$update,
-		view: $author$project$Leaderboard$view
-	});
+	{init: $author$project$Leaderboard$init, subscriptions: $author$project$Leaderboard$subscriptions, update: $author$project$Leaderboard$update, view: $author$project$Leaderboard$view});
 _Platform_export({'Leaderboard':{'init':$author$project$Leaderboard$main(
-	$elm$json$Json$Decode$succeed(_Utils_Tuple0))({"versions":{"elm":"0.19.1"},"types":{"message":"Leaderboard.Msg","aliases":{"Leaderboard.Checkpoint":{"args":[],"type":"{ name : String.String, display : String.String, family : String.String, release : Maybe.Maybe Time.Posix, params : Maybe.Maybe Basics.Int, resolution : Maybe.Maybe Basics.Int }"},"Leaderboard.Metadata":{"args":[],"type":"{ schema : Basics.Int, generated : Time.Posix, commit : String.String, seed : Basics.Int, alpha : Basics.Float, nBootstraps : Basics.Int }"},"Leaderboard.Table":{"args":[],"type":"{ rows : List.List Leaderboard.TableRow, cols : List.List Leaderboard.TableCol, metadata : Leaderboard.Metadata }"},"Leaderboard.TableCol":{"args":[],"type":"{ key : String.String, display : String.String, format : Set.Set String.String -> Leaderboard.TableRow -> ( String.String, String.String ), sortType : Leaderboard.SortType }"},"Leaderboard.TableRow":{"args":[],"type":"{ checkpoint : Leaderboard.Checkpoint, scores : Dict.Dict String.String Basics.Float, winners : Set.Set String.String }"}},"unions":{"Leaderboard.Msg":{"args":[],"tags":{"Fetched":["Result.Result Http.Error Leaderboard.Table"],"Sort":["String.String"],"ToggleCol":["String.String"],"ToggleFamily":["String.String"],"SetLayout":["Leaderboard.Layout"]}},"Dict.Dict":{"args":["k","v"],"tags":{"RBNode_elm_builtin":["Dict.NColor","k","v","Dict.Dict k v","Dict.Dict k v"],"RBEmpty_elm_builtin":[]}},"Http.Error":{"args":[],"tags":{"BadUrl":["String.String"],"Timeout":[],"NetworkError":[],"BadStatus":["Basics.Int"],"BadBody":["String.String"]}},"Basics.Float":{"args":[],"tags":{"Float":[]}},"Basics.Int":{"args":[],"tags":{"Int":[]}},"Leaderboard.Layout":{"args":[],"tags":{"TableOnly":[],"ChartsOnly":[],"Split":["Basics.Float"]}},"List.List":{"args":["a"],"tags":{}},"Maybe.Maybe":{"args":["a"],"tags":{"Just":["a"],"Nothing":[]}},"Time.Posix":{"args":[],"tags":{"Posix":["Basics.Int"]}},"Result.Result":{"args":["error","value"],"tags":{"Ok":["value"],"Err":["error"]}},"Set.Set":{"args":["t"],"tags":{"Set_elm_builtin":["Dict.Dict t ()"]}},"Leaderboard.SortType":{"args":[],"tags":{"SortNumeric":["Set.Set String.String -> Leaderboard.TableRow -> Maybe.Maybe Basics.Float"],"SortString":["Set.Set String.String -> Leaderboard.TableRow -> Maybe.Maybe String.String"],"NotSortable":[]}},"String.String":{"args":[],"tags":{"String":[]}},"Dict.NColor":{"args":[],"tags":{"Red":[],"Black":[]}}}}})}});}(this));
+	$elm$json$Json$Decode$succeed(_Utils_Tuple0))({"versions":{"elm":"0.19.1"},"types":{"message":"Leaderboard.Msg","aliases":{"Leaderboard.Checkpoint":{"args":[],"type":"{ name : String.String, display : String.String, family : String.String, release : Maybe.Maybe Time.Posix, params : Maybe.Maybe Basics.Int, resolution : Maybe.Maybe Basics.Int }"},"Leaderboard.DragInfo":{"args":[],"type":"{ x : Basics.Float, viewport : Browser.Dom.Viewport }"},"Leaderboard.Metadata":{"args":[],"type":"{ schema : Basics.Int, generated : Time.Posix, commit : String.String, seed : Basics.Int, alpha : Basics.Float, nBootstraps : Basics.Int }"},"Leaderboard.Table":{"args":[],"type":"{ rows : List.List Leaderboard.TableRow, cols : List.List Leaderboard.TableCol, metadata : Leaderboard.Metadata }"},"Leaderboard.TableCol":{"args":[],"type":"{ key : String.String, display : String.String, format : Set.Set String.String -> Leaderboard.TableRow -> ( String.String, String.String ), sortType : Leaderboard.SortType }"},"Leaderboard.TableRow":{"args":[],"type":"{ checkpoint : Leaderboard.Checkpoint, scores : Dict.Dict String.String Basics.Float, winners : Set.Set String.String }"},"Browser.Dom.Viewport":{"args":[],"type":"{ scene : { width : Basics.Float, height : Basics.Float }, viewport : { x : Basics.Float, y : Basics.Float, width : Basics.Float, height : Basics.Float } }"}},"unions":{"Leaderboard.Msg":{"args":[],"tags":{"Fetched":["Result.Result Http.Error Leaderboard.Table"],"Sort":["String.String"],"ToggleCol":["String.String"],"ToggleFamily":["String.String"],"SetLayout":["Leaderboard.Layout"],"MouseDown":["Basics.Float"],"DragStart":["Leaderboard.DragInfo"],"DragMove":["Basics.Float"],"DragStop":[],"NoOp":[]}},"Dict.Dict":{"args":["k","v"],"tags":{"RBNode_elm_builtin":["Dict.NColor","k","v","Dict.Dict k v","Dict.Dict k v"],"RBEmpty_elm_builtin":[]}},"Http.Error":{"args":[],"tags":{"BadUrl":["String.String"],"Timeout":[],"NetworkError":[],"BadStatus":["Basics.Int"],"BadBody":["String.String"]}},"Basics.Float":{"args":[],"tags":{"Float":[]}},"Basics.Int":{"args":[],"tags":{"Int":[]}},"Leaderboard.Layout":{"args":[],"tags":{"TableOnly":[],"ChartsOnly":[],"Split":["Basics.Float"]}},"List.List":{"args":["a"],"tags":{}},"Maybe.Maybe":{"args":["a"],"tags":{"Just":["a"],"Nothing":[]}},"Time.Posix":{"args":[],"tags":{"Posix":["Basics.Int"]}},"Result.Result":{"args":["error","value"],"tags":{"Ok":["value"],"Err":["error"]}},"Set.Set":{"args":["t"],"tags":{"Set_elm_builtin":["Dict.Dict t ()"]}},"Leaderboard.SortType":{"args":[],"tags":{"SortNumeric":["Set.Set String.String -> Leaderboard.TableRow -> Maybe.Maybe Basics.Float"],"SortString":["Set.Set String.String -> Leaderboard.TableRow -> Maybe.Maybe String.String"],"NotSortable":[]}},"String.String":{"args":[],"tags":{"String":[]}},"Dict.NColor":{"args":[],"tags":{"Red":[],"Black":[]}}}}})}});}(this));

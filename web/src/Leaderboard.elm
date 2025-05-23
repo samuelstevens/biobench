@@ -1,6 +1,8 @@
 module Leaderboard exposing (..)
 
 import Browser
+import Browser.Dom
+import Browser.Events
 import Chart as C
 import Chart.Attributes as CA
 import Dict
@@ -13,6 +15,8 @@ import Json.Decode as D
 import Round
 import Set
 import Svg
+import Svg.Attributes
+import Task
 import Time
 
 
@@ -20,7 +24,7 @@ main =
     Browser.element
         { init = init
         , update = update
-        , subscriptions = \_ -> Sub.none
+        , subscriptions = subscriptions
         , view = view
         }
 
@@ -31,12 +35,11 @@ type Msg
     | ToggleCol String
     | ToggleFamily String
     | SetLayout Layout
-
-
-
--- | DragStart
--- | DragMove Float
--- | DragEnd
+    | MouseDown Float
+    | DragStart DragInfo
+    | DragMove Float
+    | DragStop
+    | NoOp
 
 
 type Requested a e
@@ -59,6 +62,7 @@ type alias Model =
 
     -- UI
     , layout : Layout
+    , drag : Maybe DragInfo
     }
 
 
@@ -82,6 +86,12 @@ layoutEq a b =
 
         _ ->
             False
+
+
+type alias DragInfo =
+    { x : Float
+    , viewport : Browser.Dom.Viewport
+    }
 
 
 type alias Table =
@@ -175,6 +185,7 @@ init _ =
       , sortKey = "mean"
       , sortOrder = Descending
       , layout = Split 0.5
+      , drag = Nothing
       }
     , Http.get
         { url = "data/results.json"
@@ -183,9 +194,24 @@ init _ =
     )
 
 
+subscriptions model =
+    case model.drag of
+        Nothing ->
+            Sub.none
+
+        Just _ ->
+            Sub.batch
+                [ Browser.Events.onMouseMove (D.map DragMove mouseX)
+                , Browser.Events.onMouseUp (D.succeed DragStop)
+                ]
+
+
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
+        NoOp ->
+            ( model, Cmd.none )
+
         Fetched result ->
             case result of
                 Ok table ->
@@ -230,6 +256,52 @@ update msg model =
         SetLayout layout ->
             ( { model | layout = layout }, Cmd.none )
 
+        MouseDown x ->
+            ( model
+            , Task.attempt
+                (\result ->
+                    case result of
+                        Err err ->
+                            NoOp
+
+                        Ok viewport ->
+                            DragStart { x = x, viewport = viewport }
+                )
+                (Browser.Dom.getViewportOf "split-root")
+            )
+
+        DragStart info ->
+            let
+                pct =
+                    (info.x - info.viewport.viewport.x) / info.viewport.viewport.width
+            in
+            ( { model | drag = Just info, layout = Split pct }, Cmd.none )
+
+        DragMove x ->
+            case model.drag of
+                Just info ->
+                    let
+                        pct =
+                            (info.x - info.viewport.viewport.x) / info.viewport.viewport.width
+
+                        layout =
+                            if pct < 0.01 then
+                                ChartsOnly
+
+                            else if pct > 0.99 then
+                                TableOnly
+
+                            else
+                                Split pct
+                    in
+                    ( { model | drag = Just { info | x = x }, layout = layout }, Cmd.none )
+
+                Nothing ->
+                    ( model, Cmd.none )
+
+        DragStop ->
+            ( { model | drag = Nothing }, Cmd.none )
+
 
 view : Model -> Html Msg
 view model =
@@ -251,17 +323,21 @@ view model =
             Html.div []
                 [ viewPickers model.layout model.selectedCols model.selectedFamilies table
                 , Html.div
-                    [ class "flex" ]
+                    [ class "flex", Html.Attributes.id "split-root" ]
                     (case model.layout of
                         TableOnly ->
-                            [ viewTablePane tableContent 100 ]
+                            [ viewTablePane tableContent 100
+                            , viewDragHandle model.drag
+                            ]
 
                         ChartsOnly ->
-                            [ viewChartPane chartContent 100 ]
+                            [ viewDragHandle model.drag
+                            , viewChartPane chartContent 100
+                            ]
 
                         Split pct ->
                             [ viewTablePane tableContent ((pct - 0.01) * 100)
-                            , viewDragHandle
+                            , viewDragHandle model.drag
                             , viewChartPane chartContent (100 - (pct + 0.01) * 100)
                             ]
                     )
@@ -272,9 +348,37 @@ viewTablePane : Html Msg -> Float -> Html Msg
 viewTablePane content w =
     Html.div
         [ style "width" (String.fromFloat w ++ "%")
-        , class "overflow-x-auto"
+        , style "position" "relative"
         ]
-        [ content ]
+        [ Html.div
+            [ class "overflow-x-auto"
+            ]
+            [ content ]
+        , -- Left fade
+          Html.div
+            [ style "position" "absolute"
+            , style "left" "0"
+            , style "top" "0"
+            , style "bottom" "0"
+            , style "width" "20px"
+            , style "background" "linear-gradient(to right, white, transparent)"
+            , style "pointer-events" "none"
+            , style "z-index" "1"
+            ]
+            []
+        , -- Right fade
+          Html.div
+            [ style "position" "absolute"
+            , style "right" "0"
+            , style "top" "0"
+            , style "bottom" "0"
+            , style "width" "20px"
+            , style "background" "linear-gradient(to left, white, transparent)"
+            , style "pointer-events" "none"
+            , style "z-index" "1"
+            ]
+            []
+        ]
 
 
 viewChartPane : Html Msg -> Float -> Html Msg
@@ -286,15 +390,50 @@ viewChartPane content w =
         [ content ]
 
 
-viewDragHandle =
-    Html.div
-        [ class "w-1 bg-black/10 hover:bg-gold cursor-col-resize select-none"
+viewDragHandle : Maybe DragInfo -> Html Msg
+viewDragHandle info =
+    let
+        ( bg, fill ) =
+            case info of
+                Just _ ->
+                    ( "bg-biobench-gold", "fill-biobench-gold" )
 
-        -- , Html.Events.onMouseDown DragStart
-        -- , Html.Events.on "mousemove" (Decode.map DragMove mousePos)
-        -- , Html.Events.onMouseUp DragEnd
+                Nothing ->
+                    ( "bg-biobench-black", "fill-biobench-black" )
+    in
+    Html.div
+        [ class "group relative w-1 hover:bg-biobench-gold cursor-col-resize select-none flex flex-col items-center z-40 drop-shadow-lg rounded-full"
+        , class bg
+        , Html.Events.on "mousedown" (D.map MouseDown mouseX)
         ]
-        []
+        [ Html.div
+            [ class "mt-6" ]
+            [ Svg.svg
+                [ Svg.Attributes.viewBox "0 0 40 40 "
+                , Svg.Attributes.width "40 "
+                , Svg.Attributes.height "40 "
+                ]
+                [ Svg.circle
+                    [ Svg.Attributes.cx "20 "
+                    , Svg.Attributes.cy "20 "
+                    , Svg.Attributes.r "20"
+                    , Svg.Attributes.class "group-hover:fill-biobench-gold "
+                    , Svg.Attributes.class fill
+                    ]
+                    []
+                , Svg.polygon
+                    [ Svg.Attributes.points "4,20 12,28 12,24 28,24 28,28 36,20 28,12, 28,16 12,16 12,12"
+                    , Svg.Attributes.fill "white"
+                    ]
+                    []
+                ]
+            ]
+        ]
+
+
+mouseX : D.Decoder Float
+mouseX =
+    D.field "clientX" D.float
 
 
 viewPickers : Layout -> Set.Set String -> Set.Set String -> Table -> Html Msg
@@ -309,7 +448,7 @@ viewPickers layout selectedCols selectedFamilies table =
     in
     Html.div
         [ class "flex flex-wrap gap-2" ]
-        [ viewFieldset "Panes"
+        [ viewFieldset "Windows"
             [ viewLabeledRadio
                 "table-only"
                 (layoutEq layout TableOnly)
@@ -369,7 +508,7 @@ viewTable selectedCols selectedFamilies sortKey sortOrder table =
 viewThead : Set.Set String -> String -> Order -> Table -> Html Msg
 viewThead selectedCols sortKey sortOrder table =
     Html.thead
-        [ class "border-t border-b py-1" ]
+        [ class "border-t border-b py-1 " ]
         (table.cols
             |> List.filter (\col -> Set.member col.key selectedCols)
             |> List.map (viewTh sortKey sortOrder)
@@ -379,21 +518,21 @@ viewThead selectedCols sortKey sortOrder table =
 viewTh : String -> Order -> TableCol -> Html Msg
 viewTh sortKey sortOrder col =
     let
-        extra =
+        ( suffix, extra ) =
             if sortKey == col.key then
                 case sortOrder of
                     Descending ->
-                        downArrow
+                        ( nonbreakingSpace ++ downArrow, "font-bold" )
 
                     Ascending ->
-                        upArrow
+                        ( nonbreakingSpace ++ upArrow, "font-bold" )
 
             else
-                ""
+                ( "", "font-medium" )
     in
     Html.th
-        [ class "px-2", Html.Events.onClick (Sort col.key) ]
-        [ Html.text (col.display ++ extra) ]
+        [ class "px-2", class extra, Html.Events.onClick (Sort col.key) ]
+        [ Html.text (col.display ++ suffix) ]
 
 
 viewTbody : Set.Set String -> Set.Set String -> String -> Order -> Table -> Html Msg
@@ -482,32 +621,21 @@ viewCharts selectedCols selectedFamilies table =
             table.cols
                 |> List.filter (\c -> Set.member c.key selectedCols)
 
-        getters =
+        ( getters, titles ) =
             filteredCols
                 |> List.filterMap
                     (\c ->
                         case c.sortType of
                             SortNumeric fn ->
-                                Just (fn selectedCols)
+                                Just ( fn selectedCols, c.display )
 
                             _ ->
                                 Nothing
                     )
-
-        titles =
-            filteredCols
-                |> List.filterMap
-                    (\c ->
-                        case c.sortType of
-                            SortNumeric _ ->
-                                Just c.display
-
-                            _ ->
-                                Nothing
-                    )
+                |> List.unzip
     in
     Html.div
-        [ class "grid grid-cols-3 gap-2" ]
+        [ class "grid grid-cols-3 gap-2 mt-t" ]
         (List.map2 (viewBarChart rows) titles getters)
 
 
@@ -520,8 +648,8 @@ viewBarChart rows title getter =
         data ->
             Html.div [ class "" ]
                 [ C.chart
-                    [ CA.height 200
-                    , CA.width 200
+                    [ CA.height 300
+                    , CA.width 300
                     , CA.margin
                         { top = 25
                         , bottom = 10
@@ -549,7 +677,7 @@ viewBarChart rows title getter =
                     , C.labelAt
                         CA.middle
                         .max
-                        [ CA.fontSize 14, CA.moveUp 12 ]
+                        [ CA.fontSize 24, CA.moveUp 6 ]
                         [ Svg.text title ]
                     ]
                 ]
@@ -686,6 +814,16 @@ maxString =
     String.repeat 50 "\u{10FFFF}"
 
 
+nonbreakingSpace : String
+nonbreakingSpace =
+    "\u{00A0}"
+
+
+nonbreakingDash : String
+nonbreakingDash =
+    "‑"
+
+
 familyColor : String -> String
 familyColor fam =
     -- Include all bg-VAR as comments to force tailwind to include all the colors as variables in the final CSS.
@@ -818,8 +956,8 @@ pivotPayload payload =
             [ { key = "checkpoint", display = "Checkpoint", format = viewCheckpoint, sortType = SortString getCheckpoint }
 
             -- TODO:  release date, model family
-            , { key = "params", display = "Params (M)", format = viewCheckpointParams, sortType = SortNumeric getCheckpointParams }
-            , { key = "release", display = "Released", format = viewCheckpointRelease, sortType = SortNumeric getCheckpointRelease }
+            -- , { key = "params", display = "Params" ++ nonbreakingSpace ++ "(M)", format = viewCheckpointParams, sortType = SortNumeric getCheckpointParams }
+            -- , { key = "release", display = "Released", format = viewCheckpointRelease, sortType = SortNumeric getCheckpointRelease }
             , { key = "imagenet1k", display = "Imagenet-1K", format = viewBenchmarkScore "imagenet1k", sortType = SortNumeric (getBenchmarkScore "imagenet1k") }
             , { key = "newt", display = "NeWT", format = viewBenchmarkScore "newt", sortType = SortNumeric (getBenchmarkScore "newt") }
             , { key = "mean", display = "Mean", format = viewMeanScore tasks, sortType = SortNumeric (getMeanScore tasks) }
@@ -874,7 +1012,12 @@ checkpointDecoder : D.Decoder Checkpoint
 checkpointDecoder =
     D.map6 Checkpoint
         (D.field "ckpt" D.string)
-        (D.field "display" D.string)
+        (D.map
+            (String.replace " " nonbreakingSpace
+                >> String.replace "-" nonbreakingDash
+            )
+            (D.field "display" D.string)
+        )
         (D.field "family" D.string)
         (D.succeed Nothing)
         (D.succeed Nothing)
