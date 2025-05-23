@@ -15,6 +15,7 @@ import numpy as np
 import polars as pl
 import statsmodels.stats.multitest
 import tyro
+import whenever
 
 from biobench import helpers
 
@@ -60,69 +61,297 @@ task_lookup = {task.name: task for task in prior_work_tasks + benchmark_tasks}
 
 
 @beartype.beartype
+def date_as_millis(year: int, month: int, day: int) -> int:
+    return whenever.Instant.from_utc(year, month, day).timestamp_millis()
+
+
+@beartype.beartype
 @dataclasses.dataclass(frozen=True)
 class Model:
     ckpt: str
     display: str
     family: str
+    resolution: int
+    params: int
+    release_ms: int | None
 
     def to_dict(self) -> dict[str, object]:
         return dataclasses.asdict(self)
 
 
 models = [
-    Model("ViT-B-32/openai", "CLIP ViT-B/32", "CLIP"),
-    Model("ViT-B-16/openai", "CLIP ViT-B/16", "CLIP"),
-    Model("ViT-L-14/openai", "CLIP ViT-L/14", "CLIP"),
-    Model("ViT-L-14-336/openai", "CLIP ViT-L/14 (336px)", "CLIP"),
-    Model("ViT-B-16-SigLIP/webli", "SigLIP ViT-B/16", "SigLIP"),
-    Model("ViT-B-16-SigLIP-256/webli", "SigLIP ViT-B/16 (256px)", "SigLIP"),
-    Model("ViT-B-16-SigLIP-384/webli", "SigLIP ViT-B/16 (384px)", "SigLIP"),
-    Model("ViT-B-16-SigLIP-512/webli", "SigLIP ViT-B/16 (512px)", "SigLIP"),
-    Model("ViT-L-16-SigLIP-256/webli", "SigLIP ViT-L/16 (256px)", "SigLIP"),
-    Model("ViT-L-16-SigLIP-384/webli", "SigLIP ViT-L/16 (384px)", "SigLIP"),
-    Model("ViT-SO400M-14-SigLIP/webli", "SigLIP SO400M/14", "SigLIP"),
-    Model("ViT-SO400M-14-SigLIP-384/webli", "SigLIP SO400M/14 (384px)", "SigLIP"),
-    Model("dinov2_vits14_reg", "DINOv2 ViT-S/14", "DINOv2"),
-    Model("dinov2_vitb14_reg", "DINOv2 ViT-B/14", "DINOv2"),
-    Model("dinov2_vitl14_reg", "DINOv2 ViT-L/14", "DINOv2"),
-    Model("dinov2_vitg14_reg", "DINOv2 ViT-g/14", "DINOv2"),
-    Model("apple/aimv2-large-patch14-224", "AIMv2 ViT-L/14 (224px)", "AIMv2"),
-    Model("apple/aimv2-large-patch14-336", "AIMv2 ViT-L/14 (336px)", "AIMv2"),
-    Model("apple/aimv2-large-patch14-448", "AIMv2 ViT-L/14 (448px)", "AIMv2"),
-    Model("apple/aimv2-huge-patch14-224", "AIMv2 ViT-H/14 (224px)", "AIMv2"),
-    Model("apple/aimv2-huge-patch14-336", "AIMv2 ViT-H/14 (336px)", "AIMv2"),
-    Model("apple/aimv2-huge-patch14-448", "AIMv2 ViT-H/14 (448px)", "AIMv2"),
-    Model("apple/aimv2-1B-patch14-224", "AIMv2 ViT-1B/14 (224px)", "AIMv2"),
-    Model("apple/aimv2-1B-patch14-336", "AIMv2 ViT-1B/14 (336px)", "AIMv2"),
-    Model("apple/aimv2-1B-patch14-448", "AIMv2 ViT-1B/14 (448px)", "AIMv2"),
-    Model("apple/aimv2-3B-patch14-224", "AIMv2 ViT-3B/14 (224px)", "AIMv2"),
-    Model("apple/aimv2-3B-patch14-336", "AIMv2 ViT-3B/14 (336px)", "AIMv2"),
-    Model("apple/aimv2-3B-patch14-448", "AIMv2 ViT-3B/14 (448px)", "AIMv2"),
-    Model("efficientnet_b0.ra_in1k", "EfficientNet B0", "CNN"),
-    Model("efficientnet_b3.ra2_in1k", "EfficientNet B3", "CNN"),
-    Model("mobilenetv2_100.ra_in1k", "MobileNet V2", "CNN"),
-    Model("mobilenetv3_large_100.ra_in1k", "MobileNet V3 L", "CNN"),
-    Model("resnet18.a1_in1k", "ResNet-18", "CNN"),
-    Model("resnet18d.ra2_in1k", "ResNet-18", "CNN"),
-    Model("resnet50.a1_in1k", "ResNet-50", "CNN"),
-    Model("resnet50d.a1_in1k", "ResNet-50d", "CNN"),
-    Model("convnext_tiny.in12k", "ConvNext-T", "CNN"),
-    Model("convnext_tiny.in12k_ft_in1k", "ConvNext-T (IN1K)", "CNN"),
-    Model("vit_base_patch16_224.augreg2_in21k_ft_in1k", "ViT-B/16 (IN1K)", "ViT"),
-    Model("hf-hub:imageomics/bioclip", "BioCLIP ViT-B/16", "cv4ecology"),
-    Model("hf-hub:BGLab/BioTrove-CLIP", "BioTrove ViT-B/16", "cv4ecology"),
     Model(
-        "hf-hub:BVRA/MegaDescriptor-L-384",
-        "MegaDescriptor Swin-L/4 (384px)",
-        "cv4ecology",
+        "ViT-B-32/openai",
+        "CLIP ViT-B/32",
+        "CLIP",
+        224,
+        87_850_000,
+        date_as_millis(2021, 1, 5),
     ),
-    Model("vitl16", "V-JEPA ViT-L/16", "V-JEPA"),
-    Model("vith16", "V-JEPA ViT-H/16", "V-JEPA"),
-    Model("sam2_hiera_tiny.fb_r896_2pt1", "SAM2 Hiera-T", "SAM2"),
-    Model("sam2_hiera_small.fb_r896_2pt1", "SAM2 Hiera-S", "SAM2"),
-    Model("sam2_hiera_base_plus.fb_r896_2pt1", "SAM2 Hiera-B+", "SAM2"),
-    Model("sam2_hiera_large.fb_r1024_2pt1", "SAM2 Hiera-L", "SAM2"),
+    Model(
+        "ViT-B-16/openai",
+        "CLIP ViT-B/16",
+        "CLIP",
+        224,
+        86_190_000,
+        date_as_millis(2021, 1, 5),
+    ),
+    Model(
+        "ViT-L-14/openai",
+        "CLIP ViT-L/14",
+        "CLIP",
+        224,
+        303_970_000,
+        date_as_millis(2021, 1, 5),
+    ),
+    Model(
+        "ViT-L-14-336/openai",
+        "CLIP ViT-L/14",
+        "CLIP",
+        336,
+        304_290_000,
+        date_as_millis(2021, 1, 5),
+    ),
+    Model(
+        "ViT-B-16-SigLIP/webli",
+        "SigLIP ViT-B/16",
+        "SigLIP",
+        224,
+        92_880_000,
+        date_as_millis(2023, 9, 27),
+    ),
+    Model(
+        "ViT-B-16-SigLIP-256/webli",
+        "SigLIP ViT-B/16",
+        "SigLIP",
+        256,
+        92_930_000,
+        date_as_millis(2023, 9, 27),
+    ),
+    Model(
+        "ViT-B-16-SigLIP-384/webli",
+        "SigLIP ViT-B/16",
+        "SigLIP",
+        384,
+        93_180_000,
+        date_as_millis(2023, 9, 27),
+    ),
+    Model(
+        "ViT-B-16-SigLIP-512/webli",
+        "SigLIP ViT-B/16",
+        "SigLIP",
+        512,
+        93_520_000,
+        date_as_millis(2023, 9, 27),
+    ),
+    Model(
+        "ViT-L-16-SigLIP-256/webli",
+        "SigLIP ViT-L/16 (256px)",
+        "SigLIP",
+        256,
+        315_960_000,
+        date_as_millis(2023, 9, 27),
+    ),
+    Model(
+        "ViT-L-16-SigLIP-384/webli",
+        "SigLIP ViT-L/16 (384px)",
+        "SigLIP",
+        384,
+        316_280_000,
+        date_as_millis(2023, 9, 27),
+    ),
+    Model(
+        "ViT-SO400M-14-SigLIP/webli",
+        "SigLIP SO400M/14",
+        "SigLIP",
+        224,
+        427_680_000,
+        date_as_millis(2023, 9, 27),
+    ),
+    Model(
+        "ViT-SO400M-14-SigLIP-384/webli",
+        "SigLIP SO400M/14",
+        "SigLIP",
+        384,
+        428_230_000,
+        date_as_millis(2023, 9, 27),
+    ),
+    # Model(
+    #     "dinov2_vits14_reg",
+    #     "DINOv2 ViT-S/14",
+    #     "DINOv2",
+    # ),
+    # Model(
+    #     "dinov2_vitb14_reg",
+    #     "DINOv2 ViT-B/14",
+    #     "DINOv2",
+    # ),
+    # Model(
+    #     "dinov2_vitl14_reg",
+    #     "DINOv2 ViT-L/14",
+    #     "DINOv2",
+    # ),
+    # Model(
+    #     "dinov2_vitg14_reg",
+    #     "DINOv2 ViT-g/14",
+    #     "DINOv2",
+    # ),
+    # Model(
+    #     "apple/aimv2-large-patch14-224",
+    #     "AIMv2 ViT-L/14 (224px)",
+    #     "AIMv2",
+    # ),
+    # Model(
+    #     "apple/aimv2-large-patch14-336",
+    #     "AIMv2 ViT-L/14 (336px)",
+    #     "AIMv2",
+    # ),
+    # Model(
+    #     "apple/aimv2-large-patch14-448",
+    #     "AIMv2 ViT-L/14 (448px)",
+    #     "AIMv2",
+    # ),
+    # Model(
+    #     "apple/aimv2-huge-patch14-224",
+    #     "AIMv2 ViT-H/14 (224px)",
+    #     "AIMv2",
+    # ),
+    # Model(
+    #     "apple/aimv2-huge-patch14-336",
+    #     "AIMv2 ViT-H/14 (336px)",
+    #     "AIMv2",
+    # ),
+    # Model(
+    #     "apple/aimv2-huge-patch14-448",
+    #     "AIMv2 ViT-H/14 (448px)",
+    #     "AIMv2",
+    # ),
+    # Model(
+    #     "apple/aimv2-1B-patch14-224",
+    #     "AIMv2 ViT-1B/14 (224px)",
+    #     "AIMv2",
+    # ),
+    # Model(
+    #     "apple/aimv2-1B-patch14-336",
+    #     "AIMv2 ViT-1B/14 (336px)",
+    #     "AIMv2",
+    # ),
+    # Model(
+    #     "apple/aimv2-1B-patch14-448",
+    #     "AIMv2 ViT-1B/14 (448px)",
+    #     "AIMv2",
+    # ),
+    # Model(
+    #     "apple/aimv2-3B-patch14-224",
+    #     "AIMv2 ViT-3B/14 (224px)",
+    #     "AIMv2",
+    # ),
+    # Model(
+    #     "apple/aimv2-3B-patch14-336",
+    #     "AIMv2 ViT-3B/14 (336px)",
+    #     "AIMv2",
+    # ),
+    # Model(
+    #     "apple/aimv2-3B-patch14-448",
+    #     "AIMv2 ViT-3B/14 (448px)",
+    #     "AIMv2",
+    # ),
+    Model("efficientnet_b0.ra_in1k", "EfficientNet B0", "CNN", 224, 5_290_000, None),
+    # Model(
+    #     "efficientnet_b3.ra2_in1k",
+    #     "EfficientNet B3",
+    #     "CNN",
+    # ),
+    # Model(
+    #     "mobilenetv2_100.ra_in1k",
+    #     "MobileNet V2",
+    #     "CNN",
+    # ),
+    # Model(
+    #     "mobilenetv3_large_100.ra_in1k",
+    #     "MobileNet V3 L",
+    #     "CNN",
+    # ),
+    # Model(
+    #     "resnet18.a1_in1k",
+    #     "ResNet-18",
+    #     "CNN",
+    # ),
+    # Model(
+    #     "resnet18d.ra2_in1k",
+    #     "ResNet-18",
+    #     "CNN",
+    # ),
+    # Model(
+    #     "resnet50.a1_in1k",
+    #     "ResNet-50",
+    #     "CNN",
+    # ),
+    # Model(
+    #     "resnet50d.a1_in1k",
+    #     "ResNet-50d",
+    #     "CNN",
+    # ),
+    # Model(
+    #     "convnext_tiny.in12k",
+    #     "ConvNext-T",
+    #     "CNN",
+    # ),
+    # Model(
+    #     "convnext_tiny.in12k_ft_in1k",
+    #     "ConvNext-T (IN1K)",
+    #     "CNN",
+    # ),
+    # Model(
+    #     "vit_base_patch16_224.augreg2_in21k_ft_in1k",
+    #     "ViT-B/16 (IN1K)",
+    #     "ViT",
+    # ),
+    # Model(
+    #     "hf-hub:imageomics/bioclip",
+    #     "BioCLIP ViT-B/16",
+    #     "cv4ecology",
+    # ),
+    # Model(
+    #     "hf-hub:BGLab/BioTrove-CLIP",
+    #     "BioTrove ViT-B/16",
+    #     "cv4ecology",
+    # ),
+    # Model(
+    #     "hf-hub:BVRA/MegaDescriptor-L-384",
+    #     "MegaDescriptor Swin-L/4 (384px)",
+    #     "cv4ecology",
+    # ),
+    # Model(
+    #     "vitl16",
+    #     "V-JEPA ViT-L/16",
+    #     "V-JEPA",
+    # ),
+    # Model(
+    #     "vith16",
+    #     "V-JEPA ViT-H/16",
+    #     "V-JEPA",
+    # ),
+    # Model(
+    #     "sam2_hiera_tiny.fb_r896_2pt1",
+    #     "SAM2 Hiera-T",
+    #     "SAM2",
+    # ),
+    # Model(
+    #     "sam2_hiera_small.fb_r896_2pt1",
+    #     "SAM2 Hiera-S",
+    #     "SAM2",
+    # ),
+    # Model(
+    #     "sam2_hiera_base_plus.fb_r896_2pt1",
+    #     "SAM2 Hiera-B+",
+    #     "SAM2",
+    # ),
+    # Model(
+    #     "sam2_hiera_large.fb_r1024_2pt1",
+    #     "SAM2 Hiera-L",
+    #     "SAM2",
+    # ),
 ]
 
 
