@@ -478,16 +478,37 @@ viewCharts selectedCols selectedFamilies table =
             table.rows
                 |> List.filter (\r -> Set.member r.checkpoint.family selectedFamilies)
 
-        -- I want a list of getters (TableRow -> Maybe Float) and a list of titles (TableCol.display) AI!
-        getters =
+        filteredCols =
             table.cols
                 |> List.filter (\c -> Set.member c.key selectedCols)
-                |> List.filterMap (\c -> .sortType >> getNumeric)
-                |> List.map (\fn -> fn selectedCols)
+
+        getters =
+            filteredCols
+                |> List.filterMap
+                    (\c ->
+                        case c.sortType of
+                            SortNumeric fn ->
+                                Just (fn selectedCols)
+
+                            _ ->
+                                Nothing
+                    )
+
+        titles =
+            filteredCols
+                |> List.filterMap
+                    (\c ->
+                        case c.sortType of
+                            SortNumeric _ ->
+                                Just c.display
+
+                            _ ->
+                                Nothing
+                    )
     in
     Html.div
         [ class "grid grid-cols-3 gap-2" ]
-        (List.map2 (viewBarChart rows) getters)
+        (List.map2 (viewBarChart rows) titles getters)
 
 
 viewBarChart : List TableRow -> String -> (TableRow -> Maybe Float) -> Html Msg
