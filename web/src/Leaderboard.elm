@@ -184,7 +184,7 @@ init _ =
       , selectedFamilies = Set.empty
       , sortKey = "mean"
       , sortOrder = Descending
-      , layout = Split 0.5
+      , layout = TableOnly
       , drag = Nothing
       }
     , Http.get
@@ -488,12 +488,25 @@ viewPickers layout selectedCols selectedFamilies table =
 
 viewColCheckbox : Bool -> TableCol -> Html Msg
 viewColCheckbox checked col =
-    viewLabeledCheckbox checked (\_ -> ToggleCol col.key) col.display
+    viewLabeledCheckbox
+        (viewCheckbox checked (\_ -> ToggleCol col.key))
+        col.display
 
 
 viewFamilyCheckbox : Bool -> String -> Html Msg
 viewFamilyCheckbox checked family =
-    viewLabeledCheckbox checked (\_ -> ToggleFamily family) family
+    viewLabeledCheckbox
+        (Html.input
+            [ Html.Attributes.type_ "checkbox"
+            , Html.Attributes.checked checked
+            , Html.Events.onCheck (\_ -> ToggleFamily family)
+            , class "cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 "
+            , class ("accent-" ++ familyColor family)
+            , class ("focus-visible:outline-" ++ familyColor family)
+            ]
+            []
+        )
+        family
 
 
 viewTable : Set.Set String -> Set.Set String -> String -> Order -> Table -> Html Msg
@@ -635,7 +648,7 @@ viewCharts selectedCols selectedFamilies table =
                 |> List.unzip
     in
     Html.div
-        [ class "grid grid-cols-3 gap-2 mt-t" ]
+        [ class "grid gap-2 [grid-template-columns:repeat(auto-fit,minmax(16rem,1fr))] mt-t" ]
         (List.map2 (viewBarChart rows) titles getters)
 
 
@@ -677,7 +690,7 @@ viewBarChart rows title getter =
                     , C.labelAt
                         CA.middle
                         .max
-                        [ CA.fontSize 24, CA.moveUp 6 ]
+                        [ CA.fontSize 24, CA.moveUp 2 ]
                         [ Svg.text title ]
                     ]
                 ]
@@ -830,39 +843,48 @@ familyColor fam =
     -- This is an example of a comment changing system behavior!!
     case fam of
         "CLIP" ->
-            -- bg-biobench-blue
+            -- accent-biobench-blue
+            -- focus-visible:outline-biobench-blue
             "biobench-blue"
 
         "SigLIP" ->
-            -- bg-biobench-cyan
+            -- accent-biobench-cyan
+            -- focus-visible:outline-biobench-cyan
             "biobench-cyan"
 
         "DINOv2" ->
-            -- bg-biobench-sea
+            -- accent-biobench-sea
+            -- focus-visible:outline-biobench-sea
             "biobench-sea"
 
         "AIMv2" ->
-            -- bg-biobench-gold
+            -- accent-biobench-gold
+            -- focus-visible:outline-biobench-gold
             "biobench-gold"
 
         "CNN" ->
-            -- bg-biobench-orange
+            -- accent-biobench-orange
+            -- focus-visible:outline-biobench-orange
             "biobench-orange"
 
         "cv4ecology" ->
-            -- bg-biobench-cream
+            -- accent-biobench-cream
+            -- focus-visible:outline-biobench-cream
             "biobench-cream"
 
         "V-JEPA" ->
-            -- bg-biobench-rust
+            -- accent-biobench-rust
+            -- focus-visible:outline-biobench-rust
             "biobench-rust"
 
         "SAM2" ->
-            -- bg-biobench-scarlet
+            -- accent-biobench-scarlet
+            -- focus-visible:outline-biobench-scarlet
             "biobench-scarlet"
 
         _ ->
-            -- bg-biobench-black
+            -- accent-biobench-black
+            -- focus-visible:outline-biobench-black
             "biobench-black"
 
 
@@ -958,7 +980,7 @@ pivotPayload payload =
             -- TODO:  release date, model family
             -- , { key = "params", display = "Params" ++ nonbreakingSpace ++ "(M)", format = viewCheckpointParams, sortType = SortNumeric getCheckpointParams }
             -- , { key = "release", display = "Released", format = viewCheckpointRelease, sortType = SortNumeric getCheckpointRelease }
-            , { key = "imagenet1k", display = "Imagenet-1K", format = viewBenchmarkScore "imagenet1k", sortType = SortNumeric (getBenchmarkScore "imagenet1k") }
+            , { key = "imagenet1k", display = "ImageNet" ++ nonbreakingDash ++ "1K", format = viewBenchmarkScore "imagenet1k", sortType = SortNumeric (getBenchmarkScore "imagenet1k") }
             , { key = "newt", display = "NeWT", format = viewBenchmarkScore "newt", sortType = SortNumeric (getBenchmarkScore "newt") }
             , { key = "mean", display = "Mean", format = viewMeanScore tasks, sortType = SortNumeric (getMeanScore tasks) }
             ]
@@ -1080,22 +1102,21 @@ bestDecoder =
 viewFieldset : String -> List (Html Msg) -> Html Msg
 viewFieldset title content =
     Html.fieldset
-        [ class "border border-biobench-black p-2" ]
+        [ class "border border-biobench-black p-1 sm:p-2" ]
         [ Html.legend
-            [ class "text-xs font-semibold tracking-tight px-1 -ml-1 " ]
+            [ class "text-sm font-semibold tracking-tight px-1 sm:-ml-1 " ]
             [ Html.text title ]
         , Html.div
-            [ class "flex flex-wrap gap-x-4 gap-y-2" ]
+            [ class "flex flex-wrap gap-x-1 sm:gap-x-4 gap-y-2" ]
             content
         ]
 
 
-viewLabeledCheckbox : Bool -> (Bool -> Msg) -> String -> Html Msg
-viewLabeledCheckbox checked msg label =
+viewLabeledCheckbox : Html Msg -> String -> Html Msg
+viewLabeledCheckbox checkbox label =
     Html.label
-        [ class "inline-flex items-center gap-1 cursor-pointer select-none "
-        ]
-        [ viewCheckbox checked msg
+        [ class "inline-flex items-center sm:gap-1 cursor-pointer select-none " ]
+        [ checkbox
         , Html.span
             [ class "text-sm tracking-tight" ]
             [ Html.text label ]
@@ -1108,7 +1129,7 @@ viewCheckbox checked msg =
         [ Html.Attributes.type_ "checkbox"
         , Html.Attributes.checked checked
         , Html.Events.onCheck msg
-        , class "accent-biobench-cyan cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-biobench-gold"
+        , class "accent-biobench-cyan cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-biobench-cyan"
         ]
         []
 

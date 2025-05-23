@@ -5370,9 +5370,7 @@ var $author$project$Leaderboard$Fetched = function (a) {
 	return {$: 0, a: a};
 };
 var $author$project$Leaderboard$Loading = {$: 0};
-var $author$project$Leaderboard$Split = function (a) {
-	return {$: 2, a: a};
-};
+var $author$project$Leaderboard$TableOnly = {$: 0};
 var $elm$core$Set$Set_elm_builtin = $elm$core$Basics$identity;
 var $elm$core$Dict$RBEmpty_elm_builtin = {$: -2};
 var $elm$core$Dict$empty = $elm$core$Dict$RBEmpty_elm_builtin;
@@ -6796,7 +6794,7 @@ var $author$project$Leaderboard$pivotPayload = function (payload) {
 			ad: $author$project$Leaderboard$SortString($author$project$Leaderboard$getCheckpoint)
 		},
 			{
-			y: 'Imagenet-1K',
+			y: 'ImageNet' + ($author$project$Leaderboard$nonbreakingDash + '1K'),
 			ah: $author$project$Leaderboard$viewBenchmarkScore('imagenet1k'),
 			w: 'imagenet1k',
 			ad: $author$project$Leaderboard$SortNumeric(
@@ -6837,7 +6835,7 @@ var $author$project$Leaderboard$init = function (_v0) {
 	return _Utils_Tuple2(
 		{
 			N: $elm$core$Maybe$Nothing,
-			aj: $author$project$Leaderboard$Split(0.5),
+			aj: $author$project$Leaderboard$TableOnly,
 			b0: _Utils_Tuple2(
 				0,
 				A2($elm$core$Basics$pow, 10, 12)),
@@ -7120,7 +7118,9 @@ var $author$project$Leaderboard$Loaded = function (a) {
 	return {$: 1, a: a};
 };
 var $author$project$Leaderboard$NoOp = {$: 9};
-var $author$project$Leaderboard$TableOnly = {$: 0};
+var $author$project$Leaderboard$Split = function (a) {
+	return {$: 2, a: a};
+};
 var $elm$core$Basics$composeL = F3(
 	function (g, f, x) {
 		return g(
@@ -13592,7 +13592,7 @@ var $author$project$Leaderboard$viewBarChart = F3(
 								_List_fromArray(
 									[
 										$terezka$elm_charts$Chart$Attributes$fontSize(24),
-										$terezka$elm_charts$Chart$Attributes$moveUp(6)
+										$terezka$elm_charts$Chart$Attributes$moveUp(2)
 									]),
 								_List_fromArray(
 									[
@@ -13638,7 +13638,7 @@ var $author$project$Leaderboard$viewCharts = F3(
 			$elm$html$Html$div,
 			_List_fromArray(
 				[
-					$elm$html$Html$Attributes$class('grid grid-cols-3 gap-2 mt-t')
+					$elm$html$Html$Attributes$class('grid gap-2 [grid-template-columns:repeat(auto-fit,minmax(16rem,1fr))] mt-t')
 				]),
 			A3(
 				$elm$core$List$map2,
@@ -13757,8 +13757,6 @@ var $elm$core$List$sort = function (xs) {
 var $author$project$Leaderboard$ToggleCol = function (a) {
 	return {$: 2, a: a};
 };
-var $elm$html$Html$label = _VirtualDom_node('label');
-var $elm$html$Html$span = _VirtualDom_node('span');
 var $elm$json$Json$Encode$bool = _Json_wrap;
 var $elm$html$Html$Attributes$boolProperty = F2(
 	function (key, bool) {
@@ -13795,21 +13793,23 @@ var $author$project$Leaderboard$viewCheckbox = F2(
 					$elm$html$Html$Attributes$type_('checkbox'),
 					$elm$html$Html$Attributes$checked(checked),
 					$elm$html$Html$Events$onCheck(msg),
-					$elm$html$Html$Attributes$class('accent-biobench-cyan cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-biobench-gold')
+					$elm$html$Html$Attributes$class('accent-biobench-cyan cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-biobench-cyan')
 				]),
 			_List_Nil);
 	});
-var $author$project$Leaderboard$viewLabeledCheckbox = F3(
-	function (checked, msg, label) {
+var $elm$html$Html$label = _VirtualDom_node('label');
+var $elm$html$Html$span = _VirtualDom_node('span');
+var $author$project$Leaderboard$viewLabeledCheckbox = F2(
+	function (checkbox, label) {
 		return A2(
 			$elm$html$Html$label,
 			_List_fromArray(
 				[
-					$elm$html$Html$Attributes$class('inline-flex items-center gap-1 cursor-pointer select-none ')
+					$elm$html$Html$Attributes$class('inline-flex items-center sm:gap-1 cursor-pointer select-none ')
 				]),
 			_List_fromArray(
 				[
-					A2($author$project$Leaderboard$viewCheckbox, checked, msg),
+					checkbox,
 					A2(
 					$elm$html$Html$span,
 					_List_fromArray(
@@ -13824,12 +13824,14 @@ var $author$project$Leaderboard$viewLabeledCheckbox = F3(
 	});
 var $author$project$Leaderboard$viewColCheckbox = F2(
 	function (checked, col) {
-		return A3(
+		return A2(
 			$author$project$Leaderboard$viewLabeledCheckbox,
-			checked,
-			function (_v0) {
-				return $author$project$Leaderboard$ToggleCol(col.w);
-			},
+			A2(
+				$author$project$Leaderboard$viewCheckbox,
+				checked,
+				function (_v0) {
+					return $author$project$Leaderboard$ToggleCol(col.w);
+				}),
 			col.y);
 	});
 var $author$project$Leaderboard$ToggleFamily = function (a) {
@@ -13837,12 +13839,25 @@ var $author$project$Leaderboard$ToggleFamily = function (a) {
 };
 var $author$project$Leaderboard$viewFamilyCheckbox = F2(
 	function (checked, family) {
-		return A3(
+		return A2(
 			$author$project$Leaderboard$viewLabeledCheckbox,
-			checked,
-			function (_v0) {
-				return $author$project$Leaderboard$ToggleFamily(family);
-			},
+			A2(
+				$elm$html$Html$input,
+				_List_fromArray(
+					[
+						$elm$html$Html$Attributes$type_('checkbox'),
+						$elm$html$Html$Attributes$checked(checked),
+						$elm$html$Html$Events$onCheck(
+						function (_v0) {
+							return $author$project$Leaderboard$ToggleFamily(family);
+						}),
+						$elm$html$Html$Attributes$class('cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 '),
+						$elm$html$Html$Attributes$class(
+						'accent-' + $author$project$Leaderboard$familyColor(family)),
+						$elm$html$Html$Attributes$class(
+						'focus-visible:outline-' + $author$project$Leaderboard$familyColor(family))
+					]),
+				_List_Nil),
 			family);
 	});
 var $elm$html$Html$fieldset = _VirtualDom_node('fieldset');
@@ -13853,7 +13868,7 @@ var $author$project$Leaderboard$viewFieldset = F2(
 			$elm$html$Html$fieldset,
 			_List_fromArray(
 				[
-					$elm$html$Html$Attributes$class('border border-biobench-black p-2')
+					$elm$html$Html$Attributes$class('border border-biobench-black p-1 sm:p-2')
 				]),
 			_List_fromArray(
 				[
@@ -13861,7 +13876,7 @@ var $author$project$Leaderboard$viewFieldset = F2(
 					$elm$html$Html$legend,
 					_List_fromArray(
 						[
-							$elm$html$Html$Attributes$class('text-xs font-semibold tracking-tight px-1 -ml-1 ')
+							$elm$html$Html$Attributes$class('text-sm font-semibold tracking-tight px-1 sm:-ml-1 ')
 						]),
 					_List_fromArray(
 						[
@@ -13871,7 +13886,7 @@ var $author$project$Leaderboard$viewFieldset = F2(
 					$elm$html$Html$div,
 					_List_fromArray(
 						[
-							$elm$html$Html$Attributes$class('flex flex-wrap gap-x-4 gap-y-2')
+							$elm$html$Html$Attributes$class('flex flex-wrap gap-x-1 sm:gap-x-4 gap-y-2')
 						]),
 					content)
 				]));
