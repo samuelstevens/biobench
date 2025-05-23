@@ -11015,28 +11015,28 @@ var $author$project$Leaderboard$bestDecoder = A3(
 			$elm$json$Json$Decode$map,
 			$elm$core$Set$fromList,
 			$elm$json$Json$Decode$list($elm$json$Json$Decode$string))));
-var $author$project$Leaderboard$Checkpoint = F5(
-	function (name, display, family, params, release) {
-		return {display: display, family: family, name: name, params: params, release: release};
+var $author$project$Leaderboard$Checkpoint = F6(
+	function (name, display, family, release, params, resolution) {
+		return {display: display, family: family, name: name, params: params, release: release, resolution: resolution};
+	});
+var $elm$json$Json$Decode$map6 = _Json_map6;
+var $author$project$Leaderboard$checkpointDecoder = A7(
+	$elm$json$Json$Decode$map6,
+	$author$project$Leaderboard$Checkpoint,
+	A2($elm$json$Json$Decode$field, 'ckpt', $elm$json$Json$Decode$string),
+	A2($elm$json$Json$Decode$field, 'display', $elm$json$Json$Decode$string),
+	A2($elm$json$Json$Decode$field, 'family', $elm$json$Json$Decode$string),
+	$elm$json$Json$Decode$succeed($elm$core$Maybe$Nothing),
+	$elm$json$Json$Decode$succeed($elm$core$Maybe$Nothing),
+	$elm$json$Json$Decode$succeed($elm$core$Maybe$Nothing));
+var $author$project$Leaderboard$Metadata = F6(
+	function (schema, generated, commit, seed, alpha, nBootstraps) {
+		return {alpha: alpha, commit: commit, generated: generated, nBootstraps: nBootstraps, schema: schema, seed: seed};
 	});
 var $elm$time$Time$Posix = function (a) {
 	return {$: 'Posix', a: a};
 };
 var $elm$time$Time$millisToPosix = $elm$time$Time$Posix;
-var $author$project$Leaderboard$checkpointDecoder = A6(
-	$elm$json$Json$Decode$map5,
-	$author$project$Leaderboard$Checkpoint,
-	A2($elm$json$Json$Decode$field, 'ckpt', $elm$json$Json$Decode$string),
-	A2($elm$json$Json$Decode$field, 'display', $elm$json$Json$Decode$string),
-	A2($elm$json$Json$Decode$field, 'family', $elm$json$Json$Decode$string),
-	$elm$json$Json$Decode$succeed(0),
-	$elm$json$Json$Decode$succeed(
-		$elm$time$Time$millisToPosix(0)));
-var $elm$json$Json$Decode$map6 = _Json_map6;
-var $author$project$Leaderboard$Metadata = F6(
-	function (schema, generated, commit, seed, alpha, nBootstraps) {
-		return {alpha: alpha, commit: commit, generated: generated, nBootstraps: nBootstraps, schema: schema, seed: seed};
-	});
 var $author$project$Leaderboard$metadataDecoder = A7(
 	$elm$json$Json$Decode$map6,
 	$author$project$Leaderboard$Metadata,
@@ -11108,6 +11108,31 @@ var $author$project$Leaderboard$getBenchmarkScore = F3(
 var $author$project$Leaderboard$getCheckpoint = F2(
 	function (cols, row) {
 		return $elm$core$Maybe$Just(row.checkpoint.display);
+	});
+var $elm$core$Maybe$map = F2(
+	function (f, maybe) {
+		if (maybe.$ === 'Just') {
+			var value = maybe.a;
+			return $elm$core$Maybe$Just(
+				f(value));
+		} else {
+			return $elm$core$Maybe$Nothing;
+		}
+	});
+var $author$project$Leaderboard$getCheckpointParams = F2(
+	function (_v0, row) {
+		return A2($elm$core$Maybe$map, $elm$core$Basics$toFloat, row.checkpoint.params);
+	});
+var $elm$time$Time$posixToMillis = function (_v0) {
+	var millis = _v0.a;
+	return millis;
+};
+var $author$project$Leaderboard$getCheckpointRelease = F2(
+	function (_v0, row) {
+		return A2(
+			$elm$core$Maybe$map,
+			A2($elm$core$Basics$composeR, $elm$time$Time$posixToMillis, $elm$core$Basics$toFloat),
+			row.checkpoint.release);
 	});
 var $elm$core$Dict$filter = F2(
 	function (isGood, dict) {
@@ -11309,16 +11334,6 @@ var $myrho$elm_round$Round$increaseNum = function (_v0) {
 };
 var $elm$core$Basics$isInfinite = _Basics_isInfinite;
 var $elm$core$Basics$isNaN = _Basics_isNaN;
-var $elm$core$Maybe$map = F2(
-	function (f, maybe) {
-		if (maybe.$ === 'Just') {
-			var value = maybe.a;
-			return $elm$core$Maybe$Just(
-				f(value));
-		} else {
-			return $elm$core$Maybe$Nothing;
-		}
-	});
 var $elm$core$String$fromChar = function (_char) {
 	return A2($elm$core$String$cons, _char, '');
 };
@@ -11514,14 +11529,110 @@ var $author$project$Leaderboard$viewScore = function (score) {
 };
 var $author$project$Leaderboard$viewBenchmarkScore = F3(
 	function (task, visibleKeys, row) {
+		var score = A3($author$project$Leaderboard$getBenchmarkScore, task, visibleKeys, row);
 		return _Utils_Tuple2(
-			'text-right font-mono',
-			$author$project$Leaderboard$viewScore(
-				A3($author$project$Leaderboard$getBenchmarkScore, task, visibleKeys, row)));
+			'text-right font-mono ',
+			$author$project$Leaderboard$viewScore(score));
 	});
 var $author$project$Leaderboard$viewCheckpoint = F2(
 	function (cols, row) {
 		return _Utils_Tuple2('text-left', row.checkpoint.display);
+	});
+var $author$project$Leaderboard$viewCheckpointParams = F2(
+	function (selectedCols, row) {
+		return _Utils_Tuple2(
+			'text-left',
+			A2(
+				$elm$core$Maybe$withDefault,
+				'',
+				A2(
+					$elm$core$Maybe$map,
+					$myrho$elm_round$Round$round(1),
+					A2(
+						$elm$core$Maybe$map,
+						$elm$core$Basics$fdiv(
+							A2($elm$core$Basics$pow, 10, 6)),
+						A2($author$project$Leaderboard$getCheckpointParams, selectedCols, row)))));
+	});
+var $elm$time$Time$flooredDiv = F2(
+	function (numerator, denominator) {
+		return $elm$core$Basics$floor(numerator / denominator);
+	});
+var $elm$time$Time$toAdjustedMinutesHelp = F3(
+	function (defaultOffset, posixMinutes, eras) {
+		toAdjustedMinutesHelp:
+		while (true) {
+			if (!eras.b) {
+				return posixMinutes + defaultOffset;
+			} else {
+				var era = eras.a;
+				var olderEras = eras.b;
+				if (_Utils_cmp(era.start, posixMinutes) < 0) {
+					return posixMinutes + era.offset;
+				} else {
+					var $temp$defaultOffset = defaultOffset,
+						$temp$posixMinutes = posixMinutes,
+						$temp$eras = olderEras;
+					defaultOffset = $temp$defaultOffset;
+					posixMinutes = $temp$posixMinutes;
+					eras = $temp$eras;
+					continue toAdjustedMinutesHelp;
+				}
+			}
+		}
+	});
+var $elm$time$Time$toAdjustedMinutes = F2(
+	function (_v0, time) {
+		var defaultOffset = _v0.a;
+		var eras = _v0.b;
+		return A3(
+			$elm$time$Time$toAdjustedMinutesHelp,
+			defaultOffset,
+			A2(
+				$elm$time$Time$flooredDiv,
+				$elm$time$Time$posixToMillis(time),
+				60000),
+			eras);
+	});
+var $elm$time$Time$toCivil = function (minutes) {
+	var rawDay = A2($elm$time$Time$flooredDiv, minutes, 60 * 24) + 719468;
+	var era = (((rawDay >= 0) ? rawDay : (rawDay - 146096)) / 146097) | 0;
+	var dayOfEra = rawDay - (era * 146097);
+	var yearOfEra = ((((dayOfEra - ((dayOfEra / 1460) | 0)) + ((dayOfEra / 36524) | 0)) - ((dayOfEra / 146096) | 0)) / 365) | 0;
+	var dayOfYear = dayOfEra - (((365 * yearOfEra) + ((yearOfEra / 4) | 0)) - ((yearOfEra / 100) | 0));
+	var mp = (((5 * dayOfYear) + 2) / 153) | 0;
+	var month = mp + ((mp < 10) ? 3 : (-9));
+	var year = yearOfEra + (era * 400);
+	return {
+		day: (dayOfYear - ((((153 * mp) + 2) / 5) | 0)) + 1,
+		month: month,
+		year: year + ((month <= 2) ? 1 : 0)
+	};
+};
+var $elm$time$Time$toYear = F2(
+	function (zone, time) {
+		return $elm$time$Time$toCivil(
+			A2($elm$time$Time$toAdjustedMinutes, zone, time)).year;
+	});
+var $elm$time$Time$Zone = F2(
+	function (a, b) {
+		return {$: 'Zone', a: a, b: b};
+	});
+var $elm$time$Time$utc = A2($elm$time$Time$Zone, 0, _List_Nil);
+var $author$project$Leaderboard$viewCheckpointRelease = F2(
+	function (_v0, row) {
+		return _Utils_Tuple2(
+			'text-left',
+			A2(
+				$elm$core$Maybe$withDefault,
+				'unknown',
+				A2(
+					$elm$core$Maybe$map,
+					A2(
+						$elm$core$Basics$composeR,
+						$elm$time$Time$toYear($elm$time$Time$utc),
+						$elm$core$String$fromInt),
+					row.checkpoint.release)));
 	});
 var $author$project$Leaderboard$viewMeanScore = F3(
 	function (tasks, selectedCols, row) {
@@ -11549,6 +11660,18 @@ var $author$project$Leaderboard$pivotPayload = function (payload) {
 			format: $author$project$Leaderboard$viewCheckpoint,
 			key: 'checkpoint',
 			sortType: $author$project$Leaderboard$SortString($author$project$Leaderboard$getCheckpoint)
+		},
+			{
+			display: 'Params (M)',
+			format: $author$project$Leaderboard$viewCheckpointParams,
+			key: 'params',
+			sortType: $author$project$Leaderboard$SortNumeric($author$project$Leaderboard$getCheckpointParams)
+		},
+			{
+			display: 'Released',
+			format: $author$project$Leaderboard$viewCheckpointRelease,
+			key: 'release',
+			sortType: $author$project$Leaderboard$SortNumeric($author$project$Leaderboard$getCheckpointRelease)
 		},
 			{
 			display: 'Imagenet-1K',
@@ -11646,7 +11769,19 @@ var $author$project$Leaderboard$update = F2(
 										function ($) {
 											return $.key;
 										},
-										table.cols))
+										table.cols)),
+								selectedFamilies: $elm$core$Set$fromList(
+									A2(
+										$elm$core$List$map,
+										A2(
+											$elm$core$Basics$composeR,
+											function ($) {
+												return $.checkpoint;
+											},
+											function ($) {
+												return $.family;
+											}),
+										table.rows))
 							}),
 						$elm$core$Platform$Cmd$none);
 				} else {
@@ -11672,7 +11807,7 @@ var $author$project$Leaderboard$update = F2(
 						model,
 						{sortKey: key}),
 					$elm$core$Platform$Cmd$none);
-			default:
+			case 'ToggleCol':
 				var key = msg.a;
 				return A2($elm$core$Set$member, key, model.selectedCols) ? _Utils_Tuple2(
 					_Utils_update(
@@ -11685,6 +11820,21 @@ var $author$project$Leaderboard$update = F2(
 						model,
 						{
 							selectedCols: A2($elm$core$Set$insert, key, model.selectedCols)
+						}),
+					$elm$core$Platform$Cmd$none);
+			default:
+				var key = msg.a;
+				return A2($elm$core$Set$member, key, model.selectedFamilies) ? _Utils_Tuple2(
+					_Utils_update(
+						model,
+						{
+							selectedFamilies: A2($elm$core$Set$remove, key, model.selectedFamilies)
+						}),
+					$elm$core$Platform$Cmd$none) : _Utils_Tuple2(
+					_Utils_update(
+						model,
+						{
+							selectedFamilies: A2($elm$core$Set$insert, key, model.selectedFamilies)
 						}),
 					$elm$core$Platform$Cmd$none);
 		}
@@ -11707,6 +11857,12 @@ var $author$project$Leaderboard$explainHttpError = function (err) {
 	}
 };
 var $elm$html$Html$table = _VirtualDom_node('table');
+var $elm$html$Html$fieldset = _VirtualDom_node('fieldset');
+var $elm$html$Html$legend = _VirtualDom_node('legend');
+var $elm$core$List$sortBy = _List_sortBy;
+var $elm$core$List$sort = function (xs) {
+	return A2($elm$core$List$sortBy, $elm$core$Basics$identity, xs);
+};
 var $author$project$Leaderboard$ToggleCol = function (a) {
 	return {$: 'ToggleCol', a: a};
 };
@@ -11720,15 +11876,25 @@ var $elm$html$Html$Attributes$boolProperty = F2(
 	});
 var $elm$html$Html$Attributes$checked = $elm$html$Html$Attributes$boolProperty('checked');
 var $elm$html$Html$label = _VirtualDom_node('label');
+var $elm$json$Json$Decode$bool = _Json_decodeBool;
+var $elm$html$Html$Events$targetChecked = A2(
+	$elm$json$Json$Decode$at,
+	_List_fromArray(
+		['target', 'checked']),
+	$elm$json$Json$Decode$bool);
+var $elm$html$Html$Events$onCheck = function (tagger) {
+	return A2(
+		$elm$html$Html$Events$on,
+		'change',
+		A2($elm$json$Json$Decode$map, tagger, $elm$html$Html$Events$targetChecked));
+};
 var $author$project$Leaderboard$viewColCheckbox = F2(
 	function (checked, col) {
 		return A2(
-			$elm$html$Html$div,
+			$elm$html$Html$label,
 			_List_fromArray(
 				[
-					$elm$html$Html$Attributes$class('cursor-pointer'),
-					$elm$html$Html$Events$onClick(
-					$author$project$Leaderboard$ToggleCol(col.key))
+					$elm$html$Html$Attributes$class('inline-flex items-center gap-1 cursor-pointer select-none ')
 				]),
 			_List_fromArray(
 				[
@@ -11738,14 +11904,18 @@ var $author$project$Leaderboard$viewColCheckbox = F2(
 						[
 							$elm$html$Html$Attributes$type_('checkbox'),
 							$elm$html$Html$Attributes$checked(checked),
-							$elm$html$Html$Attributes$class('cursor-pointer')
+							$elm$html$Html$Events$onCheck(
+							function (_v0) {
+								return $author$project$Leaderboard$ToggleCol(col.key);
+							}),
+							$elm$html$Html$Attributes$class('accent-biobench-cyan cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-biobench-gold')
 						]),
 					_List_Nil),
 					A2(
-					$elm$html$Html$label,
+					$elm$html$Html$span,
 					_List_fromArray(
 						[
-							$elm$html$Html$Attributes$class('cursor-pointer')
+							$elm$html$Html$Attributes$class('text-sm tracking-tight')
 						]),
 					_List_fromArray(
 						[
@@ -11753,20 +11923,137 @@ var $author$project$Leaderboard$viewColCheckbox = F2(
 						]))
 				]));
 	});
-var $author$project$Leaderboard$viewPicker = F2(
-	function (selectedCols, table) {
+var $author$project$Leaderboard$ToggleFamily = function (a) {
+	return {$: 'ToggleFamily', a: a};
+};
+var $author$project$Leaderboard$viewFamilyCheckbox = F2(
+	function (checked, family) {
+		return A2(
+			$elm$html$Html$label,
+			_List_fromArray(
+				[
+					$elm$html$Html$Attributes$class('inline-flex items-center gap-1 cursor-pointer select-none ')
+				]),
+			_List_fromArray(
+				[
+					A2(
+					$elm$html$Html$input,
+					_List_fromArray(
+						[
+							$elm$html$Html$Attributes$type_('checkbox'),
+							$elm$html$Html$Attributes$checked(checked),
+							$elm$html$Html$Events$onCheck(
+							function (_v0) {
+								return $author$project$Leaderboard$ToggleFamily(family);
+							}),
+							$elm$html$Html$Attributes$class('accent-biobench-cyan cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-biobench-gold')
+						]),
+					_List_Nil),
+					A2(
+					$elm$html$Html$span,
+					_List_fromArray(
+						[
+							$elm$html$Html$Attributes$class('text-sm tracking-tight')
+						]),
+					_List_fromArray(
+						[
+							$elm$html$Html$text(family)
+						]))
+				]));
+	});
+var $author$project$Leaderboard$viewPicker = F3(
+	function (selectedCols, selectedFamilies, table) {
+		var allFamilies = $elm$core$List$sort(
+			$elm$core$Set$toList(
+				$elm$core$Set$fromList(
+					A2(
+						$elm$core$List$map,
+						A2(
+							$elm$core$Basics$composeR,
+							function ($) {
+								return $.checkpoint;
+							},
+							function ($) {
+								return $.family;
+							}),
+						table.rows))));
 		return A2(
 			$elm$html$Html$div,
-			_List_Nil,
-			A2(
-				$elm$core$List$map,
-				function (col) {
-					return A2(
-						$author$project$Leaderboard$viewColCheckbox,
-						A2($elm$core$Set$member, col.key, selectedCols),
-						col);
-				},
-				table.cols));
+			_List_fromArray(
+				[
+					$elm$html$Html$Attributes$class('grid md:grid-cols-2 gap-2')
+				]),
+			_List_fromArray(
+				[
+					A2(
+					$elm$html$Html$fieldset,
+					_List_fromArray(
+						[
+							$elm$html$Html$Attributes$class('border border-biobench-black p-2')
+						]),
+					_List_fromArray(
+						[
+							A2(
+							$elm$html$Html$legend,
+							_List_fromArray(
+								[
+									$elm$html$Html$Attributes$class('text-xs font-semibold tracking-tight px-1 -ml-1 ')
+								]),
+							_List_fromArray(
+								[
+									$elm$html$Html$text('Columns')
+								])),
+							A2(
+							$elm$html$Html$div,
+							_List_fromArray(
+								[
+									$elm$html$Html$Attributes$class('flex flex-wrap gap-x-4 gap-y-2')
+								]),
+							A2(
+								$elm$core$List$map,
+								function (col) {
+									return A2(
+										$author$project$Leaderboard$viewColCheckbox,
+										A2($elm$core$Set$member, col.key, selectedCols),
+										col);
+								},
+								table.cols))
+						])),
+					A2(
+					$elm$html$Html$fieldset,
+					_List_fromArray(
+						[
+							$elm$html$Html$Attributes$class('border border-biobench-black p-2')
+						]),
+					_List_fromArray(
+						[
+							A2(
+							$elm$html$Html$legend,
+							_List_fromArray(
+								[
+									$elm$html$Html$Attributes$class('text-xs font-semibold tracking-tight px-1 -ml-1 ')
+								]),
+							_List_fromArray(
+								[
+									$elm$html$Html$text('Model Families')
+								])),
+							A2(
+							$elm$html$Html$div,
+							_List_fromArray(
+								[
+									$elm$html$Html$Attributes$class('flex flex-wrap gap-x-4 gap-y-2')
+								]),
+							A2(
+								$elm$core$List$map,
+								function (family) {
+									return A2(
+										$author$project$Leaderboard$viewFamilyCheckbox,
+										A2($elm$core$Set$member, family, selectedFamilies),
+										family);
+								},
+								allFamilies))
+						]))
+				]));
 	});
 var $author$project$Leaderboard$NotSortable = {$: 'NotSortable'};
 var $elm$core$List$head = function (list) {
@@ -11779,12 +12066,11 @@ var $elm$core$List$head = function (list) {
 	}
 };
 var $author$project$Leaderboard$maxString = A2($elm$core$String$repeat, 50, '\uDBFF\uDFFF');
-var $elm$core$List$sortBy = _List_sortBy;
-var $elm$html$Html$tbody = _VirtualDom_node('tbody');
 var $elm$html$Html$tr = _VirtualDom_node('tr');
 var $elm$html$Html$td = _VirtualDom_node('td');
 var $author$project$Leaderboard$viewTd = F3(
 	function (selectedCols, row, col) {
+		var winner = A2($elm$core$Set$member, col.key, row.winners) ? ' font-bold' : '';
 		var _v0 = A2(col.format, selectedCols, row);
 		var cls = _v0.a;
 		var text = _v0.b;
@@ -11792,7 +12078,7 @@ var $author$project$Leaderboard$viewTd = F3(
 			$elm$html$Html$td,
 			_List_fromArray(
 				[
-					$elm$html$Html$Attributes$class('px-2 ' + cls)
+					$elm$html$Html$Attributes$class('px-2 ' + (cls + winner))
 				]),
 			_List_fromArray(
 				[
@@ -11811,15 +12097,15 @@ var $author$project$Leaderboard$viewTr = F3(
 			$elm$html$Html$tr,
 			_List_fromArray(
 				[
-					$elm$html$Html$Attributes$class('py-1')
+					$elm$html$Html$Attributes$class('py-1 hover:bg-biobench-cyan/20 transition-colors')
 				]),
 			A2(
 				$elm$core$List$map,
 				A2($author$project$Leaderboard$viewTd, selectedCols, row),
 				cols));
 	});
-var $author$project$Leaderboard$viewTbody = F4(
-	function (selectedCols, sortKey, sortOrder, table) {
+var $author$project$Leaderboard$viewTbody = F5(
+	function (selectedCols, selectedFamilies, sortKey, sortOrder, table) {
 		var sortType = A2(
 			$elm$core$Maybe$withDefault,
 			$author$project$Leaderboard$NotSortable,
@@ -11835,6 +12121,12 @@ var $author$project$Leaderboard$viewTbody = F4(
 							return _Utils_eq(col.key, sortKey);
 						},
 						table.cols))));
+		var filtered = A2(
+			$elm$core$List$filter,
+			function (row) {
+				return A2($elm$core$Set$member, row.checkpoint.family, selectedFamilies);
+			},
+			table.rows);
 		var sorted = function () {
 			switch (sortType.$) {
 				case 'SortNumeric':
@@ -11845,7 +12137,7 @@ var $author$project$Leaderboard$viewTbody = F4(
 							$elm$core$Basics$composeR,
 							fn(selectedCols),
 							$elm$core$Maybe$withDefault((-1) / 0)),
-						table.rows);
+						filtered);
 				case 'SortString':
 					var fn = sortType.a;
 					return A2(
@@ -11854,9 +12146,9 @@ var $author$project$Leaderboard$viewTbody = F4(
 							$elm$core$Basics$composeR,
 							fn(selectedCols),
 							$elm$core$Maybe$withDefault($author$project$Leaderboard$maxString)),
-						table.rows);
+						filtered);
 				default:
-					return table.rows;
+					return filtered;
 			}
 		}();
 		var ordered = function () {
@@ -11866,15 +12158,20 @@ var $author$project$Leaderboard$viewTbody = F4(
 				return $elm$core$List$reverse(sorted);
 			}
 		}();
-		return A2(
-			$elm$html$Html$tbody,
+		return A3(
+			$elm$html$Html$Keyed$node,
+			'tbody',
 			_List_fromArray(
 				[
 					$elm$html$Html$Attributes$class('border-b')
 				]),
 			A2(
 				$elm$core$List$map,
-				A2($author$project$Leaderboard$viewTr, selectedCols, table.cols),
+				function (row) {
+					return _Utils_Tuple2(
+						row.checkpoint.name,
+						A3($author$project$Leaderboard$viewTr, selectedCols, table.cols, row));
+				},
 				ordered));
 	});
 var $elm$html$Html$thead = _VirtualDom_node('thead');
@@ -11959,17 +12256,17 @@ var $author$project$Leaderboard$view = function (model) {
 				_List_Nil,
 				_List_fromArray(
 					[
-						A2($author$project$Leaderboard$viewPicker, model.selectedCols, table),
+						A3($author$project$Leaderboard$viewPicker, model.selectedCols, model.selectedFamilies, table),
 						A2(
 						$elm$html$Html$table,
 						_List_fromArray(
 							[
-								$elm$html$Html$Attributes$class('w-full')
+								$elm$html$Html$Attributes$class('w-full text-xs sm:text-sm mt-2')
 							]),
 						_List_fromArray(
 							[
 								A4($author$project$Leaderboard$viewThead, model.selectedCols, model.sortKey, model.sortOrder, table),
-								A4($author$project$Leaderboard$viewTbody, model.selectedCols, model.sortKey, model.sortOrder, table)
+								A5($author$project$Leaderboard$viewTbody, model.selectedCols, model.selectedFamilies, model.sortKey, model.sortOrder, table)
 							]))
 					]));
 	}
@@ -11984,4 +12281,4 @@ var $author$project$Leaderboard$main = $elm$browser$Browser$element(
 		view: $author$project$Leaderboard$view
 	});
 _Platform_export({'Leaderboard':{'init':$author$project$Leaderboard$main(
-	$elm$json$Json$Decode$succeed(_Utils_Tuple0))({"versions":{"elm":"0.19.1"},"types":{"message":"Leaderboard.Msg","aliases":{"Leaderboard.Checkpoint":{"args":[],"type":"{ name : String.String, display : String.String, family : String.String, params : Basics.Int, release : Time.Posix }"},"Leaderboard.Metadata":{"args":[],"type":"{ schema : Basics.Int, generated : Time.Posix, commit : String.String, seed : Basics.Int, alpha : Basics.Float, nBootstraps : Basics.Int }"},"Leaderboard.Table":{"args":[],"type":"{ rows : List.List Leaderboard.TableRow, cols : List.List Leaderboard.TableCol, metadata : Leaderboard.Metadata }"},"Leaderboard.TableCol":{"args":[],"type":"{ key : String.String, display : String.String, format : Set.Set String.String -> Leaderboard.TableRow -> ( String.String, String.String ), sortType : Leaderboard.SortType }"},"Leaderboard.TableRow":{"args":[],"type":"{ checkpoint : Leaderboard.Checkpoint, scores : Dict.Dict String.String Basics.Float, winners : Set.Set String.String }"}},"unions":{"Leaderboard.Msg":{"args":[],"tags":{"Fetched":["Result.Result Http.Error Leaderboard.Table"],"Sort":["String.String"],"ToggleCol":["String.String"]}},"Dict.Dict":{"args":["k","v"],"tags":{"RBNode_elm_builtin":["Dict.NColor","k","v","Dict.Dict k v","Dict.Dict k v"],"RBEmpty_elm_builtin":[]}},"Http.Error":{"args":[],"tags":{"BadUrl":["String.String"],"Timeout":[],"NetworkError":[],"BadStatus":["Basics.Int"],"BadBody":["String.String"]}},"Basics.Float":{"args":[],"tags":{"Float":[]}},"Basics.Int":{"args":[],"tags":{"Int":[]}},"List.List":{"args":["a"],"tags":{}},"Time.Posix":{"args":[],"tags":{"Posix":["Basics.Int"]}},"Result.Result":{"args":["error","value"],"tags":{"Ok":["value"],"Err":["error"]}},"Set.Set":{"args":["t"],"tags":{"Set_elm_builtin":["Dict.Dict t ()"]}},"Leaderboard.SortType":{"args":[],"tags":{"SortNumeric":["Set.Set String.String -> Leaderboard.TableRow -> Maybe.Maybe Basics.Float"],"SortString":["Set.Set String.String -> Leaderboard.TableRow -> Maybe.Maybe String.String"],"NotSortable":[]}},"String.String":{"args":[],"tags":{"String":[]}},"Maybe.Maybe":{"args":["a"],"tags":{"Just":["a"],"Nothing":[]}},"Dict.NColor":{"args":[],"tags":{"Red":[],"Black":[]}}}}})}});}(this));
+	$elm$json$Json$Decode$succeed(_Utils_Tuple0))({"versions":{"elm":"0.19.1"},"types":{"message":"Leaderboard.Msg","aliases":{"Leaderboard.Checkpoint":{"args":[],"type":"{ name : String.String, display : String.String, family : String.String, release : Maybe.Maybe Time.Posix, params : Maybe.Maybe Basics.Int, resolution : Maybe.Maybe Basics.Int }"},"Leaderboard.Metadata":{"args":[],"type":"{ schema : Basics.Int, generated : Time.Posix, commit : String.String, seed : Basics.Int, alpha : Basics.Float, nBootstraps : Basics.Int }"},"Leaderboard.Table":{"args":[],"type":"{ rows : List.List Leaderboard.TableRow, cols : List.List Leaderboard.TableCol, metadata : Leaderboard.Metadata }"},"Leaderboard.TableCol":{"args":[],"type":"{ key : String.String, display : String.String, format : Set.Set String.String -> Leaderboard.TableRow -> ( String.String, String.String ), sortType : Leaderboard.SortType }"},"Leaderboard.TableRow":{"args":[],"type":"{ checkpoint : Leaderboard.Checkpoint, scores : Dict.Dict String.String Basics.Float, winners : Set.Set String.String }"}},"unions":{"Leaderboard.Msg":{"args":[],"tags":{"Fetched":["Result.Result Http.Error Leaderboard.Table"],"Sort":["String.String"],"ToggleCol":["String.String"],"ToggleFamily":["String.String"]}},"Dict.Dict":{"args":["k","v"],"tags":{"RBNode_elm_builtin":["Dict.NColor","k","v","Dict.Dict k v","Dict.Dict k v"],"RBEmpty_elm_builtin":[]}},"Http.Error":{"args":[],"tags":{"BadUrl":["String.String"],"Timeout":[],"NetworkError":[],"BadStatus":["Basics.Int"],"BadBody":["String.String"]}},"Basics.Float":{"args":[],"tags":{"Float":[]}},"Basics.Int":{"args":[],"tags":{"Int":[]}},"List.List":{"args":["a"],"tags":{}},"Maybe.Maybe":{"args":["a"],"tags":{"Just":["a"],"Nothing":[]}},"Time.Posix":{"args":[],"tags":{"Posix":["Basics.Int"]}},"Result.Result":{"args":["error","value"],"tags":{"Ok":["value"],"Err":["error"]}},"Set.Set":{"args":["t"],"tags":{"Set_elm_builtin":["Dict.Dict t ()"]}},"Leaderboard.SortType":{"args":[],"tags":{"SortNumeric":["Set.Set String.String -> Leaderboard.TableRow -> Maybe.Maybe Basics.Float"],"SortString":["Set.Set String.String -> Leaderboard.TableRow -> Maybe.Maybe String.String"],"NotSortable":[]}},"String.String":{"args":[],"tags":{"String":[]}},"Dict.NColor":{"args":[],"tags":{"Red":[],"Black":[]}}}}})}});}(this));

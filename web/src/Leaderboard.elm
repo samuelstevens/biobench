@@ -5,6 +5,7 @@ import Dict
 import Html
 import Html.Attributes exposing (class)
 import Html.Events
+import Html.Keyed
 import Http
 import Json.Decode as D
 import Round
@@ -25,6 +26,7 @@ type Msg
     = Fetched (Result Http.Error Table)
     | Sort String
     | ToggleCol String
+    | ToggleFamily String
 
 
 type Requested a e
@@ -65,8 +67,9 @@ type alias Checkpoint =
     { name : String
     , display : String
     , family : String
-    , params : Int
-    , release : Time.Posix
+    , release : Maybe Time.Posix
+    , params : Maybe Int
+    , resolution : Maybe Int
     }
 
 
@@ -146,6 +149,10 @@ update msg model =
                             table.cols
                                 |> List.map .key
                                 |> Set.fromList
+                        , selectedFamilies =
+                            table.rows
+                                |> List.map (.checkpoint >> .family)
+                                |> Set.fromList
                       }
                     , Cmd.none
                     )
@@ -167,6 +174,13 @@ update msg model =
             else
                 ( { model | selectedCols = Set.insert key model.selectedCols }, Cmd.none )
 
+        ToggleFamily key ->
+            if Set.member key model.selectedFamilies then
+                ( { model | selectedFamilies = Set.remove key model.selectedFamilies }, Cmd.none )
+
+            else
+                ( { model | selectedFamilies = Set.insert key model.selectedFamilies }, Cmd.none )
+
 
 view : Model -> Html.Html Msg
 view model =
@@ -179,45 +193,95 @@ view model =
 
         Loaded table ->
             Html.div []
-                [ viewPicker model.selectedCols table
+                [ viewPicker model.selectedCols model.selectedFamilies table
                 , Html.table
-                    [ class "w-full" ]
+                    [ class "w-full text-xs sm:text-sm mt-2" ]
                     [ viewThead model.selectedCols model.sortKey model.sortOrder table
-                    , viewTbody model.selectedCols model.sortKey model.sortOrder table
+                    , viewTbody model.selectedCols model.selectedFamilies model.sortKey model.sortOrder table
                     ]
                 ]
 
 
-viewPicker : Set.Set String -> Table -> Html.Html Msg
-viewPicker selectedCols table =
+viewPicker : Set.Set String -> Set.Set String -> Table -> Html.Html Msg
+viewPicker selectedCols selectedFamilies table =
+    let
+        allFamilies =
+            table.rows
+                |> List.map (.checkpoint >> .family)
+                |> Set.fromList
+                |> Set.toList
+                |> List.sort
+    in
     Html.div
-        []
-        (List.map
-            (\col ->
-                viewColCheckbox
-                    (Set.member col.key selectedCols)
-                    col
-            )
-            table.cols
-        )
+        [ class "grid md:grid-cols-2 gap-2" ]
+        [ Html.fieldset
+            [ class "border border-biobench-black p-2" ]
+            [ Html.legend
+                [ class "text-xs font-semibold tracking-tight px-1 -ml-1 " ]
+                [ Html.text "Columns" ]
+            , Html.div
+                [ class "flex flex-wrap gap-x-4 gap-y-2" ]
+                (List.map
+                    (\col ->
+                        viewColCheckbox
+                            (Set.member col.key selectedCols)
+                            col
+                    )
+                    table.cols
+                )
+            ]
+        , Html.fieldset
+            [ class "border border-biobench-black p-2" ]
+            [ Html.legend
+                [ class "text-xs font-semibold tracking-tight px-1 -ml-1 " ]
+                [ Html.text "Model Families" ]
+            , Html.div
+                [ class "flex flex-wrap gap-x-4 gap-y-2" ]
+                (List.map
+                    (\family ->
+                        viewFamilyCheckbox
+                            (Set.member family selectedFamilies)
+                            family
+                    )
+                    allFamilies
+                )
+            ]
+        ]
 
 
 viewColCheckbox : Bool -> TableCol -> Html.Html Msg
 viewColCheckbox checked col =
-    -- TODO: Style
-    Html.div
-        [ class "cursor-pointer"
-        , Html.Events.onClick (ToggleCol col.key)
+    Html.label
+        [ class "inline-flex items-center gap-1 cursor-pointer select-none "
         ]
         [ Html.input
             [ Html.Attributes.type_ "checkbox"
             , Html.Attributes.checked checked
-            , class "cursor-pointer"
+            , Html.Events.onCheck (\_ -> ToggleCol col.key)
+            , class "accent-biobench-cyan cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-biobench-gold"
             ]
             []
-        , Html.label
-            [ class "cursor-pointer" ]
+        , Html.span
+            [ class "text-sm tracking-tight" ]
             [ Html.text col.display ]
+        ]
+
+
+viewFamilyCheckbox : Bool -> String -> Html.Html Msg
+viewFamilyCheckbox checked family =
+    Html.label
+        [ class "inline-flex items-center gap-1 cursor-pointer select-none "
+        ]
+        [ Html.input
+            [ Html.Attributes.type_ "checkbox"
+            , Html.Attributes.checked checked
+            , Html.Events.onCheck (\_ -> ToggleFamily family)
+            , class "accent-biobench-cyan cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-biobench-gold"
+            ]
+            []
+        , Html.span
+            [ class "text-sm tracking-tight" ]
+            [ Html.text family ]
         ]
 
 
@@ -251,9 +315,13 @@ viewTh sortKey sortOrder col =
         [ Html.text (col.display ++ extra) ]
 
 
-viewTbody : Set.Set String -> String -> Order -> Table -> Html.Html Msg
-viewTbody selectedCols sortKey sortOrder table =
+viewTbody : Set.Set String -> Set.Set String -> String -> Order -> Table -> Html.Html Msg
+viewTbody selectedCols selectedFamilies sortKey sortOrder table =
     let
+        filtered =
+            table.rows
+                |> List.filter (\row -> Set.member row.checkpoint.family selectedFamilies)
+
         sortType =
             table.cols
                 |> List.filter (\col -> col.key == sortKey)
@@ -264,13 +332,13 @@ viewTbody selectedCols sortKey sortOrder table =
         sorted =
             case sortType of
                 SortNumeric fn ->
-                    List.sortBy (fn selectedCols >> Maybe.withDefault (-1 / 0)) table.rows
+                    List.sortBy (fn selectedCols >> Maybe.withDefault (-1 / 0)) filtered
 
                 SortString fn ->
-                    List.sortBy (fn selectedCols >> Maybe.withDefault maxString) table.rows
+                    List.sortBy (fn selectedCols >> Maybe.withDefault maxString) filtered
 
                 NotSortable ->
-                    table.rows
+                    filtered
 
         ordered =
             case sortOrder of
@@ -280,9 +348,16 @@ viewTbody selectedCols sortKey sortOrder table =
                 Descending ->
                     List.reverse sorted
     in
-    Html.tbody
+    Html.Keyed.node "tbody"
         [ class "border-b" ]
-        (List.map (viewTr selectedCols table.cols) ordered)
+        (List.map
+            (\row ->
+                ( row.checkpoint.name
+                , viewTr selectedCols table.cols row
+                )
+            )
+            ordered
+        )
 
 
 viewTr : Set.Set String -> List TableCol -> TableRow -> Html.Html Msg
@@ -293,7 +368,7 @@ viewTr selectedCols allCols row =
                 |> List.filter (\col -> Set.member col.key selectedCols)
     in
     Html.tr
-        [ class "py-1" ]
+        [ class "py-1 hover:bg-biobench-cyan/20 transition-colors" ]
         (List.map (viewTd selectedCols row) cols)
 
 
@@ -302,14 +377,71 @@ viewTd selectedCols row col =
     let
         ( cls, text ) =
             col.format selectedCols row
+
+        winner =
+            if Set.member col.key row.winners then
+                " font-bold"
+
+            else
+                ""
     in
     Html.td
-        [ class ("px-2 " ++ cls) ]
+        [ class ("px-2 " ++ cls ++ winner) ]
         [ Html.text text ]
 
 
+scoreColor : Float -> String
+scoreColor x =
+    let
+        clamped =
+            clamp 0 1 x
+    in
+    if clamped < 0.2 then
+        -- map 0‒0.2 → dark → light red
+        let
+            t =
+                clamped / 0.2
 
--- (List.map viewTd row
+            -- 0‒1
+            r =
+                round (interpolate 155 238 t)
+
+            -- 9b2226 → ee9b00
+            g =
+                round (interpolate 34 70 t)
+
+            b =
+                round (interpolate 38 70 t)
+        in
+        "rgb(" ++ String.fromInt r ++ "," ++ String.fromInt g ++ "," ++ String.fromInt b ++ ")"
+
+    else if clamped < 0.8 then
+        "rgb(255,255,255)"
+        -- neutral white
+
+    else
+        -- map 0.8‒1 → light → dark green
+        let
+            t =
+                (clamped - 0.8) / 0.2
+
+            -- 0‒1
+            r =
+                round (interpolate 148 0 t)
+
+            -- 94d2bd → 005f73
+            g =
+                round (interpolate 210 95 t)
+
+            b =
+                round (interpolate 189 115 t)
+        in
+        "rgb(" ++ String.fromInt r ++ "," ++ String.fromInt g ++ "," ++ String.fromInt b ++ ")"
+
+
+interpolate : Float -> Float -> Float -> Float
+interpolate a b t =
+    a + (b - a) * t
 
 
 viewScore : Maybe Float -> String
@@ -329,8 +461,12 @@ getBenchmarkScore task visibleKeys row =
 
 viewBenchmarkScore : String -> Set.Set String -> TableRow -> ( String, String )
 viewBenchmarkScore task visibleKeys row =
-    ( "text-right font-mono"
-    , getBenchmarkScore task visibleKeys row |> viewScore
+    let
+        score =
+            getBenchmarkScore task visibleKeys row
+    in
+    ( "text-right font-mono "
+    , score |> viewScore
     )
 
 
@@ -368,6 +504,35 @@ viewCheckpoint : Set.Set String -> TableRow -> ( String, String )
 viewCheckpoint cols row =
     ( "text-left"
     , row.checkpoint.display
+    )
+
+
+getCheckpointParams : Set.Set String -> TableRow -> Maybe Float
+getCheckpointParams _ row =
+    row.checkpoint.params |> Maybe.map toFloat
+
+
+viewCheckpointParams : Set.Set String -> TableRow -> ( String, String )
+viewCheckpointParams selectedCols row =
+    ( "text-left"
+    , getCheckpointParams selectedCols row
+        |> Maybe.map ((/) (10 ^ 6))
+        |> Maybe.map (Round.round 1)
+        |> Maybe.withDefault ""
+    )
+
+
+getCheckpointRelease : Set.Set String -> TableRow -> Maybe Float
+getCheckpointRelease _ row =
+    row.checkpoint.release |> Maybe.map (Time.posixToMillis >> toFloat)
+
+
+viewCheckpointRelease : Set.Set String -> TableRow -> ( String, String )
+viewCheckpointRelease _ row =
+    ( "text-left"
+    , row.checkpoint.release
+        |> Maybe.map (Time.toYear Time.utc >> String.fromInt)
+        |> Maybe.withDefault "unknown"
     )
 
 
@@ -463,13 +628,6 @@ explainHttpError err =
 pivotPayload : Payload -> Table
 pivotPayload payload =
     let
-        -- [ CheckpointCell { name = "dummy", display = "dummy" }
-        -- , { key = "params", display = "Params (M)" }
-        -- , { key = "date", display = "Release" }
-        -- , { key = Imagenet1kColumn, display = "ImageNet-1K" }
-        -- , { key = NewtColumn, display = "NeWT" }
-        -- , { key = MeanColumn, display = "Mean" }
-        -- ]
         dynamicCols =
             List.map
                 (\task ->
@@ -487,7 +645,9 @@ pivotPayload payload =
         fixedCols =
             [ { key = "checkpoint", display = "Checkpoint", format = viewCheckpoint, sortType = SortString getCheckpoint }
 
-            -- TODO: params, release date, model family
+            -- TODO:  release date, model family
+            , { key = "params", display = "Params (M)", format = viewCheckpointParams, sortType = SortNumeric getCheckpointParams }
+            , { key = "release", display = "Released", format = viewCheckpointRelease, sortType = SortNumeric getCheckpointRelease }
             , { key = "imagenet1k", display = "Imagenet-1K", format = viewBenchmarkScore "imagenet1k", sortType = SortNumeric (getBenchmarkScore "imagenet1k") }
             , { key = "newt", display = "NeWT", format = viewBenchmarkScore "newt", sortType = SortNumeric (getBenchmarkScore "newt") }
             , { key = "mean", display = "Mean", format = viewMeanScore tasks, sortType = SortNumeric (getMeanScore tasks) }
@@ -540,12 +700,13 @@ getWinners checkpoint bests =
 
 checkpointDecoder : D.Decoder Checkpoint
 checkpointDecoder =
-    D.map5 Checkpoint
+    D.map6 Checkpoint
         (D.field "ckpt" D.string)
         (D.field "display" D.string)
         (D.field "family" D.string)
-        (D.succeed 0)
-        (D.succeed (Time.millisToPosix 0))
+        (D.succeed Nothing)
+        (D.succeed Nothing)
+        (D.succeed Nothing)
 
 
 type alias Task =
