@@ -112,9 +112,9 @@ type alias Checkpoint =
     { name : String
     , display : String
     , family : String
+    , params : Int
+    , resolution : Int
     , release : Maybe Time.Posix
-    , params : Maybe Int
-    , resolution : Maybe Int
     }
 
 
@@ -144,6 +144,12 @@ type alias TableCol =
 
     -- Information for SORTING
     , sortType : SortType
+
+    -- For graphing
+    , barchart : Bool
+
+    -- Quality of life
+    , immediatelyVisible : Bool
     }
 
 
@@ -219,6 +225,7 @@ update msg model =
                         | requestedTable = Loaded table
                         , selectedCols =
                             table.cols
+                                |> List.filter .immediatelyVisible
                                 |> List.map .key
                                 |> Set.fromList
                         , selectedFamilies =
@@ -402,9 +409,10 @@ viewDragHandle info =
                     ( "bg-biobench-black", "fill-biobench-black" )
     in
     Html.div
-        [ class "group relative w-1 hover:bg-biobench-gold cursor-col-resize select-none flex flex-col items-center z-40 drop-shadow-lg rounded-full"
+        [ class "hidden md:flex flex-col items-center group relative w-1 hover:bg-biobench-gold cursor-col-resize select-none z-40 drop-shadow-lg rounded-full"
         , class bg
         , Html.Events.on "mousedown" (D.map MouseDown mouseX)
+        , Html.Events.on "touchstart" (D.map MouseDown touchX)
         ]
         [ Html.div
             [ class "mt-6" ]
@@ -436,6 +444,11 @@ mouseX =
     D.field "clientX" D.float
 
 
+touchX : D.Decoder Float
+touchX =
+    D.field "targetTouches" (D.index 0 (D.field "clientX" D.float))
+
+
 viewPickers : Layout -> Set.Set String -> Set.Set String -> Table -> Html Msg
 viewPickers layout selectedCols selectedFamilies table =
     let
@@ -454,11 +467,14 @@ viewPickers layout selectedCols selectedFamilies table =
                 (layoutEq layout TableOnly)
                 (\_ -> SetLayout TableOnly)
                 "Tables"
-            , viewLabeledRadio
-                "split"
-                (layoutEq layout (Split -1))
-                (\_ -> SetLayout (Split 0.5))
-                "Both"
+            , Html.label
+                [ class "hidden md:inline-flex items-center gap-1 cursor-pointer select-none "
+                ]
+                [ viewRadio "split" (layoutEq layout (Split -1)) (\_ -> SetLayout (Split 0.5))
+                , Html.span
+                    [ class "text-sm tracking-tight" ]
+                    [ Html.text "Split" ]
+                ]
             , viewLabeledRadio
                 "charts-only"
                 (layoutEq layout ChartsOnly)
@@ -512,7 +528,7 @@ viewFamilyCheckbox checked family =
 viewTable : Set.Set String -> Set.Set String -> String -> Order -> Table -> Html Msg
 viewTable selectedCols selectedFamilies sortKey sortOrder table =
     Html.table
-        [ class "w-full text-xs sm:text-sm mt-2" ]
+        [ class "w-full md:text-sm mt-2" ]
         [ viewThead selectedCols sortKey sortOrder table
         , viewTbody selectedCols selectedFamilies sortKey sortOrder table
         ]
@@ -632,7 +648,7 @@ viewCharts selectedCols selectedFamilies table =
 
         filteredCols =
             table.cols
-                |> List.filter (\c -> Set.member c.key selectedCols)
+                |> List.filter (\c -> Set.member c.key selectedCols && c.barchart)
 
         ( getters, titles ) =
             filteredCols
@@ -654,7 +670,7 @@ viewCharts selectedCols selectedFamilies table =
 
 viewBarChart : List TableRow -> String -> (TableRow -> Maybe Float) -> Html Msg
 viewBarChart rows title getter =
-    case List.filterMap (withFamily getter) rows of
+    case List.filterMap (withInfo getter) rows of
         [] ->
             Html.div [ class "hidden" ] []
 
@@ -696,14 +712,18 @@ viewBarChart rows title getter =
                 ]
 
 
-withFamily : (TableRow -> Maybe Float) -> TableRow -> Maybe { score : Float, family : String }
-withFamily getter row =
+withInfo : (TableRow -> Maybe Float) -> TableRow -> Maybe { score : Float, family : String, display : String }
+withInfo getter row =
     case getter row of
         Nothing ->
             Nothing
 
         Just score ->
-            Just { score = score, family = row.checkpoint.family }
+            Just
+                { score = score
+                , family = row.checkpoint.family
+                , display = row.checkpoint.display
+                }
 
 
 viewScore : Maybe Float -> String
@@ -771,16 +791,15 @@ viewCheckpoint cols row =
 
 getCheckpointParams : Set.Set String -> TableRow -> Maybe Float
 getCheckpointParams _ row =
-    row.checkpoint.params |> Maybe.map toFloat
+    row.checkpoint.params |> toFloat |> Just
 
 
 viewCheckpointParams : Set.Set String -> TableRow -> ( String, String )
 viewCheckpointParams selectedCols row =
-    ( "text-left"
-    , getCheckpointParams selectedCols row
-        |> Maybe.map ((/) (10 ^ 6))
-        |> Maybe.map (Round.round 1)
-        |> Maybe.withDefault ""
+    ( "text-right"
+    , toFloat row.checkpoint.params
+        / (10 ^ 6)
+        |> Round.round 0
     )
 
 
@@ -791,11 +810,68 @@ getCheckpointRelease _ row =
 
 viewCheckpointRelease : Set.Set String -> TableRow -> ( String, String )
 viewCheckpointRelease _ row =
-    ( "text-left"
+    ( "text-right"
     , row.checkpoint.release
-        |> Maybe.map (Time.toYear Time.utc >> String.fromInt)
+        |> Maybe.map (formatTime Time.utc)
         |> Maybe.withDefault "unknown"
     )
+
+
+getCheckpointResolution : Set.Set String -> TableRow -> Maybe Float
+getCheckpointResolution _ row =
+    row.checkpoint.resolution |> toFloat |> Just
+
+
+viewCheckpointResolution : Set.Set String -> TableRow -> ( String, String )
+viewCheckpointResolution _ row =
+    ( "text-right"
+    , String.fromInt row.checkpoint.resolution
+    )
+
+
+formatTime : Time.Zone -> Time.Posix -> String
+formatTime zone posix =
+    (Time.toMonth zone posix |> formatMonth) ++ nonbreakingSpace ++ (Time.toYear zone posix |> String.fromInt)
+
+
+formatMonth : Time.Month -> String
+formatMonth month =
+    case month of
+        Time.Jan ->
+            "Jan"
+
+        Time.Feb ->
+            "Feb"
+
+        Time.Mar ->
+            "March"
+
+        Time.Apr ->
+            "April"
+
+        Time.May ->
+            "May"
+
+        Time.Jun ->
+            "June"
+
+        Time.Jul ->
+            "July"
+
+        Time.Aug ->
+            "Aug"
+
+        Time.Sep ->
+            "Sep"
+
+        Time.Oct ->
+            "Oct"
+
+        Time.Nov ->
+            "Nov"
+
+        Time.Dec ->
+            "Dec"
 
 
 mean : List Float -> Maybe Float
@@ -967,6 +1043,8 @@ pivotPayload payload =
                     , display = task.display
                     , format = viewBenchmarkScore task.name
                     , sortType = SortNumeric (getBenchmarkScore task.name)
+                    , barchart = True
+                    , immediatelyVisible = True
                     }
                 )
                 payload.benchmarkTasks
@@ -975,14 +1053,13 @@ pivotPayload payload =
             payload.benchmarkTasks |> List.map .name |> Set.fromList
 
         fixedCols =
-            [ { key = "checkpoint", display = "Checkpoint", format = viewCheckpoint, sortType = SortString getCheckpoint }
-
-            -- TODO:  release date, model family
-            -- , { key = "params", display = "Params" ++ nonbreakingSpace ++ "(M)", format = viewCheckpointParams, sortType = SortNumeric getCheckpointParams }
-            -- , { key = "release", display = "Released", format = viewCheckpointRelease, sortType = SortNumeric getCheckpointRelease }
-            , { key = "imagenet1k", display = "ImageNet" ++ nonbreakingDash ++ "1K", format = viewBenchmarkScore "imagenet1k", sortType = SortNumeric (getBenchmarkScore "imagenet1k") }
-            , { key = "newt", display = "NeWT", format = viewBenchmarkScore "newt", sortType = SortNumeric (getBenchmarkScore "newt") }
-            , { key = "mean", display = "Mean", format = viewMeanScore tasks, sortType = SortNumeric (getMeanScore tasks) }
+            [ { key = "checkpoint", display = "Checkpoint", format = viewCheckpoint, sortType = SortString getCheckpoint, barchart = False, immediatelyVisible = True }
+            , { key = "params", display = "Params" ++ nonbreakingSpace ++ "(M)", format = viewCheckpointParams, sortType = SortNumeric getCheckpointParams, barchart = False, immediatelyVisible = False }
+            , { key = "resolution", display = "Res." ++ nonbreakingSpace ++ "(px)", format = viewCheckpointResolution, sortType = SortNumeric getCheckpointResolution, barchart = False, immediatelyVisible = False }
+            , { key = "release", display = "Released", format = viewCheckpointRelease, sortType = SortNumeric getCheckpointRelease, barchart = False, immediatelyVisible = False }
+            , { key = "imagenet1k", display = "ImageNet" ++ nonbreakingDash ++ "1K", format = viewBenchmarkScore "imagenet1k", sortType = SortNumeric (getBenchmarkScore "imagenet1k"), barchart = True, immediatelyVisible = False }
+            , { key = "newt", display = "NeWT", format = viewBenchmarkScore "newt", sortType = SortNumeric (getBenchmarkScore "newt"), barchart = True, immediatelyVisible = False }
+            , { key = "mean", display = "Mean", format = viewMeanScore tasks, sortType = SortNumeric (getMeanScore tasks), barchart = True, immediatelyVisible = True }
             ]
 
         cols =
@@ -1041,9 +1118,16 @@ checkpointDecoder =
             (D.field "display" D.string)
         )
         (D.field "family" D.string)
-        (D.succeed Nothing)
-        (D.succeed Nothing)
-        (D.succeed Nothing)
+        (D.field "params" D.int)
+        (D.field "resolution" D.int)
+        (D.field "release_ms"
+            (D.maybe (D.map Time.millisToPosix D.int))
+        )
+
+
+timeDecoder : D.Decoder Time.Posix
+timeDecoder =
+    D.map Time.millisToPosix D.int
 
 
 type alias Task =
@@ -1104,10 +1188,10 @@ viewFieldset title content =
     Html.fieldset
         [ class "border border-biobench-black p-1 sm:p-2" ]
         [ Html.legend
-            [ class "text-sm font-semibold tracking-tight px-1 sm:-ml-1 " ]
+            [ class "md:text-sm font-semibold tracking-tight px-1 sm:-ml-1 " ]
             [ Html.text title ]
         , Html.div
-            [ class "flex flex-wrap gap-x-1 sm:gap-x-4 gap-y-2" ]
+            [ class "flex flex-wrap gap-x-2 md:gap-x-4 gap-y-2" ]
             content
         ]
 
@@ -1118,7 +1202,7 @@ viewLabeledCheckbox checkbox label =
         [ class "inline-flex items-center sm:gap-1 cursor-pointer select-none " ]
         [ checkbox
         , Html.span
-            [ class "text-sm tracking-tight" ]
+            [ class "md:text-sm tracking-tight" ]
             [ Html.text label ]
         ]
 
@@ -1137,7 +1221,7 @@ viewCheckbox checked msg =
 viewLabeledRadio : String -> Bool -> (String -> Msg) -> String -> Html Msg
 viewLabeledRadio value checked msg label =
     Html.label
-        [ class "inline-flex items-center gap-1 cursor-pointer select-none "
+        [ class "inline-flex items-center sm:gap-1 cursor-pointer select-none "
         ]
         [ viewRadio value checked msg
         , Html.span
