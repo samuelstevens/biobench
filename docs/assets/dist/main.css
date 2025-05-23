@@ -17,10 +17,8 @@
     --text-3xl--line-height: calc(2.25 / 1.875);
     --font-weight-medium: 500;
     --font-weight-semibold: 600;
-    --font-weight-bold: 700;
     --default-font-family: var(--font-sans);
     --default-mono-font-family: var(--font-mono);
-    --color-biobench-cream-500: #e9d8a6;
   }
 }
 @layer base {
@@ -181,8 +179,14 @@
   .table {
     display: table;
   }
+  .w-full {
+    width: 100%;
+  }
   .max-w-prose {
     max-width: 65ch;
+  }
+  .cursor-pointer {
+    cursor: pointer;
   }
   .list-decimal {
     list-style-type: decimal;
@@ -211,8 +215,11 @@
   .p-4 {
     padding: calc(var(--spacing) * 4);
   }
-  .pl-2 {
-    padding-left: calc(var(--spacing) * 2);
+  .px-2 {
+    padding-inline: calc(var(--spacing) * 2);
+  }
+  .py-1 {
+    padding-block: calc(var(--spacing) * 1);
   }
   .text-left {
     text-align: left;
@@ -231,10 +238,6 @@
     font-size: var(--text-sm);
     line-height: var(--tw-leading, var(--text-sm--line-height));
   }
-  .font-bold {
-    --tw-font-weight: var(--font-weight-bold);
-    font-weight: var(--font-weight-bold);
-  }
   .font-medium {
     --tw-font-weight: var(--font-weight-medium);
     font-weight: var(--font-weight-medium);
@@ -249,21 +252,11 @@
   .text-gray-600 {
     color: var(--color-gray-600);
   }
-  .italic {
-    font-style: italic;
-  }
   .underline {
     text-decoration-line: underline;
   }
   .filter {
     filter: var(--tw-blur,) var(--tw-brightness,) var(--tw-contrast,) var(--tw-grayscale,) var(--tw-hue-rotate,) var(--tw-invert,) var(--tw-saturate,) var(--tw-sepia,) var(--tw-drop-shadow,);
-  }
-  .hover\:bg-biobench-cream-500 {
-    &:hover {
-      @media (hover: hover) {
-        background-color: var(--color-biobench-cream-500);
-      }
-    }
   }
 }
 * {

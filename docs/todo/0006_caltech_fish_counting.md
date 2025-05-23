@@ -58,3 +58,5 @@ Citations for the papers, to be put in the fishcounting docstring:
     year      = {2022}
 }
 ```
+
+See [https://chatgpt.com/s/dr_682e2e0483148191a8d7fabc4d4ca85e](https://chatgpt.com/s/dr_682e2e0483148191a8d7fabc4d4ca85e) for a proposed methodology.

@@ -10729,10 +10729,15 @@ var $elm$core$Basics$never = function (_v0) {
 	}
 };
 var $elm$browser$Browser$element = _Browser_element;
+var $author$project$Leaderboard$Descending = {$: 'Descending'};
 var $author$project$Leaderboard$Fetched = function (a) {
 	return {$: 'Fetched', a: a};
 };
 var $author$project$Leaderboard$Loading = {$: 'Loading'};
+var $elm$core$Set$Set_elm_builtin = function (a) {
+	return {$: 'Set_elm_builtin', a: a};
+};
+var $elm$core$Set$empty = $elm$core$Set$Set_elm_builtin($elm$core$Dict$empty);
 var $elm$http$Http$BadStatus_ = F2(
 	function (a, b) {
 		return {$: 'BadStatus_', a: a, b: b};
@@ -10981,18 +10986,15 @@ var $elm$http$Http$get = function (r) {
 	return $elm$http$Http$request(
 		{body: $elm$http$Http$emptyBody, expect: r.expect, headers: _List_Nil, method: 'GET', timeout: $elm$core$Maybe$Nothing, tracker: $elm$core$Maybe$Nothing, url: r.url});
 };
+var $elm$core$Basics$pow = _Basics_pow;
 var $author$project$Leaderboard$Payload = F6(
 	function (metadata, checkpoints, priorTasks, benchmarkTasks, scores, bests) {
 		return {benchmarkTasks: benchmarkTasks, bests: bests, checkpoints: checkpoints, metadata: metadata, priorTasks: priorTasks, scores: scores};
 	});
-var $author$project$Leaderboard$Best = F3(
-	function (task, best, ties) {
-		return {best: best, task: task, ties: ties};
+var $author$project$Leaderboard$Best = F2(
+	function (task, ties) {
+		return {task: task, ties: ties};
 	});
-var $elm$core$Set$Set_elm_builtin = function (a) {
-	return {$: 'Set_elm_builtin', a: a};
-};
-var $elm$core$Set$empty = $elm$core$Set$Set_elm_builtin($elm$core$Dict$empty);
 var $elm$core$Set$insert = F2(
 	function (key, _v0) {
 		var dict = _v0.a;
@@ -11002,11 +11004,10 @@ var $elm$core$Set$insert = F2(
 var $elm$core$Set$fromList = function (list) {
 	return A3($elm$core$List$foldl, $elm$core$Set$insert, $elm$core$Set$empty, list);
 };
-var $author$project$Leaderboard$bestDecoder = A4(
-	$elm$json$Json$Decode$map3,
+var $author$project$Leaderboard$bestDecoder = A3(
+	$elm$json$Json$Decode$map2,
 	$author$project$Leaderboard$Best,
 	A2($elm$json$Json$Decode$field, 'task', $elm$json$Json$Decode$string),
-	A2($elm$json$Json$Decode$field, 'best', $elm$json$Json$Decode$string),
 	A2(
 		$elm$json$Json$Decode$field,
 		'ties',
@@ -11094,7 +11095,93 @@ var $author$project$Leaderboard$payloadDecoder = A7(
 		$elm$json$Json$Decode$field,
 		'bests',
 		$elm$json$Json$Decode$list($author$project$Leaderboard$bestDecoder)));
+var $author$project$Leaderboard$SortNumeric = function (a) {
+	return {$: 'SortNumeric', a: a};
+};
+var $author$project$Leaderboard$SortString = function (a) {
+	return {$: 'SortString', a: a};
+};
+var $author$project$Leaderboard$getBenchmarkScore = F3(
+	function (task, visibleKeys, row) {
+		return A2($elm$core$Dict$get, task, row.scores);
+	});
+var $author$project$Leaderboard$getCheckpoint = F2(
+	function (cols, row) {
+		return $elm$core$Maybe$Just(row.checkpoint.display);
+	});
+var $elm$core$Dict$filter = F2(
+	function (isGood, dict) {
+		return A3(
+			$elm$core$Dict$foldl,
+			F3(
+				function (k, v, d) {
+					return A2(isGood, k, v) ? A3($elm$core$Dict$insert, k, v, d) : d;
+				}),
+			$elm$core$Dict$empty,
+			dict);
+	});
+var $elm$core$Dict$member = F2(
+	function (key, dict) {
+		var _v0 = A2($elm$core$Dict$get, key, dict);
+		if (_v0.$ === 'Just') {
+			return true;
+		} else {
+			return false;
+		}
+	});
+var $elm$core$Dict$intersect = F2(
+	function (t1, t2) {
+		return A2(
+			$elm$core$Dict$filter,
+			F2(
+				function (k, _v0) {
+					return A2($elm$core$Dict$member, k, t2);
+				}),
+			t1);
+	});
+var $elm$core$Set$intersect = F2(
+	function (_v0, _v1) {
+		var dict1 = _v0.a;
+		var dict2 = _v1.a;
+		return $elm$core$Set$Set_elm_builtin(
+			A2($elm$core$Dict$intersect, dict1, dict2));
+	});
 var $elm$core$Debug$log = _Debug_log;
+var $elm$core$List$sum = function (numbers) {
+	return A3($elm$core$List$foldl, $elm$core$Basics$add, 0, numbers);
+};
+var $author$project$Leaderboard$mean = function (xs) {
+	if (!xs.b) {
+		return $elm$core$Maybe$Nothing;
+	} else {
+		return $elm$core$Maybe$Just(
+			$elm$core$List$sum(xs) / $elm$core$List$length(xs));
+	}
+};
+var $elm$core$Set$size = function (_v0) {
+	var dict = _v0.a;
+	return $elm$core$Dict$size(dict);
+};
+var $author$project$Leaderboard$getMeanScore = F3(
+	function (tasks, selectedCols, row) {
+		var selectedScores = A2(
+			$elm$core$List$filterMap,
+			function (key) {
+				return A2($elm$core$Dict$get, key, row.scores);
+			},
+			$elm$core$Set$toList(
+				A2($elm$core$Set$intersect, selectedCols, tasks)));
+		return _Utils_eq(
+			A2(
+				$elm$core$Debug$log,
+				'length',
+				$elm$core$List$length(selectedScores)),
+			A2(
+				$elm$core$Debug$log,
+				'size',
+				$elm$core$Set$size(
+					A2($elm$core$Set$intersect, selectedCols, tasks)))) ? $author$project$Leaderboard$mean(selectedScores) : $elm$core$Maybe$Nothing;
+	});
 var $elm$core$List$filter = F2(
 	function (isGood, list) {
 		return A3(
@@ -11105,33 +11192,6 @@ var $elm$core$List$filter = F2(
 				}),
 			_List_Nil,
 			list);
-	});
-var $elm$core$List$head = function (list) {
-	if (list.b) {
-		var x = list.a;
-		var xs = list.b;
-		return $elm$core$Maybe$Just(x);
-	} else {
-		return $elm$core$Maybe$Nothing;
-	}
-};
-var $author$project$Leaderboard$getScore = F3(
-	function (checkpoint, task, scores) {
-		return A2(
-			$elm$core$Maybe$withDefault,
-			(-1) / 0,
-			$elm$core$List$head(
-				A2(
-					$elm$core$List$map,
-					function ($) {
-						return $.mean;
-					},
-					A2(
-						$elm$core$List$filter,
-						function (score) {
-							return _Utils_eq(score.task, task) && _Utils_eq(score.checkpoint, checkpoint.name);
-						},
-						scores))));
 	});
 var $author$project$Leaderboard$getScores = F2(
 	function (checkpoint, scores) {
@@ -11144,25 +11204,16 @@ var $author$project$Leaderboard$getScores = F2(
 				A2(
 					$elm$core$List$filter,
 					function (score) {
-						return (score.task !== 'imagenet1k') && ((score.task !== 'newt') && _Utils_eq(score.checkpoint, checkpoint.name));
+						return _Utils_eq(score.checkpoint, checkpoint.name);
 					},
 					scores)));
-	});
-var $elm$core$Dict$member = F2(
-	function (key, dict) {
-		var _v0 = A2($elm$core$Dict$get, key, dict);
-		if (_v0.$ === 'Just') {
-			return true;
-		} else {
-			return false;
-		}
 	});
 var $elm$core$Set$member = F2(
 	function (key, _v0) {
 		var dict = _v0.a;
 		return A2($elm$core$Dict$member, key, dict);
 	});
-var $author$project$Leaderboard$getSotas = F2(
+var $author$project$Leaderboard$getWinners = F2(
 	function (checkpoint, bests) {
 		return $elm$core$Set$fromList(
 			A2(
@@ -11177,246 +11228,15 @@ var $author$project$Leaderboard$getSotas = F2(
 					},
 					bests)));
 	});
-var $elm$core$List$sum = function (numbers) {
-	return A3($elm$core$List$foldl, $elm$core$Basics$add, 0, numbers);
-};
-var $author$project$Leaderboard$mean = function (xs) {
-	if (!xs.b) {
-		return 0;
-	} else {
-		return $elm$core$List$sum(xs) / $elm$core$List$length(xs);
-	}
-};
 var $author$project$Leaderboard$makeRow = F2(
 	function (payload, checkpoint) {
 		var scores = A2($author$project$Leaderboard$getScores, checkpoint, payload.scores);
 		return {
 			checkpoint: checkpoint,
-			imagenet1k: A3($author$project$Leaderboard$getScore, checkpoint, 'imagenet1k', payload.scores),
-			mean: $author$project$Leaderboard$mean(
-				A2(
-					$elm$core$List$map,
-					$elm$core$Tuple$second,
-					$elm$core$Dict$toList(scores))),
-			newt: A3($author$project$Leaderboard$getScore, checkpoint, 'newt', payload.scores),
 			scores: scores,
-			sota: A2($author$project$Leaderboard$getSotas, checkpoint, payload.bests)
+			winners: A2($author$project$Leaderboard$getWinners, checkpoint, payload.bests)
 		};
 	});
-var $author$project$Leaderboard$pivotPayload = function (payload) {
-	var rows = A2(
-		$elm$core$List$map,
-		$author$project$Leaderboard$makeRow(payload),
-		payload.checkpoints);
-	var cols = _Utils_ap(
-		_List_fromArray(
-			[
-				{display: 'Checkpoint', name: 'checkpoint'},
-				{display: 'ImageNet-1K', name: 'imagenet1k'},
-				{display: 'NeWT', name: 'newt'},
-				{display: 'Mean', name: 'mean'}
-			]),
-		payload.benchmarkTasks);
-	return {
-		cols: cols,
-		metadata: payload.metadata,
-		rows: A2($elm$core$Debug$log, 'rows', rows)
-	};
-};
-var $author$project$Leaderboard$tableDecoder = A2($elm$json$Json$Decode$map, $author$project$Leaderboard$pivotPayload, $author$project$Leaderboard$payloadDecoder);
-var $author$project$Leaderboard$init = function (_v0) {
-	return _Utils_Tuple2(
-		{requestedTable: $author$project$Leaderboard$Loading, sortDecreasing: true, sortKey: 'mean'},
-		$elm$http$Http$get(
-			{
-				expect: A2($elm$http$Http$expectJson, $author$project$Leaderboard$Fetched, $author$project$Leaderboard$tableDecoder),
-				url: 'data/results.json'
-			}));
-};
-var $elm$core$Platform$Sub$batch = _Platform_batch;
-var $elm$core$Platform$Sub$none = $elm$core$Platform$Sub$batch(_List_Nil);
-var $author$project$Leaderboard$Failed = function (a) {
-	return {$: 'Failed', a: a};
-};
-var $author$project$Leaderboard$Loaded = function (a) {
-	return {$: 'Loaded', a: a};
-};
-var $author$project$Leaderboard$explainHttpError = function (err) {
-	switch (err.$) {
-		case 'BadUrl':
-			var url = err.a;
-			return 'Invalid URL: ' + url;
-		case 'Timeout':
-			return 'Request timed out.';
-		case 'NetworkError':
-			return 'Unknown network error.';
-		case 'BadStatus':
-			var status = err.a;
-			return 'Got status code: ' + $elm$core$String$fromInt(status);
-		default:
-			var msg = err.a;
-			return 'Bad body: ' + msg;
-	}
-};
-var $author$project$Leaderboard$update = F2(
-	function (msg, model) {
-		if (msg.$ === 'Fetched') {
-			var result = msg.a;
-			if (result.$ === 'Ok') {
-				var table = result.a;
-				return _Utils_Tuple2(
-					_Utils_update(
-						model,
-						{
-							requestedTable: $author$project$Leaderboard$Loaded(table)
-						}),
-					$elm$core$Platform$Cmd$none);
-			} else {
-				var err = result.a;
-				return _Utils_Tuple2(
-					_Utils_update(
-						model,
-						{
-							requestedTable: $author$project$Leaderboard$Failed(
-								$author$project$Leaderboard$explainHttpError(err))
-						}),
-					$elm$core$Platform$Cmd$none);
-			}
-		} else {
-			var key = msg.a;
-			return _Utils_eq(model.sortKey, key) ? _Utils_Tuple2(
-				_Utils_update(
-					model,
-					{sortDecreasing: !model.sortDecreasing}),
-				$elm$core$Platform$Cmd$none) : _Utils_Tuple2(
-				_Utils_update(
-					model,
-					{sortKey: key}),
-				$elm$core$Platform$Cmd$none);
-		}
-	});
-var $elm$time$Time$posixToMillis = function (_v0) {
-	var millis = _v0.a;
-	return millis;
-};
-var $elm$core$List$sortBy = _List_sortBy;
-var $author$project$Leaderboard$orderedBy = F3(
-	function (key, decreasing, rows) {
-		var ordered = function () {
-			switch (key) {
-				case 'checkpoint':
-					return A2(
-						$elm$core$List$sortBy,
-						A2(
-							$elm$core$Basics$composeR,
-							function ($) {
-								return $.checkpoint;
-							},
-							function ($) {
-								return $.display;
-							}),
-						rows);
-				case 'params':
-					return A2(
-						$elm$core$List$sortBy,
-						A2(
-							$elm$core$Basics$composeR,
-							function ($) {
-								return $.checkpoint;
-							},
-							function ($) {
-								return $.params;
-							}),
-						rows);
-				case 'release':
-					return A2(
-						$elm$core$List$sortBy,
-						A2(
-							$elm$core$Basics$composeR,
-							function ($) {
-								return $.checkpoint;
-							},
-							A2(
-								$elm$core$Basics$composeR,
-								function ($) {
-									return $.release;
-								},
-								$elm$time$Time$posixToMillis)),
-						rows);
-				case 'imagenet1k':
-					return A2(
-						$elm$core$List$sortBy,
-						function ($) {
-							return $.imagenet1k;
-						},
-						rows);
-				case 'newt':
-					return A2(
-						$elm$core$List$sortBy,
-						function ($) {
-							return $.newt;
-						},
-						rows);
-				case 'mean':
-					return A2(
-						$elm$core$List$sortBy,
-						function ($) {
-							return $.mean;
-						},
-						rows);
-				default:
-					var name = key;
-					return A2(
-						$elm$core$List$sortBy,
-						A2(
-							$elm$core$Basics$composeR,
-							function ($) {
-								return $.scores;
-							},
-							A2(
-								$elm$core$Basics$composeR,
-								$elm$core$Dict$get(name),
-								$elm$core$Maybe$withDefault((-1) / 0))),
-						rows);
-			}
-		}();
-		return decreasing ? $elm$core$List$reverse(ordered) : ordered;
-	});
-var $elm$html$Html$table = _VirtualDom_node('table');
-var $elm$html$Html$tbody = _VirtualDom_node('tbody');
-var $elm$html$Html$thead = _VirtualDom_node('thead');
-var $elm$html$Html$tr = _VirtualDom_node('tr');
-var $author$project$Leaderboard$Sort = function (a) {
-	return {$: 'Sort', a: a};
-};
-var $elm$core$String$cons = _String_cons;
-var $elm$core$String$fromChar = function (_char) {
-	return A2($elm$core$String$cons, _char, '');
-};
-var $elm$core$Char$fromCode = _Char_fromCode;
-var $author$project$Leaderboard$downArrow = $elm$core$String$fromChar(
-	$elm$core$Char$fromCode(9650));
-var $elm$html$Html$th = _VirtualDom_node('th');
-var $author$project$Leaderboard$upArrow = $elm$core$String$fromChar(
-	$elm$core$Char$fromCode(9660));
-var $author$project$Leaderboard$viewHeaderCell = F3(
-	function (key, decreasing, col) {
-		var suffix = _Utils_eq(key, col.name) ? (decreasing ? $author$project$Leaderboard$upArrow : $author$project$Leaderboard$downArrow) : '';
-		return A2(
-			$elm$html$Html$th,
-			_List_fromArray(
-				[
-					$elm$html$Html$Attributes$class('text-right pl-2'),
-					$elm$html$Html$Events$onClick(
-					$author$project$Leaderboard$Sort(col.name))
-				]),
-			_List_fromArray(
-				[
-					$elm$html$Html$text(
-					_Utils_ap(col.display, suffix))
-				]));
-	});
-var $elm$html$Html$td = _VirtualDom_node('td');
 var $elm$core$Basics$abs = function (n) {
 	return (n < 0) ? (-n) : n;
 };
@@ -11461,6 +11281,8 @@ var $myrho$elm_round$Round$addSign = F2(
 			(signed && isNotZero) ? '-' : '',
 			str);
 	});
+var $elm$core$String$cons = _String_cons;
+var $elm$core$Char$fromCode = _Char_fromCode;
 var $myrho$elm_round$Round$increaseNum = function (_v0) {
 	var head = _v0.a;
 	var tail = _v0.b;
@@ -11497,6 +11319,9 @@ var $elm$core$Maybe$map = F2(
 			return $elm$core$Maybe$Nothing;
 		}
 	});
+var $elm$core$String$fromChar = function (_char) {
+	return A2($elm$core$String$cons, _char, '');
+};
 var $elm$core$Bitwise$shiftRightBy = _Bitwise_shiftRightBy;
 var $elm$core$String$repeatHelp = F3(
 	function (n, chunk, result) {
@@ -11680,119 +11505,431 @@ var $myrho$elm_round$Round$round = $myrho$elm_round$Round$roundFun(
 			}
 		}));
 var $author$project$Leaderboard$viewScore = function (score) {
-	return (score < 0) ? '-' : A2($myrho$elm_round$Round$round, 1, score * 100);
+	if (score.$ === 'Nothing') {
+		return '-';
+	} else {
+		var val = score.a;
+		return A2($myrho$elm_round$Round$round, 1, val * 100);
+	}
 };
-var $author$project$Leaderboard$viewScoreCell = F3(
-	function (key, best, _v0) {
-		var task = _v0.a;
-		var score = _v0.b;
-		var highlight = _Utils_eq(key, task) ? ' italic' : '';
-		var bold = best ? ' font-bold' : '';
+var $author$project$Leaderboard$viewBenchmarkScore = F3(
+	function (task, visibleKeys, row) {
+		return _Utils_Tuple2(
+			'text-right font-mono',
+			$author$project$Leaderboard$viewScore(
+				A3($author$project$Leaderboard$getBenchmarkScore, task, visibleKeys, row)));
+	});
+var $author$project$Leaderboard$viewCheckpoint = F2(
+	function (cols, row) {
+		return _Utils_Tuple2('text-left', row.checkpoint.display);
+	});
+var $author$project$Leaderboard$viewMeanScore = F3(
+	function (tasks, selectedCols, row) {
+		return _Utils_Tuple2(
+			'text-right font-mono',
+			$author$project$Leaderboard$viewScore(
+				A3($author$project$Leaderboard$getMeanScore, tasks, selectedCols, row)));
+	});
+var $author$project$Leaderboard$pivotPayload = function (payload) {
+	var tasks = $elm$core$Set$fromList(
+		A2(
+			$elm$core$List$map,
+			function ($) {
+				return $.name;
+			},
+			payload.benchmarkTasks));
+	var rows = A2(
+		$elm$core$List$map,
+		$author$project$Leaderboard$makeRow(payload),
+		payload.checkpoints);
+	var fixedCols = _List_fromArray(
+		[
+			{
+			display: 'Checkpoint',
+			format: $author$project$Leaderboard$viewCheckpoint,
+			key: 'checkpoint',
+			sortType: $author$project$Leaderboard$SortString($author$project$Leaderboard$getCheckpoint)
+		},
+			{
+			display: 'Imagenet-1K',
+			format: $author$project$Leaderboard$viewBenchmarkScore('imagenet1k'),
+			key: 'imagenet1k',
+			sortType: $author$project$Leaderboard$SortNumeric(
+				$author$project$Leaderboard$getBenchmarkScore('imagenet1k'))
+		},
+			{
+			display: 'NeWT',
+			format: $author$project$Leaderboard$viewBenchmarkScore('newt'),
+			key: 'newt',
+			sortType: $author$project$Leaderboard$SortNumeric(
+				$author$project$Leaderboard$getBenchmarkScore('newt'))
+		},
+			{
+			display: 'Mean',
+			format: $author$project$Leaderboard$viewMeanScore(tasks),
+			key: 'mean',
+			sortType: $author$project$Leaderboard$SortNumeric(
+				$author$project$Leaderboard$getMeanScore(tasks))
+		}
+		]);
+	var dynamicCols = A2(
+		$elm$core$List$map,
+		function (task) {
+			return {
+				display: task.display,
+				format: $author$project$Leaderboard$viewBenchmarkScore(task.name),
+				key: task.name,
+				sortType: $author$project$Leaderboard$SortNumeric(
+					$author$project$Leaderboard$getBenchmarkScore(task.name))
+			};
+		},
+		payload.benchmarkTasks);
+	var cols = _Utils_ap(fixedCols, dynamicCols);
+	return {cols: cols, metadata: payload.metadata, rows: rows};
+};
+var $author$project$Leaderboard$tableDecoder = A2($elm$json$Json$Decode$map, $author$project$Leaderboard$pivotPayload, $author$project$Leaderboard$payloadDecoder);
+var $author$project$Leaderboard$init = function (_v0) {
+	return _Utils_Tuple2(
+		{
+			paramCountRange: _Utils_Tuple2(
+				0,
+				A2($elm$core$Basics$pow, 10, 12)),
+			requestedTable: $author$project$Leaderboard$Loading,
+			selectedCols: $elm$core$Set$empty,
+			selectedFamilies: $elm$core$Set$empty,
+			sortKey: 'mean',
+			sortOrder: $author$project$Leaderboard$Descending
+		},
+		$elm$http$Http$get(
+			{
+				expect: A2($elm$http$Http$expectJson, $author$project$Leaderboard$Fetched, $author$project$Leaderboard$tableDecoder),
+				url: 'data/results.json'
+			}));
+};
+var $elm$core$Platform$Sub$batch = _Platform_batch;
+var $elm$core$Platform$Sub$none = $elm$core$Platform$Sub$batch(_List_Nil);
+var $author$project$Leaderboard$Failed = function (a) {
+	return {$: 'Failed', a: a};
+};
+var $author$project$Leaderboard$Loaded = function (a) {
+	return {$: 'Loaded', a: a};
+};
+var $author$project$Leaderboard$Ascending = {$: 'Ascending'};
+var $author$project$Leaderboard$opposite = function (order) {
+	if (order.$ === 'Ascending') {
+		return $author$project$Leaderboard$Descending;
+	} else {
+		return $author$project$Leaderboard$Ascending;
+	}
+};
+var $elm$core$Set$remove = F2(
+	function (key, _v0) {
+		var dict = _v0.a;
+		return $elm$core$Set$Set_elm_builtin(
+			A2($elm$core$Dict$remove, key, dict));
+	});
+var $author$project$Leaderboard$update = F2(
+	function (msg, model) {
+		switch (msg.$) {
+			case 'Fetched':
+				var result = msg.a;
+				if (result.$ === 'Ok') {
+					var table = result.a;
+					return _Utils_Tuple2(
+						_Utils_update(
+							model,
+							{
+								requestedTable: $author$project$Leaderboard$Loaded(table),
+								selectedCols: $elm$core$Set$fromList(
+									A2(
+										$elm$core$List$map,
+										function ($) {
+											return $.key;
+										},
+										table.cols))
+							}),
+						$elm$core$Platform$Cmd$none);
+				} else {
+					var err = result.a;
+					return _Utils_Tuple2(
+						_Utils_update(
+							model,
+							{
+								requestedTable: $author$project$Leaderboard$Failed(err)
+							}),
+						$elm$core$Platform$Cmd$none);
+				}
+			case 'Sort':
+				var key = msg.a;
+				return _Utils_eq(model.sortKey, key) ? _Utils_Tuple2(
+					_Utils_update(
+						model,
+						{
+							sortOrder: $author$project$Leaderboard$opposite(model.sortOrder)
+						}),
+					$elm$core$Platform$Cmd$none) : _Utils_Tuple2(
+					_Utils_update(
+						model,
+						{sortKey: key}),
+					$elm$core$Platform$Cmd$none);
+			default:
+				var key = msg.a;
+				return A2($elm$core$Set$member, key, model.selectedCols) ? _Utils_Tuple2(
+					_Utils_update(
+						model,
+						{
+							selectedCols: A2($elm$core$Set$remove, key, model.selectedCols)
+						}),
+					$elm$core$Platform$Cmd$none) : _Utils_Tuple2(
+					_Utils_update(
+						model,
+						{
+							selectedCols: A2($elm$core$Set$insert, key, model.selectedCols)
+						}),
+					$elm$core$Platform$Cmd$none);
+		}
+	});
+var $author$project$Leaderboard$explainHttpError = function (err) {
+	switch (err.$) {
+		case 'BadUrl':
+			var url = err.a;
+			return 'Invalid URL: ' + url;
+		case 'Timeout':
+			return 'Request timed out.';
+		case 'NetworkError':
+			return 'Unknown network error.';
+		case 'BadStatus':
+			var status = err.a;
+			return 'Got status code: ' + $elm$core$String$fromInt(status);
+		default:
+			var msg = err.a;
+			return 'Bad body: ' + msg;
+	}
+};
+var $elm$html$Html$table = _VirtualDom_node('table');
+var $author$project$Leaderboard$ToggleCol = function (a) {
+	return {$: 'ToggleCol', a: a};
+};
+var $elm$json$Json$Encode$bool = _Json_wrap;
+var $elm$html$Html$Attributes$boolProperty = F2(
+	function (key, bool) {
+		return A2(
+			_VirtualDom_property,
+			key,
+			$elm$json$Json$Encode$bool(bool));
+	});
+var $elm$html$Html$Attributes$checked = $elm$html$Html$Attributes$boolProperty('checked');
+var $elm$html$Html$label = _VirtualDom_node('label');
+var $author$project$Leaderboard$viewColCheckbox = F2(
+	function (checked, col) {
+		return A2(
+			$elm$html$Html$div,
+			_List_fromArray(
+				[
+					$elm$html$Html$Attributes$class('cursor-pointer'),
+					$elm$html$Html$Events$onClick(
+					$author$project$Leaderboard$ToggleCol(col.key))
+				]),
+			_List_fromArray(
+				[
+					A2(
+					$elm$html$Html$input,
+					_List_fromArray(
+						[
+							$elm$html$Html$Attributes$type_('checkbox'),
+							$elm$html$Html$Attributes$checked(checked),
+							$elm$html$Html$Attributes$class('cursor-pointer')
+						]),
+					_List_Nil),
+					A2(
+					$elm$html$Html$label,
+					_List_fromArray(
+						[
+							$elm$html$Html$Attributes$class('cursor-pointer')
+						]),
+					_List_fromArray(
+						[
+							$elm$html$Html$text(col.display)
+						]))
+				]));
+	});
+var $author$project$Leaderboard$viewPicker = F2(
+	function (selectedCols, table) {
+		return A2(
+			$elm$html$Html$div,
+			_List_Nil,
+			A2(
+				$elm$core$List$map,
+				function (col) {
+					return A2(
+						$author$project$Leaderboard$viewColCheckbox,
+						A2($elm$core$Set$member, col.key, selectedCols),
+						col);
+				},
+				table.cols));
+	});
+var $author$project$Leaderboard$NotSortable = {$: 'NotSortable'};
+var $elm$core$List$head = function (list) {
+	if (list.b) {
+		var x = list.a;
+		var xs = list.b;
+		return $elm$core$Maybe$Just(x);
+	} else {
+		return $elm$core$Maybe$Nothing;
+	}
+};
+var $author$project$Leaderboard$maxString = A2($elm$core$String$repeat, 50, '\uDBFF\uDFFF');
+var $elm$core$List$sortBy = _List_sortBy;
+var $elm$html$Html$tbody = _VirtualDom_node('tbody');
+var $elm$html$Html$tr = _VirtualDom_node('tr');
+var $elm$html$Html$td = _VirtualDom_node('td');
+var $author$project$Leaderboard$viewTd = F3(
+	function (selectedCols, row, col) {
+		var _v0 = A2(col.format, selectedCols, row);
+		var cls = _v0.a;
+		var text = _v0.b;
 		return A2(
 			$elm$html$Html$td,
 			_List_fromArray(
 				[
-					$elm$html$Html$Attributes$class('text-right font-mono' + (highlight + bold))
+					$elm$html$Html$Attributes$class('px-2 ' + cls)
 				]),
 			_List_fromArray(
 				[
-					$elm$html$Html$text(
-					$author$project$Leaderboard$viewScore(score))
+					$elm$html$Html$text(text)
 				]));
 	});
-var $author$project$Leaderboard$viewTableRow = F2(
-	function (key, row) {
-		var scores = A2(
-			$elm$core$List$sortBy,
-			function (pair) {
-				return pair.a;
+var $author$project$Leaderboard$viewTr = F3(
+	function (selectedCols, allCols, row) {
+		var cols = A2(
+			$elm$core$List$filter,
+			function (col) {
+				return A2($elm$core$Set$member, col.key, selectedCols);
 			},
-			$elm$core$Dict$toList(row.scores));
-		var bests = A2(
-			$elm$core$List$map,
-			function (t) {
-				return A2($elm$core$Set$member, t, row.sota);
-			},
-			A2($elm$core$List$map, $elm$core$Tuple$first, scores));
-		var benchmarkCells = A3(
-			$elm$core$List$map2,
-			$author$project$Leaderboard$viewScoreCell(key),
-			bests,
-			scores);
+			allCols);
 		return A2(
 			$elm$html$Html$tr,
 			_List_fromArray(
 				[
-					$elm$html$Html$Attributes$class('hover:bg-biobench-cream-500')
+					$elm$html$Html$Attributes$class('py-1')
 				]),
-			_Utils_ap(
-				_List_fromArray(
-					[
-						A2(
-						$elm$html$Html$td,
-						_List_fromArray(
-							[
-								$elm$html$Html$Attributes$class('text-left')
-							]),
-						_List_fromArray(
-							[
-								$elm$html$Html$text(row.checkpoint.display)
-							])),
-						A3(
-						$author$project$Leaderboard$viewScoreCell,
-						key,
-						A2($elm$core$Set$member, 'imagenet1k', row.sota),
-						_Utils_Tuple2('imagenet1k', row.imagenet1k)),
-						A3(
-						$author$project$Leaderboard$viewScoreCell,
-						key,
-						A2($elm$core$Set$member, 'newt', row.sota),
-						_Utils_Tuple2('newt', row.newt)),
-						A3(
-						$author$project$Leaderboard$viewScoreCell,
-						key,
-						A2($elm$core$Set$member, 'mean', row.sota),
-						_Utils_Tuple2('mean', row.mean))
-					]),
-				benchmarkCells));
+			A2(
+				$elm$core$List$map,
+				A2($author$project$Leaderboard$viewTd, selectedCols, row),
+				cols));
 	});
-var $author$project$Leaderboard$viewTable = F3(
-	function (table, key, decreasing) {
+var $author$project$Leaderboard$viewTbody = F4(
+	function (selectedCols, sortKey, sortOrder, table) {
+		var sortType = A2(
+			$elm$core$Maybe$withDefault,
+			$author$project$Leaderboard$NotSortable,
+			A2(
+				$elm$core$Maybe$map,
+				function ($) {
+					return $.sortType;
+				},
+				$elm$core$List$head(
+					A2(
+						$elm$core$List$filter,
+						function (col) {
+							return _Utils_eq(col.key, sortKey);
+						},
+						table.cols))));
+		var sorted = function () {
+			switch (sortType.$) {
+				case 'SortNumeric':
+					var fn = sortType.a;
+					return A2(
+						$elm$core$List$sortBy,
+						A2(
+							$elm$core$Basics$composeR,
+							fn(selectedCols),
+							$elm$core$Maybe$withDefault((-1) / 0)),
+						table.rows);
+				case 'SortString':
+					var fn = sortType.a;
+					return A2(
+						$elm$core$List$sortBy,
+						A2(
+							$elm$core$Basics$composeR,
+							fn(selectedCols),
+							$elm$core$Maybe$withDefault($author$project$Leaderboard$maxString)),
+						table.rows);
+				default:
+					return table.rows;
+			}
+		}();
+		var ordered = function () {
+			if (sortOrder.$ === 'Ascending') {
+				return sorted;
+			} else {
+				return $elm$core$List$reverse(sorted);
+			}
+		}();
 		return A2(
-			$elm$html$Html$table,
+			$elm$html$Html$tbody,
 			_List_fromArray(
 				[
-					$elm$html$Html$Attributes$class('')
+					$elm$html$Html$Attributes$class('border-b')
+				]),
+			A2(
+				$elm$core$List$map,
+				A2($author$project$Leaderboard$viewTr, selectedCols, table.cols),
+				ordered));
+	});
+var $elm$html$Html$thead = _VirtualDom_node('thead');
+var $author$project$Leaderboard$Sort = function (a) {
+	return {$: 'Sort', a: a};
+};
+var $author$project$Leaderboard$downArrow = $elm$core$String$fromChar(
+	$elm$core$Char$fromCode(9660));
+var $elm$html$Html$th = _VirtualDom_node('th');
+var $author$project$Leaderboard$upArrow = $elm$core$String$fromChar(
+	$elm$core$Char$fromCode(9650));
+var $author$project$Leaderboard$viewTh = F3(
+	function (sortKey, sortOrder, col) {
+		var extra = function () {
+			if (_Utils_eq(sortKey, col.key)) {
+				if (sortOrder.$ === 'Descending') {
+					return $author$project$Leaderboard$downArrow;
+				} else {
+					return $author$project$Leaderboard$upArrow;
+				}
+			} else {
+				return '';
+			}
+		}();
+		return A2(
+			$elm$html$Html$th,
+			_List_fromArray(
+				[
+					$elm$html$Html$Attributes$class('px-2'),
+					$elm$html$Html$Events$onClick(
+					$author$project$Leaderboard$Sort(col.key))
 				]),
 			_List_fromArray(
 				[
-					A2(
-					$elm$html$Html$thead,
-					_List_fromArray(
-						[
-							$elm$html$Html$Attributes$class('border-t border-b')
-						]),
-					_List_fromArray(
-						[
-							A2(
-							$elm$html$Html$tr,
-							_List_Nil,
-							A2(
-								$elm$core$List$map,
-								A2($author$project$Leaderboard$viewHeaderCell, key, decreasing),
-								table.cols))
-						])),
-					A2(
-					$elm$html$Html$tbody,
-					_List_fromArray(
-						[
-							$elm$html$Html$Attributes$class('border-b')
-						]),
-					A2(
-						$elm$core$List$map,
-						$author$project$Leaderboard$viewTableRow(key),
-						A3($author$project$Leaderboard$orderedBy, key, decreasing, table.rows)))
+					$elm$html$Html$text(
+					_Utils_ap(col.display, extra))
 				]));
+	});
+var $author$project$Leaderboard$viewThead = F4(
+	function (selectedCols, sortKey, sortOrder, table) {
+		return A2(
+			$elm$html$Html$thead,
+			_List_fromArray(
+				[
+					$elm$html$Html$Attributes$class('border-t border-b py-1')
+				]),
+			A2(
+				$elm$core$List$map,
+				A2($author$project$Leaderboard$viewTh, sortKey, sortOrder),
+				A2(
+					$elm$core$List$filter,
+					function (col) {
+						return A2($elm$core$Set$member, col.key, selectedCols);
+					},
+					table.cols)));
 	});
 var $author$project$Leaderboard$view = function (model) {
 	var _v0 = model.requestedTable;
@@ -11812,11 +11949,29 @@ var $author$project$Leaderboard$view = function (model) {
 				_List_Nil,
 				_List_fromArray(
 					[
-						$elm$html$Html$text('Failed: ' + err)
+						$elm$html$Html$text(
+						'Failed: ' + $author$project$Leaderboard$explainHttpError(err))
 					]));
 		default:
 			var table = _v0.a;
-			return A3($author$project$Leaderboard$viewTable, table, model.sortKey, model.sortDecreasing);
+			return A2(
+				$elm$html$Html$div,
+				_List_Nil,
+				_List_fromArray(
+					[
+						A2($author$project$Leaderboard$viewPicker, model.selectedCols, table),
+						A2(
+						$elm$html$Html$table,
+						_List_fromArray(
+							[
+								$elm$html$Html$Attributes$class('w-full')
+							]),
+						_List_fromArray(
+							[
+								A4($author$project$Leaderboard$viewThead, model.selectedCols, model.sortKey, model.sortOrder, table),
+								A4($author$project$Leaderboard$viewTbody, model.selectedCols, model.sortKey, model.sortOrder, table)
+							]))
+					]));
 	}
 };
 var $author$project$Leaderboard$main = $elm$browser$Browser$element(
@@ -11829,4 +11984,4 @@ var $author$project$Leaderboard$main = $elm$browser$Browser$element(
 		view: $author$project$Leaderboard$view
 	});
 _Platform_export({'Leaderboard':{'init':$author$project$Leaderboard$main(
-	$elm$json$Json$Decode$succeed(_Utils_Tuple0))({"versions":{"elm":"0.19.1"},"types":{"message":"Leaderboard.Msg","aliases":{"Leaderboard.Checkpoint":{"args":[],"type":"{ name : String.String, display : String.String, family : String.String, params : Basics.Int, release : Time.Posix }"},"Leaderboard.Column":{"args":[],"type":"{ name : String.String, display : String.String }"},"Leaderboard.Metadata":{"args":[],"type":"{ schema : Basics.Int, generated : Time.Posix, commit : String.String, seed : Basics.Int, alpha : Basics.Float, nBootstraps : Basics.Int }"},"Leaderboard.Row":{"args":[],"type":"{ checkpoint : Leaderboard.Checkpoint, imagenet1k : Basics.Float, newt : Basics.Float, mean : Basics.Float, scores : Dict.Dict String.String Basics.Float, sota : Set.Set String.String }"},"Leaderboard.Table":{"args":[],"type":"{ cols : List.List Leaderboard.Column, rows : List.List Leaderboard.Row, metadata : Leaderboard.Metadata }"}},"unions":{"Leaderboard.Msg":{"args":[],"tags":{"Fetched":["Result.Result Http.Error Leaderboard.Table"],"Sort":["String.String"]}},"Dict.Dict":{"args":["k","v"],"tags":{"RBNode_elm_builtin":["Dict.NColor","k","v","Dict.Dict k v","Dict.Dict k v"],"RBEmpty_elm_builtin":[]}},"Http.Error":{"args":[],"tags":{"BadUrl":["String.String"],"Timeout":[],"NetworkError":[],"BadStatus":["Basics.Int"],"BadBody":["String.String"]}},"Basics.Float":{"args":[],"tags":{"Float":[]}},"Basics.Int":{"args":[],"tags":{"Int":[]}},"List.List":{"args":["a"],"tags":{}},"Time.Posix":{"args":[],"tags":{"Posix":["Basics.Int"]}},"Result.Result":{"args":["error","value"],"tags":{"Ok":["value"],"Err":["error"]}},"Set.Set":{"args":["t"],"tags":{"Set_elm_builtin":["Dict.Dict t ()"]}},"String.String":{"args":[],"tags":{"String":[]}},"Dict.NColor":{"args":[],"tags":{"Red":[],"Black":[]}}}}})}});}(this));
+	$elm$json$Json$Decode$succeed(_Utils_Tuple0))({"versions":{"elm":"0.19.1"},"types":{"message":"Leaderboard.Msg","aliases":{"Leaderboard.Checkpoint":{"args":[],"type":"{ name : String.String, display : String.String, family : String.String, params : Basics.Int, release : Time.Posix }"},"Leaderboard.Metadata":{"args":[],"type":"{ schema : Basics.Int, generated : Time.Posix, commit : String.String, seed : Basics.Int, alpha : Basics.Float, nBootstraps : Basics.Int }"},"Leaderboard.Table":{"args":[],"type":"{ rows : List.List Leaderboard.TableRow, cols : List.List Leaderboard.TableCol, metadata : Leaderboard.Metadata }"},"Leaderboard.TableCol":{"args":[],"type":"{ key : String.String, display : String.String, format : Set.Set String.String -> Leaderboard.TableRow -> ( String.String, String.String ), sortType : Leaderboard.SortType }"},"Leaderboard.TableRow":{"args":[],"type":"{ checkpoint : Leaderboard.Checkpoint, scores : Dict.Dict String.String Basics.Float, winners : Set.Set String.String }"}},"unions":{"Leaderboard.Msg":{"args":[],"tags":{"Fetched":["Result.Result Http.Error Leaderboard.Table"],"Sort":["String.String"],"ToggleCol":["String.String"]}},"Dict.Dict":{"args":["k","v"],"tags":{"RBNode_elm_builtin":["Dict.NColor","k","v","Dict.Dict k v","Dict.Dict k v"],"RBEmpty_elm_builtin":[]}},"Http.Error":{"args":[],"tags":{"BadUrl":["String.String"],"Timeout":[],"NetworkError":[],"BadStatus":["Basics.Int"],"BadBody":["String.String"]}},"Basics.Float":{"args":[],"tags":{"Float":[]}},"Basics.Int":{"args":[],"tags":{"Int":[]}},"List.List":{"args":["a"],"tags":{}},"Time.Posix":{"args":[],"tags":{"Posix":["Basics.Int"]}},"Result.Result":{"args":["error","value"],"tags":{"Ok":["value"],"Err":["error"]}},"Set.Set":{"args":["t"],"tags":{"Set_elm_builtin":["Dict.Dict t ()"]}},"Leaderboard.SortType":{"args":[],"tags":{"SortNumeric":["Set.Set String.String -> Leaderboard.TableRow -> Maybe.Maybe Basics.Float"],"SortString":["Set.Set String.String -> Leaderboard.TableRow -> Maybe.Maybe String.String"],"NotSortable":[]}},"String.String":{"args":[],"tags":{"String":[]}},"Maybe.Maybe":{"args":["a"],"tags":{"Just":["a"],"Nothing":[]}},"Dict.NColor":{"args":[],"tags":{"Red":[],"Black":[]}}}}})}});}(this));

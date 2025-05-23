@@ -24,6 +24,7 @@ main =
 type Msg
     = Fetched (Result Http.Error Table)
     | Sort String
+    | ToggleCol String
 
 
 type Requested a e
@@ -32,27 +33,75 @@ type Requested a e
     | Failed e
 
 
+type alias Model =
+    { requestedTable : Requested Table Http.Error
+
+    -- Pickers
+    , selectedCols : Set.Set String
+    , selectedFamilies : Set.Set String
+    , paramCountRange : ( Int, Int )
+
+    -- Sorting
+    , sortKey : String
+    , sortOrder : Order
+    }
+
+
 type alias Table =
-    { cols : List Column
-    , rows : List Row
+    { rows : List TableRow
+    , cols : List TableCol
     , metadata : Metadata
     }
 
 
-type alias Column =
+type alias TableRow =
+    { checkpoint : Checkpoint
+    , scores : Dict.Dict String Float
+    , winners : Set.Set String
+    }
+
+
+type alias Checkpoint =
     { name : String
     , display : String
+    , family : String
+    , params : Int
+    , release : Time.Posix
     }
 
 
-type alias Row =
-    { checkpoint : Checkpoint
-    , imagenet1k : Float
-    , newt : Float
-    , mean : Float
-    , scores : Dict.Dict String Float
-    , sota : Set.Set String
+type SortType
+    = SortNumeric (Set.Set String -> TableRow -> Maybe Float)
+    | SortString (Set.Set String -> TableRow -> Maybe String)
+    | NotSortable
+
+
+type alias TableCol =
+    { key : String
+    , display : String
+
+    -- How to get the cell value
+    -- (results in a class string and an Html.text string)
+    , format : Set.Set String -> TableRow -> ( String, String )
+
+    -- Information for SORTING
+    , sortType : SortType
     }
+
+
+type Order
+    = Ascending
+    | Descending
+
+
+opposite : Order -> Order
+opposite order =
+    case order of
+        Ascending ->
+            Descending
+
+        Descending ->
+            Ascending
 
 
 type alias Metadata =
@@ -65,18 +114,18 @@ type alias Metadata =
     }
 
 
-type alias Model =
-    { requestedTable : Requested Table String
-    , sortKey : String
-    , sortDecreasing : Bool
-    }
-
-
 init : () -> ( Model, Cmd Msg )
 init _ =
     ( { requestedTable = Loading
+      , selectedCols = Set.empty
+
+      -- TODO: implement
+      , paramCountRange = ( 0, 10 ^ 12 )
+
+      -- TODO: implement
+      , selectedFamilies = Set.empty
       , sortKey = "mean"
-      , sortDecreasing = True
+      , sortOrder = Descending
       }
     , Http.get
         { url = "data/results.json"
@@ -91,25 +140,32 @@ update msg model =
         Fetched result ->
             case result of
                 Ok table ->
-                    ( { model | requestedTable = Loaded table }, Cmd.none )
-
-                Err err ->
                     ( { model
-                        | requestedTable = Failed (explainHttpError err)
+                        | requestedTable = Loaded table
+                        , selectedCols =
+                            table.cols
+                                |> List.map .key
+                                |> Set.fromList
                       }
                     , Cmd.none
                     )
 
+                Err err ->
+                    ( { model | requestedTable = Failed err }, Cmd.none )
+
         Sort key ->
             if model.sortKey == key then
-                ( { model
-                    | sortDecreasing = not model.sortDecreasing
-                  }
-                , Cmd.none
-                )
+                ( { model | sortOrder = opposite model.sortOrder }, Cmd.none )
 
             else
                 ( { model | sortKey = key }, Cmd.none )
+
+        ToggleCol key ->
+            if Set.member key model.selectedCols then
+                ( { model | selectedCols = Set.remove key model.selectedCols }, Cmd.none )
+
+            else
+                ( { model | selectedCols = Set.insert key model.selectedCols }, Cmd.none )
 
 
 view : Model -> Html.Html Msg
@@ -119,162 +175,229 @@ view model =
             Html.div [] [ Html.text "Loading..." ]
 
         Failed err ->
-            Html.div [] [ Html.text ("Failed: " ++ err) ]
+            Html.div [] [ Html.text ("Failed: " ++ explainHttpError err) ]
 
         Loaded table ->
-            viewTable table model.sortKey model.sortDecreasing
+            Html.div []
+                [ viewPicker model.selectedCols table
+                , Html.table
+                    [ class "w-full" ]
+                    [ viewThead model.selectedCols model.sortKey model.sortOrder table
+                    , viewTbody model.selectedCols model.sortKey model.sortOrder table
+                    ]
+                ]
 
 
-viewTable : Table -> String -> Bool -> Html.Html Msg
-viewTable table key decreasing =
-    Html.table
-        [ class "" ]
-        [ Html.thead
-            [ class "border-t border-b" ]
-            [ Html.tr
-                []
-                (List.map (viewHeaderCell key decreasing) table.cols)
-            ]
-        , Html.tbody
-            [ class "border-b" ]
-            (table.rows
-                |> orderedBy key decreasing
-                |> List.map (viewTableRow key)
+viewPicker : Set.Set String -> Table -> Html.Html Msg
+viewPicker selectedCols table =
+    Html.div
+        []
+        (List.map
+            (\col ->
+                viewColCheckbox
+                    (Set.member col.key selectedCols)
+                    col
             )
+            table.cols
+        )
+
+
+viewColCheckbox : Bool -> TableCol -> Html.Html Msg
+viewColCheckbox checked col =
+    -- TODO: Style
+    Html.div
+        [ class "cursor-pointer"
+        , Html.Events.onClick (ToggleCol col.key)
+        ]
+        [ Html.input
+            [ Html.Attributes.type_ "checkbox"
+            , Html.Attributes.checked checked
+            , class "cursor-pointer"
+            ]
+            []
+        , Html.label
+            [ class "cursor-pointer" ]
+            [ Html.text col.display ]
         ]
 
 
-orderedBy : String -> Bool -> List Row -> List Row
-orderedBy key decreasing rows =
+viewThead : Set.Set String -> String -> Order -> Table -> Html.Html Msg
+viewThead selectedCols sortKey sortOrder table =
+    Html.thead
+        [ class "border-t border-b py-1" ]
+        (table.cols
+            |> List.filter (\col -> Set.member col.key selectedCols)
+            |> List.map (viewTh sortKey sortOrder)
+        )
+
+
+viewTh : String -> Order -> TableCol -> Html.Html Msg
+viewTh sortKey sortOrder col =
     let
-        ordered =
-            case key of
-                "checkpoint" ->
-                    List.sortBy (.checkpoint >> .display) rows
+        extra =
+            if sortKey == col.key then
+                case sortOrder of
+                    Descending ->
+                        downArrow
 
-                "params" ->
-                    List.sortBy (.checkpoint >> .params) rows
-
-                "release" ->
-                    List.sortBy (.checkpoint >> .release >> Time.posixToMillis) rows
-
-                "imagenet1k" ->
-                    List.sortBy .imagenet1k rows
-
-                "newt" ->
-                    List.sortBy .newt rows
-
-                "mean" ->
-                    List.sortBy .mean rows
-
-                name ->
-                    List.sortBy (.scores >> Dict.get name >> Maybe.withDefault (-1 / 0)) rows
-    in
-    if decreasing then
-        List.reverse ordered
-
-    else
-        ordered
-
-
-viewHeaderCell : String -> Bool -> Column -> Html.Html Msg
-viewHeaderCell key decreasing col =
-    let
-        suffix =
-            if key == col.name then
-                if decreasing then
-                    upArrow
-
-                else
-                    downArrow
+                    Ascending ->
+                        upArrow
 
             else
                 ""
     in
     Html.th
-        [ class "text-right pl-2", Html.Events.onClick (Sort col.name) ]
-        [ Html.text (col.display ++ suffix) ]
+        [ class "px-2", Html.Events.onClick (Sort col.key) ]
+        [ Html.text (col.display ++ extra) ]
 
 
-viewTableRow : String -> Row -> Html.Html Msg
-viewTableRow key row =
+viewTbody : Set.Set String -> String -> Order -> Table -> Html.Html Msg
+viewTbody selectedCols sortKey sortOrder table =
     let
-        scores =
-            row.scores
-                |> Dict.toList
-                |> List.sortBy (\pair -> Tuple.first pair)
+        sortType =
+            table.cols
+                |> List.filter (\col -> col.key == sortKey)
+                |> List.head
+                |> Maybe.map .sortType
+                |> Maybe.withDefault NotSortable
 
-        bests =
-            scores
-                |> List.map Tuple.first
-                |> List.map (\t -> Set.member t row.sota)
+        sorted =
+            case sortType of
+                SortNumeric fn ->
+                    List.sortBy (fn selectedCols >> Maybe.withDefault (-1 / 0)) table.rows
 
-        benchmarkCells =
-            List.map2 (viewScoreCell key) bests scores
+                SortString fn ->
+                    List.sortBy (fn selectedCols >> Maybe.withDefault maxString) table.rows
+
+                NotSortable ->
+                    table.rows
+
+        ordered =
+            case sortOrder of
+                Ascending ->
+                    sorted
+
+                Descending ->
+                    List.reverse sorted
+    in
+    Html.tbody
+        [ class "border-b" ]
+        (List.map (viewTr selectedCols table.cols) ordered)
+
+
+viewTr : Set.Set String -> List TableCol -> TableRow -> Html.Html Msg
+viewTr selectedCols allCols row =
+    let
+        cols =
+            allCols
+                |> List.filter (\col -> Set.member col.key selectedCols)
     in
     Html.tr
-        [ class "hover:bg-biobench-cream-500" ]
-        ([ Html.td
-            [ class "text-left" ]
-            [ Html.text row.checkpoint.display ]
-
-         -- , Html.td
-         --    [ class "text-right" ]
-         --    [ Html.text (String.fromInt row.checkpoint.params) ]
-         -- , Html.td
-         --    [ class "text-right" ]
-         --    [ Html.text "TODO" ]
-         , viewScoreCell key (Set.member "imagenet1k" row.sota) ( "imagenet1k", row.imagenet1k )
-         , viewScoreCell key (Set.member "newt" row.sota) ( "newt", row.newt )
-         , viewScoreCell key (Set.member "mean" row.sota) ( "mean", row.mean )
-         ]
-            ++ benchmarkCells
-        )
+        [ class "py-1" ]
+        (List.map (viewTd selectedCols row) cols)
 
 
-viewScoreCell : String -> Bool -> ( String, Float ) -> Html.Html Msg
-viewScoreCell key best ( task, score ) =
+viewTd : Set.Set String -> TableRow -> TableCol -> Html.Html Msg
+viewTd selectedCols row col =
     let
-        highlight =
-            if key == task then
-                " italic"
-
-            else
-                ""
-
-        bold =
-            if best then
-                " font-bold"
-
-            else
-                ""
+        ( cls, text ) =
+            col.format selectedCols row
     in
     Html.td
-        [ class ("text-right font-mono" ++ highlight ++ bold) ]
-        [ Html.text (viewScore score) ]
+        [ class ("px-2 " ++ cls) ]
+        [ Html.text text ]
 
 
-viewScore : Float -> String
+
+-- (List.map viewTd row
+
+
+viewScore : Maybe Float -> String
 viewScore score =
-    if score < 0 then
-        "-"
+    case score of
+        Nothing ->
+            "-"
+
+        Just val ->
+            val * 100 |> Round.round 1
+
+
+getBenchmarkScore : String -> Set.Set String -> TableRow -> Maybe Float
+getBenchmarkScore task visibleKeys row =
+    Dict.get task row.scores
+
+
+viewBenchmarkScore : String -> Set.Set String -> TableRow -> ( String, String )
+viewBenchmarkScore task visibleKeys row =
+    ( "text-right font-mono"
+    , getBenchmarkScore task visibleKeys row |> viewScore
+    )
+
+
+getMeanScore : Set.Set String -> Set.Set String -> TableRow -> Maybe Float
+getMeanScore tasks selectedCols row =
+    let
+        selectedScores =
+            tasks
+                |> Set.intersect selectedCols
+                |> Set.toList
+                |> List.filterMap (\key -> Dict.get key row.scores)
+    in
+    -- selectedCols can be more than 9 (includes imagenet1k, newt, checkpoint, mean, etc).
+    -- I think I might have to hardcode the benchmark tasks somewhere.
+    if Debug.log "length" (List.length selectedScores) == Debug.log "size" (tasks |> Set.intersect selectedCols |> Set.size) then
+        mean selectedScores
 
     else
-        score * 100 |> Round.round 1
+        Nothing
+
+
+viewMeanScore : Set.Set String -> Set.Set String -> TableRow -> ( String, String )
+viewMeanScore tasks selectedCols row =
+    ( "text-right font-mono"
+    , getMeanScore tasks selectedCols row |> viewScore
+    )
+
+
+getCheckpoint : Set.Set String -> TableRow -> Maybe String
+getCheckpoint cols row =
+    Just row.checkpoint.display
+
+
+viewCheckpoint : Set.Set String -> TableRow -> ( String, String )
+viewCheckpoint cols row =
+    ( "text-left"
+    , row.checkpoint.display
+    )
+
+
+mean : List Float -> Maybe Float
+mean xs =
+    case xs of
+        [] ->
+            Nothing
+
+        _ ->
+            Just (List.sum xs / toFloat (List.length xs))
 
 
 
 -- CONSTANTS
 
 
-downArrow : String
-downArrow =
+upArrow : String
+upArrow =
     String.fromChar (Char.fromCode 9650)
 
 
-upArrow : String
-upArrow =
+downArrow : String
+downArrow =
     String.fromChar (Char.fromCode 9660)
+
+
+maxString : String
+maxString =
+    String.repeat 50 "\u{10FFFF}"
 
 
 
@@ -340,80 +463,79 @@ explainHttpError err =
 pivotPayload : Payload -> Table
 pivotPayload payload =
     let
-        cols =
-            [ { name = "checkpoint", display = "Checkpoint" }
+        -- [ CheckpointCell { name = "dummy", display = "dummy" }
+        -- , { key = "params", display = "Params (M)" }
+        -- , { key = "date", display = "Release" }
+        -- , { key = Imagenet1kColumn, display = "ImageNet-1K" }
+        -- , { key = NewtColumn, display = "NeWT" }
+        -- , { key = MeanColumn, display = "Mean" }
+        -- ]
+        dynamicCols =
+            List.map
+                (\task ->
+                    { key = task.name
+                    , display = task.display
+                    , format = viewBenchmarkScore task.name
+                    , sortType = SortNumeric (getBenchmarkScore task.name)
+                    }
+                )
+                payload.benchmarkTasks
 
-            -- , { name = "params", display = "Params (M)" }
-            -- , { name = "date", display = "Release" }
-            , { name = "imagenet1k", display = "ImageNet-1K" }
-            , { name = "newt", display = "NeWT" }
-            , { name = "mean", display = "Mean" }
+        tasks =
+            payload.benchmarkTasks |> List.map .name |> Set.fromList
+
+        fixedCols =
+            [ { key = "checkpoint", display = "Checkpoint", format = viewCheckpoint, sortType = SortString getCheckpoint }
+
+            -- TODO: params, release date, model family
+            , { key = "imagenet1k", display = "Imagenet-1K", format = viewBenchmarkScore "imagenet1k", sortType = SortNumeric (getBenchmarkScore "imagenet1k") }
+            , { key = "newt", display = "NeWT", format = viewBenchmarkScore "newt", sortType = SortNumeric (getBenchmarkScore "newt") }
+            , { key = "mean", display = "Mean", format = viewMeanScore tasks, sortType = SortNumeric (getMeanScore tasks) }
             ]
-                ++ payload.benchmarkTasks
+
+        cols =
+            fixedCols ++ dynamicCols
 
         rows =
             List.map (makeRow payload) payload.checkpoints
     in
-    { cols = cols, rows = Debug.log "rows" rows, metadata = payload.metadata }
+    { cols = cols, rows = rows, metadata = payload.metadata }
 
 
-makeRow : Payload -> Checkpoint -> Row
+makeRow : Payload -> Checkpoint -> TableRow
 makeRow payload checkpoint =
     let
         scores =
             getScores checkpoint payload.scores
     in
     { checkpoint = checkpoint
-    , imagenet1k = getScore checkpoint "imagenet1k" payload.scores
-    , newt = getScore checkpoint "newt" payload.scores
-    , mean = scores |> Dict.toList |> List.map Tuple.second |> mean
     , scores = scores
-    , sota = getSotas checkpoint payload.bests
+    , winners = getWinners checkpoint payload.bests
     }
 
 
-getScore : Checkpoint -> String -> List Score -> Float
+getScore : Checkpoint -> String -> List Score -> Maybe Float
 getScore checkpoint task scores =
     scores
         |> List.filter (\score -> score.task == task && score.checkpoint == checkpoint.name)
         |> List.map .mean
         |> List.head
-        |> Maybe.withDefault (-1 / 0)
 
 
 getScores : Checkpoint -> List Score -> Dict.Dict String Float
 getScores checkpoint scores =
     scores
-        |> List.filter (\score -> score.task /= "imagenet1k" && score.task /= "newt" && score.checkpoint == checkpoint.name)
+        |> List.filter (\score -> score.checkpoint == checkpoint.name)
         |> List.map (\score -> ( score.task, score.mean ))
         |> Dict.fromList
 
 
-getSotas : Checkpoint -> List Best -> Set.Set String
-getSotas checkpoint bests =
+getWinners : Checkpoint -> List Best -> Set.Set String
+getWinners checkpoint bests =
     bests
         |> List.filter (\best -> Set.member checkpoint.name best.ties)
         |> List.map .task
         |> Set.fromList
-
-
-mean : List Float -> Float
-mean xs =
-    case xs of
-        [] ->
-            0
-
-        _ ->
-            List.sum xs / toFloat (List.length xs)
-
-
-type alias Checkpoint =
-    { name : String
-    , display : String
-    , family : String
-    , params : Int
-    , release : Time.Posix
-    }
 
 
 checkpointDecoder : D.Decoder Checkpoint
@@ -462,16 +584,14 @@ scoreDecoder =
 
 type alias Best =
     { task : String
-    , best : String
     , ties : Set.Set String
     }
 
 
 bestDecoder : D.Decoder Best
 bestDecoder =
-    D.map3 Best
+    D.map2 Best
         (D.field "task" D.string)
-        (D.field "best" D.string)
         (D.field "ties"
             (D.map Set.fromList (D.list D.string))
         )
