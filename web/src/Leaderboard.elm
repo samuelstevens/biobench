@@ -2,8 +2,8 @@ module Leaderboard exposing (..)
 
 import Browser
 import Dict
-import Html
-import Html.Attributes exposing (class)
+import Html exposing (Html)
+import Html.Attributes exposing (class, style)
 import Html.Events
 import Html.Keyed
 import Http
@@ -27,6 +27,13 @@ type Msg
     | Sort String
     | ToggleCol String
     | ToggleFamily String
+    | SetLayout Layout
+
+
+
+-- | DragStart
+-- | DragMove Float
+-- | DragEnd
 
 
 type Requested a e
@@ -46,7 +53,27 @@ type alias Model =
     -- Sorting
     , sortKey : String
     , sortOrder : Order
+
+    -- UI
+    , layout : Layout
     }
+
+
+type Layout
+    = TableOnly
+    | ChartsOnly
+    | Split Float -- Float = pct width 0–1
+
+
+layoutEq : Layout -> Layout -> Bool
+layoutEq a b =
+    case ( a, b ) of
+        ( TableOnly, TableOnly ) ->
+            True
+
+
+
+-- Finish these case statements. Don't compare the floats in Split. AI!
 
 
 type alias Table =
@@ -129,6 +156,7 @@ init _ =
       , selectedFamilies = Set.empty
       , sortKey = "mean"
       , sortOrder = Descending
+      , layout = Split 0.5
       }
     , Http.get
         { url = "data/results.json"
@@ -181,8 +209,11 @@ update msg model =
             else
                 ( { model | selectedFamilies = Set.insert key model.selectedFamilies }, Cmd.none )
 
+        SetLayout layout ->
+            ( { model | layout = layout }, Cmd.none )
 
-view : Model -> Html.Html Msg
+
+view : Model -> Html Msg
 view model =
     case model.requestedTable of
         Loading ->
@@ -192,18 +223,64 @@ view model =
             Html.div [] [ Html.text ("Failed: " ++ explainHttpError err) ]
 
         Loaded table ->
+            let
+                tableContent =
+                    viewTable model.selectedCols model.selectedFamilies model.sortKey model.sortOrder table
+
+                chartContent =
+                    Html.div [] []
+            in
             Html.div []
-                [ viewPicker model.selectedCols model.selectedFamilies table
-                , Html.table
-                    [ class "w-full text-xs sm:text-sm mt-2" ]
-                    [ viewThead model.selectedCols model.sortKey model.sortOrder table
-                    , viewTbody model.selectedCols model.selectedFamilies model.sortKey model.sortOrder table
-                    ]
+                [ viewPickers model.layout model.selectedCols model.selectedFamilies table
+                , Html.div
+                    []
+                    (case model.layout of
+                        TableOnly ->
+                            [ viewTablePane tableContent 100 ]
+
+                        ChartsOnly ->
+                            [ viewChartPane chartContent 100 ]
+
+                        Split pct ->
+                            [ viewTablePane tableContent (pct * 100)
+                            , viewDragHandle
+                            , viewChartPane chartContent (100 - pct * 100)
+                            ]
+                    )
                 ]
 
 
-viewPicker : Set.Set String -> Set.Set String -> Table -> Html.Html Msg
-viewPicker selectedCols selectedFamilies table =
+viewTablePane : Html Msg -> Float -> Html Msg
+viewTablePane content w =
+    Html.div
+        [ style "width" (String.fromFloat w ++ "%")
+        , class "min-w-[24rem] overflow-x-auto"
+        ]
+        [ content ]
+
+
+viewChartPane : Html Msg -> Float -> Html Msg
+viewChartPane content w =
+    Html.div
+        [ style "width" (String.fromFloat w ++ "%")
+        , class "overflow-y-auto"
+        ]
+        [ content ]
+
+
+viewDragHandle =
+    Html.div
+        [ class "w-1 bg-black/10 hover:bg-gold cursor-col-resize select-none"
+
+        -- , Html.Events.onMouseDown DragStart
+        -- , Html.Events.on "mousemove" (Decode.map DragMove mousePos)
+        -- , Html.Events.onMouseUp DragEnd
+        ]
+        []
+
+
+viewPickers : Layout -> Set.Set String -> Set.Set String -> Table -> Html Msg
+viewPickers layout selectedCols selectedFamilies table =
     let
         allFamilies =
             table.rows
@@ -213,8 +290,20 @@ viewPicker selectedCols selectedFamilies table =
                 |> List.sort
     in
     Html.div
-        [ class "grid md:grid-cols-2 gap-2" ]
+        [ class "flex flex-wrap gap-2" ]
         [ Html.fieldset
+            [ class "border border-biobench-black p-2" ]
+            [ Html.legend
+                [ class "text-xs font-semibold tracking-tight px-1 -ml-1 " ]
+                [ Html.text "Panes" ]
+            , Html.div
+                [ class "flex flex-wrap gap-x-4 gap-y-2" ]
+                [ viewLabeledRadio "table-only" False (\_ -> SetLayout TableOnly) "Tables"
+                , viewLabeledRadio "split" False (\_ -> SetLayout (Split 0.5)) "Both"
+                , viewLabeledRadio "chart-only" False (\_ -> SetLayout ChartsOnly) "Charts"
+                ]
+            ]
+        , Html.fieldset
             [ class "border border-biobench-black p-2" ]
             [ Html.legend
                 [ class "text-xs font-semibold tracking-tight px-1 -ml-1 " ]
@@ -249,43 +338,26 @@ viewPicker selectedCols selectedFamilies table =
         ]
 
 
-viewColCheckbox : Bool -> TableCol -> Html.Html Msg
+viewColCheckbox : Bool -> TableCol -> Html Msg
 viewColCheckbox checked col =
-    Html.label
-        [ class "inline-flex items-center gap-1 cursor-pointer select-none "
-        ]
-        [ Html.input
-            [ Html.Attributes.type_ "checkbox"
-            , Html.Attributes.checked checked
-            , Html.Events.onCheck (\_ -> ToggleCol col.key)
-            , class "accent-biobench-cyan cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-biobench-gold"
-            ]
-            []
-        , Html.span
-            [ class "text-sm tracking-tight" ]
-            [ Html.text col.display ]
-        ]
+    viewLabeledCheckbox checked (\_ -> ToggleCol col.key) col.display
 
 
-viewFamilyCheckbox : Bool -> String -> Html.Html Msg
+viewFamilyCheckbox : Bool -> String -> Html Msg
 viewFamilyCheckbox checked family =
-    Html.label
-        [ class "inline-flex items-center gap-1 cursor-pointer select-none "
-        ]
-        [ Html.input
-            [ Html.Attributes.type_ "checkbox"
-            , Html.Attributes.checked checked
-            , Html.Events.onCheck (\_ -> ToggleFamily family)
-            , class "accent-biobench-cyan cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-biobench-gold"
-            ]
-            []
-        , Html.span
-            [ class "text-sm tracking-tight" ]
-            [ Html.text family ]
+    viewLabeledCheckbox checked (\_ -> ToggleFamily family) family
+
+
+viewTable : Set.Set String -> Set.Set String -> String -> Order -> Table -> Html Msg
+viewTable selectedCols selectedFamilies sortKey sortOrder table =
+    Html.table
+        [ class "w-full text-xs sm:text-sm mt-2" ]
+        [ viewThead selectedCols sortKey sortOrder table
+        , viewTbody selectedCols selectedFamilies sortKey sortOrder table
         ]
 
 
-viewThead : Set.Set String -> String -> Order -> Table -> Html.Html Msg
+viewThead : Set.Set String -> String -> Order -> Table -> Html Msg
 viewThead selectedCols sortKey sortOrder table =
     Html.thead
         [ class "border-t border-b py-1" ]
@@ -295,7 +367,7 @@ viewThead selectedCols sortKey sortOrder table =
         )
 
 
-viewTh : String -> Order -> TableCol -> Html.Html Msg
+viewTh : String -> Order -> TableCol -> Html Msg
 viewTh sortKey sortOrder col =
     let
         extra =
@@ -315,7 +387,7 @@ viewTh sortKey sortOrder col =
         [ Html.text (col.display ++ extra) ]
 
 
-viewTbody : Set.Set String -> Set.Set String -> String -> Order -> Table -> Html.Html Msg
+viewTbody : Set.Set String -> Set.Set String -> String -> Order -> Table -> Html Msg
 viewTbody selectedCols selectedFamilies sortKey sortOrder table =
     let
         filtered =
@@ -360,7 +432,7 @@ viewTbody selectedCols selectedFamilies sortKey sortOrder table =
         )
 
 
-viewTr : Set.Set String -> List TableCol -> TableRow -> Html.Html Msg
+viewTr : Set.Set String -> List TableCol -> TableRow -> Html Msg
 viewTr selectedCols allCols row =
     let
         cols =
@@ -372,7 +444,7 @@ viewTr selectedCols allCols row =
         (List.map (viewTd selectedCols row) cols)
 
 
-viewTd : Set.Set String -> TableRow -> TableCol -> Html.Html Msg
+viewTd : Set.Set String -> TableRow -> TableCol -> Html Msg
 viewTd selectedCols row col =
     let
         ( cls, text ) =
@@ -756,3 +828,54 @@ bestDecoder =
         (D.field "ties"
             (D.map Set.fromList (D.list D.string))
         )
+
+
+
+-- Components
+
+
+viewLabeledCheckbox : Bool -> (Bool -> Msg) -> String -> Html Msg
+viewLabeledCheckbox checked msg label =
+    Html.label
+        [ class "inline-flex items-center gap-1 cursor-pointer select-none "
+        ]
+        [ viewCheckbox checked msg
+        , Html.span
+            [ class "text-sm tracking-tight" ]
+            [ Html.text label ]
+        ]
+
+
+viewCheckbox : Bool -> (Bool -> Msg) -> Html Msg
+viewCheckbox checked msg =
+    Html.input
+        [ Html.Attributes.type_ "checkbox"
+        , Html.Attributes.checked checked
+        , Html.Events.onCheck msg
+        , class "accent-biobench-cyan cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-biobench-gold"
+        ]
+        []
+
+
+viewLabeledRadio : String -> Bool -> (String -> Msg) -> String -> Html Msg
+viewLabeledRadio value checked msg label =
+    Html.label
+        [ class "inline-flex items-center gap-1 cursor-pointer select-none "
+        ]
+        [ viewRadio value checked msg
+        , Html.span
+            [ class "text-sm tracking-tight" ]
+            [ Html.text label ]
+        ]
+
+
+viewRadio : String -> Bool -> (String -> Msg) -> Html Msg
+viewRadio value checked msg =
+    Html.input
+        [ Html.Attributes.type_ "radio"
+        , Html.Attributes.checked checked
+        , Html.Attributes.value value
+        , Html.Events.onClick (msg value)
+        , class "accent-biobench-cyan cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-biobench-gold"
+        ]
+        []
