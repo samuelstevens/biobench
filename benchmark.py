@@ -54,7 +54,7 @@ def main(cfgs: list[str], dry_run: bool = True, max_pending: int = 8):
     # Setup logging.
     # --------------
     log_format = "[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s"
-    level = logging.DEBUG if cfg.verbose else logging.INFO
+    level = logging.DEBUG if cfg.debug else logging.INFO
     logging.basicConfig(level=level, format=log_format)
     logger = logging.getLogger("benchmark.py")
 
@@ -74,8 +74,13 @@ def main(cfgs: list[str], dry_run: bool = True, max_pending: int = 8):
         # See biobench.third_party_models.get_ssl() for a discussion of this variable.
         if not first.ssl:
             executor.update_parameters(setup=["export BIOBENCH_DISABLE_SSL=1"])
-    else:
+    elif first.debug:
         executor = submitit.DebugExecutor(folder=first.log_to)
+        # See biobench.third_party_models.get_ssl() for a discussion of this variable.
+        if not first.ssl:
+            os.environ["BIOBENCH_DISABLE_SSL"] = "1"
+    else:
+        executor = jobkit.SerialExecutor(folder=first.log_to)
         # See biobench.third_party_models.get_ssl() for a discussion of this variable.
         if not first.ssl:
             os.environ["BIOBENCH_DISABLE_SSL"] = "1"
