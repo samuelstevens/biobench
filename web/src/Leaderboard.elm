@@ -188,7 +188,7 @@ type alias Metadata =
 init : () -> ( Model, Cmd Msg )
 init _ =
     ( { requestedTable = Loading
-      , columnsFieldsetOpen = False
+      , columnsFieldsetOpen = True
       , columnsSelected = Set.empty
 
       -- TODO: implement
@@ -198,7 +198,7 @@ init _ =
       , familiesSelected = Set.empty
       , sortKey = "mean"
       , sortOrder = Descending
-      , layout = ChartsOnly
+      , layout = TableOnly
       , drag = Nothing
       }
     , Http.get

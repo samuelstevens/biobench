@@ -5365,12 +5365,12 @@ var $elm$core$Task$perform = F2(
 			A2($elm$core$Task$map, toMessage, task));
 	});
 var $elm$browser$Browser$element = _Browser_element;
-var $author$project$Leaderboard$ChartsOnly = {$: 1};
 var $author$project$Leaderboard$Descending = 1;
 var $author$project$Leaderboard$Fetched = function (a) {
 	return {$: 0, a: a};
 };
 var $author$project$Leaderboard$Loading = {$: 0};
+var $author$project$Leaderboard$TableOnly = {$: 0};
 var $elm$core$Set$Set_elm_builtin = $elm$core$Basics$identity;
 var $elm$core$Dict$RBEmpty_elm_builtin = {$: -2};
 var $elm$core$Dict$empty = $elm$core$Dict$RBEmpty_elm_builtin;
@@ -7073,12 +7073,12 @@ var $author$project$Leaderboard$tableDecoder = A2($elm$json$Json$Decode$map, $au
 var $author$project$Leaderboard$init = function (_v0) {
 	return _Utils_Tuple2(
 		{
-			aB: false,
+			aB: true,
 			E: $elm$core$Set$empty,
 			P: $elm$core$Maybe$Nothing,
 			aD: false,
 			H: $elm$core$Set$empty,
-			ak: $author$project$Leaderboard$ChartsOnly,
+			ak: $author$project$Leaderboard$TableOnly,
 			b8: _Utils_Tuple2(
 				0,
 				A2($elm$core$Basics$pow, 10, 12)),
@@ -7349,6 +7349,7 @@ var $author$project$Leaderboard$subscriptions = function (model) {
 				]));
 	}
 };
+var $author$project$Leaderboard$ChartsOnly = {$: 1};
 var $author$project$Leaderboard$DragStart = function (a) {
 	return {$: 7, a: a};
 };
@@ -7362,7 +7363,6 @@ var $author$project$Leaderboard$NoOp = {$: 10};
 var $author$project$Leaderboard$Split = function (a) {
 	return {$: 2, a: a};
 };
-var $author$project$Leaderboard$TableOnly = {$: 0};
 var $elm$core$Basics$composeL = F3(
 	function (g, f, x) {
 		return g(
