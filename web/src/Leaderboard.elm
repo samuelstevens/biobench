@@ -7,8 +7,8 @@ import Chart as C
 import Chart.Attributes as CA
 import Dict
 import Html exposing (Html)
-import Html.Attributes exposing (class, style)
-import Html.Events
+import Html.Attributes as HA
+import Html.Events as HE
 import Html.Keyed
 import Http
 import Json.Decode as D
@@ -18,6 +18,8 @@ import Svg
 import Svg.Attributes
 import Task
 import Time
+import Trend.Linear
+import Trend.Math
 
 
 main =
@@ -32,6 +34,7 @@ main =
 type Msg
     = Fetched (Result Http.Error Table)
     | Sort String
+    | ToggleFieldset Fieldset
     | ToggleCol String
     | ToggleFamily String
     | SetLayout Layout
@@ -52,8 +55,11 @@ type alias Model =
     { requestedTable : Requested Table Http.Error
 
     -- Pickers
-    , selectedCols : Set.Set String
-    , selectedFamilies : Set.Set String
+    , columnsFieldsetOpen : Bool
+    , columnsSelected : Set.Set String
+    , familiesFieldsetOpen : Bool
+    , familiesSelected : Set.Set String
+    , paramsOpen : Bool
     , paramCountRange : ( Int, Int )
 
     -- Sorting
@@ -94,6 +100,17 @@ type alias DragInfo =
     }
 
 
+type Fieldset
+    = ColumnsFieldset
+    | FamiliesFieldset
+
+
+
+-- | ParamsFieldset
+-- | ReleaseFieldset
+-- | ResolutionFieldset
+
+
 type alias Table =
     { rows : List TableRow
     , cols : List TableCol
@@ -122,16 +139,6 @@ type SortType
     = SortNumeric (Set.Set String -> TableRow -> Maybe Float)
     | SortString (Set.Set String -> TableRow -> Maybe String)
     | NotSortable
-
-
-getNumeric : SortType -> Maybe (Set.Set String -> TableRow -> Maybe Float)
-getNumeric sortType =
-    case sortType of
-        SortNumeric fn ->
-            Just fn
-
-        _ ->
-            Nothing
 
 
 type alias TableCol =
@@ -181,16 +188,17 @@ type alias Metadata =
 init : () -> ( Model, Cmd Msg )
 init _ =
     ( { requestedTable = Loading
-      , selectedCols = Set.empty
+      , columnsFieldsetOpen = False
+      , columnsSelected = Set.empty
 
       -- TODO: implement
+      , paramsOpen = True
       , paramCountRange = ( 0, 10 ^ 12 )
-
-      -- TODO: implement
-      , selectedFamilies = Set.empty
+      , familiesFieldsetOpen = False
+      , familiesSelected = Set.empty
       , sortKey = "mean"
       , sortOrder = Descending
-      , layout = TableOnly
+      , layout = ChartsOnly
       , drag = Nothing
       }
     , Http.get
@@ -223,12 +231,12 @@ update msg model =
                 Ok table ->
                     ( { model
                         | requestedTable = Loaded table
-                        , selectedCols =
+                        , columnsSelected =
                             table.cols
                                 |> List.filter .immediatelyVisible
                                 |> List.map .key
                                 |> Set.fromList
-                        , selectedFamilies =
+                        , familiesSelected =
                             table.rows
                                 |> List.map (.checkpoint >> .family)
                                 |> Set.fromList
@@ -246,19 +254,27 @@ update msg model =
             else
                 ( { model | sortKey = key }, Cmd.none )
 
+        ToggleFieldset fieldset ->
+            case fieldset of
+                ColumnsFieldset ->
+                    ( { model | columnsFieldsetOpen = not model.columnsFieldsetOpen }, Cmd.none )
+
+                FamiliesFieldset ->
+                    ( { model | familiesFieldsetOpen = not model.familiesFieldsetOpen }, Cmd.none )
+
         ToggleCol key ->
-            if Set.member key model.selectedCols then
-                ( { model | selectedCols = Set.remove key model.selectedCols }, Cmd.none )
+            if Set.member key model.columnsSelected then
+                ( { model | columnsSelected = Set.remove key model.columnsSelected }, Cmd.none )
 
             else
-                ( { model | selectedCols = Set.insert key model.selectedCols }, Cmd.none )
+                ( { model | columnsSelected = Set.insert key model.columnsSelected }, Cmd.none )
 
         ToggleFamily key ->
-            if Set.member key model.selectedFamilies then
-                ( { model | selectedFamilies = Set.remove key model.selectedFamilies }, Cmd.none )
+            if Set.member key model.familiesSelected then
+                ( { model | familiesSelected = Set.remove key model.familiesSelected }, Cmd.none )
 
             else
-                ( { model | selectedFamilies = Set.insert key model.selectedFamilies }, Cmd.none )
+                ( { model | familiesSelected = Set.insert key model.familiesSelected }, Cmd.none )
 
         SetLayout layout ->
             ( { model | layout = layout }, Cmd.none )
@@ -281,8 +297,18 @@ update msg model =
             let
                 pct =
                     (info.x - info.viewport.viewport.x) / info.viewport.viewport.width
+
+                layout =
+                    if pct < 0.02 then
+                        ChartsOnly
+
+                    else if pct > 0.98 then
+                        TableOnly
+
+                    else
+                        Split pct
             in
-            ( { model | drag = Just info, layout = Split pct }, Cmd.none )
+            ( { model | drag = Just info, layout = layout }, Cmd.none )
 
         DragMove x ->
             case model.drag of
@@ -292,10 +318,10 @@ update msg model =
                             (info.x - info.viewport.viewport.x) / info.viewport.viewport.width
 
                         layout =
-                            if pct < 0.01 then
+                            if pct < 0.02 then
                                 ChartsOnly
 
-                            else if pct > 0.99 then
+                            else if pct > 0.98 then
                                 TableOnly
 
                             else
@@ -322,15 +348,45 @@ view model =
         Loaded table ->
             let
                 tableContent =
-                    viewTable model.selectedCols model.selectedFamilies model.sortKey model.sortOrder table
+                    viewTable model.columnsSelected model.familiesSelected model.sortKey model.sortOrder table
 
                 chartContent =
-                    viewCharts model.selectedCols model.selectedFamilies table
+                    viewCharts model.columnsSelected model.familiesSelected table
+
+                allFamilies =
+                    table.rows
+                        |> List.map (.checkpoint >> .family)
+                        |> Set.fromList
+                        |> Set.toList
+                        |> List.sort
             in
             Html.div []
-                [ viewPickers model.layout model.selectedCols model.selectedFamilies table
+                [ Html.div
+                    [ HA.class "flex flex-wrap gap-2" ]
+                    [ viewWindowsFieldset model.layout
+                    , viewCheckboxFieldset
+                        ColumnsFieldset
+                        model.columnsFieldsetOpen
+                        model.columnsSelected
+                        table.cols
+                        (\col ->
+                            viewCheckbox
+                                (Set.member col.key model.columnsSelected)
+                                (ToggleCol col.key)
+                                col.display
+                        )
+                    , viewCheckboxFieldset FamiliesFieldset
+                        model.familiesFieldsetOpen
+                        model.familiesSelected
+                        allFamilies
+                        (\family ->
+                            viewFamilyCheckbox
+                                (Set.member family model.familiesSelected)
+                                family
+                        )
+                    ]
                 , Html.div
-                    [ class "flex", Html.Attributes.id "split-root" ]
+                    [ HA.class "flex", HA.id "split-root" ]
                     (case model.layout of
                         TableOnly ->
                             [ viewTablePane tableContent 100
@@ -354,45 +410,20 @@ view model =
 viewTablePane : Html Msg -> Float -> Html Msg
 viewTablePane content w =
     Html.div
-        [ style "width" (String.fromFloat w ++ "%")
-        , style "position" "relative"
-        ]
-        [ Html.div
-            [ class "overflow-x-auto"
-            ]
-            [ content ]
+        [ HA.style "width" (String.fromFloat w ++ "%"), HA.class "relative" ]
+        [ Html.div [ HA.class "overflow-x-auto" ] [ content ]
         , -- Left fade
-          Html.div
-            [ style "position" "absolute"
-            , style "left" "0"
-            , style "top" "0"
-            , style "bottom" "0"
-            , style "width" "20px"
-            , style "background" "linear-gradient(to right, white, transparent)"
-            , style "pointer-events" "none"
-            , style "z-index" "1"
-            ]
-            []
+          Html.div [ HA.class "absolute left-0 top-0 bottom-0 w-5 z-1 pointer-events-none bg-gradient-to-r from-white to-transparent" ] []
         , -- Right fade
-          Html.div
-            [ style "position" "absolute"
-            , style "right" "0"
-            , style "top" "0"
-            , style "bottom" "0"
-            , style "width" "20px"
-            , style "background" "linear-gradient(to left, white, transparent)"
-            , style "pointer-events" "none"
-            , style "z-index" "1"
-            ]
-            []
+          Html.div [ HA.class "absolute right-0 top-0 bottom-0 w-5 z-1 pointer-events-none bg-gradient-to-l from-white to-transparent" ] []
         ]
 
 
 viewChartPane : Html Msg -> Float -> Html Msg
 viewChartPane content w =
     Html.div
-        [ style "width" (String.fromFloat w ++ "%")
-        , class "overflow-y-auto"
+        [ HA.style "width" (String.fromFloat w ++ "%")
+        , HA.class "overflow-y-auto"
         ]
         [ content ]
 
@@ -409,13 +440,12 @@ viewDragHandle info =
                     ( "bg-biobench-black", "fill-biobench-black" )
     in
     Html.div
-        [ class "hidden md:flex flex-col items-center group relative w-1 hover:bg-biobench-gold cursor-col-resize select-none z-40 drop-shadow-lg rounded-full"
-        , class bg
-        , Html.Events.on "mousedown" (D.map MouseDown mouseX)
-        , Html.Events.on "touchstart" (D.map MouseDown touchX)
+        [ HA.class "hidden md:flex flex-col items-center group relative w-1 hover:bg-biobench-gold cursor-col-resize select-none z-40 drop-shadow-lg rounded-full"
+        , HA.class bg
+        , HE.on "mousedown" (D.map MouseDown mouseX)
         ]
         [ Html.div
-            [ class "mt-6" ]
+            [ HA.class "mt-6" ]
             [ Svg.svg
                 [ Svg.Attributes.viewBox "0 0 40 40 "
                 , Svg.Attributes.width "40 "
@@ -444,102 +474,21 @@ mouseX =
     D.field "clientX" D.float
 
 
-touchX : D.Decoder Float
-touchX =
-    D.field "targetTouches" (D.index 0 (D.field "clientX" D.float))
-
-
-viewPickers : Layout -> Set.Set String -> Set.Set String -> Table -> Html Msg
-viewPickers layout selectedCols selectedFamilies table =
-    let
-        allFamilies =
-            table.rows
-                |> List.map (.checkpoint >> .family)
-                |> Set.fromList
-                |> Set.toList
-                |> List.sort
-    in
-    Html.div
-        [ class "flex flex-wrap gap-2" ]
-        [ viewFieldset "Windows"
-            [ viewLabeledRadio
-                "table-only"
-                (layoutEq layout TableOnly)
-                (\_ -> SetLayout TableOnly)
-                "Tables"
-            , Html.label
-                [ class "hidden md:inline-flex items-center gap-1 cursor-pointer select-none "
-                ]
-                [ viewRadio "split" (layoutEq layout (Split -1)) (\_ -> SetLayout (Split 0.5))
-                , Html.span
-                    [ class "text-sm tracking-tight" ]
-                    [ Html.text "Split" ]
-                ]
-            , viewLabeledRadio
-                "charts-only"
-                (layoutEq layout ChartsOnly)
-                (\_ -> SetLayout ChartsOnly)
-                "Charts"
-            ]
-        , viewFieldset "Columns"
-            (List.map
-                (\col ->
-                    viewColCheckbox
-                        (Set.member col.key selectedCols)
-                        col
-                )
-                table.cols
-            )
-        , viewFieldset "Model Families"
-            (List.map
-                (\family ->
-                    viewFamilyCheckbox
-                        (Set.member family selectedFamilies)
-                        family
-                )
-                allFamilies
-            )
-        ]
-
-
-viewColCheckbox : Bool -> TableCol -> Html Msg
-viewColCheckbox checked col =
-    viewLabeledCheckbox
-        (viewCheckbox checked (\_ -> ToggleCol col.key))
-        col.display
-
-
-viewFamilyCheckbox : Bool -> String -> Html Msg
-viewFamilyCheckbox checked family =
-    viewLabeledCheckbox
-        (Html.input
-            [ Html.Attributes.type_ "checkbox"
-            , Html.Attributes.checked checked
-            , Html.Events.onCheck (\_ -> ToggleFamily family)
-            , class "cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 "
-            , class ("accent-" ++ familyColor family)
-            , class ("focus-visible:outline-" ++ familyColor family)
-            ]
-            []
-        )
-        family
-
-
 viewTable : Set.Set String -> Set.Set String -> String -> Order -> Table -> Html Msg
-viewTable selectedCols selectedFamilies sortKey sortOrder table =
+viewTable columnsSelected familiesSelected sortKey sortOrder table =
     Html.table
-        [ class "w-full md:text-sm mt-2" ]
-        [ viewThead selectedCols sortKey sortOrder table
-        , viewTbody selectedCols selectedFamilies sortKey sortOrder table
+        [ HA.class "w-full md:text-sm mt-2" ]
+        [ viewThead columnsSelected sortKey sortOrder table
+        , viewTbody columnsSelected familiesSelected sortKey sortOrder table
         ]
 
 
 viewThead : Set.Set String -> String -> Order -> Table -> Html Msg
-viewThead selectedCols sortKey sortOrder table =
+viewThead columnsSelected sortKey sortOrder table =
     Html.thead
-        [ class "border-t border-b py-1 " ]
+        [ HA.class "border-t border-b py-1 " ]
         (table.cols
-            |> List.filter (\col -> Set.member col.key selectedCols)
+            |> List.filter (\col -> Set.member col.key columnsSelected)
             |> List.map (viewTh sortKey sortOrder)
         )
 
@@ -560,16 +509,16 @@ viewTh sortKey sortOrder col =
                 ( "", "font-medium" )
     in
     Html.th
-        [ class "px-2", class extra, Html.Events.onClick (Sort col.key) ]
+        [ HA.class "px-2", HA.class extra, HE.onClick (Sort col.key) ]
         [ Html.text (col.display ++ suffix) ]
 
 
 viewTbody : Set.Set String -> Set.Set String -> String -> Order -> Table -> Html Msg
-viewTbody selectedCols selectedFamilies sortKey sortOrder table =
+viewTbody columnsSelected familiesSelected sortKey sortOrder table =
     let
         filtered =
             table.rows
-                |> List.filter (\row -> Set.member row.checkpoint.family selectedFamilies)
+                |> List.filter (\row -> Set.member row.checkpoint.family familiesSelected)
 
         sortType =
             table.cols
@@ -581,10 +530,10 @@ viewTbody selectedCols selectedFamilies sortKey sortOrder table =
         sorted =
             case sortType of
                 SortNumeric fn ->
-                    List.sortBy (fn selectedCols >> Maybe.withDefault (-1 / 0)) filtered
+                    List.sortBy (fn columnsSelected >> Maybe.withDefault (-1 / 0)) filtered
 
                 SortString fn ->
-                    List.sortBy (fn selectedCols >> Maybe.withDefault maxString) filtered
+                    List.sortBy (fn columnsSelected >> Maybe.withDefault maxString) filtered
 
                 NotSortable ->
                     filtered
@@ -598,11 +547,11 @@ viewTbody selectedCols selectedFamilies sortKey sortOrder table =
                     List.reverse sorted
     in
     Html.Keyed.node "tbody"
-        [ class "border-b" ]
+        [ HA.class "border-b" ]
         (List.map
             (\row ->
                 ( row.checkpoint.name
-                , viewTr selectedCols table.cols row
+                , viewTr columnsSelected table.cols row
                 )
             )
             ordered
@@ -610,22 +559,22 @@ viewTbody selectedCols selectedFamilies sortKey sortOrder table =
 
 
 viewTr : Set.Set String -> List TableCol -> TableRow -> Html Msg
-viewTr selectedCols allCols row =
+viewTr columnsSelected allCols row =
     let
         cols =
             allCols
-                |> List.filter (\col -> Set.member col.key selectedCols)
+                |> List.filter (\col -> Set.member col.key columnsSelected)
     in
     Html.tr
-        [ class "py-1 hover:bg-biobench-cream/20 transition-colors" ]
-        (List.map (viewTd selectedCols row) cols)
+        [ HA.class "py-1 hover:bg-biobench-cream/20 transition-colors" ]
+        (List.map (viewTd columnsSelected row) cols)
 
 
 viewTd : Set.Set String -> TableRow -> TableCol -> Html Msg
-viewTd selectedCols row col =
+viewTd columnsSelected row col =
     let
         ( cls, text ) =
-            col.format selectedCols row
+            col.format columnsSelected row
 
         winner =
             if Set.member col.key row.winners then
@@ -635,47 +584,88 @@ viewTd selectedCols row col =
                 ""
     in
     Html.td
-        [ class ("px-2 " ++ cls ++ winner) ]
+        [ HA.class ("px-2 " ++ cls ++ winner) ]
         [ Html.text text ]
 
 
 viewCharts : Set.Set String -> Set.Set String -> Table -> Html Msg
-viewCharts selectedCols selectedFamilies table =
+viewCharts columnsSelected familiesSelected table =
     let
         rows =
             table.rows
-                |> List.filter (\r -> Set.member r.checkpoint.family selectedFamilies)
+                |> List.filter (\r -> Set.member r.checkpoint.family familiesSelected)
 
         filteredCols =
             table.cols
-                |> List.filter (\c -> Set.member c.key selectedCols && c.barchart)
+                |> List.filter (\c -> Set.member c.key columnsSelected)
 
         ( getters, titles ) =
             filteredCols
+                |> List.filter .barchart
                 |> List.filterMap
                     (\c ->
                         case c.sortType of
                             SortNumeric fn ->
-                                Just ( fn selectedCols, c.display )
+                                Just ( fn columnsSelected, c.display )
 
                             _ ->
                                 Nothing
                     )
                 |> List.unzip
+
+        barCharts =
+            List.map2 (viewBarChart rows) titles getters
+
+        functions =
+            filteredCols
+                |> List.filterMap
+                    (\c ->
+                        case c.sortType of
+                            SortNumeric fn ->
+                                Just ( c.key, fn columnsSelected )
+
+                            _ ->
+                                Nothing
+                    )
+                |> Dict.fromList
+
+        scatterData : List (Dict.Dict String Float)
+        scatterData =
+            List.map
+                (\row ->
+                    Dict.foldl
+                        (\key func acc ->
+                            case func row of
+                                Just value ->
+                                    Dict.insert key value acc
+
+                                Nothing ->
+                                    acc
+                        )
+                        Dict.empty
+                        functions
+                )
+                rows
+
+        scatterCharts =
+            [ viewScatterChart "imagenet1k" "newt" scatterData
+            , viewScatterChart "imagenet1k" "mean" scatterData
+            ]
     in
     Html.div
-        [ class "grid gap-2 [grid-template-columns:repeat(auto-fit,minmax(16rem,1fr))] mt-t" ]
-        (List.map2 (viewBarChart rows) titles getters)
+        [ HA.class "grid gap-2 [grid-template-columns:repeat(auto-fit,minmax(16rem,1fr))] mt-t" ]
+        -- (scatterCharts ++ barCharts)
+        barCharts
 
 
 viewBarChart : List TableRow -> String -> (TableRow -> Maybe Float) -> Html Msg
 viewBarChart rows title getter =
     case List.filterMap (withInfo getter) rows of
         [] ->
-            Html.div [ class "hidden" ] []
+            Html.div [ HA.class "hidden" ] []
 
         data ->
-            Html.div [ class "" ]
+            Html.div [ HA.class "" ]
                 [ C.chart
                     [ CA.height 300
                     , CA.width 300
@@ -690,7 +680,7 @@ viewBarChart rows title getter =
                         , CA.highest 100 CA.exactly
                         ]
                     , CA.htmlAttrs
-                        [ class "" ]
+                        [ HA.class "" ]
                     ]
                     [ C.yLabels [ CA.amount 3 ]
                     , C.yTicks [ CA.amount 3 ]
@@ -710,6 +700,83 @@ viewBarChart rows title getter =
                         [ Svg.text title ]
                     ]
                 ]
+
+
+lineToPoints : Trend.Linear.Line -> List ( Float, Float )
+lineToPoints line =
+    [ ( 0, Trend.Linear.predictY line 0 )
+    , ( 100, Trend.Linear.predictY line 100 )
+    ]
+
+
+viewScatterChart : String -> String -> List (Dict.Dict String Float) -> Html Msg
+viewScatterChart x y raw =
+    let
+        points =
+            raw
+                |> List.filterMap
+                    (\d ->
+                        case ( getScatterField x d, getScatterField y d ) of
+                            ( Just x_, Just y_ ) ->
+                                Just ( x_, y_ )
+
+                            ( _, _ ) ->
+                                Nothing
+                    )
+
+        fullTrendPoints : List ( Float, Float )
+        fullTrendPoints =
+            points
+                |> Trend.Linear.quick
+                |> Result.map Trend.Linear.line
+                |> Result.map lineToPoints
+                |> Result.withDefault []
+
+        partTrendPoints : List ( Float, Float )
+        partTrendPoints =
+            points
+                |> List.filter (Tuple.first >> (<) 75)
+                |> Trend.Linear.quick
+                |> Result.map Trend.Linear.line
+                |> Result.map lineToPoints
+                |> Result.withDefault []
+    in
+    C.chart
+        [ CA.height 300
+        , CA.width 300
+        , CA.margin
+            { top = 25
+            , bottom = 10
+            , left = 37
+            , right = 10
+            }
+        , CA.range
+            [ CA.lowest 0 CA.exactly
+            , CA.highest 100 CA.exactly
+            ]
+        , CA.domain
+            [ CA.lowest 0 CA.exactly
+            , CA.highest 100 CA.exactly
+            ]
+        ]
+        [ C.xLabels [ CA.withGrid, CA.amount 3 ]
+        , C.yLabels [ CA.withGrid, CA.amount 3 ]
+        , C.series Tuple.first
+            [ C.scatter Tuple.second [] ]
+            points
+        , C.series Tuple.first
+            [ C.interpolated Tuple.second [] [] ]
+            fullTrendPoints
+        , C.series Tuple.first
+            [ C.interpolated Tuple.second [] [] ]
+            partTrendPoints
+        ]
+
+
+getScatterField : String -> Dict.Dict String Float -> Maybe Float
+getScatterField field data =
+    Dict.get field data
+        |> Maybe.map ((*) 100.0)
 
 
 withInfo : (TableRow -> Maybe Float) -> TableRow -> Maybe { score : Float, family : String, display : String }
@@ -753,17 +820,17 @@ viewBenchmarkScore task visibleKeys row =
 
 
 getMeanScore : Set.Set String -> Set.Set String -> TableRow -> Maybe Float
-getMeanScore tasks selectedCols row =
+getMeanScore tasks columnsSelected row =
     let
         selectedScores =
             tasks
-                |> Set.intersect selectedCols
+                |> Set.intersect columnsSelected
                 |> Set.toList
                 |> List.filterMap (\key -> Dict.get key row.scores)
     in
-    -- selectedCols can be more than 9 (includes imagenet1k, newt, checkpoint, mean, etc).
+    -- columnsSelected can be more than 9 (includes imagenet1k, newt, checkpoint, mean, etc).
     -- I think I might have to hardcode the benchmark tasks somewhere.
-    if List.length selectedScores == (tasks |> Set.intersect selectedCols |> Set.size) then
+    if List.length selectedScores == (tasks |> Set.intersect columnsSelected |> Set.size) then
         mean selectedScores
 
     else
@@ -771,9 +838,9 @@ getMeanScore tasks selectedCols row =
 
 
 viewMeanScore : Set.Set String -> Set.Set String -> TableRow -> ( String, String )
-viewMeanScore tasks selectedCols row =
+viewMeanScore tasks columnsSelected row =
     ( "text-right font-mono"
-    , getMeanScore tasks selectedCols row |> viewScore
+    , getMeanScore tasks columnsSelected row |> viewScore
     )
 
 
@@ -795,7 +862,7 @@ getCheckpointParams _ row =
 
 
 viewCheckpointParams : Set.Set String -> TableRow -> ( String, String )
-viewCheckpointParams selectedCols row =
+viewCheckpointParams columnsSelected row =
     ( "text-right"
     , toFloat row.checkpoint.params
         / (10 ^ 6)
@@ -896,6 +963,10 @@ upArrow =
 downArrow : String
 downArrow =
     String.fromChar (Char.fromCode 9660)
+
+
+rightArrow =
+    "▶"
 
 
 maxString : String
@@ -1179,64 +1250,196 @@ bestDecoder =
         )
 
 
+viewCheckboxFieldset : Fieldset -> Bool -> Set.Set String -> List a -> (a -> Html Msg) -> Html Msg
+viewCheckboxFieldset fieldset open checked checkables checkboxOf =
+    let
+        clickHandler =
+            HE.onClick (ToggleFieldset fieldset)
 
--- Components
+        arrow =
+            if open then
+                downArrow
+
+            else
+                rightArrow
+
+        commonButtonAttrs =
+            [ HA.class "flex item-centers gap-1 font-semibold px-2 py-1 text-sm cursor-pointer rounded-sm leading-none hover:bg-gray-50 group-hover:bg-gray-50 transition-colors duration-100"
+            ]
+
+        buttonAttrs =
+            if open then
+                commonButtonAttrs ++ [ clickHandler ]
+
+            else
+                commonButtonAttrs
+
+        summary =
+            "(" ++ (checked |> Set.size |> String.fromInt) ++ "/" ++ (checkables |> List.length |> String.fromInt) ++ ")"
+
+        legend =
+            Html.legend []
+                [ Html.button
+                    buttonAttrs
+                    [ Html.text (viewFieldset fieldset)
+                    , Html.span
+                        [ HA.class "text-black text-sm leading-none select-none"
+                        , HA.attribute "aria-hidden" "true"
+                        ]
+                        [ Html.text arrow ]
+                    , if not open then
+                        Html.span
+                            [ HA.class "text-sm text-gray-600 font-normal leading-none" ]
+                            [ Html.text summary ]
+
+                      else
+                        Html.text ""
+                    ]
+                ]
+
+        openContent =
+            Html.div
+                [ HA.class "flex flex-wrap gap-x-2 md:gap-x-4 gap-y-2" ]
+                (List.map checkboxOf checkables)
+
+        closedContent =
+            Html.div
+                [ HA.class "text-center text-sm text-gray-600 cursor-pointer hover:bg-gray-50 transition-colors duration-100" ]
+                [ Html.text "Click to expand" ]
+
+        commonFieldsetClass =
+            "border border-black p-2 bg-white transition-colors duration-150 "
+
+        fieldsetClass =
+            if open then
+                commonFieldsetClass
+
+            else
+                commonFieldsetClass ++ "group cursor-pointer hover:bg-gray-50"
+    in
+    if open then
+        Html.fieldset
+            [ HA.class fieldsetClass ]
+            [ legend, openContent ]
+
+    else
+        Html.fieldset
+            [ HA.class fieldsetClass, clickHandler ]
+            [ legend, closedContent ]
 
 
-viewFieldset : String -> List (Html Msg) -> Html Msg
-viewFieldset title content =
-    Html.fieldset
-        [ class "border border-biobench-black p-1 sm:p-2" ]
-        [ Html.legend
-            [ class "md:text-sm font-semibold tracking-tight px-1 sm:-ml-1 " ]
-            [ Html.text title ]
-        , Html.div
-            [ class "flex flex-wrap gap-x-2 md:gap-x-4 gap-y-2" ]
-            content
-        ]
-
-
-viewLabeledCheckbox : Html Msg -> String -> Html Msg
-viewLabeledCheckbox checkbox label =
+viewCheckbox : Bool -> Msg -> String -> Html Msg
+viewCheckbox checked msg label =
     Html.label
-        [ class "inline-flex items-center sm:gap-1 cursor-pointer select-none " ]
-        [ checkbox
-        , Html.span
-            [ class "md:text-sm tracking-tight" ]
-            [ Html.text label ]
+        [ HA.class "inline-flex items-center sm:gap-1 cursor-pointer select-none "
+        , HE.custom "click" (D.succeed { message = msg, stopPropagation = True, preventDefault = True })
+        ]
+        [ Html.input
+            [ HA.type_ "checkbox"
+            , HA.checked checked
+            , HA.class checkboxClass
+            ]
+            []
+        , Html.span [ HA.class "md:text-sm " ] [ Html.text label ]
         ]
 
 
-viewCheckbox : Bool -> (Bool -> Msg) -> Html Msg
-viewCheckbox checked msg =
-    Html.input
-        [ Html.Attributes.type_ "checkbox"
-        , Html.Attributes.checked checked
-        , Html.Events.onCheck msg
-        , class "accent-biobench-cyan cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-biobench-cyan"
+viewFamilyCheckbox : Bool -> String -> Html Msg
+viewFamilyCheckbox checked family =
+    Html.label
+        [ HA.class "inline-flex items-center sm:gap-1 cursor-pointer select-none "
+        , HE.custom "click" (D.succeed { message = ToggleFamily family, stopPropagation = True, preventDefault = True })
         ]
-        []
+        [ Html.input
+            [ HA.type_ "checkbox"
+            , HA.checked checked
+            , HA.class "cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 "
+            , HA.class ("accent-" ++ familyColor family)
+            , HA.class ("focus-visible:outline-" ++ familyColor family)
+            ]
+            []
+        , Html.span [ HA.class "md:text-sm " ] [ Html.text family ]
+        ]
+
+
+viewWindowsFieldset : Layout -> Html Msg
+viewWindowsFieldset layout =
+    let
+        legend =
+            Html.legend []
+                [ Html.span
+                    [ HA.class "flex item-centers gap-1 font-semibold px-2 py-1 text-sm cursor-pointer rounded-sm leading-none"
+                    ]
+                    [ Html.text "Windows" ]
+                ]
+    in
+    Html.fieldset
+        [ HA.class "border border-black p-2 bg-white transition-colors duration-150 " ]
+        [ legend
+        , Html.div
+            [ HA.class "flex flex-wrap gap-x-2 md:gap-x-4 gap-y-2" ]
+            [ viewLabeledRadio
+                "table-only"
+                (layoutEq layout TableOnly)
+                (\_ -> SetLayout TableOnly)
+                "Tables"
+            , Html.label
+                [ HA.class "hidden md:inline-flex items-center gap-1 cursor-pointer select-none "
+                ]
+                [ Html.input
+                    [ HA.type_ "radio"
+                    , HA.checked (layoutEq layout (Split -1))
+                    , HA.value "split"
+                    , HE.onClick (SetLayout (Split 0.5))
+                    , HA.class radioClass
+                    ]
+                    []
+                , Html.span
+                    [ HA.class "text-sm " ]
+                    [ Html.text "Split" ]
+                ]
+            , viewLabeledRadio
+                "charts-only"
+                (layoutEq layout ChartsOnly)
+                (\_ -> SetLayout ChartsOnly)
+                "Charts"
+            ]
+        ]
+
+
+viewFieldset : Fieldset -> String
+viewFieldset fieldset =
+    case fieldset of
+        ColumnsFieldset ->
+            "Columns"
+
+        FamiliesFieldset ->
+            "Model Families"
 
 
 viewLabeledRadio : String -> Bool -> (String -> Msg) -> String -> Html Msg
 viewLabeledRadio value checked msg label =
     Html.label
-        [ class "inline-flex items-center sm:gap-1 cursor-pointer select-none "
-        ]
-        [ viewRadio value checked msg
-        , Html.span
-            [ class "text-sm tracking-tight" ]
-            [ Html.text label ]
+        [ HA.class "inline-flex items-center sm:gap-1 cursor-pointer select-none " ]
+        [ Html.input
+            [ HA.type_ "radio"
+            , HA.checked checked
+            , HA.value value
+            , HE.onClick (msg value)
+            , HA.class radioClass
+            ]
+            []
+        , Html.span [ HA.class "md:text-sm " ] [ Html.text label ]
         ]
 
 
-viewRadio : String -> Bool -> (String -> Msg) -> Html Msg
-viewRadio value checked msg =
-    Html.input
-        [ Html.Attributes.type_ "radio"
-        , Html.Attributes.checked checked
-        , Html.Attributes.value value
-        , Html.Events.onClick (msg value)
-        , class "accent-biobench-cyan cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-biobench-gold"
-        ]
-        []
+
+-- CSS
+
+
+radioClass =
+    "accent-biobench-cyan cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-biobench-gold"
+
+
+checkboxClass =
+    "accent-biobench-cyan cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-biobench-cyan"
