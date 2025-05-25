@@ -3,21 +3,21 @@
 ## Branding & Metadata
 - [ ] Favicon: 16x16, 32x32, 48x48, 180x180; `<link rel="icon">`
 - [ ] Apple touch icon
-- [ ] Open Graph / Twitter / iMessage tags: `og:title`, `og:description`, `og:image`, `twitter:card`
-- [ ] `<title>` <= 60 chars, meta description ≤ 155 chars
+- [x] Open Graph / Twitter / iMessage tags: `og:title`, `og:description`, `og:image`, `twitter:card`
+- [x] `<title>` <= 60 chars, meta description ≤ 155 chars
 
 ## Visual Polish
+
 - [ ] Tailwind color palette finalized
 - [ ] ImageNet1K and Newt columns visible and styled
 - [ ] Column highlight / hover consistent with design
 - [ ] Rotated headers (90 deg) on screens < 640 px
-- [ ] Table wraps or scrolls (`overflow-x-auto`, `min-w-*`) on mobile
-- [ ] Monospace, tabular-nums for numeric cells
+- [x] Monospace, tabular-nums for numeric cells
 
 ## Responsiveness
 - [ ] Test at 320 px, 375 px, 768 px, 1024 px, 1280 px
 - [ ] Touch targets >= 44 px
-- [ ] `<meta name="viewport" content="width=device-width,initial-scale=1">`
+- [x] `<meta name="viewport" content="width=device-width,initial-scale=1">`
 
 ## Accessibility
 - [ ] Semantic table (`<thead>`, `<th scope="col">`)
@@ -29,7 +29,7 @@
 ## Performance
 - [ ] `NODE_ENV=production`; Tailwind purge runs
 - [ ] HTML, CSS, JS minified
-- [ ] Gzip / Brotli enabled
+- [x] Gzip / Brotli enabled
 - [ ] Lazy-load heavy images
 - [ ] Lighthouse performance >=  90
 
@@ -37,11 +37,6 @@
 - [ ] Canonical `<link>`
 - [ ] `robots.txt` allows crawl
 - [ ] `sitemap.xml` generated
-
-## Analytics & Monitoring
-- [ ] Analytics script (Plausible, GA, etc.) `async defer`
-- [ ] Error tracking (Sentry/Rollbar) enabled
-- [ ] Uptime ping configured
 
 ## Security Headers
 - [ ] HTTPS only, HSTS 1 y
