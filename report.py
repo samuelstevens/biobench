@@ -522,7 +522,10 @@ def main(
     )
     logger.info("Loaded %d predictions.", df.height)
 
-    # Print the unknown checkpoints by finding checkpoints not in model_lookup. AI!
+    # Print any unknown checkpoints
+    unknown_ckpts = set(df["model_ckpt"].unique()) - set(model_lookup.keys())
+    if unknown_ckpts:
+        logger.warning("Found %d unknown checkpoints: %s", len(unknown_ckpts), unknown_ckpts)
 
     scores_df, bests_df = calc_scores(
         df, n_bootstraps=n_bootstraps, alpha=alpha, seed=seed
