@@ -102,7 +102,9 @@ def main(cfgs: list[str], dry_run: bool = True, max_pending: int = 8):
         """
         Get the next finished job from queue, blocking if necessary, write the report and relinquish the claim.
         """
+        # HELP: fq.pop() calls done(), which calls results(), which throws an exception. But I cannot move this line into the try, because if it fails, then cfg doesn't exist in the except and finally.
         job, cfg, task = fq.pop()
+
         try:
             report: reporting.Report = job.result()
             report.write()
@@ -134,6 +136,7 @@ def main(cfgs: list[str], dry_run: bool = True, max_pending: int = 8):
             job_stats["submitted"] += 1
 
             while fq.full():
+                print(cfg)
                 flush_one()
 
     if dry_run:

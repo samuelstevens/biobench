@@ -1,5 +1,7 @@
 import logging
 import os
+import pathlib
+import typing
 
 import beartype
 import submitit
@@ -35,16 +37,6 @@ class SerialJob(submitit.DebugJob):
             return [self._submission.result()]
         except Exception as e:
             print(e)
-            # Try to mimic `breakpoint()` behavior
-            # pylint: disable=import-outside-toplevel
-            if os.environ.get("PYTHONBREAKPOINT", "").startswith("ipdb"):
-                import ipdb  # pylint: disable=import-error
-
-                ipdb.post_mortem()
-            else:
-                import pdb
-
-                pdb.post_mortem()
             raise
         finally:
             os.environ.clear()
@@ -54,7 +46,7 @@ class SerialJob(submitit.DebugJob):
 
 
 @beartype.beartype
-class SerialExecutor(submitit.DebugExecutor):
+class SerialExecutor(submitit.Executor):
     """
     Execute submitit jobs **sequentially in-process** with no interactive debugger.
 
@@ -83,3 +75,11 @@ class SerialExecutor(submitit.DebugExecutor):
     """
 
     job_class = SerialJob
+
+    def __init__(self, folder: str | pathlib.Path):
+        super().__init__(folder)
+
+    def _internal_process_submissions(
+        self, delayed_submissions: list[submitit.core.utils.DelayedSubmission]
+    ) -> list[submitit.core.core.Job[typing.Any]]:
+        return [self.job_class(self.folder, ds) for ds in delayed_submissions]
