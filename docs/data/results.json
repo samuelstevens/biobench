@@ -1,8 +1,8 @@
 {
     "meta": {
         "schema": 1,
-        "generated": 1748149417568,
-        "git_commit": "6315cbb99be337050689851c0724dcf186d84e1f",
+        "generated": 1748181532616,
+        "git_commit": "23f62a44d3687295ad79da4936e3680a327e0c5a",
         "seed": 17,
         "alpha": 0.05,
         "n_bootstraps": 500
@@ -149,7 +149,7 @@
             "display": "DINOv2 ViT-g/14",
             "family": "DINOv2",
             "resolution": 224,
-            "params": 304372736,
+            "params": 1136486912,
             "release_ms": 1712880000000
         },
         {
@@ -857,6 +857,14 @@
             "bootstrap_mean": 0.8001412153244019,
             "ci_low": 0.7945225968956947,
             "ci_high": 0.8057062953710556
+        },
+        {
+            "task": "newt",
+            "model": "ViT-B-32-SigLIP2-256/webli",
+            "mean": 0.7842876315116882,
+            "bootstrap_mean": 0.7843626737594604,
+            "ci_low": 0.7782664746046066,
+            "ci_high": 0.7897539600729943
         },
         {
             "task": "newt",
@@ -2028,6 +2036,14 @@
         },
         {
             "task": "fungiclef",
+            "model": "ViT-B-32-SigLIP2-256/webli",
+            "mean": 0.2892779721653439,
+            "bootstrap_mean": 0.2891942149796906,
+            "ci_low": 0.27074696654053304,
+            "ci_high": 0.30700555497444504
+        },
+        {
+            "task": "fungiclef",
             "model": "ViT-B-32/openai",
             "mean": 0.25193922782171396,
             "bootstrap_mean": 0.2518166487653715,
@@ -2340,6 +2356,14 @@
         },
         {
             "task": "fungiclef",
+            "model": "sam2_hiera_tiny.fb_r896_2pt1",
+            "mean": 0.16335781538162875,
+            "bootstrap_mean": 0.16322452304325827,
+            "ci_low": 0.142406892206694,
+            "ci_high": 0.18513162268039612
+        },
+        {
+            "task": "fungiclef",
             "model": "vit_base_patch16_224.augreg2_in21k_ft_in1k",
             "mean": 0.3382530078715408,
             "bootstrap_mean": 0.3386013952079978,
@@ -2393,6 +2417,14 @@
             "bootstrap_mean": 0.05538172114425716,
             "ci_low": 0.04966436940671815,
             "ci_high": 0.060847445948959945
+        },
+        {
+            "task": "herbarium19",
+            "model": "ViT-B-32-SigLIP2-256/webli",
+            "mean": 0.06958545677715237,
+            "bootstrap_mean": 0.06357771193648068,
+            "ci_low": 0.056799637397917734,
+            "ci_high": 0.0698949841798463
         },
         {
             "task": "herbarium19",
@@ -3644,6 +3676,14 @@
         },
         {
             "task": "mammalnet",
+            "model": "apple/aimv2-3B-patch14-448",
+            "mean": 0.6774021022234837,
+            "bootstrap_mean": 0.6752456385137203,
+            "ci_low": 0.6471894766115379,
+            "ci_high": 0.699581300139781
+        },
+        {
+            "task": "mammalnet",
             "model": "apple/aimv2-huge-patch14-224",
             "mean": 0.5732640662024641,
             "bootstrap_mean": 0.5720290398619072,
@@ -4706,13 +4746,14 @@
         },
         {
             "task": "mammalnet",
-            "best": "ViT-SO400M-14-SigLIP-384/webli",
+            "best": "apple/aimv2-3B-patch14-448",
             "ties": [
                 "ViT-L-14-336/openai",
                 "ViT-L-16-SigLIP-384/webli",
                 "ViT-SO400M-14-SigLIP-384/webli",
                 "apple/aimv2-3B-patch14-224",
-                "apple/aimv2-3B-patch14-336"
+                "apple/aimv2-3B-patch14-336",
+                "apple/aimv2-3B-patch14-448"
             ]
         },
         {
