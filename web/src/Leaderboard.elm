@@ -7,7 +7,7 @@ import Chart as C
 import Chart.Attributes as CA
 import Chart.Events as CE
 import Chart.Item as CI
-import Dict
+import Dict exposing (Dict)
 import Html exposing (Html)
 import Html.Attributes as HA
 import Html.Events as HE
@@ -15,9 +15,9 @@ import Html.Keyed
 import Http
 import Json.Decode as D
 import Round
-import Set
+import Set exposing (Set)
 import Svg
-import Svg.Attributes
+import Svg.Attributes as SA
 import Task
 import Time
 import Trend.Linear
@@ -63,19 +63,19 @@ type alias Model =
     -- Pickers
     -- Columns
     , columnsFieldsetOpen : Bool
-    , columnsSelected : Set.Set String
+    , columnsSelected : Set String
 
     -- Model familes
     , familiesFieldsetOpen : Bool
-    , familiesSelected : Set.Set String
+    , familiesSelected : Set String
 
     -- Param ranges
     , paramRangesFieldsetOpen : Bool
-    , paramRangesSelected : Set.Set ( Int, Int )
+    , paramRangesSelected : Set ( Int, Int )
 
     -- Resolutions
     , resolutionsFieldsetOpen : Bool
-    , resolutionsSelected : Set.Set Int
+    , resolutionsSelected : Set Int
 
     -- Sorting
     , sortKey : String
@@ -137,8 +137,8 @@ type alias Table =
 
 type alias TableRow =
     { checkpoint : Checkpoint
-    , scores : Dict.Dict String Float
-    , winners : Set.Set String
+    , scores : Dict String Float
+    , winners : Set String
     }
 
 
@@ -153,8 +153,8 @@ type alias Checkpoint =
 
 
 type SortType
-    = SortNumeric (Set.Set String -> TableRow -> Maybe Float)
-    | SortString (Set.Set String -> TableRow -> Maybe String)
+    = SortNumeric (Set String -> TableRow -> Maybe Float)
+    | SortString (Set String -> TableRow -> Maybe String)
     | NotSortable
 
 
@@ -164,7 +164,7 @@ type alias TableCol =
 
     -- How to get the cell value
     -- (results in a class string and an Html.text string)
-    , format : Set.Set String -> TableRow -> ( String, String )
+    , format : Set String -> TableRow -> ( String, String )
 
     -- Information for SORTING
     , sortType : SortType
@@ -538,21 +538,21 @@ viewDragHandle info =
         [ Html.div
             [ HA.class "mt-6" ]
             [ Svg.svg
-                [ Svg.Attributes.viewBox "0 0 40 40 "
-                , Svg.Attributes.width "40 "
-                , Svg.Attributes.height "40 "
+                [ SA.viewBox "0 0 40 40 "
+                , SA.width "40 "
+                , SA.height "40 "
                 ]
                 [ Svg.circle
-                    [ Svg.Attributes.cx "20 "
-                    , Svg.Attributes.cy "20 "
-                    , Svg.Attributes.r "20"
-                    , Svg.Attributes.class "group-hover:fill-biobench-gold "
-                    , Svg.Attributes.class fill
+                    [ SA.cx "20 "
+                    , SA.cy "20 "
+                    , SA.r "20"
+                    , SA.class "group-hover:fill-biobench-gold "
+                    , SA.class fill
                     ]
                     []
                 , Svg.polygon
-                    [ Svg.Attributes.points "4,20 12,28 12,24 28,24 28,28 36,20 28,12, 28,16 12,16 12,12"
-                    , Svg.Attributes.fill "white"
+                    [ SA.points "4,20 12,28 12,24 28,24 28,28 36,20 28,12, 28,16 12,16 12,12"
+                    , SA.fill "white"
                     ]
                     []
                 ]
@@ -565,7 +565,7 @@ mouseX =
     D.field "clientX" D.float
 
 
-viewTable : Set.Set String -> Set.Set String -> Set.Set ( Int, Int ) -> Set.Set Int -> String -> Order -> Table -> Html Msg
+viewTable : Set String -> Set String -> Set ( Int, Int ) -> Set Int -> String -> Order -> Table -> Html Msg
 viewTable columnsSelected familiesSelected paramRangesSelected resolutionsSelected sortKey sortOrder table =
     Html.table
         [ HA.class "w-full md:text-sm " ]
@@ -581,7 +581,7 @@ viewTable columnsSelected familiesSelected paramRangesSelected resolutionsSelect
         ]
 
 
-viewThead : Set.Set String -> String -> Order -> Table -> Html Msg
+viewThead : Set String -> String -> Order -> Table -> Html Msg
 viewThead columnsSelected sortKey sortOrder table =
     Html.thead
         [ HA.class "border-t border-b py-1 " ]
@@ -611,7 +611,7 @@ viewTh sortKey sortOrder col =
         [ Html.text (col.display ++ suffix) ]
 
 
-viewTbody : Set.Set String -> Set.Set String -> Set.Set ( Int, Int ) -> Set.Set Int -> String -> Order -> Table -> Html Msg
+viewTbody : Set String -> Set String -> Set ( Int, Int ) -> Set Int -> String -> Order -> Table -> Html Msg
 viewTbody columnsSelected familiesSelected paramRangesSelected resolutionsSelected sortKey sortOrder table =
     let
         filtered =
@@ -650,15 +650,13 @@ viewTbody columnsSelected familiesSelected paramRangesSelected resolutionsSelect
         [ HA.class "border-b" ]
         (List.map
             (\row ->
-                ( row.checkpoint.name
-                , viewTr columnsSelected table.cols row
-                )
+                ( row.checkpoint.name, viewTr columnsSelected table.cols row )
             )
             ordered
         )
 
 
-viewTr : Set.Set String -> List TableCol -> TableRow -> Html Msg
+viewTr : Set String -> List TableCol -> TableRow -> Html Msg
 viewTr columnsSelected allCols row =
     let
         cols =
@@ -670,7 +668,7 @@ viewTr columnsSelected allCols row =
         (List.map (viewTd columnsSelected row) cols)
 
 
-viewTd : Set.Set String -> TableRow -> TableCol -> Html Msg
+viewTd : Set String -> TableRow -> TableCol -> Html Msg
 viewTd columnsSelected row col =
     let
         ( cls, text ) =
@@ -688,7 +686,7 @@ viewTd columnsSelected row col =
         [ Html.text text ]
 
 
-viewCharts : Maybe String -> List (CI.One BarDatum CI.Bar) -> List (CI.One DotDatum CI.Dot) -> Set.Set String -> Set.Set String -> Set.Set ( Int, Int ) -> Set.Set Int -> Table -> Html Msg
+viewCharts : Maybe String -> List (CI.One BarDatum CI.Bar) -> List (CI.One DotDatum CI.Dot) -> Set String -> Set String -> Set ( Int, Int ) -> Set Int -> Table -> Html Msg
 viewCharts hoveredKey hoveredBars hoveredDots columnsSelected familiesSelected paramRangesSelected resolutionsSelected table =
     let
         rows =
@@ -708,7 +706,7 @@ viewCharts hoveredKey hoveredBars hoveredDots columnsSelected familiesSelected p
                 |> List.filter .barchart
                 |> List.filterMap (viewMaybeBarChart hoveredKey hoveredBars columnsSelected rows)
 
-        scatterData : List ( PointMetadata, Dict.Dict String Float )
+        scatterData : List ( PointMetadata, Dict String Float )
         scatterData =
             List.map
                 (\row ->
@@ -746,7 +744,7 @@ viewCharts hoveredKey hoveredBars hoveredDots columnsSelected familiesSelected p
         (scatterCharts ++ barCharts)
 
 
-viewMaybeBarChart : Maybe String -> List (CI.One BarDatum CI.Bar) -> Set.Set String -> List TableRow -> TableCol -> Maybe (Html Msg)
+viewMaybeBarChart : Maybe String -> List (CI.One BarDatum CI.Bar) -> Set String -> List TableRow -> TableCol -> Maybe (Html Msg)
 viewMaybeBarChart hoveredKey hoveredBars columnsSelected rows col =
     case col.sortType of
         SortNumeric fn ->
@@ -836,7 +834,7 @@ lineToPoints ( low, high ) line =
     ]
 
 
-viewImagenetCorrelationChart : Maybe String -> List (CI.One DotDatum CI.Dot) -> ( String, String ) -> List ( PointMetadata, Dict.Dict String Float ) -> Html Msg
+viewImagenetCorrelationChart : Maybe String -> List (CI.One DotDatum CI.Dot) -> ( String, String ) -> List ( PointMetadata, Dict String Float ) -> Html Msg
 viewImagenetCorrelationChart hoveredKey hoveredDots ( field, title ) data =
     let
         key =
@@ -973,7 +971,7 @@ viewImagenetCorrelationChart hoveredKey hoveredDots ( field, title ) data =
                 ]
 
 
-viewParamsCorrelationChart : Maybe String -> List (CI.One DotDatum CI.Dot) -> ( String, String ) -> List ( PointMetadata, Dict.Dict String Float ) -> Html Msg
+viewParamsCorrelationChart : Maybe String -> List (CI.One DotDatum CI.Dot) -> ( String, String ) -> List ( PointMetadata, Dict String Float ) -> Html Msg
 viewParamsCorrelationChart hoveredKey hoveredDots ( field, title ) data =
     let
         -- fullTrendPoints : List ( Float, Float )
@@ -1157,12 +1155,12 @@ viewScore score =
             val * 100 |> Round.round 1
 
 
-getBenchmarkScore : String -> Set.Set String -> TableRow -> Maybe Float
+getBenchmarkScore : String -> Set String -> TableRow -> Maybe Float
 getBenchmarkScore task visibleKeys row =
     Dict.get task row.scores
 
 
-viewBenchmarkScore : String -> Set.Set String -> TableRow -> ( String, String )
+viewBenchmarkScore : String -> Set String -> TableRow -> ( String, String )
 viewBenchmarkScore task visibleKeys row =
     let
         score =
@@ -1173,7 +1171,7 @@ viewBenchmarkScore task visibleKeys row =
     )
 
 
-getMeanScore : Set.Set String -> Set.Set String -> TableRow -> Maybe Float
+getMeanScore : Set String -> Set String -> TableRow -> Maybe Float
 getMeanScore tasks columnsSelected row =
     let
         selectedScores =
@@ -1191,31 +1189,31 @@ getMeanScore tasks columnsSelected row =
         Nothing
 
 
-viewMeanScore : Set.Set String -> Set.Set String -> TableRow -> ( String, String )
+viewMeanScore : Set String -> Set String -> TableRow -> ( String, String )
 viewMeanScore tasks columnsSelected row =
     ( "text-right font-mono tabular-nums"
     , getMeanScore tasks columnsSelected row |> viewScore
     )
 
 
-getCheckpoint : Set.Set String -> TableRow -> Maybe String
+getCheckpoint : Set String -> TableRow -> Maybe String
 getCheckpoint cols row =
     Just row.checkpoint.display
 
 
-viewCheckpoint : Set.Set String -> TableRow -> ( String, String )
+viewCheckpoint : Set String -> TableRow -> ( String, String )
 viewCheckpoint cols row =
     ( "text-left"
     , row.checkpoint.display
     )
 
 
-getCheckpointParams : Set.Set String -> TableRow -> Maybe Float
+getCheckpointParams : Set String -> TableRow -> Maybe Float
 getCheckpointParams _ row =
     row.checkpoint.params |> toFloat |> Just
 
 
-viewCheckpointParams : Set.Set String -> TableRow -> ( String, String )
+viewCheckpointParams : Set String -> TableRow -> ( String, String )
 viewCheckpointParams columnsSelected row =
     ( "text-right"
     , toFloat row.checkpoint.params
@@ -1224,12 +1222,12 @@ viewCheckpointParams columnsSelected row =
     )
 
 
-getCheckpointRelease : Set.Set String -> TableRow -> Maybe Float
+getCheckpointRelease : Set String -> TableRow -> Maybe Float
 getCheckpointRelease _ row =
     row.checkpoint.release |> Maybe.map (Time.posixToMillis >> toFloat)
 
 
-viewCheckpointRelease : Set.Set String -> TableRow -> ( String, String )
+viewCheckpointRelease : Set String -> TableRow -> ( String, String )
 viewCheckpointRelease _ row =
     ( "text-right"
     , row.checkpoint.release
@@ -1238,12 +1236,12 @@ viewCheckpointRelease _ row =
     )
 
 
-getCheckpointResolution : Set.Set String -> TableRow -> Maybe Float
+getCheckpointResolution : Set String -> TableRow -> Maybe Float
 getCheckpointResolution _ row =
     row.checkpoint.resolution |> toFloat |> Just
 
 
-viewCheckpointResolution : Set.Set String -> TableRow -> ( String, String )
+viewCheckpointResolution : Set String -> TableRow -> ( String, String )
 viewCheckpointResolution _ row =
     ( "text-right"
     , String.fromInt row.checkpoint.resolution
@@ -1486,7 +1484,7 @@ allParamRanges =
     ]
 
 
-paramRangesMatch : Set.Set ( Int, Int ) -> Int -> Bool
+paramRangesMatch : Set ( Int, Int ) -> Int -> Bool
 paramRangesMatch ranges params =
     List.any (rangeMatches params) (Set.toList ranges)
 
@@ -1623,7 +1621,7 @@ getScore checkpoint task scores =
         |> List.head
 
 
-getScores : Checkpoint -> List Score -> Dict.Dict String Float
+getScores : Checkpoint -> List Score -> Dict String Float
 getScores checkpoint scores =
     scores
         |> List.filter (\score -> score.checkpoint == checkpoint.name)
@@ -1631,7 +1629,7 @@ getScores checkpoint scores =
         |> Dict.fromList
 
 
-getWinners : Checkpoint -> List Best -> Set.Set String
+getWinners : Checkpoint -> List Best -> Set String
 getWinners checkpoint bests =
     bests
         |> List.filter (\best -> Set.member checkpoint.name best.ties)
@@ -1698,7 +1696,7 @@ scoreDecoder =
 
 type alias Best =
     { task : String
-    , ties : Set.Set String
+    , ties : Set String
     }
 
 
@@ -1711,7 +1709,7 @@ bestDecoder =
         )
 
 
-viewCheckboxFieldset : Fieldset -> Bool -> Set.Set a -> List b -> (b -> Html Msg) -> Html Msg
+viewCheckboxFieldset : Fieldset -> Bool -> Set a -> List b -> (b -> Html Msg) -> Html Msg
 viewCheckboxFieldset fieldset open checked checkables checkboxOf =
     let
         clickHandler =
@@ -1868,22 +1866,6 @@ viewWindowsFieldset layout =
         ]
 
 
-formatFieldset : Fieldset -> String
-formatFieldset fieldset =
-    case fieldset of
-        ColumnsFieldset ->
-            "Columns"
-
-        FamiliesFieldset ->
-            "Model Families"
-
-        ParamRangesFieldset ->
-            "# Parameters"
-
-        ResolutionsFieldset ->
-            "Resolution"
-
-
 viewLabeledRadio : String -> Bool -> (String -> Msg) -> String -> Html Msg
 viewLabeledRadio value checked msg label =
     Html.label
@@ -1898,6 +1880,22 @@ viewLabeledRadio value checked msg label =
             []
         , Html.span [ HA.class "md:text-sm " ] [ Html.text label ]
         ]
+
+
+formatFieldset : Fieldset -> String
+formatFieldset fieldset =
+    case fieldset of
+        ColumnsFieldset ->
+            "Columns"
+
+        FamiliesFieldset ->
+            "Model Families"
+
+        ParamRangesFieldset ->
+            "# Parameters"
+
+        ResolutionsFieldset ->
+            "Resolution"
 
 
 
@@ -1916,7 +1914,7 @@ checkboxClass =
 -- CHART HELPERS
 
 
-toDot : String -> (Float -> Float) -> String -> (Float -> Float) -> ( PointMetadata, Dict.Dict String Float ) -> Maybe DotDatum
+toDot : String -> (Float -> Float) -> String -> (Float -> Float) -> ( PointMetadata, Dict String Float ) -> Maybe DotDatum
 toDot fieldX fnX fieldY fnY ( meta, scores ) =
     case ( Dict.get fieldX scores, Dict.get fieldY scores ) of
         ( Just x, Just y ) ->
