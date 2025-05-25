@@ -5,6 +5,8 @@ import Browser.Dom
 import Browser.Events
 import Chart as C
 import Chart.Attributes as CA
+import Chart.Events as CE
+import Chart.Item as CI
 import Dict
 import Html exposing (Html)
 import Html.Attributes as HA
@@ -32,7 +34,8 @@ main =
 
 
 type Msg
-    = Fetched (Result Http.Error Table)
+    = NoOp
+    | Fetched (Result Http.Error Table)
     | Sort String
     | ToggleFieldset Fieldset
     | ToggleCol String
@@ -42,7 +45,8 @@ type Msg
     | DragStart DragInfo
     | DragMove Float
     | DragStop
-    | NoOp
+    | OnHoverBar (Maybe String) (List (CI.One BarDatum CI.Bar))
+    | OnHoverDot (Maybe String) (List (CI.One DotDatum CI.Dot))
 
 
 type Requested a e
@@ -69,6 +73,11 @@ type alias Model =
     -- UI
     , layout : Layout
     , drag : Maybe DragInfo
+
+    -- Charts
+    , hoveredKey : Maybe String
+    , hoveredBars : List (CI.One BarDatum CI.Bar)
+    , hoveredDots : List (CI.One DotDatum CI.Dot)
     }
 
 
@@ -194,12 +203,15 @@ init _ =
       -- TODO: implement
       , paramsOpen = True
       , paramCountRange = ( 0, 10 ^ 12 )
-      , familiesFieldsetOpen = False
+      , familiesFieldsetOpen = True
       , familiesSelected = Set.empty
       , sortKey = "mean"
       , sortOrder = Descending
       , layout = TableOnly
       , drag = Nothing
+      , hoveredKey = Nothing
+      , hoveredBars = []
+      , hoveredDots = []
       }
     , Http.get
         { url = "data/results.json"
@@ -335,6 +347,12 @@ update msg model =
         DragStop ->
             ( { model | drag = Nothing }, Cmd.none )
 
+        OnHoverBar key hoveredBars ->
+            ( { model | hoveredBars = hoveredBars, hoveredKey = key }, Cmd.none )
+
+        OnHoverDot key hoveredDots ->
+            ( { model | hoveredDots = hoveredDots, hoveredKey = key }, Cmd.none )
+
 
 view : Model -> Html Msg
 view model =
@@ -351,7 +369,12 @@ view model =
                     viewTable model.columnsSelected model.familiesSelected model.sortKey model.sortOrder table
 
                 chartContent =
-                    viewCharts model.columnsSelected model.familiesSelected table
+                    viewCharts model.hoveredKey
+                        model.hoveredBars
+                        model.hoveredDots
+                        model.columnsSelected
+                        model.familiesSelected
+                        table
 
                 allFamilies =
                     table.rows
@@ -395,13 +418,13 @@ view model =
 
                         ChartsOnly ->
                             [ viewDragHandle model.drag
-                            , viewChartPane chartContent 100
+                            , viewChartsPane chartContent 100
                             ]
 
                         Split pct ->
                             [ viewTablePane tableContent ((pct - 0.01) * 100)
                             , viewDragHandle model.drag
-                            , viewChartPane chartContent (100 - (pct + 0.01) * 100)
+                            , viewChartsPane chartContent (100 - (pct + 0.01) * 100)
                             ]
                     )
                 ]
@@ -419,11 +442,11 @@ viewTablePane content w =
         ]
 
 
-viewChartPane : Html Msg -> Float -> Html Msg
-viewChartPane content w =
+viewChartsPane : Html Msg -> Float -> Html Msg
+viewChartsPane content w =
     Html.div
         [ HA.style "width" (String.fromFloat w ++ "%")
-        , HA.class "overflow-y-auto"
+        , HA.class "overflow-y-auto pl-2"
         ]
         [ content ]
 
@@ -588,209 +611,386 @@ viewTd columnsSelected row col =
         [ Html.text text ]
 
 
-viewCharts : Set.Set String -> Set.Set String -> Table -> Html Msg
-viewCharts columnsSelected familiesSelected table =
+viewCharts : Maybe String -> List (CI.One BarDatum CI.Bar) -> List (CI.One DotDatum CI.Dot) -> Set.Set String -> Set.Set String -> Table -> Html Msg
+viewCharts hoveredKey hoveredBars hoveredDots columnsSelected familiesSelected table =
     let
         rows =
             table.rows
                 |> List.filter (\r -> Set.member r.checkpoint.family familiesSelected)
 
+        filteredCols : List TableCol
         filteredCols =
             table.cols
                 |> List.filter (\c -> Set.member c.key columnsSelected)
 
-        ( getters, titles ) =
+        barCharts : List (Html Msg)
+        barCharts =
             filteredCols
                 |> List.filter .barchart
-                |> List.filterMap
-                    (\c ->
-                        case c.sortType of
-                            SortNumeric fn ->
-                                Just ( fn columnsSelected, c.display )
+                |> List.filterMap (viewMaybeBarChart hoveredKey hoveredBars columnsSelected rows)
 
-                            _ ->
-                                Nothing
-                    )
-                |> List.unzip
-
-        barCharts =
-            List.map2 (viewBarChart rows) titles getters
-
-        functions =
-            filteredCols
-                |> List.filterMap
-                    (\c ->
-                        case c.sortType of
-                            SortNumeric fn ->
-                                Just ( c.key, fn columnsSelected )
-
-                            _ ->
-                                Nothing
-                    )
-                |> Dict.fromList
-
-        scatterData : List (Dict.Dict String Float)
+        scatterData : List ( PointMetadata, Dict.Dict String Float )
         scatterData =
             List.map
                 (\row ->
-                    Dict.foldl
-                        (\key func acc ->
-                            case func row of
-                                Just value ->
-                                    Dict.insert key value acc
+                    ( rowToPointMetadata row
+                    , List.foldl
+                        (\col acc ->
+                            case col.sortType of
+                                SortNumeric fn ->
+                                    case fn columnsSelected row of
+                                        Just value ->
+                                            Dict.insert col.key value acc
 
-                                Nothing ->
+                                        Nothing ->
+                                            acc
+
+                                _ ->
                                     acc
                         )
                         Dict.empty
-                        functions
+                        filteredCols
+                    )
                 )
                 rows
 
         scatterCharts =
-            [ viewScatterChart "imagenet1k" "newt" scatterData
-            , viewScatterChart "imagenet1k" "mean" scatterData
+            [ viewImagenetCorrelationChart hoveredKey hoveredDots ( "newt", "NeWT" ) scatterData
+            , viewImagenetCorrelationChart hoveredKey hoveredDots ( "mean", "Mean" ) scatterData
+            , viewParamsCorrelationChart hoveredKey hoveredDots ( "imagenet1k", "ImageNet-1K" ) scatterData
+            , viewParamsCorrelationChart hoveredKey hoveredDots ( "newt", "NeWT" ) scatterData
+            , viewParamsCorrelationChart hoveredKey hoveredDots ( "mean", "Mean" ) scatterData
+
+            -- , viewScatterChart hoveredDots "release" "newt" scatterData
+            -- , viewScatterChart hoveredDots "release" "mean" scatterData
+            -- , viewScatterChart hoveredDots "params" "imagenet1k" scatterData
+            -- , viewScatterChart hoveredDots "params" "newt" scatterData
+            -- , viewScatterChart hoveredDots "params" "mean" scatterData
+            -- , viewScatterChart hoveredDots "resolution" "imagenet1k" scatterData
+            -- , viewScatterChart hoveredDots "resolution" "newt" scatterData
+            -- , viewScatterChart hoveredDots "resolution" "mean" scatterData
             ]
     in
     Html.div
         [ HA.class "grid gap-2 [grid-template-columns:repeat(auto-fit,minmax(16rem,1fr))] mt-t" ]
-        -- (scatterCharts ++ barCharts)
-        barCharts
+        (scatterCharts ++ barCharts)
 
 
-viewBarChart : List TableRow -> String -> (TableRow -> Maybe Float) -> Html Msg
-viewBarChart rows title getter =
-    case List.filterMap (withInfo getter) rows of
-        [] ->
-            Html.div [ HA.class "hidden" ] []
+viewMaybeBarChart : Maybe String -> List (CI.One BarDatum CI.Bar) -> Set.Set String -> List TableRow -> TableCol -> Maybe (Html Msg)
+viewMaybeBarChart hoveredKey hoveredBars columnsSelected rows col =
+    case col.sortType of
+        SortNumeric fn ->
+            case List.filterMap (toBarDatum (fn columnsSelected)) rows of
+                [] ->
+                    Nothing
 
-        data ->
-            Html.div [ HA.class "" ]
-                [ C.chart
-                    [ CA.height 300
-                    , CA.width 300
-                    , CA.margin
-                        { top = 25
-                        , bottom = 10
-                        , left = 37
-                        , right = 10
-                        }
-                    , CA.domain
-                        [ CA.lowest 0 CA.exactly
-                        , CA.highest 100 CA.exactly
-                        ]
-                    , CA.htmlAttrs
-                        [ HA.class "" ]
-                    ]
-                    [ C.yLabels [ CA.amount 3 ]
-                    , C.yTicks [ CA.amount 3 ]
-                    , C.bars
-                        []
-                        [ C.bar (.score >> (*) 100) []
-                            |> C.variation
-                                (\index datum ->
-                                    [ CA.color (datum.family |> familyColor |> toCssColorVar) ]
-                                )
-                        ]
-                        data
-                    , C.labelAt
-                        CA.middle
-                        .max
-                        [ CA.fontSize 24, CA.moveUp 2 ]
-                        [ Svg.text title ]
-                    ]
+                data ->
+                    Just
+                        (viewBarChart
+                            (case hoveredKey of
+                                Just key ->
+                                    if col.display == key then
+                                        hoveredBars
+
+                                    else
+                                        []
+
+                                Nothing ->
+                                    []
+                            )
+                            col.display
+                            data
+                        )
+
+        _ ->
+            Nothing
+
+
+viewBarChart : List (CI.One BarDatum CI.Bar) -> String -> List BarDatum -> Html Msg
+viewBarChart hoveredBars title data =
+    Html.div [ HA.class "" ]
+        [ C.chart
+            [ CA.height 300
+            , CA.width 300
+            , CA.margin
+                { top = 25
+                , bottom = 10
+                , left = 45
+                , right = 10
+                }
+            , CA.domain
+                [ CA.lowest 0 CA.exactly
+                , CA.highest 100 CA.exactly
                 ]
+            , CE.onMouseMove (OnHoverBar (Just title)) (CE.getNearestX CI.bars)
+            , CE.onMouseLeave (OnHoverBar Nothing [])
+            ]
+            [ C.yLabels [ CA.amount 3 ]
+            , C.yTicks [ CA.amount 3 ]
+            , C.bars
+                []
+                [ C.bar (Tuple.second >> .score >> (*) 100) []
+                    |> C.variation
+                        (\index ( metadata, datum ) ->
+                            [ CA.color (metadata.family |> familyColor |> toCssColorVar) ]
+                        )
+                ]
+                data
+            , C.each hoveredBars
+                (\p bar ->
+                    let
+                        color =
+                            CI.getColor bar
+
+                        name =
+                            CI.getData bar |> Tuple.first |> .display
+
+                        score =
+                            CI.getY bar
+                    in
+                    [ C.tooltip bar
+                        [ CA.onTop, CA.top, CA.offset 0 ]
+                        [ HA.style "color" color ]
+                        [ Html.text name
+                        , Html.text ": "
+                        , Html.text (Round.round 1 score)
+                        ]
+                    ]
+                )
+            , C.labelAt
+                .min
+                CA.middle
+                [ CA.moveLeft 35, CA.rotate 90 ]
+                [ Svg.text title ]
+            ]
+        ]
 
 
-lineToPoints : Trend.Linear.Line -> List ( Float, Float )
-lineToPoints line =
-    [ ( 0, Trend.Linear.predictY line 0 )
+lineToPoints : Float -> Trend.Linear.Line -> List ( Float, Float )
+lineToPoints min line =
+    [ ( min, Trend.Linear.predictY line min )
     , ( 100, Trend.Linear.predictY line 100 )
     ]
 
 
-viewScatterChart : String -> String -> List (Dict.Dict String Float) -> Html Msg
-viewScatterChart x y raw =
+viewImagenetCorrelationChart : Maybe String -> List (CI.One DotDatum CI.Dot) -> ( String, String ) -> List ( PointMetadata, Dict.Dict String Float ) -> Html Msg
+viewImagenetCorrelationChart hoveredKey hoveredDots ( field, title ) data =
     let
-        points =
-            raw
-                |> List.filterMap
-                    (\d ->
-                        case ( getScatterField x d, getScatterField y d ) of
-                            ( Just x_, Just y_ ) ->
-                                Just ( x_, y_ )
+        key =
+            "imagenet1k-vs-" ++ field
 
-                            ( _, _ ) ->
-                                Nothing
+        -- fullTrendPoints : List ( Float, Float )
+        -- fullTrendPoints =
+        --     points
+        --         |> List.map (\p -> ( p.x, p.y ))
+        --         |> Trend.Linear.quick
+        --         |> Result.map Trend.Linear.line
+        --         |> Result.map (lineToPoints 0)
+        --         |> Result.withDefault []
+        -- partTrendPoints : List ( Float, Float )
+        -- partTrendPoints =
+        --     points
+        --         |> List.filter (.x >> (<) 75)
+        --         |> List.map (\p -> ( p.x, p.y ))
+        --         |> Trend.Linear.quick
+        --         |> Result.map Trend.Linear.line
+        --         |> Result.map (lineToPoints 75)
+        --         |> Result.withDefault []
+    in
+    case List.filterMap (toDot "imagenet1k" ((*) 100) field ((*) 100)) data of
+        [] ->
+            Html.div [ HA.class "hidden" ] []
+
+        points ->
+            C.chart
+                [ CA.height 300
+                , CA.width 300
+                , CA.margin
+                    { top = 25
+                    , bottom = 30
+                    , left = 45
+                    , right = 10
+                    }
+
+                -- , CA.range
+                --     [ CA.lowest 0 CA.exactly
+                --     , CA.highest 100 CA.exactly
+                --     ]
+                -- , CA.domain
+                --     [ CA.lowest 0 CA.exactly
+                --     , CA.highest 100 CA.exactly
+                --     ]
+                , CE.onMouseMove (OnHoverDot (Just key)) (CE.getNearest CI.dots)
+                , CE.onMouseLeave (OnHoverDot Nothing [])
+                ]
+                [ C.xLabels [ CA.withGrid, CA.amount 3 ]
+                , C.yLabels [ CA.withGrid, CA.amount 3 ]
+                , C.series (Tuple.second >> .x)
+                    [ C.scatter (Tuple.second >> .y) []
+                        |> C.variation
+                            (\index ( metadata, datum ) ->
+                                [ CA.color (metadata.family |> familyColor |> toCssColorVar) ]
+                            )
+                    ]
+                    points
+                , C.each (filterHovered key hoveredKey hoveredDots)
+                    (\p dot ->
+                        let
+                            color =
+                                CI.getColor dot
+
+                            name =
+                                CI.getData dot |> Tuple.first |> .display
+
+                            x =
+                                CI.getX dot
+                        in
+                        [ C.tooltip dot
+                            [ CA.offset 0 ]
+                            [ HA.style "color" color ]
+                            [ Html.text name
+                            , Html.text ": ("
+                            , Html.text (Round.round 1 x)
+                            , Html.text ", "
+                            , Html.text (Round.round 1 <| CI.getY dot)
+                            , Html.text ")"
+                            ]
+                        ]
                     )
 
-        fullTrendPoints : List ( Float, Float )
-        fullTrendPoints =
-            points
-                |> Trend.Linear.quick
-                |> Result.map Trend.Linear.line
-                |> Result.map lineToPoints
-                |> Result.withDefault []
+                -- , C.series Tuple.first
+                --     [ C.interpolated Tuple.second [] [] ]
+                --     fullTrendPoints
+                -- , C.series Tuple.first
+                --     [ C.interpolated Tuple.second [] [] ]
+                --     partTrendPoints
+                , C.labelAt
+                    CA.middle
+                    .min
+                    [ CA.moveDown 35 ]
+                    [ Svg.text "ImageNet-1K" ]
+                , C.labelAt
+                    .min
+                    CA.middle
+                    [ CA.moveLeft 35, CA.rotate 90 ]
+                    [ Svg.text title ]
+                ]
 
-        partTrendPoints : List ( Float, Float )
-        partTrendPoints =
-            points
-                |> List.filter (Tuple.first >> (<) 75)
-                |> Trend.Linear.quick
-                |> Result.map Trend.Linear.line
-                |> Result.map lineToPoints
-                |> Result.withDefault []
+
+viewParamsCorrelationChart : Maybe String -> List (CI.One DotDatum CI.Dot) -> ( String, String ) -> List ( PointMetadata, Dict.Dict String Float ) -> Html Msg
+viewParamsCorrelationChart hoveredKey hoveredDots ( field, title ) data =
+    let
+        -- fullTrendPoints : List ( Float, Float )
+        -- fullTrendPoints =
+        --     points
+        --         |> List.map (\p -> ( p.x, p.y ))
+        --         |> Trend.Linear.quick
+        --         |> Result.map Trend.Linear.line
+        --         |> Result.map (lineToPoints 0)
+        --         |> Result.withDefault []
+        key =
+            "params-vs-" ++ field
     in
-    C.chart
-        [ CA.height 300
-        , CA.width 300
-        , CA.margin
-            { top = 25
-            , bottom = 10
-            , left = 37
-            , right = 10
-            }
-        , CA.range
-            [ CA.lowest 0 CA.exactly
-            , CA.highest 100 CA.exactly
-            ]
-        , CA.domain
-            [ CA.lowest 0 CA.exactly
-            , CA.highest 100 CA.exactly
-            ]
-        ]
-        [ C.xLabels [ CA.withGrid, CA.amount 3 ]
-        , C.yLabels [ CA.withGrid, CA.amount 3 ]
-        , C.series Tuple.first
-            [ C.scatter Tuple.second [] ]
-            points
-        , C.series Tuple.first
-            [ C.interpolated Tuple.second [] [] ]
-            fullTrendPoints
-        , C.series Tuple.first
-            [ C.interpolated Tuple.second [] [] ]
-            partTrendPoints
-        ]
+    case List.filterMap (toDot "params" (logBase 10) field ((*) 100)) data of
+        [] ->
+            Html.div [ HA.class "hidden" ] []
+
+        points ->
+            C.chart
+                [ CA.height 300
+                , CA.width 300
+                , CA.margin
+                    { top = 25
+                    , bottom = 30
+                    , left = 45
+                    , right = 10
+                    }
+                , CE.onMouseMove (OnHoverDot (Just key)) (CE.getNearest CI.dots)
+                , CE.onMouseLeave (OnHoverDot Nothing [])
+                ]
+                [ C.xLabels
+                    [ CA.withGrid
+                    , CA.amount 3
+                    , CA.format formatExp
+                    ]
+                , C.yLabels [ CA.withGrid, CA.amount 3 ]
+                , C.series (Tuple.second >> .x)
+                    [ C.scatter (Tuple.second >> .y) []
+                        |> C.variation
+                            (\index ( metadata, datum ) ->
+                                [ CA.color (metadata.family |> familyColor |> toCssColorVar) ]
+                            )
+                    ]
+                    points
+                , C.each (filterHovered key hoveredKey hoveredDots)
+                    (\p dot ->
+                        let
+                            color =
+                                CI.getColor dot
+
+                            name =
+                                CI.getData dot |> Tuple.first |> .display
+
+                            x =
+                                10 ^ (CI.getX dot - 6)
+                        in
+                        [ C.tooltip dot
+                            [ CA.offset 0 ]
+                            [ HA.style "color" color ]
+                            [ Html.text name
+                            , Html.text ": ("
+                            , Html.text (Round.round 1 x)
+                            , Html.text "M, "
+                            , Html.text (Round.round 1 <| CI.getY dot)
+                            , Html.text ")"
+                            ]
+                        ]
+                    )
+
+                -- , C.series Tuple.first
+                --     [ C.interpolated Tuple.second [] [] ]
+                --     fullTrendPoints
+                , C.labelAt
+                    CA.middle
+                    .min
+                    [ CA.moveDown 35 ]
+                    [ Svg.text "Params" ]
+                , C.labelAt
+                    .min
+                    CA.middle
+                    [ CA.moveLeft 35, CA.rotate 90 ]
+                    [ Svg.text title ]
+                ]
 
 
-getScatterField : String -> Dict.Dict String Float -> Maybe Float
-getScatterField field data =
-    Dict.get field data
-        |> Maybe.map ((*) 100.0)
+type alias PointMetadata =
+    { family : String, display : String }
 
 
-withInfo : (TableRow -> Maybe Float) -> TableRow -> Maybe { score : Float, family : String, display : String }
-withInfo getter row =
+type alias BarDatum =
+    ( PointMetadata, { score : Float } )
+
+
+type alias DotDatum =
+    ( PointMetadata, { x : Float, y : Float } )
+
+
+rowToPointMetadata : TableRow -> PointMetadata
+rowToPointMetadata row =
+    { family = row.checkpoint.family, display = row.checkpoint.display }
+
+
+toBarDatum : (TableRow -> Maybe Float) -> TableRow -> Maybe BarDatum
+toBarDatum getter row =
     case getter row of
         Nothing ->
             Nothing
 
         Just score ->
             Just
-                { score = score
-                , family = row.checkpoint.family
-                , display = row.checkpoint.display
-                }
+                ( { family = row.checkpoint.family, display = row.checkpoint.display }
+                , { score = score }
+                )
 
 
 viewScore : Maybe Float -> String
@@ -939,6 +1139,37 @@ formatMonth month =
 
         Time.Dec ->
             "Dec"
+
+
+formatExp : Float -> String
+formatExp exp =
+    case round exp of
+        5 ->
+            "100K"
+
+        6 ->
+            "1M"
+
+        7 ->
+            "10M"
+
+        8 ->
+            "100M"
+
+        9 ->
+            "1B"
+
+        10 ->
+            "10B"
+
+        11 ->
+            "100B"
+
+        12 ->
+            "1T"
+
+        other ->
+            String.fromFloat (10 ^ toFloat other)
 
 
 mean : List Float -> Maybe Float
@@ -1438,8 +1669,36 @@ viewLabeledRadio value checked msg label =
 
 
 radioClass =
-    "accent-biobench-cyan cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-biobench-gold"
+    "accent-blue-500 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-blue-500"
 
 
 checkboxClass =
-    "accent-biobench-cyan cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-biobench-cyan"
+    "accent-blue-500 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-blue-500"
+
+
+
+-- CHART HELPERS
+
+
+toDot : String -> (Float -> Float) -> String -> (Float -> Float) -> ( PointMetadata, Dict.Dict String Float ) -> Maybe DotDatum
+toDot fieldX fnX fieldY fnY ( meta, scores ) =
+    case ( Dict.get fieldX scores, Dict.get fieldY scores ) of
+        ( Just x, Just y ) ->
+            Just ( meta, { x = fnX x, y = fnY y } )
+
+        ( _, _ ) ->
+            Nothing
+
+
+filterHovered : String -> Maybe String -> List (CI.One data x) -> List (CI.One data x)
+filterHovered key hoveredKey hoveredItems =
+    case hoveredKey of
+        Just incoming ->
+            if key == incoming then
+                hoveredItems
+
+            else
+                []
+
+        Nothing ->
+            []
