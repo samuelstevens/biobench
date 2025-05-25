@@ -193,6 +193,54 @@ models = [
         date_to_ms(2025, 5, 7),
     ),
     Model(
+        "hf-hub:UCSC-VLAA/openvision-vit-small-patch16-224",
+        "OpenVision ViT-S/16",
+        "OpenVision",
+        224,
+        21_812_736,
+        date_to_ms(2025, 5, 7),
+    ),
+    Model(
+        "hf-hub:UCSC-VLAA/openvision-vit-base-patch16-224",
+        "OpenVision ViT-B/16",
+        "OpenVision",
+        224,
+        86_191_104,
+        date_to_ms(2025, 5, 7),
+    ),
+    Model(
+        "hf-hub:UCSC-VLAA/openvision-vit-large-patch14-224",
+        "OpenVision ViT-L/14",
+        "OpenVision",
+        224,
+        303_964_160,
+        date_to_ms(2025, 5, 7),
+    ),
+    Model(
+        "hf-hub:UCSC-VLAA/openvision-vit-so400m-patch14-224",
+        "OpenVision SO400M/14",
+        "OpenVision",
+        224,
+        413_770_608,
+        date_to_ms(2025, 5, 7),
+    ),
+    Model(
+        "hf-hub:UCSC-VLAA/openvision-vit-so400m-patch14-384",
+        "OpenVision SO400M/14",
+        "OpenVision",
+        384,
+        414_315_504,
+        date_to_ms(2025, 5, 7),
+    ),
+    Model(
+        "hf-hub:UCSC-VLAA/openvision-vit-huge-patch14-224",
+        "OpenVision ViT-H/14",
+        "OpenVision",
+        224,
+        632_074_240,
+        date_to_ms(2025, 5, 7),
+    ),
+    Model(
         "dinov2_vits14_reg",
         "DINOv2 ViT-S/14",
         "DINOv2",
@@ -525,7 +573,9 @@ def main(
     # Print any unknown checkpoints
     unknown_ckpts = set(df["model_ckpt"].unique()) - set(model_lookup.keys())
     if unknown_ckpts:
-        logger.warning("Found %d unknown checkpoints: %s", len(unknown_ckpts), unknown_ckpts)
+        logger.warning(
+            "Found %d unknown checkpoints: %s", len(unknown_ckpts), unknown_ckpts
+        )
 
     scores_df, bests_df = calc_scores(
         df, n_bootstraps=n_bootstraps, alpha=alpha, seed=seed

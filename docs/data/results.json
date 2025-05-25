@@ -1,8 +1,8 @@
 {
     "meta": {
         "schema": 1,
-        "generated": 1748181532616,
-        "git_commit": "23f62a44d3687295ad79da4936e3680a327e0c5a",
+        "generated": 1748188947981,
+        "git_commit": "b8ca11d7198586b124b3afddee97e024147a2522",
         "seed": 17,
         "alpha": 0.05,
         "n_bootstraps": 500
@@ -106,7 +106,7 @@
         },
         {
             "ckpt": "ViT-B-32-SigLIP2-256/webli",
-            "display": "SigLIP2 ViT-B/32SigLIP2",
+            "display": "SigLIP2 ViT-B/32",
             "family": "SigLIP2",
             "resolution": 256,
             "params": 94552320,
@@ -118,6 +118,30 @@
             "family": "OpenVision",
             "resolution": 224,
             "params": 5561088,
+            "release_ms": 1746576000000
+        },
+        {
+            "ckpt": "hf-hub:UCSC-VLAA/openvision-vit-small-patch16-224",
+            "display": "OpenVision ViT-S/16",
+            "family": "OpenVision",
+            "resolution": 224,
+            "params": 21812736,
+            "release_ms": 1746576000000
+        },
+        {
+            "ckpt": "hf-hub:UCSC-VLAA/openvision-vit-base-patch16-224",
+            "display": "OpenVision ViT-B/16",
+            "family": "OpenVision",
+            "resolution": 224,
+            "params": 86191104,
+            "release_ms": 1746576000000
+        },
+        {
+            "ckpt": "hf-hub:UCSC-VLAA/openvision-vit-large-patch14-224",
+            "display": "OpenVision ViT-L/14",
+            "family": "OpenVision",
+            "resolution": 224,
+            "params": 303964160,
             "release_ms": 1746576000000
         },
         {
@@ -1100,6 +1124,14 @@
         },
         {
             "task": "newt",
+            "model": "hf-hub:UCSC-VLAA/openvision-vit-tiny-patch16-224",
+            "mean": 0.7448402047157288,
+            "bootstrap_mean": 0.744670033454895,
+            "ci_low": 0.738235142827034,
+            "ci_high": 0.7513898029923439
+        },
+        {
+            "task": "newt",
             "model": "hf-hub:imageomics/bioclip",
             "mean": 0.8270084261894226,
             "bootstrap_mean": 0.8270969986915588,
@@ -1489,6 +1521,14 @@
             "bootstrap_mean": 0.07744396537129714,
             "ci_low": 0.07278884079966892,
             "ci_high": 0.0822785205143301
+        },
+        {
+            "task": "beluga",
+            "model": "hf-hub:UCSC-VLAA/openvision-vit-tiny-patch16-224",
+            "mean": 0.03951194339955912,
+            "bootstrap_mean": 0.03821901741329211,
+            "ci_low": 0.034917502409805526,
+            "ci_high": 0.041452429190456684
         },
         {
             "task": "beluga",
@@ -1884,6 +1924,14 @@
         },
         {
             "task": "fishnet",
+            "model": "hf-hub:UCSC-VLAA/openvision-vit-tiny-patch16-224",
+            "mean": 0.4532364299468877,
+            "bootstrap_mean": 0.4241400881185713,
+            "ci_low": 0.4234678488771281,
+            "ci_high": 0.42478404446707807
+        },
+        {
+            "task": "fishnet",
             "model": "hf-hub:imageomics/bioclip",
             "mean": 0.6256905357844942,
             "bootstrap_mean": 0.4569217788250238,
@@ -2273,6 +2321,14 @@
             "bootstrap_mean": 0.22044470507517225,
             "ci_low": 0.20211629823605548,
             "ci_high": 0.2410257217169045
+        },
+        {
+            "task": "fungiclef",
+            "model": "hf-hub:UCSC-VLAA/openvision-vit-tiny-patch16-224",
+            "mean": 0.2355407235531478,
+            "bootstrap_mean": 0.235196825994985,
+            "ci_low": 0.21512507347563203,
+            "ci_high": 0.2540604251845035
         },
         {
             "task": "fungiclef",

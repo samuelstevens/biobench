@@ -23,6 +23,30 @@ ckpt = "hf-hub:UCSC-VLAA/openvision-vit-tiny-patch16-224"
 
 [[models]]
 org = "open-clip"
+ckpt = "hf-hub:UCSC-VLAA/openvision-vit-small-patch16-224"
+
+[[models]]
+org = "open-clip"
+ckpt = "hf-hub:UCSC-VLAA/openvision-vit-base-patch16-224"
+
+[[models]]
+org = "open-clip"
+ckpt = "hf-hub:UCSC-VLAA/openvision-vit-large-patch14-224"
+
+[[models]]
+org = "open-clip"
+ckpt = "hf-hub:UCSC-VLAA/openvision-vit-so400m-patch14-224"
+
+[[models]]
+org = "open-clip"
+ckpt = "hf-hub:UCSC-VLAA/openvision-vit-so400m-patch14-384"
+
+[[models]]
+org = "open-clip"
+ckpt = "hf-hub:UCSC-VLAA/openvision-vit-huge-patch14-224"
+
+[[models]]
+org = "open-clip"
 ckpt = "ViT-B-32/openai"
 
 [[models]]
