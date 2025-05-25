@@ -1,8 +1,8 @@
 {
     "meta": {
         "schema": 1,
-        "generated": 1748041579089,
-        "git_commit": "9cb3d08698b4670f2a27566b2173d3b46f516a12",
+        "generated": 1748149417568,
+        "git_commit": "6315cbb99be337050689851c0724dcf186d84e1f",
         "seed": 17,
         "alpha": 0.05,
         "n_bootstraps": 500
@@ -103,6 +103,22 @@
             "resolution": 384,
             "params": 428225600,
             "release_ms": 1695772800000
+        },
+        {
+            "ckpt": "ViT-B-32-SigLIP2-256/webli",
+            "display": "SigLIP2 ViT-B/32SigLIP2",
+            "family": "SigLIP2",
+            "resolution": 256,
+            "params": 94552320,
+            "release_ms": 1740009600000
+        },
+        {
+            "ckpt": "hf-hub:UCSC-VLAA/openvision-vit-tiny-patch16-224",
+            "display": "OpenVision ViT-T/16",
+            "family": "OpenVision",
+            "resolution": 224,
+            "params": 5561088,
+            "release_ms": 1746576000000
         },
         {
             "ckpt": "dinov2_vits14_reg",
@@ -1228,6 +1244,14 @@
         },
         {
             "task": "beluga",
+            "model": "ViT-B-32-SigLIP2-256/webli",
+            "mean": 0.034634099107070736,
+            "bootstrap_mean": 0.03364350461473556,
+            "ci_low": 0.03072470167866888,
+            "ci_high": 0.03644337819610141
+        },
+        {
+            "task": "beluga",
             "model": "ViT-B-32/openai",
             "mean": 0.028335689999170847,
             "bootstrap_mean": 0.02758137016359075,
@@ -1609,6 +1633,14 @@
             "bootstrap_mean": 0.42503116630745796,
             "ci_low": 0.42430832240575816,
             "ci_high": 0.4257400174548678
+        },
+        {
+            "task": "fishnet",
+            "model": "ViT-B-32-SigLIP2-256/webli",
+            "mean": 0.6175267510438539,
+            "bootstrap_mean": 0.4412268393736136,
+            "ci_low": 0.43972939511087156,
+            "ci_high": 0.4427202025885904
         },
         {
             "task": "fishnet",

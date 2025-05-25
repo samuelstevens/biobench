@@ -177,6 +177,22 @@ models = [
         date_to_ms(2023, 9, 27),
     ),
     Model(
+        "ViT-B-32-SigLIP2-256/webli",
+        "SigLIP2 ViT-B/32SigLIP2",
+        "SigLIP2",
+        256,
+        94_552_320,
+        date_to_ms(2025, 2, 20),
+    ),
+    Model(
+        "hf-hub:UCSC-VLAA/openvision-vit-tiny-patch16-224",
+        "OpenVision ViT-T/16",
+        "OpenVision",
+        224,
+        5_561_088,
+        date_to_ms(2025, 5, 7),
+    ),
+    Model(
         "dinov2_vits14_reg",
         "DINOv2 ViT-S/14",
         "DINOv2",

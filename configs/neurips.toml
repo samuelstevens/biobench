@@ -14,9 +14,12 @@ plankton = "/research/nfs_su_809/workspace/stevens.994/datasets/plankton"
 plantnet = "/research/nfs_su_809/workspace/stevens.994/datasets/plantnet"
 
 # Prior work
-imagenet1k = "huggingface"
+# imagenet1k = "huggingface"
 newt = "/research/nfs_su_809/workspace/stevens.994/datasets/newt"
 
+[[models]]
+org = "open-clip"
+ckpt = "hf-hub:UCSC-VLAA/openvision-vit-tiny-patch16-224"
 
 [[models]]
 org = "open-clip"
@@ -65,6 +68,58 @@ ckpt = "ViT-SO400M-14-SigLIP/webli"
 [[models]]
 org = "open-clip"
 ckpt = "ViT-SO400M-14-SigLIP-384/webli"
+
+[[models]]
+org = "open-clip"
+ckpt = "ViT-B-32-SigLIP2-256/webli"
+
+[[models]]
+org = "open-clip"
+ckpt = "ViT-B-16-SigLIP2/webli"
+
+[[models]]
+org = "open-clip"
+ckpt = "ViT-B-16-SigLIP2-256/webli"
+
+[[models]]
+org = "open-clip"
+ckpt = "ViT-B-16-SigLIP2-384/webli"
+
+[[models]]
+org = "open-clip"
+ckpt = "ViT-B-16-SigLIP2-512/webli"
+
+[[models]]
+org = "open-clip"
+ckpt = "ViT-L-16-SigLIP2-256/webli"
+
+[[models]]
+org = "open-clip"
+ckpt = "ViT-L-16-SigLIP2-384/webli"
+
+[[models]]
+org = "open-clip"
+ckpt = "ViT-L-16-SigLIP2-512/webli"
+
+[[models]]
+org = "open-clip"
+ckpt = "ViT-SO400M-16-SigLIP2-256/webli"
+
+[[models]]
+org = "open-clip"
+ckpt = "ViT-SO400M-16-SigLIP2-384/webli"
+
+[[models]]
+org = "open-clip"
+ckpt = "ViT-SO400M-16-SigLIP2-512/webli"
+
+[[models]]
+org = "open-clip"
+ckpt = "ViT-gopt-16-SigLIP2-256/webli"
+
+[[models]]
+org = "open-clip"
+ckpt = "ViT-gopt-16-SigLIP2-384/webli"
 
 [[models]]
 org = "timm"
@@ -205,8 +260,3 @@ ckpt = "sam2_hiera_large.fb_r1024_2pt1"
 [[models]]
 org = "vjepa"
 ckpt = "vitl16"
-
-# [[models]]
-# org = "vjepa"
-# ckpt = "vith16"
-
