@@ -178,7 +178,7 @@ models = [
     ),
     Model(
         "ViT-B-32-SigLIP2-256/webli",
-        "SigLIP2 ViT-B/32SigLIP2",
+        "SigLIP2 ViT-B/32",
         "SigLIP2",
         256,
         94_552_320,
@@ -521,6 +521,8 @@ def main(
         .collect()
     )
     logger.info("Loaded %d predictions.", df.height)
+
+    # Print the unknown checkpoints by finding checkpoints not in model_lookup. AI!
 
     scores_df, bests_df = calc_scores(
         df, n_bootstraps=n_bootstraps, alpha=alpha, seed=seed
