@@ -330,9 +330,16 @@
     border-top-style: var(--tw-border-style);
     border-top-width: 1px;
   }
+  .border-t-4 {
+    border-top-style: var(--tw-border-style);
+    border-top-width: 4px;
+  }
   .border-b {
     border-bottom-style: var(--tw-border-style);
     border-bottom-width: 1px;
+  }
+  .border-biobench-gold {
+    border-color: var(--color-biobench-gold);
   }
   .border-black {
     border-color: var(--color-black);
