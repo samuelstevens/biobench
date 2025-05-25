@@ -7,6 +7,7 @@ docs: fmt
 leaderboard: fmt
     cp web/index.html docs/index.html
     cd web && elm make src/Leaderboard.elm --output ../docs/assets/dist/leaderboard.js --optimize
+    bunx --bun uglify-js docs/assets/dist/leaderboard.js --compress 'pure_funcs=[F2,F3,F4,F5,F6,F7,F8,F9,A2,A3,A4,A5,A6,A7,A8,A9],pure_getters,keep_fargs=false,unsafe_comps,unsafe' | bunx --bun uglify-js --mangle --output docs/assets/dist/leaderboard.min.js
     cd web && tailwindcss --input main.css --output ../docs/assets/dist/main.css
 
 test: fmt

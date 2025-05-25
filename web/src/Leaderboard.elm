@@ -41,6 +41,7 @@ type Msg
     | ToggleCol String
     | ToggleFamily String
     | ToggleParamRange ( Int, Int )
+    | ToggleResolution Int
     | SetLayout Layout
     | MouseDown Float
     | DragStart DragInfo
@@ -60,12 +61,21 @@ type alias Model =
     { requestedTable : Requested Table Http.Error
 
     -- Pickers
+    -- Columns
     , columnsFieldsetOpen : Bool
     , columnsSelected : Set.Set String
+
+    -- Model familes
     , familiesFieldsetOpen : Bool
     , familiesSelected : Set.Set String
+
+    -- Param ranges
     , paramRangesFieldsetOpen : Bool
     , paramRangesSelected : Set.Set ( Int, Int )
+
+    -- Resolutions
+    , resolutionsFieldsetOpen : Bool
+    , resolutionsSelected : Set.Set Int
 
     -- Sorting
     , sortKey : String
@@ -114,8 +124,8 @@ type Fieldset
     = ColumnsFieldset
     | FamiliesFieldset
       -- | ReleaseFieldset
-      -- | ResolutionFieldset
     | ParamRangesFieldset
+    | ResolutionsFieldset
 
 
 type alias Table =
@@ -201,6 +211,8 @@ init _ =
       , paramRangesSelected = Set.fromList allParamRanges
       , familiesFieldsetOpen = True
       , familiesSelected = Set.empty
+      , resolutionsFieldsetOpen = False
+      , resolutionsSelected = Set.empty
       , sortKey = "mean"
       , sortOrder = Descending
       , layout = TableOnly
@@ -248,6 +260,10 @@ update msg model =
                             table.rows
                                 |> List.map (.checkpoint >> .family)
                                 |> Set.fromList
+                        , resolutionsSelected =
+                            table.rows
+                                |> List.map (.checkpoint >> .resolution)
+                                |> Set.fromList
                       }
                     , Cmd.none
                     )
@@ -273,6 +289,9 @@ update msg model =
                 ParamRangesFieldset ->
                     ( { model | paramRangesFieldsetOpen = not model.paramRangesFieldsetOpen }, Cmd.none )
 
+                ResolutionsFieldset ->
+                    ( { model | resolutionsFieldsetOpen = not model.resolutionsFieldsetOpen }, Cmd.none )
+
         ToggleCol key ->
             if Set.member key model.columnsSelected then
                 ( { model | columnsSelected = Set.remove key model.columnsSelected }, Cmd.none )
@@ -293,6 +312,13 @@ update msg model =
 
             else
                 ( { model | paramRangesSelected = Set.insert range model.paramRangesSelected }, Cmd.none )
+
+        ToggleResolution range ->
+            if Set.member range model.resolutionsSelected then
+                ( { model | resolutionsSelected = Set.remove range model.resolutionsSelected }, Cmd.none )
+
+            else
+                ( { model | resolutionsSelected = Set.insert range model.resolutionsSelected }, Cmd.none )
 
         SetLayout layout ->
             ( { model | layout = layout }, Cmd.none )
@@ -376,6 +402,7 @@ view model =
                         model.columnsSelected
                         model.familiesSelected
                         model.paramRangesSelected
+                        model.resolutionsSelected
                         model.sortKey
                         model.sortOrder
                         table
@@ -387,11 +414,19 @@ view model =
                         model.columnsSelected
                         model.familiesSelected
                         model.paramRangesSelected
+                        model.resolutionsSelected
                         table
 
                 allFamilies =
                     table.rows
                         |> List.map (.checkpoint >> .family)
+                        |> Set.fromList
+                        |> Set.toList
+                        |> List.sort
+
+                allResolutions =
+                    table.rows
+                        |> List.map (.checkpoint >> .resolution)
                         |> Set.fromList
                         |> Set.toList
                         |> List.sort
@@ -429,6 +464,16 @@ view model =
                                 (Set.member range model.paramRangesSelected)
                                 (ToggleParamRange range)
                                 (formatRange range)
+                        )
+                    , viewCheckboxFieldset ResolutionsFieldset
+                        model.resolutionsFieldsetOpen
+                        model.resolutionsSelected
+                        allResolutions
+                        (\res ->
+                            viewCheckbox
+                                (Set.member res model.resolutionsSelected)
+                                (ToggleResolution res)
+                                (String.fromInt res ++ "px")
                         )
                     ]
                 , Html.div
@@ -520,12 +565,19 @@ mouseX =
     D.field "clientX" D.float
 
 
-viewTable : Set.Set String -> Set.Set String -> Set.Set ( Int, Int ) -> String -> Order -> Table -> Html Msg
-viewTable columnsSelected familiesSelected paramRangesSelected sortKey sortOrder table =
+viewTable : Set.Set String -> Set.Set String -> Set.Set ( Int, Int ) -> Set.Set Int -> String -> Order -> Table -> Html Msg
+viewTable columnsSelected familiesSelected paramRangesSelected resolutionsSelected sortKey sortOrder table =
     Html.table
         [ HA.class "w-full md:text-sm " ]
         [ viewThead columnsSelected sortKey sortOrder table
-        , viewTbody columnsSelected familiesSelected paramRangesSelected sortKey sortOrder table
+        , viewTbody
+            columnsSelected
+            familiesSelected
+            paramRangesSelected
+            resolutionsSelected
+            sortKey
+            sortOrder
+            table
         ]
 
 
@@ -559,13 +611,14 @@ viewTh sortKey sortOrder col =
         [ Html.text (col.display ++ suffix) ]
 
 
-viewTbody : Set.Set String -> Set.Set String -> Set.Set ( Int, Int ) -> String -> Order -> Table -> Html Msg
-viewTbody columnsSelected familiesSelected paramRangesSelected sortKey sortOrder table =
+viewTbody : Set.Set String -> Set.Set String -> Set.Set ( Int, Int ) -> Set.Set Int -> String -> Order -> Table -> Html Msg
+viewTbody columnsSelected familiesSelected paramRangesSelected resolutionsSelected sortKey sortOrder table =
     let
         filtered =
             table.rows
                 |> List.filter (\row -> Set.member row.checkpoint.family familiesSelected)
                 |> List.filter (.checkpoint >> .params >> paramRangesMatch paramRangesSelected)
+                |> List.filter (\row -> Set.member row.checkpoint.resolution resolutionsSelected)
 
         sortType =
             table.cols
@@ -635,13 +688,14 @@ viewTd columnsSelected row col =
         [ Html.text text ]
 
 
-viewCharts : Maybe String -> List (CI.One BarDatum CI.Bar) -> List (CI.One DotDatum CI.Dot) -> Set.Set String -> Set.Set String -> Set.Set ( Int, Int ) -> Table -> Html Msg
-viewCharts hoveredKey hoveredBars hoveredDots columnsSelected familiesSelected paramRangesSelected table =
+viewCharts : Maybe String -> List (CI.One BarDatum CI.Bar) -> List (CI.One DotDatum CI.Dot) -> Set.Set String -> Set.Set String -> Set.Set ( Int, Int ) -> Set.Set Int -> Table -> Html Msg
+viewCharts hoveredKey hoveredBars hoveredDots columnsSelected familiesSelected paramRangesSelected resolutionsSelected table =
     let
         rows =
             table.rows
                 |> List.filter (\r -> Set.member r.checkpoint.family familiesSelected)
                 |> List.filter (.checkpoint >> .params >> paramRangesMatch paramRangesSelected)
+                |> List.filter (\row -> Set.member row.checkpoint.resolution resolutionsSelected)
 
         filteredCols : List TableCol
         filteredCols =
@@ -1114,7 +1168,7 @@ viewBenchmarkScore task visibleKeys row =
         score =
             getBenchmarkScore task visibleKeys row
     in
-    ( "text-right font-mono "
+    ( "text-right font-mono tabular-nums"
     , score |> viewScore
     )
 
@@ -1139,7 +1193,7 @@ getMeanScore tasks columnsSelected row =
 
 viewMeanScore : Set.Set String -> Set.Set String -> TableRow -> ( String, String )
 viewMeanScore tasks columnsSelected row =
-    ( "text-right font-mono"
+    ( "text-right font-mono tabular-nums"
     , getMeanScore tasks columnsSelected row |> viewScore
     )
 
@@ -1365,7 +1419,17 @@ familyColor fam =
             -- focus-visible:outline-biobench-blue
             "biobench-blue"
 
+        "OpenVision" ->
+            -- accent-biobench-blue
+            -- focus-visible:outline-biobench-blue
+            "biobench-blue"
+
         "SigLIP" ->
+            -- accent-biobench-cyan
+            -- focus-visible:outline-biobench-cyan
+            "biobench-cyan"
+
+        "SigLIP2" ->
             -- accent-biobench-cyan
             -- focus-visible:outline-biobench-cyan
             "biobench-cyan"
@@ -1815,6 +1879,9 @@ formatFieldset fieldset =
 
         ParamRangesFieldset ->
             "# Parameters"
+
+        ResolutionsFieldset ->
+            "Resolution"
 
 
 viewLabeledRadio : String -> Bool -> (String -> Msg) -> String -> Html Msg
