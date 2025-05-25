@@ -40,6 +40,7 @@ type Msg
     | ToggleFieldset Fieldset
     | ToggleCol String
     | ToggleFamily String
+    | ToggleParamRange ( Int, Int )
     | SetLayout Layout
     | MouseDown Float
     | DragStart DragInfo
@@ -63,8 +64,8 @@ type alias Model =
     , columnsSelected : Set.Set String
     , familiesFieldsetOpen : Bool
     , familiesSelected : Set.Set String
-    , paramsOpen : Bool
-    , paramCountRange : ( Int, Int )
+    , paramRangesFieldsetOpen : Bool
+    , paramRangesSelected : Set.Set ( Int, Int )
 
     -- Sorting
     , sortKey : String
@@ -112,12 +113,9 @@ type alias DragInfo =
 type Fieldset
     = ColumnsFieldset
     | FamiliesFieldset
-
-
-
--- | ParamsFieldset
--- | ReleaseFieldset
--- | ResolutionFieldset
+      -- | ReleaseFieldset
+      -- | ResolutionFieldset
+    | ParamRangesFieldset
 
 
 type alias Table =
@@ -199,10 +197,8 @@ init _ =
     ( { requestedTable = Loading
       , columnsFieldsetOpen = True
       , columnsSelected = Set.empty
-
-      -- TODO: implement
-      , paramsOpen = True
-      , paramCountRange = ( 0, 10 ^ 12 )
+      , paramRangesFieldsetOpen = False
+      , paramRangesSelected = Set.fromList allParamRanges
       , familiesFieldsetOpen = True
       , familiesSelected = Set.empty
       , sortKey = "mean"
@@ -264,7 +260,7 @@ update msg model =
                 ( { model | sortOrder = opposite model.sortOrder }, Cmd.none )
 
             else
-                ( { model | sortKey = key }, Cmd.none )
+                ( { model | sortKey = key, sortOrder = Descending }, Cmd.none )
 
         ToggleFieldset fieldset ->
             case fieldset of
@@ -273,6 +269,9 @@ update msg model =
 
                 FamiliesFieldset ->
                     ( { model | familiesFieldsetOpen = not model.familiesFieldsetOpen }, Cmd.none )
+
+                ParamRangesFieldset ->
+                    ( { model | paramRangesFieldsetOpen = not model.paramRangesFieldsetOpen }, Cmd.none )
 
         ToggleCol key ->
             if Set.member key model.columnsSelected then
@@ -287,6 +286,13 @@ update msg model =
 
             else
                 ( { model | familiesSelected = Set.insert key model.familiesSelected }, Cmd.none )
+
+        ToggleParamRange range ->
+            if Set.member range model.paramRangesSelected then
+                ( { model | paramRangesSelected = Set.remove range model.paramRangesSelected }, Cmd.none )
+
+            else
+                ( { model | paramRangesSelected = Set.insert range model.paramRangesSelected }, Cmd.none )
 
         SetLayout layout ->
             ( { model | layout = layout }, Cmd.none )
@@ -366,7 +372,13 @@ view model =
         Loaded table ->
             let
                 tableContent =
-                    viewTable model.columnsSelected model.familiesSelected model.sortKey model.sortOrder table
+                    viewTable
+                        model.columnsSelected
+                        model.familiesSelected
+                        model.paramRangesSelected
+                        model.sortKey
+                        model.sortOrder
+                        table
 
                 chartContent =
                     viewCharts model.hoveredKey
@@ -374,6 +386,7 @@ view model =
                         model.hoveredDots
                         model.columnsSelected
                         model.familiesSelected
+                        model.paramRangesSelected
                         table
 
                 allFamilies =
@@ -407,9 +420,19 @@ view model =
                                 (Set.member family model.familiesSelected)
                                 family
                         )
+                    , viewCheckboxFieldset ParamRangesFieldset
+                        model.paramRangesFieldsetOpen
+                        model.paramRangesSelected
+                        allParamRanges
+                        (\range ->
+                            viewCheckbox
+                                (Set.member range model.paramRangesSelected)
+                                (ToggleParamRange range)
+                                (formatRange range)
+                        )
                     ]
                 , Html.div
-                    [ HA.class "flex", HA.id "split-root" ]
+                    [ HA.class "flex mt-2", HA.id "split-root" ]
                     (case model.layout of
                         TableOnly ->
                             [ viewTablePane tableContent 100
@@ -460,7 +483,7 @@ viewDragHandle info =
                     ( "bg-biobench-gold", "fill-biobench-gold" )
 
                 Nothing ->
-                    ( "bg-biobench-black", "fill-biobench-black" )
+                    ( "bg-gray-500", "fill-gray-500" )
     in
     Html.div
         [ HA.class "hidden md:flex flex-col items-center group relative w-1 hover:bg-biobench-gold cursor-col-resize select-none z-40 drop-shadow-lg rounded-full"
@@ -497,12 +520,12 @@ mouseX =
     D.field "clientX" D.float
 
 
-viewTable : Set.Set String -> Set.Set String -> String -> Order -> Table -> Html Msg
-viewTable columnsSelected familiesSelected sortKey sortOrder table =
+viewTable : Set.Set String -> Set.Set String -> Set.Set ( Int, Int ) -> String -> Order -> Table -> Html Msg
+viewTable columnsSelected familiesSelected paramRangesSelected sortKey sortOrder table =
     Html.table
-        [ HA.class "w-full md:text-sm mt-2" ]
+        [ HA.class "w-full md:text-sm " ]
         [ viewThead columnsSelected sortKey sortOrder table
-        , viewTbody columnsSelected familiesSelected sortKey sortOrder table
+        , viewTbody columnsSelected familiesSelected paramRangesSelected sortKey sortOrder table
         ]
 
 
@@ -536,12 +559,13 @@ viewTh sortKey sortOrder col =
         [ Html.text (col.display ++ suffix) ]
 
 
-viewTbody : Set.Set String -> Set.Set String -> String -> Order -> Table -> Html Msg
-viewTbody columnsSelected familiesSelected sortKey sortOrder table =
+viewTbody : Set.Set String -> Set.Set String -> Set.Set ( Int, Int ) -> String -> Order -> Table -> Html Msg
+viewTbody columnsSelected familiesSelected paramRangesSelected sortKey sortOrder table =
     let
         filtered =
             table.rows
                 |> List.filter (\row -> Set.member row.checkpoint.family familiesSelected)
+                |> List.filter (.checkpoint >> .params >> paramRangesMatch paramRangesSelected)
 
         sortType =
             table.cols
@@ -611,12 +635,13 @@ viewTd columnsSelected row col =
         [ Html.text text ]
 
 
-viewCharts : Maybe String -> List (CI.One BarDatum CI.Bar) -> List (CI.One DotDatum CI.Dot) -> Set.Set String -> Set.Set String -> Table -> Html Msg
-viewCharts hoveredKey hoveredBars hoveredDots columnsSelected familiesSelected table =
+viewCharts : Maybe String -> List (CI.One BarDatum CI.Bar) -> List (CI.One DotDatum CI.Dot) -> Set.Set String -> Set.Set String -> Set.Set ( Int, Int ) -> Table -> Html Msg
+viewCharts hoveredKey hoveredBars hoveredDots columnsSelected familiesSelected paramRangesSelected table =
     let
         rows =
             table.rows
                 |> List.filter (\r -> Set.member r.checkpoint.family familiesSelected)
+                |> List.filter (.checkpoint >> .params >> paramRangesMatch paramRangesSelected)
 
         filteredCols : List TableCol
         filteredCols =
@@ -660,19 +685,10 @@ viewCharts hoveredKey hoveredBars hoveredDots columnsSelected familiesSelected t
             , viewParamsCorrelationChart hoveredKey hoveredDots ( "imagenet1k", "ImageNet-1K" ) scatterData
             , viewParamsCorrelationChart hoveredKey hoveredDots ( "newt", "NeWT" ) scatterData
             , viewParamsCorrelationChart hoveredKey hoveredDots ( "mean", "Mean" ) scatterData
-
-            -- , viewScatterChart hoveredDots "release" "newt" scatterData
-            -- , viewScatterChart hoveredDots "release" "mean" scatterData
-            -- , viewScatterChart hoveredDots "params" "imagenet1k" scatterData
-            -- , viewScatterChart hoveredDots "params" "newt" scatterData
-            -- , viewScatterChart hoveredDots "params" "mean" scatterData
-            -- , viewScatterChart hoveredDots "resolution" "imagenet1k" scatterData
-            -- , viewScatterChart hoveredDots "resolution" "newt" scatterData
-            -- , viewScatterChart hoveredDots "resolution" "mean" scatterData
             ]
     in
     Html.div
-        [ HA.class "grid gap-2 [grid-template-columns:repeat(auto-fit,minmax(16rem,1fr))] mt-t" ]
+        [ HA.class "grid gap-2 [grid-template-columns:repeat(auto-fit,minmax(20rem,1fr))] " ]
         (scatterCharts ++ barCharts)
 
 
@@ -687,17 +703,7 @@ viewMaybeBarChart hoveredKey hoveredBars columnsSelected rows col =
                 data ->
                     Just
                         (viewBarChart
-                            (case hoveredKey of
-                                Just key ->
-                                    if col.display == key then
-                                        hoveredBars
-
-                                    else
-                                        []
-
-                                Nothing ->
-                                    []
-                            )
+                            (filterHovered col.display hoveredKey hoveredBars)
                             col.display
                             data
                         )
@@ -707,7 +713,7 @@ viewMaybeBarChart hoveredKey hoveredBars columnsSelected rows col =
 
 
 viewBarChart : List (CI.One BarDatum CI.Bar) -> String -> List BarDatum -> Html Msg
-viewBarChart hoveredBars title data =
+viewBarChart hovered title data =
     Html.div [ HA.class "" ]
         [ C.chart
             [ CA.height 300
@@ -729,14 +735,17 @@ viewBarChart hoveredBars title data =
             , C.yTicks [ CA.amount 3 ]
             , C.bars
                 []
-                [ C.bar (Tuple.second >> .score >> (*) 100) []
+                [ C.bar (Tuple.second >> .score >> (*) 100)
+                    [ CA.opacity 0.8 ]
                     |> C.variation
                         (\index ( metadata, datum ) ->
                             [ CA.color (metadata.family |> familyColor |> toCssColorVar) ]
                         )
+                    |> C.amongst hovered
+                        (\_ -> [ CA.opacity 1.0 ])
                 ]
                 data
-            , C.each hoveredBars
+            , C.each hovered
                 (\p bar ->
                     let
                         color =
@@ -766,10 +775,10 @@ viewBarChart hoveredBars title data =
         ]
 
 
-lineToPoints : Float -> Trend.Linear.Line -> List ( Float, Float )
-lineToPoints min line =
-    [ ( min, Trend.Linear.predictY line min )
-    , ( 100, Trend.Linear.predictY line 100 )
+lineToPoints : ( Float, Float ) -> Trend.Linear.Line -> List { x : Float, y : Float }
+lineToPoints ( low, high ) line =
+    [ { x = low, y = Trend.Linear.predictY line low }
+    , { x = high, y = Trend.Linear.predictY line high }
     ]
 
 
@@ -779,29 +788,51 @@ viewImagenetCorrelationChart hoveredKey hoveredDots ( field, title ) data =
         key =
             "imagenet1k-vs-" ++ field
 
-        -- fullTrendPoints : List ( Float, Float )
-        -- fullTrendPoints =
-        --     points
-        --         |> List.map (\p -> ( p.x, p.y ))
-        --         |> Trend.Linear.quick
-        --         |> Result.map Trend.Linear.line
-        --         |> Result.map (lineToPoints 0)
-        --         |> Result.withDefault []
-        -- partTrendPoints : List ( Float, Float )
-        -- partTrendPoints =
-        --     points
-        --         |> List.filter (.x >> (<) 75)
-        --         |> List.map (\p -> ( p.x, p.y ))
-        --         |> Trend.Linear.quick
-        --         |> Result.map Trend.Linear.line
-        --         |> Result.map (lineToPoints 75)
-        --         |> Result.withDefault []
+        hovered =
+            filterHovered key hoveredKey hoveredDots
+
+        pointsName =
+            "points"
     in
     case List.filterMap (toDot "imagenet1k" ((*) 100) field ((*) 100)) data of
         [] ->
             Html.div [ HA.class "hidden" ] []
 
         points ->
+            let
+                trend : Result Trend.Math.Error (Trend.Linear.Trend Trend.Linear.Quick)
+                trend =
+                    points
+                        |> List.map (\( meta, p ) -> ( p.x, p.y ))
+                        |> Trend.Linear.quick
+
+                trendPoints : List DotDatum
+                trendPoints =
+                    trend
+                        |> Result.map Trend.Linear.line
+                        |> Result.map (lineToPoints ( 0, 100 ))
+                        |> Result.withDefault []
+                        |> List.map (\p -> ( { family = "", display = "" }, p ))
+
+                ( rSqAttrs, rSqHtml ) =
+                    case Result.map Trend.Linear.goodnessOfFit trend of
+                        Err err ->
+                            ( [ HA.class "font-mono text-red-500" ]
+                            , [ Html.text "Error: "
+                              , Html.text <| formatTrendErr err
+                              ]
+                            )
+
+                        Ok rSq ->
+                            ( [ HA.class "font-mono text-blue-400 text-sm" ]
+                            , [ Html.text "R^2="
+                              , Html.text <| Round.round 2 rSq
+                              ]
+                            )
+
+                rSqLabel =
+                    C.htmlAt .max .min -75 20 rSqAttrs rSqHtml
+            in
             C.chart
                 [ CA.height 300
                 , CA.width 300
@@ -820,47 +851,58 @@ viewImagenetCorrelationChart hoveredKey hoveredDots ( field, title ) data =
                 --     [ CA.lowest 0 CA.exactly
                 --     , CA.highest 100 CA.exactly
                 --     ]
-                , CE.onMouseMove (OnHoverDot (Just key)) (CE.getNearest CI.dots)
+                , CI.dots
+                    |> CI.andThen (CI.named [ pointsName ])
+                    |> CE.getNearest
+                    |> CE.onMouseMove (OnHoverDot (Just key))
                 , CE.onMouseLeave (OnHoverDot Nothing [])
                 ]
                 [ C.xLabels [ CA.withGrid, CA.amount 3 ]
                 , C.yLabels [ CA.withGrid, CA.amount 3 ]
                 , C.series (Tuple.second >> .x)
-                    [ C.scatter (Tuple.second >> .y) []
+                    [ C.interpolated (Tuple.second >> .y)
+                        -- bg-blue-300
+                        [ CA.color "var(--color-blue-300)", CA.width 2 ]
+                        []
+                        |> C.named "trendline"
+                    ]
+                    trendPoints
+                , C.series (Tuple.second >> .x)
+                    [ C.scatter (Tuple.second >> .y)
+                        [ CA.opacity 0.5, CA.borderWidth 1 ]
+                        |> C.named pointsName
                         |> C.variation
                             (\index ( metadata, datum ) ->
-                                [ CA.color (metadata.family |> familyColor |> toCssColorVar) ]
+                                let
+                                    color =
+                                        metadata.family |> familyColor |> toCssColorVar
+                                in
+                                [ CA.color color, CA.border color ]
                             )
+                        |> C.amongst hovered
+                            (\_ -> [ CA.highlight 0.4, CA.opacity 1.0 ])
                     ]
                     points
-                , C.each (filterHovered key hoveredKey hoveredDots)
+                , C.each hovered
                     (\p dot ->
                         let
-                            color =
-                                CI.getColor dot
-
                             name =
                                 CI.getData dot |> Tuple.first |> .display
-
-                            x =
-                                CI.getX dot
                         in
                         [ C.tooltip dot
                             [ CA.offset 0 ]
-                            [ HA.style "color" color ]
+                            [ HA.style "color" <| CI.getColor dot ]
                             [ Html.text name
-                            , Html.text ": ("
-                            , Html.text (Round.round 1 x)
+                            , Html.text " ("
+                            , Html.text (Round.round 1 <| CI.getX dot)
                             , Html.text ", "
                             , Html.text (Round.round 1 <| CI.getY dot)
                             , Html.text ")"
                             ]
                         ]
                     )
+                , rSqLabel
 
-                -- , C.series Tuple.first
-                --     [ C.interpolated Tuple.second [] [] ]
-                --     fullTrendPoints
                 -- , C.series Tuple.first
                 --     [ C.interpolated Tuple.second [] [] ]
                 --     partTrendPoints
@@ -890,12 +932,58 @@ viewParamsCorrelationChart hoveredKey hoveredDots ( field, title ) data =
         --         |> Result.withDefault []
         key =
             "params-vs-" ++ field
+
+        hovered =
+            filterHovered key hoveredKey hoveredDots
     in
     case List.filterMap (toDot "params" (logBase 10) field ((*) 100)) data of
         [] ->
             Html.div [ HA.class "hidden" ] []
 
         points ->
+            let
+                trend : Result Trend.Math.Error (Trend.Linear.Trend Trend.Linear.Quick)
+                trend =
+                    points
+                        |> List.map (\( meta, p ) -> ( p.x, p.y ))
+                        |> Trend.Linear.quick
+
+                xs =
+                    points |> List.map (\( meta, p ) -> p.x)
+
+                low =
+                    xs |> List.minimum |> Maybe.withDefault 1
+
+                high =
+                    xs |> List.maximum |> Maybe.withDefault 10
+
+                trendPoints : List DotDatum
+                trendPoints =
+                    trend
+                        |> Result.map Trend.Linear.line
+                        |> Result.map (lineToPoints ( low, high ))
+                        |> Result.withDefault []
+                        |> List.map (\p -> ( { family = "", display = "" }, p ))
+
+                ( rSqAttrs, rSqHtml ) =
+                    case Result.map Trend.Linear.goodnessOfFit trend of
+                        Err err ->
+                            ( [ HA.class "font-mono text-red-500" ]
+                            , [ Html.text "Error: "
+                              , Html.text <| formatTrendErr err
+                              ]
+                            )
+
+                        Ok rSq ->
+                            ( [ HA.class "font-mono text-blue-400 text-sm" ]
+                            , [ Html.text "R^2="
+                              , Html.text <| Round.round 2 rSq
+                              ]
+                            )
+
+                rSqLabel =
+                    C.htmlAt .max .min -75 20 rSqAttrs rSqHtml
+            in
             C.chart
                 [ CA.height 300
                 , CA.width 300
@@ -915,14 +1003,29 @@ viewParamsCorrelationChart hoveredKey hoveredDots ( field, title ) data =
                     ]
                 , C.yLabels [ CA.withGrid, CA.amount 3 ]
                 , C.series (Tuple.second >> .x)
-                    [ C.scatter (Tuple.second >> .y) []
+                    [ C.interpolated (Tuple.second >> .y)
+                        -- bg-blue-300
+                        [ CA.color "var(--color-blue-300)", CA.width 2 ]
+                        []
+                        |> C.named "trendline"
+                    ]
+                    trendPoints
+                , C.series (Tuple.second >> .x)
+                    [ C.scatter (Tuple.second >> .y)
+                        [ CA.opacity 0.5, CA.borderWidth 1 ]
                         |> C.variation
                             (\index ( metadata, datum ) ->
-                                [ CA.color (metadata.family |> familyColor |> toCssColorVar) ]
+                                let
+                                    color =
+                                        metadata.family |> familyColor |> toCssColorVar
+                                in
+                                [ CA.color color, CA.border color ]
                             )
+                        |> C.amongst hovered
+                            (\_ -> [ CA.highlight 0.4, CA.opacity 1.0 ])
                     ]
                     points
-                , C.each (filterHovered key hoveredKey hoveredDots)
+                , C.each hovered
                     (\p dot ->
                         let
                             color =
@@ -946,10 +1049,7 @@ viewParamsCorrelationChart hoveredKey hoveredDots ( field, title ) data =
                             ]
                         ]
                     )
-
-                -- , C.series Tuple.first
-                --     [ C.interpolated Tuple.second [] [] ]
-                --     fullTrendPoints
+                , rSqLabel
                 , C.labelAt
                     CA.middle
                     .min
@@ -1172,6 +1272,46 @@ formatExp exp =
             String.fromFloat (10 ^ toFloat other)
 
 
+formatRange : ( Int, Int ) -> String
+formatRange ( min, max ) =
+    if min == 0 then
+        "<" ++ formatBigInt max
+
+    else if max == upperLimit then
+        formatBigInt min ++ "+"
+
+    else
+        formatBigInt min ++ "-" ++ formatBigInt max
+
+
+formatBigInt : Int -> String
+formatBigInt i =
+    if i < 1000 then
+        String.fromInt i
+
+    else if i < 1000000 then
+        String.fromInt (i // 1000) ++ "K"
+
+    else if i < 1000000000 then
+        String.fromInt (i // 1000000) ++ "M"
+
+    else if i < 1000000000000 then
+        String.fromInt (i // 1000000000) ++ "B"
+
+    else
+        String.fromInt i
+
+
+formatTrendErr : Trend.Math.Error -> String
+formatTrendErr err =
+    case err of
+        Trend.Math.NeedMoreValues min ->
+            "Need at least " ++ String.fromInt min ++ " values."
+
+        Trend.Math.AllZeros ->
+            "All points are zeros."
+
+
 mean : List Float -> Maybe Float
 mean xs =
     case xs of
@@ -1264,6 +1404,32 @@ familyColor fam =
             -- accent-biobench-black
             -- focus-visible:outline-biobench-black
             "biobench-black"
+
+
+upperLimit : Int
+upperLimit =
+    round (10 ^ 16)
+
+
+allParamRanges : List ( Int, Int )
+allParamRanges =
+    [ ( 0, 50000000 )
+    , ( 50000000, 100000000 )
+    , ( 100000000, 400000000 )
+    , ( 400000000, 1000000000 )
+    , ( 1000000000, 2000000000 )
+    , ( 2000000000, upperLimit )
+    ]
+
+
+paramRangesMatch : Set.Set ( Int, Int ) -> Int -> Bool
+paramRangesMatch ranges params =
+    List.any (rangeMatches params) (Set.toList ranges)
+
+
+rangeMatches : Int -> ( Int, Int ) -> Bool
+rangeMatches x ( low, high ) =
+    low < x && x < high
 
 
 
@@ -1481,7 +1647,7 @@ bestDecoder =
         )
 
 
-viewCheckboxFieldset : Fieldset -> Bool -> Set.Set String -> List a -> (a -> Html Msg) -> Html Msg
+viewCheckboxFieldset : Fieldset -> Bool -> Set.Set a -> List b -> (b -> Html Msg) -> Html Msg
 viewCheckboxFieldset fieldset open checked checkables checkboxOf =
     let
         clickHandler =
@@ -1512,7 +1678,7 @@ viewCheckboxFieldset fieldset open checked checkables checkboxOf =
             Html.legend []
                 [ Html.button
                     buttonAttrs
-                    [ Html.text (viewFieldset fieldset)
+                    [ Html.text (formatFieldset fieldset)
                     , Html.span
                         [ HA.class "text-black text-sm leading-none select-none"
                         , HA.attribute "aria-hidden" "true"
@@ -1563,7 +1729,7 @@ viewCheckbox : Bool -> Msg -> String -> Html Msg
 viewCheckbox checked msg label =
     Html.label
         [ HA.class "inline-flex items-center sm:gap-1 cursor-pointer select-none "
-        , HE.custom "click" (D.succeed { message = msg, stopPropagation = True, preventDefault = True })
+        , HE.custom "change" (D.succeed { message = msg, stopPropagation = True, preventDefault = True })
         ]
         [ Html.input
             [ HA.type_ "checkbox"
@@ -1579,7 +1745,7 @@ viewFamilyCheckbox : Bool -> String -> Html Msg
 viewFamilyCheckbox checked family =
     Html.label
         [ HA.class "inline-flex items-center sm:gap-1 cursor-pointer select-none "
-        , HE.custom "click" (D.succeed { message = ToggleFamily family, stopPropagation = True, preventDefault = True })
+        , HE.custom "change" (D.succeed { message = ToggleFamily family, stopPropagation = True, preventDefault = True })
         ]
         [ Html.input
             [ HA.type_ "checkbox"
@@ -1638,14 +1804,17 @@ viewWindowsFieldset layout =
         ]
 
 
-viewFieldset : Fieldset -> String
-viewFieldset fieldset =
+formatFieldset : Fieldset -> String
+formatFieldset fieldset =
     case fieldset of
         ColumnsFieldset ->
             "Columns"
 
         FamiliesFieldset ->
             "Model Families"
+
+        ParamRangesFieldset ->
+            "# Parameters"
 
 
 viewLabeledRadio : String -> Bool -> (String -> Msg) -> String -> Html Msg

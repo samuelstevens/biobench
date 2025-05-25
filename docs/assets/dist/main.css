@@ -7,6 +7,9 @@
     'Noto Color Emoji';
     --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',
     monospace;
+    --color-red-500: oklch(63.7% 0.237 25.331);
+    --color-blue-300: oklch(80.9% 0.105 251.813);
+    --color-blue-400: oklch(70.7% 0.165 254.624);
     --color-blue-500: oklch(62.3% 0.214 259.815);
     --color-gray-50: oklch(98.5% 0.002 247.839);
     --color-gray-500: oklch(55.1% 0.027 264.364);
@@ -263,8 +266,8 @@
   .list-disc {
     list-style-type: disc;
   }
-  .\[grid-template-columns\:repeat\(auto-fit\,minmax\(16rem\,1fr\)\)\] {
-    grid-template-columns: repeat(auto-fit,minmax(16rem,1fr));
+  .\[grid-template-columns\:repeat\(auto-fit\,minmax\(20rem\,1fr\)\)\] {
+    grid-template-columns: repeat(auto-fit,minmax(20rem,1fr));
   }
   .flex-col {
     flex-direction: column;
@@ -321,14 +324,17 @@
   .border-black {
     border-color: var(--color-black);
   }
-  .bg-biobench-black {
-    background-color: var(--color-biobench-black);
-  }
   .bg-biobench-gold {
     background-color: var(--color-biobench-gold);
   }
+  .bg-blue-300 {
+    background-color: var(--color-blue-300);
+  }
   .bg-gray-50 {
     background-color: var(--color-gray-50);
+  }
+  .bg-gray-500 {
+    background-color: var(--color-gray-500);
   }
   .bg-white {
     background-color: var(--color-white);
@@ -349,11 +355,11 @@
     --tw-gradient-to: transparent;
     --tw-gradient-stops: var(--tw-gradient-via-stops, var(--tw-gradient-position), var(--tw-gradient-from) var(--tw-gradient-from-position), var(--tw-gradient-to) var(--tw-gradient-to-position));
   }
-  .fill-biobench-black {
-    fill: var(--color-biobench-black);
-  }
   .fill-biobench-gold {
     fill: var(--color-biobench-gold);
+  }
+  .fill-gray-500 {
+    fill: var(--color-gray-500);
   }
   .p-2 {
     padding: calc(var(--spacing) * 2);
@@ -413,11 +419,17 @@
   .text-black {
     color: var(--color-black);
   }
+  .text-blue-400 {
+    color: var(--color-blue-400);
+  }
   .text-gray-500 {
     color: var(--color-gray-500);
   }
   .text-gray-600 {
     color: var(--color-gray-600);
+  }
+  .text-red-500 {
+    color: var(--color-red-500);
   }
   .underline {
     text-decoration-line: underline;
