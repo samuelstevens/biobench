@@ -19,16 +19,12 @@ import typing
 import beartype
 import numpy as np
 import polars as pl
-import sklearn.linear_model
-import sklearn.model_selection
-import sklearn.pipeline
-import sklearn.preprocessing
 import torch
 import torchvision.datasets
 from jaxtyping import Float, Int, Shaped, jaxtyped
 from torch import Tensor
 
-from .. import config, helpers, registry, reporting
+from .. import config, helpers, linear_probing, registry, reporting
 
 logger = logging.getLogger("herbarium19")
 
@@ -65,7 +61,6 @@ class Dataset(torchvision.datasets.ImageFolder):
 
 
 @beartype.beartype
-@torch.no_grad()
 def benchmark(cfg: config.Experiment) -> reporting.Report:
     backbone = registry.load_vision_backbone(cfg.model)
 
@@ -113,6 +108,7 @@ def get_features(
     images_dir_path = os.path.join(cfg.data.herbarium19, split)
 
     img_transform = backbone.make_img_transform()
+    backbone = backbone.to(cfg.device)
     dataset = Dataset(images_dir_path, img_transform)
 
     if is_train and cfg.n_train > 0:
@@ -130,22 +126,25 @@ def get_features(
         persistent_workers=False,
     )
 
-    backbone = torch.compile(backbone.to(cfg.device))
-
     def probe(batch):
         imgs = batch["img"].to(cfg.device, non_blocking=True)
         with torch.amp.autocast(cfg.device):
-            _ = backbone.img_encode(imgs).img_features  # forward only
+            # forward only
+            _ = backbone.img_encode(imgs).img_features
 
     all_ids, all_features, all_labels = [], [], []
-    with helpers.auto_batch_size(dataloader, probe=probe):
-        total = len(dataloader) if not cfg.debug else 2
-        it = iter(dataloader)
-        for b in helpers.progress(range(total), every=10, desc=f"hb19/{split}"):
-            batch = next(it)
+    with helpers.auto_batch_size(
+        dataloader,
+        probe=probe,
+        # Set an upper limit that's around 1/40 of the dataset size. Otherwise we spend a lot of time picking an optimal batch size when we could just rip through the dataset. And naturally we want a power of 2.
+        upper=2 ** np.log2(len(dataset) / 40).astype(int).item(),
+    ):
+        backbone = torch.compile(backbone)
+
+        for batch in helpers.progress(dataloader, every=10, desc=f"hb19/{split}"):
             imgs = batch["img"].to(cfg.device, non_blocking=True)
 
-            with torch.amp.autocast("cuda"):
+            with torch.amp.autocast(cfg.device):
                 features = backbone.img_encode(imgs).img_features
                 all_features.append(features.cpu())
 
@@ -163,22 +162,5 @@ def get_features(
 
 @beartype.beartype
 def init_clf(cfg: config.Experiment):
-    alpha = np.pow(2.0, np.arange(-15, 5))
-    if cfg.debug:
-        alpha = np.pow(2.0, np.arange(-2, 2))
-
-    if 0 < cfg.n_train <= 300:
-        return sklearn.linear_model.RidgeClassifier()
-
-    return sklearn.model_selection.HalvingGridSearchCV(
-        sklearn.pipeline.make_pipeline(
-            sklearn.preprocessing.StandardScaler(),
-            sklearn.linear_model.RidgeClassifier(1.0),
-        ),
-        {"ridgeclassifier__alpha": alpha},
-        n_jobs=16,
-        verbose=2,
-        factor=3,
-        random_state=cfg.seed,
-        scoring="f1_macro",
-    )
+    clf = linear_probing.LinearProbeClassifier(device=cfg.device)
+    return clf

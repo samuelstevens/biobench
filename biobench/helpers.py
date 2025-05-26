@@ -300,7 +300,7 @@ def auto_batch_size(
 
     Args:
         dataloader: The already constructed loader you use in your loop. Its `batch_sampler.batch_size` attribute is patched on the fly.
-        probe: A 1-argument callable used to test memory. Typical usage: `lambda x: backbone.img_encode(x).img_features`.
+        probe: A 1-argument callable used to test memory usage. Typical: `lambda x: backbone.img_encode(x).img_features`.
         schedule: An iterator of candidate batch sizes. If None, use the canonical schedule.
         schedule: An iterator of strictly increasing candidate batch sizes (2, 4, 8, ...). A *ValueError* is raised when a non-increasing value is encountered. If None, use the canonical schedule.
         upper: Maximum batch size to try, regardless of available memory.
@@ -502,3 +502,19 @@ def warn_if_nfs(path: str | os.PathLike):
             RuntimeWarning,
             stacklevel=2,
         )
+
+
+def infinite(dataloader):
+    """Creates an infinite iterator from a dataloader by creating a new iterator each time the previous one is exhausted.
+
+    Args:
+        dataloader: A PyTorch dataloader or similar iterable
+
+    Yields:
+        Batches from the dataloader, indefinitely
+    """
+    while True:
+        # Create a fresh iterator from the dataloader
+        it = iter(dataloader)
+        for batch in it:
+            yield batch

@@ -488,6 +488,9 @@ def calc_scores(
             & (pl.col("model_ckpt").is_in(model_lookup))
         )
 
+        if sub.height == 0:
+            continue
+
         scores = bootstrap_scores(sub, b=n_bootstraps, rng=rng)
         # freeze model order once
         ckpts = sorted(scores)  # list[str]  length = m
