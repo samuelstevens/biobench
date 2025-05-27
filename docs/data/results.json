@@ -1,8 +1,8 @@
 {
     "meta": {
         "schema": 1,
-        "generated": 1748352440973,
-        "git_commit": "ae63c072b12d35b073a8443e712dac766753b61b",
+        "generated": 1748353399481,
+        "git_commit": "78a5eca31871316282af49c8a8e1d431e57c6c5a",
         "seed": 17,
         "alpha": 0.05,
         "n_bootstraps": 500
@@ -110,6 +110,102 @@
             "family": "SigLIP2",
             "resolution": 256,
             "params": 94552320,
+            "release_ms": 1740009600000
+        },
+        {
+            "ckpt": "ViT-B-16-SigLIP2/webli",
+            "display": "SigLIP2 ViT-B/16",
+            "family": "SigLIP2",
+            "resolution": 224,
+            "params": 92884224,
+            "release_ms": 1740009600000
+        },
+        {
+            "ckpt": "ViT-B-16-SigLIP2-256/webli",
+            "display": "SigLIP2 ViT-B/16",
+            "family": "SigLIP2",
+            "resolution": 256,
+            "params": 92930304,
+            "release_ms": 1740009600000
+        },
+        {
+            "ckpt": "ViT-B-16-SigLIP2-384/webli",
+            "display": "SigLIP2 ViT-B/16",
+            "family": "SigLIP2",
+            "resolution": 384,
+            "params": 93176064,
+            "release_ms": 1740009600000
+        },
+        {
+            "ckpt": "ViT-B-16-SigLIP2-512/webli",
+            "display": "SigLIP2 ViT-B/16",
+            "family": "SigLIP2",
+            "resolution": 512,
+            "params": 93520128,
+            "release_ms": 1740009600000
+        },
+        {
+            "ckpt": "ViT-L-16-SigLIP2-256/webli",
+            "display": "SigLIP2 ViT-L/16",
+            "family": "SigLIP2",
+            "resolution": 512,
+            "params": 427888064,
+            "release_ms": 1740009600000
+        },
+        {
+            "ckpt": "ViT-L-16-SigLIP2-384/webli",
+            "display": "SigLIP2 ViT-L/16",
+            "family": "SigLIP2",
+            "resolution": 512,
+            "params": 428256704,
+            "release_ms": 1740009600000
+        },
+        {
+            "ckpt": "ViT-L-16-SigLIP2-512/webli",
+            "display": "SigLIP2 ViT-L/16",
+            "family": "SigLIP2",
+            "resolution": 512,
+            "params": 316742656,
+            "release_ms": 1740009600000
+        },
+        {
+            "ckpt": "ViT-SO400M-16-SigLIP2-256/webli",
+            "display": "SigLIP2 SO400M/16",
+            "family": "SigLIP2",
+            "resolution": 512,
+            "params": 427888064,
+            "release_ms": 1740009600000
+        },
+        {
+            "ckpt": "ViT-SO400M-16-SigLIP2-384/webli",
+            "display": "SigLIP2 SO400M/16",
+            "family": "SigLIP2",
+            "resolution": 512,
+            "params": 428256704,
+            "release_ms": 1740009600000
+        },
+        {
+            "ckpt": "ViT-SO400M-16-SigLIP2-512/webli",
+            "display": "SigLIP2 SO400M/16",
+            "family": "SigLIP2",
+            "resolution": 512,
+            "params": 428772800,
+            "release_ms": 1740009600000
+        },
+        {
+            "ckpt": "ViT-gopt-16-SigLIP2-256/webli",
+            "display": "SigLIP2 ViT-1B/16",
+            "family": "SigLIP2",
+            "resolution": 256,
+            "params": 1163168256,
+            "release_ms": 1740009600000
+        },
+        {
+            "ckpt": "ViT-gopt-16-SigLIP2-384/webli",
+            "display": "SigLIP2 ViT-1B/16",
+            "family": "SigLIP2",
+            "resolution": 384,
+            "params": 1163659776,
             "release_ms": 1740009600000
         },
         {
@@ -2420,6 +2516,38 @@
         },
         {
             "task": "herbarium19",
+            "model": "ViT-B-16-SigLIP2-256/webli",
+            "mean": 0.48703338548374936,
+            "bootstrap_mean": 0.4251820133198305,
+            "ci_low": 0.4051248618237397,
+            "ci_high": 0.4445549640456993
+        },
+        {
+            "task": "herbarium19",
+            "model": "ViT-B-16-SigLIP2-384/webli",
+            "mean": 0.5731536272031931,
+            "bootstrap_mean": 0.5072191924157415,
+            "ci_low": 0.486485534259989,
+            "ci_high": 0.5267184977953481
+        },
+        {
+            "task": "herbarium19",
+            "model": "ViT-B-16-SigLIP2-512/webli",
+            "mean": 0.612839620270878,
+            "bootstrap_mean": 0.5420628085043702,
+            "ci_low": 0.5223130146297327,
+            "ci_high": 0.5621805618085309
+        },
+        {
+            "task": "herbarium19",
+            "model": "ViT-B-16-SigLIP2/webli",
+            "mean": 0.4684100758281382,
+            "bootstrap_mean": 0.41160897417724696,
+            "ci_low": 0.3934166664615755,
+            "ci_high": 0.429616943280207
+        },
+        {
+            "task": "herbarium19",
             "model": "ViT-B-16/openai",
             "mean": 0.3865377770615312,
             "bootstrap_mean": 0.33794755846559654,
@@ -2476,6 +2604,30 @@
         },
         {
             "task": "herbarium19",
+            "model": "ViT-L-16-SigLIP2-256/webli",
+            "mean": 0.5439460892109484,
+            "bootstrap_mean": 0.47631654589925837,
+            "ci_low": 0.4560582152845748,
+            "ci_high": 0.494926918773697
+        },
+        {
+            "task": "herbarium19",
+            "model": "ViT-L-16-SigLIP2-384/webli",
+            "mean": 0.6165289559735128,
+            "bootstrap_mean": 0.5435009600319518,
+            "ci_low": 0.5226146379514653,
+            "ci_high": 0.5644750975190799
+        },
+        {
+            "task": "herbarium19",
+            "model": "ViT-L-16-SigLIP2-512/webli",
+            "mean": 0.6417628408863498,
+            "bootstrap_mean": 0.5693718353021718,
+            "ci_low": 0.5504814570871439,
+            "ci_high": 0.5898300753026051
+        },
+        {
+            "task": "herbarium19",
             "model": "ViT-SO400M-14-SigLIP-384/webli",
             "mean": 0.6359393204746269,
             "bootstrap_mean": 0.5623215123380544,
@@ -2492,6 +2644,46 @@
         },
         {
             "task": "herbarium19",
+            "model": "ViT-SO400M-16-SigLIP2-256/webli",
+            "mean": 0.5525063882712248,
+            "bootstrap_mean": 0.48490021910087194,
+            "ci_low": 0.46375008540502516,
+            "ci_high": 0.5041316289760711
+        },
+        {
+            "task": "herbarium19",
+            "model": "ViT-SO400M-16-SigLIP2-384/webli",
+            "mean": 0.6256906273321287,
+            "bootstrap_mean": 0.5563285694120682,
+            "ci_low": 0.5351545313098421,
+            "ci_high": 0.5797633598109588
+        },
+        {
+            "task": "herbarium19",
+            "model": "ViT-SO400M-16-SigLIP2-512/webli",
+            "mean": 0.6760134559285175,
+            "bootstrap_mean": 0.5987279201060355,
+            "ci_low": 0.5783843809798396,
+            "ci_high": 0.6201252974283187
+        },
+        {
+            "task": "herbarium19",
+            "model": "ViT-gopt-16-SigLIP2-256/webli",
+            "mean": 0.5769213229011184,
+            "bootstrap_mean": 0.5097897266218193,
+            "ci_low": 0.49044778737086864,
+            "ci_high": 0.5299183273272964
+        },
+        {
+            "task": "herbarium19",
+            "model": "ViT-gopt-16-SigLIP2-384/webli",
+            "mean": 0.656385758722433,
+            "bootstrap_mean": 0.5807844871031634,
+            "ci_low": 0.5588627048806377,
+            "ci_high": 0.6021998311491618
+        },
+        {
+            "task": "herbarium19",
             "model": "apple/aimv2-huge-patch14-224",
             "mean": 0.3855664180082247,
             "bootstrap_mean": 0.33784436894546666,
@@ -2505,6 +2697,14 @@
             "bootstrap_mean": 0.36457303625400117,
             "ci_low": 0.3459474415791759,
             "ci_high": 0.38198835126101927
+        },
+        {
+            "task": "herbarium19",
+            "model": "apple/aimv2-huge-patch14-448",
+            "mean": 0.4209305179871099,
+            "bootstrap_mean": 0.3688721362076848,
+            "ci_low": 0.35316651244243713,
+            "ci_high": 0.38749031609599727
         },
         {
             "task": "herbarium19",
@@ -4676,12 +4876,10 @@
         },
         {
             "task": "herbarium19",
-            "best": "dinov2_vitg14_reg",
+            "best": "ViT-SO400M-16-SigLIP2-512/webli",
             "ties": [
-                "ViT-SO400M-14-SigLIP-384/webli",
-                "dinov2_vitg14_reg",
-                "dinov2_vitl14_reg",
-                "hf-hub:UCSC-VLAA/openvision-vit-so400m-patch14-384"
+                "ViT-SO400M-16-SigLIP2-512/webli",
+                "ViT-gopt-16-SigLIP2-384/webli"
             ]
         },
         {
