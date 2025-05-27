@@ -1,8 +1,8 @@
 {
     "meta": {
         "schema": 1,
-        "generated": 1748354433773,
-        "git_commit": "3e54ca62da063633af8f74eea6155aa2446f8e5f",
+        "generated": 1748359602415,
+        "git_commit": "822cd5757941d004800fdb867ebf8f30e1dd2e85",
         "seed": 17,
         "alpha": 0.05,
         "n_bootstraps": 500
@@ -2388,6 +2388,38 @@
         },
         {
             "task": "fungiclef",
+            "model": "hf-hub:UCSC-VLAA/openvision-vit-base-patch16-224",
+            "mean": 0.2683284877674498,
+            "bootstrap_mean": 0.2682364465171546,
+            "ci_low": 0.25056736737573937,
+            "ci_high": 0.28707303045645854
+        },
+        {
+            "task": "fungiclef",
+            "model": "hf-hub:UCSC-VLAA/openvision-vit-large-patch14-224",
+            "mean": 0.29613633527310035,
+            "bootstrap_mean": 0.296058689441511,
+            "ci_low": 0.2791132838907165,
+            "ci_high": 0.31338595484726944
+        },
+        {
+            "task": "fungiclef",
+            "model": "hf-hub:UCSC-VLAA/openvision-vit-small-patch16-224",
+            "mean": 0.26439133067404974,
+            "bootstrap_mean": 0.26435063091313166,
+            "ci_low": 0.2453137424616305,
+            "ci_high": 0.2829100080243766
+        },
+        {
+            "task": "fungiclef",
+            "model": "hf-hub:UCSC-VLAA/openvision-vit-tiny-patch16-224",
+            "mean": 0.2355407235531478,
+            "bootstrap_mean": 0.235196825994985,
+            "ci_low": 0.21512507347563203,
+            "ci_high": 0.2540604251845035
+        },
+        {
+            "task": "fungiclef",
             "model": "hf-hub:imageomics/bioclip",
             "mean": 0.40555491358869233,
             "bootstrap_mean": 0.4057851099321297,
@@ -2692,6 +2724,30 @@
         },
         {
             "task": "herbarium19",
+            "model": "apple/aimv2-1B-patch14-336",
+            "mean": 0.4973781152955716,
+            "bootstrap_mean": 0.4358647646170376,
+            "ci_low": 0.41650810915902825,
+            "ci_high": 0.4548833257876411
+        },
+        {
+            "task": "herbarium19",
+            "model": "apple/aimv2-1B-patch14-448",
+            "mean": 0.5012199809276515,
+            "bootstrap_mean": 0.43940517047723476,
+            "ci_low": 0.4207866254782804,
+            "ci_high": 0.45812296083988435
+        },
+        {
+            "task": "herbarium19",
+            "model": "apple/aimv2-3B-patch14-224",
+            "mean": 0.440417383422827,
+            "bootstrap_mean": 0.38640377809455867,
+            "ci_low": 0.3672612725212102,
+            "ci_high": 0.40295961229660465
+        },
+        {
+            "task": "herbarium19",
             "model": "apple/aimv2-huge-patch14-224",
             "mean": 0.3855664180082247,
             "bootstrap_mean": 0.33784436894546666,
@@ -2940,387 +2996,35 @@
         },
         {
             "task": "iwildcam",
-            "model": "ViT-B-16-SigLIP-256/webli",
-            "mean": 0.10864492080148463,
-            "bootstrap_mean": 0.10816772849538048,
-            "ci_low": 0.10417425851764596,
-            "ci_high": 0.11206449503861998
+            "model": "hf-hub:UCSC-VLAA/openvision-vit-base-patch16-224",
+            "mean": 0.17793221252707364,
+            "bootstrap_mean": 0.1757741233458778,
+            "ci_low": 0.16726228662107728,
+            "ci_high": 0.18282811222115927
         },
         {
             "task": "iwildcam",
-            "model": "ViT-B-16-SigLIP-384/webli",
-            "mean": 0.12524935735753961,
-            "bootstrap_mean": 0.12476749555252092,
-            "ci_low": 0.12070553490115284,
-            "ci_high": 0.12854986859079956
+            "model": "hf-hub:UCSC-VLAA/openvision-vit-large-patch14-224",
+            "mean": 0.22652566154207981,
+            "bootstrap_mean": 0.22279219986133406,
+            "ci_low": 0.20998738834888694,
+            "ci_high": 0.23426048356733814
         },
         {
             "task": "iwildcam",
-            "model": "ViT-B-16-SigLIP-512/webli",
-            "mean": 0.13660448790780585,
-            "bootstrap_mean": 0.1360804701614829,
-            "ci_low": 0.13203047442685598,
-            "ci_high": 0.14011198424526522
+            "model": "hf-hub:UCSC-VLAA/openvision-vit-small-patch16-224",
+            "mean": 0.16199003534792267,
+            "bootstrap_mean": 0.15968082251694402,
+            "ci_low": 0.15070539495182686,
+            "ci_high": 0.1673702921928586
         },
         {
             "task": "iwildcam",
-            "model": "ViT-B-16-SigLIP/webli",
-            "mean": 0.10540174323446633,
-            "bootstrap_mean": 0.10489565751384891,
-            "ci_low": 0.10084126842423234,
-            "ci_high": 0.10917018805663782
-        },
-        {
-            "task": "iwildcam",
-            "model": "ViT-B-16/openai",
-            "mean": 0.09524386417740205,
-            "bootstrap_mean": 0.09467158859726557,
-            "ci_low": 0.09024334129521012,
-            "ci_high": 0.09901259544725116
-        },
-        {
-            "task": "iwildcam",
-            "model": "ViT-B-32/openai",
-            "mean": 0.0738433687174072,
-            "bootstrap_mean": 0.07373642418086504,
-            "ci_low": 0.07195616519766894,
-            "ci_high": 0.07583566730364394
-        },
-        {
-            "task": "iwildcam",
-            "model": "ViT-L-14-336/openai",
-            "mean": 0.12984969354830084,
-            "bootstrap_mean": 0.12938868133933193,
-            "ci_low": 0.125244443428961,
-            "ci_high": 0.13339064324773378
-        },
-        {
-            "task": "iwildcam",
-            "model": "ViT-L-14/openai",
-            "mean": 0.11699702865015195,
-            "bootstrap_mean": 0.11623503278035287,
-            "ci_low": 0.11114917918274977,
-            "ci_high": 0.12081185870969977
-        },
-        {
-            "task": "iwildcam",
-            "model": "ViT-L-16-SigLIP-256/webli",
-            "mean": 0.13831620361659253,
-            "bootstrap_mean": 0.1376397211158395,
-            "ci_low": 0.1328954406610433,
-            "ci_high": 0.14173644425425727
-        },
-        {
-            "task": "iwildcam",
-            "model": "ViT-L-16-SigLIP-384/webli",
-            "mean": 0.15944778681463154,
-            "bootstrap_mean": 0.1588120494188771,
-            "ci_low": 0.15469352819244234,
-            "ci_high": 0.16307523855404885
-        },
-        {
-            "task": "iwildcam",
-            "model": "ViT-SO400M-14-SigLIP-384/webli",
-            "mean": 0.1754067369967937,
-            "bootstrap_mean": 0.17475447219608545,
-            "ci_low": 0.1693329365758149,
-            "ci_high": 0.1794085218783388
-        },
-        {
-            "task": "iwildcam",
-            "model": "ViT-SO400M-14-SigLIP/webli",
-            "mean": 0.14668252147358823,
-            "bootstrap_mean": 0.1460641553057186,
-            "ci_low": 0.14160435449520684,
-            "ci_high": 0.15033222595504894
-        },
-        {
-            "task": "iwildcam",
-            "model": "apple/aimv2-1B-patch14-224",
-            "mean": 0.11501353468139364,
-            "bootstrap_mean": 0.11458818886559494,
-            "ci_low": 0.11145685635765826,
-            "ci_high": 0.11813552941052562
-        },
-        {
-            "task": "iwildcam",
-            "model": "apple/aimv2-1B-patch14-336",
-            "mean": 0.12636707780000223,
-            "bootstrap_mean": 0.1260107845015364,
-            "ci_low": 0.12250546159464895,
-            "ci_high": 0.12937339058598082
-        },
-        {
-            "task": "iwildcam",
-            "model": "apple/aimv2-1B-patch14-448",
-            "mean": 0.1287494838356125,
-            "bootstrap_mean": 0.12828346146101904,
-            "ci_low": 0.12485089932768952,
-            "ci_high": 0.13178498962973986
-        },
-        {
-            "task": "iwildcam",
-            "model": "apple/aimv2-3B-patch14-224",
-            "mean": 0.13361286636771103,
-            "bootstrap_mean": 0.1331341947965899,
-            "ci_low": 0.12875541487059178,
-            "ci_high": 0.13685815805777668
-        },
-        {
-            "task": "iwildcam",
-            "model": "apple/aimv2-3B-patch14-336",
-            "mean": 0.14509219526401235,
-            "bootstrap_mean": 0.1444014228491772,
-            "ci_low": 0.1387805861067049,
-            "ci_high": 0.1486412001206843
-        },
-        {
-            "task": "iwildcam",
-            "model": "apple/aimv2-3B-patch14-448",
-            "mean": 0.1448388515506501,
-            "bootstrap_mean": 0.1440120411029826,
-            "ci_low": 0.1389771165860455,
-            "ci_high": 0.14883081769382578
-        },
-        {
-            "task": "iwildcam",
-            "model": "apple/aimv2-huge-patch14-224",
-            "mean": 0.09818976921338467,
-            "bootstrap_mean": 0.09808706076506493,
-            "ci_low": 0.09597545366297737,
-            "ci_high": 0.10008266407637967
-        },
-        {
-            "task": "iwildcam",
-            "model": "apple/aimv2-huge-patch14-336",
-            "mean": 0.10616841443932765,
-            "bootstrap_mean": 0.10606485431259961,
-            "ci_low": 0.10397390841451162,
-            "ci_high": 0.10821528256374831
-        },
-        {
-            "task": "iwildcam",
-            "model": "apple/aimv2-huge-patch14-448",
-            "mean": 0.10630459043854437,
-            "bootstrap_mean": 0.10620806478760156,
-            "ci_low": 0.10409161847941689,
-            "ci_high": 0.10821859579184415
-        },
-        {
-            "task": "iwildcam",
-            "model": "apple/aimv2-large-patch14-224",
-            "mean": 0.08510546864325154,
-            "bootstrap_mean": 0.08502854745394163,
-            "ci_low": 0.08334635534665612,
-            "ci_high": 0.08672945116482636
-        },
-        {
-            "task": "iwildcam",
-            "model": "apple/aimv2-large-patch14-336",
-            "mean": 0.09260398306362862,
-            "bootstrap_mean": 0.09250295956080593,
-            "ci_low": 0.09090568308680648,
-            "ci_high": 0.09438624607978559
-        },
-        {
-            "task": "iwildcam",
-            "model": "apple/aimv2-large-patch14-448",
-            "mean": 0.09085253713544128,
-            "bootstrap_mean": 0.09079730214373959,
-            "ci_low": 0.0890340771950385,
-            "ci_high": 0.09240159743872248
-        },
-        {
-            "task": "iwildcam",
-            "model": "convnext_tiny.in12k",
-            "mean": 0.10169147209725288,
-            "bootstrap_mean": 0.1015353364612499,
-            "ci_low": 0.09939531917799693,
-            "ci_high": 0.10384069732556489
-        },
-        {
-            "task": "iwildcam",
-            "model": "convnext_tiny.in12k_ft_in1k",
-            "mean": 0.09678445617847752,
-            "bootstrap_mean": 0.09664921808745183,
-            "ci_low": 0.09454535557017096,
-            "ci_high": 0.09898963145222404
-        },
-        {
-            "task": "iwildcam",
-            "model": "dinov2_vitb14_reg",
-            "mean": 0.1602819572227843,
-            "bootstrap_mean": 0.15946261023482328,
-            "ci_low": 0.15416038772417515,
-            "ci_high": 0.1642157775641504
-        },
-        {
-            "task": "iwildcam",
-            "model": "dinov2_vitg14_reg",
-            "mean": 0.22886489396965315,
-            "bootstrap_mean": 0.22675754660844785,
-            "ci_low": 0.21743916157145632,
-            "ci_high": 0.23396519514408418
-        },
-        {
-            "task": "iwildcam",
-            "model": "dinov2_vitl14_reg",
-            "mean": 0.20184161344274396,
-            "bootstrap_mean": 0.2004881642152759,
-            "ci_low": 0.1936758187454167,
-            "ci_high": 0.20761801728407903
-        },
-        {
-            "task": "iwildcam",
-            "model": "dinov2_vits14_reg",
-            "mean": 0.10101216135427349,
-            "bootstrap_mean": 0.10085419593655648,
-            "ci_low": 0.0985991987368316,
-            "ci_high": 0.10311064727060182
-        },
-        {
-            "task": "iwildcam",
-            "model": "efficientnet_b0.ra_in1k",
-            "mean": 0.009860646934801036,
-            "bootstrap_mean": 0.009838332662082163,
-            "ci_low": 0.009080345740805417,
-            "ci_high": 0.010693592984240843
-        },
-        {
-            "task": "iwildcam",
-            "model": "efficientnet_b3.ra2_in1k",
-            "mean": 0.018809416512966286,
-            "bootstrap_mean": 0.018388146823036685,
-            "ci_low": 0.015527247765142064,
-            "ci_high": 0.022216533054334124
-        },
-        {
-            "task": "iwildcam",
-            "model": "hf-hub:BGLab/BioTrove-CLIP",
-            "mean": 0.06256563252764458,
-            "bootstrap_mean": 0.06239160539111995,
-            "ci_low": 0.060518522745287164,
-            "ci_high": 0.0643373348470817
-        },
-        {
-            "task": "iwildcam",
-            "model": "hf-hub:BVRA/MegaDescriptor-L-384",
-            "mean": 0.04737209293757608,
-            "bootstrap_mean": 0.047294781776831045,
-            "ci_low": 0.04588192119902385,
-            "ci_high": 0.04892277779823574
-        },
-        {
-            "task": "iwildcam",
-            "model": "hf-hub:imageomics/bioclip",
-            "mean": 0.09703267359480373,
-            "bootstrap_mean": 0.09687943515157835,
-            "ci_low": 0.09437161494892386,
-            "ci_high": 0.09925410878180119
-        },
-        {
-            "task": "iwildcam",
-            "model": "mobilenetv2_100.ra_in1k",
-            "mean": 0.009232814709378229,
-            "bootstrap_mean": 0.009213903985794027,
-            "ci_low": 0.008565827415733808,
-            "ci_high": 0.009937132272076937
-        },
-        {
-            "task": "iwildcam",
-            "model": "mobilenetv3_large_100.ra_in1k",
-            "mean": 0.010947072896977807,
-            "bootstrap_mean": 0.010940312808512735,
-            "ci_low": 0.010267339395849777,
-            "ci_high": 0.011642876001983174
-        },
-        {
-            "task": "iwildcam",
-            "model": "resnet18.a1_in1k",
-            "mean": 0.01294071384049847,
-            "bootstrap_mean": 0.012919134186089752,
-            "ci_low": 0.012292627929166066,
-            "ci_high": 0.013525673322217822
-        },
-        {
-            "task": "iwildcam",
-            "model": "resnet18d.ra2_in1k",
-            "mean": 0.01312821826790136,
-            "bootstrap_mean": 0.013109804918209365,
-            "ci_low": 0.012318474876102358,
-            "ci_high": 0.013869915015800477
-        },
-        {
-            "task": "iwildcam",
-            "model": "resnet50.a1_in1k",
-            "mean": 0.012045456966819629,
-            "bootstrap_mean": 0.012034657756740442,
-            "ci_low": 0.011433284425597129,
-            "ci_high": 0.01275395463519482
-        },
-        {
-            "task": "iwildcam",
-            "model": "resnet50d.a1_in1k",
-            "mean": 0.015712390451474344,
-            "bootstrap_mean": 0.01567051645868027,
-            "ci_low": 0.01492688284947502,
-            "ci_high": 0.016459235992452605
-        },
-        {
-            "task": "iwildcam",
-            "model": "sam2_hiera_base_plus.fb_r896_2pt1",
-            "mean": 0.03559943227076408,
-            "bootstrap_mean": 0.03559431180025679,
-            "ci_low": 0.034595628865143335,
-            "ci_high": 0.036575231461762066
-        },
-        {
-            "task": "iwildcam",
-            "model": "sam2_hiera_large.fb_r1024_2pt1",
-            "mean": 0.03355330970618222,
-            "bootstrap_mean": 0.03350884382808783,
-            "ci_low": 0.032509441280445736,
-            "ci_high": 0.034489994578615915
-        },
-        {
-            "task": "iwildcam",
-            "model": "sam2_hiera_small.fb_r896_2pt1",
-            "mean": 0.03571947212894688,
-            "bootstrap_mean": 0.035707533447300266,
-            "ci_low": 0.03474385118097922,
-            "ci_high": 0.036653301381368256
-        },
-        {
-            "task": "iwildcam",
-            "model": "sam2_hiera_tiny.fb_r896_2pt1",
-            "mean": 0.04024858928024394,
-            "bootstrap_mean": 0.040221457266760054,
-            "ci_low": 0.03923270001173043,
-            "ci_high": 0.04116278264778083
-        },
-        {
-            "task": "iwildcam",
-            "model": "vit_base_patch16_224.augreg2_in21k_ft_in1k",
-            "mean": 0.10912176374519232,
-            "bootstrap_mean": 0.10867296617757582,
-            "ci_low": 0.1036637475095352,
-            "ci_high": 0.11154670109954919
-        },
-        {
-            "task": "iwildcam",
-            "model": "vith16",
-            "mean": 0.037604400181130544,
-            "bootstrap_mean": 0.037564650836052864,
-            "ci_low": 0.03648004812993984,
-            "ci_high": 0.038806961357615986
-        },
-        {
-            "task": "iwildcam",
-            "model": "vitl16",
-            "mean": 0.0345446742518036,
-            "bootstrap_mean": 0.0345106831468202,
-            "ci_low": 0.03347072640882287,
-            "ci_high": 0.035748708151887604
+            "model": "hf-hub:UCSC-VLAA/openvision-vit-tiny-patch16-224",
+            "mean": 0.12038583896574515,
+            "bootstrap_mean": 0.11877177857909209,
+            "ci_low": 0.11178853449750241,
+            "ci_high": 0.12523230632855695
         },
         {
             "task": "kabr",
@@ -4892,9 +4596,9 @@
         },
         {
             "task": "iwildcam",
-            "best": "dinov2_vitg14_reg",
+            "best": "hf-hub:UCSC-VLAA/openvision-vit-large-patch14-224",
             "ties": [
-                "dinov2_vitg14_reg"
+                "hf-hub:UCSC-VLAA/openvision-vit-large-patch14-224"
             ]
         },
         {

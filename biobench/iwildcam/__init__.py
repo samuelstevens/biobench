@@ -29,15 +29,12 @@ import os.path
 import beartype
 import numpy as np
 import polars as pl
-import sklearn.model_selection
-import sklearn.pipeline
-import sklearn.preprocessing
 import torch
 import wilds
 import wilds.common.data_loaders
 from jaxtyping import Float, Int, Shaped, jaxtyped
 
-from biobench import config, helpers, registry, reporting
+from .. import config, helpers, linear_probing, registry, reporting
 
 logger = logging.getLogger("iwildcam")
 
@@ -54,21 +51,18 @@ class Features:
 def benchmark(cfg: config.Experiment) -> reporting.Report:
     backbone = registry.load_vision_backbone(cfg.model)
 
-    # 1. Load dataloaders.
+    # 1. Load features.
     test_features = get_features(cfg, backbone, is_train=False)
     logger.info("Got test features.")
 
     train_features = get_features(cfg, backbone, is_train=True)
     logger.info("Got train features.")
 
+    torch.cuda.empty_cache()  # Be nice to others on the machine.
+
     # 2. Fit model.
     clf = init_clf(cfg)
     clf.fit(train_features.x, train_features.y)
-
-    if hasattr(clf, "best_params_"):
-        helpers.write_hparam_sweep_plot("iwildcam", cfg.model.ckpt, clf)
-        alpha = clf.best_params_["ridgeclassifier__alpha"].item()
-        logger.info("alpha=%.2g scored %.3f.", alpha, clf.best_score_.item())
 
     true_labels = test_features.y
     pred_labels = clf.predict(test_features.x)
@@ -106,7 +100,9 @@ def get_features(
         dataset="iwildcam", download=False, root_dir=cfg.data.iwildcam
     )
 
+    backbone = backbone.to(cfg.device)
     transform = backbone.make_img_transform()
+
     if is_train:
         subset = "train"
         dataset = dataset.get_subset(subset, transform=transform)
@@ -132,7 +128,6 @@ def get_features(
             num_workers=cfg.n_workers,
         )
 
-    backbone = torch.compile(backbone.to(cfg.device))
     all_features, all_labels, all_ids = [], [], []
 
     def probe(batch):
@@ -141,12 +136,16 @@ def get_features(
         with torch.amp.autocast(cfg.device):
             _ = backbone.img_encode(imgs).img_features
 
-    with helpers.auto_batch_size(dataloader, probe=probe):
-        total = len(dataloader) if not cfg.debug else 2
-        it = iter(dataloader)
-        for b in helpers.progress(range(total), desc=f"iwildcam/{subset}"):
-            imgs, labels, _ = next(it)
-            imgs = imgs.to(cfg.device)
+    with helpers.auto_batch_size(
+        dataloader,
+        probe=probe,
+        # Set an upper limit that's around 1/40 of the dataset size. Otherwise we spend a lot of time picking an optimal batch size when we could just rip through the dataset. And naturally we want a power of 2.
+        upper=2 ** np.log2(len(dataset) / 40).astype(int).item(),
+    ):
+        backbone = torch.compile(backbone)
+        for batch in helpers.progress(dataloader, desc=f"iwildcam/{subset}"):
+            imgs, labels, _ = batch
+            imgs = imgs.to(cfg.device, non_blocking=True)
 
             with torch.amp.autocast(cfg.device):
                 features = backbone.img_encode(imgs).img_features
@@ -166,21 +165,5 @@ def get_features(
 
 @beartype.beartype
 def init_clf(cfg: config.Experiment):
-    alpha = np.pow(2.0, np.arange(-15, 5))
-    if cfg.debug:
-        alpha = np.pow(2.0, np.arange(-2, 2))
-
-    if 0 < cfg.n_train <= 300:
-        return sklearn.linear_model.RidgeClassifier()
-
-    return sklearn.model_selection.GridSearchCV(
-        sklearn.pipeline.make_pipeline(
-            sklearn.preprocessing.StandardScaler(),
-            sklearn.linear_model.RidgeClassifier(1.0),
-        ),
-        {"ridgeclassifier__alpha": alpha},
-        n_jobs=16,
-        verbose=2,
-        # This uses sklearn.metrics.f1_score with average="macro", just like our final score calculator.
-        scoring="f1_macro",
-    )
+    clf = linear_probing.LinearProbeClassifier(device=cfg.device)
+    return clf
