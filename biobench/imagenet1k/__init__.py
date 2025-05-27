@@ -2,7 +2,6 @@
 
 import dataclasses
 import logging
-import math
 import warnings
 
 import beartype
@@ -10,15 +9,10 @@ import datasets
 import datasets.formatting.torch_formatter
 import numpy as np
 import polars as pl
-import sklearn.experimental.enable_halving_search_cv
-import sklearn.linear_model
-import sklearn.model_selection
-import sklearn.pipeline
-import sklearn.preprocessing
 import torch
 from jaxtyping import Float, Float16, Int, Shaped, jaxtyped
 
-from biobench import config, helpers, registry, reporting
+from .. import config, helpers, linear_probing, registry, reporting
 
 logger = logging.getLogger("imagenet1k")
 
@@ -44,14 +38,11 @@ def benchmark(cfg: config.Experiment) -> reporting.Report:
     test_features = get_features(cfg, backbone, is_train=False)
     train_features = get_features(cfg, backbone, is_train=True)
 
+    torch.cuda.empty_cache()  # Be nice to others on the machine.
+
     clf = init_clf(cfg)
     clf.fit(train_features.x, train_features.y)
     logger.info("Trained a classifier on %d examples.", len(train_features.y))
-
-    if hasattr(clf, "best_params_"):
-        helpers.write_hparam_sweep_plot("imagenet1k", cfg.model.ckpt, clf)
-        alpha = clf.best_params_["ridgeclassifier__alpha"].item()
-        logger.info("alpha=%.2g scored %.3f.", alpha, clf.best_score_.item())
 
     true_labels = test_features.y
     pred_labels = clf.predict(test_features.x)
@@ -142,7 +133,7 @@ def get_features(
     cfg: config.Experiment, backbone: registry.VisionBackbone, *, is_train: bool
 ) -> Features:
     img_transform = backbone.make_img_transform()
-    backbone = torch.compile(backbone.to(cfg.device))
+    backbone = backbone.to(cfg.device)
     split = "train" if is_train else "validation"
 
     dataset = datasets.load_dataset(
@@ -184,13 +175,9 @@ def get_features(
         with torch.amp.autocast(cfg.device):
             backbone.img_encode(imgs).img_features
 
-    with helpers.auto_batch_size(dataloader, probe=probe) as batch_size:
-        total = max(n_workers, math.ceil(len(i) / batch_size))
-        it = iter(dataloader)
-        logger.debug("Need to embed %d batches of %d images.", total, batch_size)
-        for b in helpers.progress(range(total), every=10, desc=f"in1k/{split}"):
-            batch = next(it)
-
+    with helpers.auto_batch_size(dataloader, probe=probe):
+        backbone = torch.compile(backbone)
+        for batch in helpers.progress(dataloader, every=10, desc=f"in1k/{split}"):
             images = batch["image"].to(cfg.device, non_blocking=True)
 
             with torch.amp.autocast(cfg.device):
@@ -211,22 +198,5 @@ def get_features(
 
 @beartype.beartype
 def init_clf(cfg: config.Experiment):
-    alpha = np.pow(2.0, np.arange(-15, 5))
-    if cfg.debug:
-        alpha = np.pow(2.0, np.arange(-2, 2))
-
-    clf = sklearn.pipeline.make_pipeline(
-        sklearn.preprocessing.StandardScaler(),
-        sklearn.linear_model.RidgeClassifier(),
-    )
-    if 0 < cfg.n_train < 2_000:
-        return clf
-
-    return sklearn.model_selection.HalvingGridSearchCV(
-        clf,
-        {"ridgeclassifier__alpha": alpha},
-        n_jobs=8,
-        verbose=3,
-        factor=3,
-        random_state=cfg.seed,
-    )
+    clf = linear_probing.LinearProbeClassifier(device=cfg.device)
+    return clf
