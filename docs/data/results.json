@@ -1,8 +1,8 @@
 {
     "meta": {
         "schema": 1,
-        "generated": 1748353399481,
-        "git_commit": "78a5eca31871316282af49c8a8e1d431e57c6c5a",
+        "generated": 1748354433773,
+        "git_commit": "3e54ca62da063633af8f74eea6155aa2446f8e5f",
         "seed": 17,
         "alpha": 0.05,
         "n_bootstraps": 500
@@ -148,16 +148,16 @@
             "ckpt": "ViT-L-16-SigLIP2-256/webli",
             "display": "SigLIP2 ViT-L/16",
             "family": "SigLIP2",
-            "resolution": 512,
-            "params": 427888064,
+            "resolution": 256,
+            "params": 315956224,
             "release_ms": 1740009600000
         },
         {
             "ckpt": "ViT-L-16-SigLIP2-384/webli",
             "display": "SigLIP2 ViT-L/16",
             "family": "SigLIP2",
-            "resolution": 512,
-            "params": 428256704,
+            "resolution": 384,
+            "params": 316283904,
             "release_ms": 1740009600000
         },
         {
@@ -172,7 +172,7 @@
             "ckpt": "ViT-SO400M-16-SigLIP2-256/webli",
             "display": "SigLIP2 SO400M/16",
             "family": "SigLIP2",
-            "resolution": 512,
+            "resolution": 256,
             "params": 427888064,
             "release_ms": 1740009600000
         },
@@ -180,7 +180,7 @@
             "ckpt": "ViT-SO400M-16-SigLIP2-384/webli",
             "display": "SigLIP2 SO400M/16",
             "family": "SigLIP2",
-            "resolution": 512,
+            "resolution": 384,
             "params": 428256704,
             "release_ms": 1740009600000
         },
@@ -2681,6 +2681,14 @@
             "bootstrap_mean": 0.5807844871031634,
             "ci_low": 0.5588627048806377,
             "ci_high": 0.6021998311491618
+        },
+        {
+            "task": "herbarium19",
+            "model": "apple/aimv2-1B-patch14-224",
+            "mean": 0.4259748509834182,
+            "bootstrap_mean": 0.3734484662631362,
+            "ci_low": 0.35642757386628526,
+            "ci_high": 0.3901553210850856
         },
         {
             "task": "herbarium19",
