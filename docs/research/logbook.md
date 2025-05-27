@@ -521,8 +521,8 @@ Some of these can be worked on before the NeurIPS reviews come out in prep fo re
 
 Additional models:
 
-1. SigLIP2
-2. [OpenVision](https://arxiv.org/abs/2505.04601)
+1. [done, added via open_clip] SigLIP2
+2. [done, added via open_clip] [OpenVision](https://arxiv.org/abs/2505.04601)
 3. [WebSSL](https://huggingface.co/collections/facebook/web-ssl-68094132c15fbd7808d1e9bb)
 4. [CATALOG](https://arxiv.org/pdf/2412.10624)
 5. [WildCLIP](https://github.com/amathislab/wildclip) (see [here](https://zenodo.org/records/11102888) for the checkpoints)

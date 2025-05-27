@@ -577,7 +577,9 @@ def main(
     unknown_ckpts = set(df["model_ckpt"].unique()) - set(model_lookup.keys())
     if unknown_ckpts:
         logger.warning(
-            "Found %d unknown checkpoints: %s", len(unknown_ckpts), unknown_ckpts
+            "Found %d unknown checkpoints: %s",
+            len(unknown_ckpts),
+            sorted(unknown_ckpts),
         )
 
     scores_df, bests_df = calc_scores(
