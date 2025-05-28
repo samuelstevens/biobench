@@ -70,18 +70,16 @@ el.replaceWith(d);
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">@beartype.beartype
-@torch.no_grad()
 def benchmark(cfg: config.Experiment) -&gt; reporting.Report:
     backbone = registry.load_vision_backbone(cfg.model)
 
     train_feats = get_features(cfg, backbone, is_train=True)
     test_feats = get_features(cfg, backbone, is_train=False)
 
-    clf = init_clf(cfg)
-    clf.fit(train_feats.x, train_feats.y)
+    torch.cuda.empty_cache()  # Be nice to others on the machine.
 
-    if hasattr(clf, &#34;best_params_&#34;):
-        helpers.write_hparam_sweep_plot(&#34;herbarium19&#34;, cfg.model.ckpt, clf)
+    clf = helpers.init_logreg_clf(cfg)
+    clf.fit(train_feats.x, train_feats.y)
 
     preds = clf.predict(test_feats.x)
     examples = [
@@ -128,6 +126,7 @@ def get_features(
     images_dir_path = os.path.join(cfg.data.herbarium19, split)
 
     img_transform = backbone.make_img_transform()
+    backbone = backbone.to(cfg.device)
     dataset = Dataset(images_dir_path, img_transform)
 
     if is_train and cfg.n_train &gt; 0:
@@ -145,22 +144,25 @@ def get_features(
         persistent_workers=False,
     )
 
-    backbone = torch.compile(backbone.to(cfg.device))
-
     def probe(batch):
         imgs = batch[&#34;img&#34;].to(cfg.device, non_blocking=True)
         with torch.amp.autocast(cfg.device):
-            _ = backbone.img_encode(imgs).img_features  # forward only
+            # forward only
+            _ = backbone.img_encode(imgs).img_features
 
     all_ids, all_features, all_labels = [], [], []
-    with helpers.auto_batch_size(dataloader, probe=probe):
-        total = len(dataloader) if not cfg.debug else 2
-        it = iter(dataloader)
-        for b in helpers.progress(range(total), every=10, desc=f&#34;hb19/{split}&#34;):
-            batch = next(it)
+    with helpers.auto_batch_size(
+        dataloader,
+        probe=probe,
+        # Set an upper limit that&#39;s around 1/40 of the dataset size. Otherwise we spend a lot of time picking an optimal batch size when we could just rip through the dataset. And naturally we want a power of 2.
+        upper=2 ** np.log2(len(dataset) / 40).astype(int).item(),
+    ):
+        backbone = torch.compile(backbone)
+
+        for batch in helpers.progress(dataloader, every=10, desc=f&#34;hb19/{split}&#34;):
             imgs = batch[&#34;img&#34;].to(cfg.device, non_blocking=True)
 
-            with torch.amp.autocast(&#34;cuda&#34;):
+            with torch.amp.autocast(cfg.device):
                 features = backbone.img_encode(imgs).img_features
                 all_features.append(features.cpu())
 
@@ -174,38 +176,6 @@ def get_features(
     logger.info(&#34;Got features for %d images.&#34;, len(all_ids))
 
     return Features(all_features, all_labels, all_ids)</code></pre>
-</details>
-<div class="desc"></div>
-</dd>
-<dt id="biobench.herbarium19.init_clf"><code class="name flex">
-<span>def <span class="ident">init_clf</span></span>(<span>cfg: <a title="biobench.config.Experiment" href="../config.html#biobench.config.Experiment">Experiment</a>)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">@beartype.beartype
-def init_clf(cfg: config.Experiment):
-    alpha = np.pow(2.0, np.arange(-15, 5))
-    if cfg.debug:
-        alpha = np.pow(2.0, np.arange(-2, 2))
-
-    if 0 &lt; cfg.n_train &lt;= 300:
-        return sklearn.linear_model.RidgeClassifier()
-
-    return sklearn.model_selection.HalvingGridSearchCV(
-        sklearn.pipeline.make_pipeline(
-            sklearn.preprocessing.StandardScaler(),
-            sklearn.linear_model.RidgeClassifier(1.0),
-        ),
-        {&#34;ridgeclassifier__alpha&#34;: alpha},
-        n_jobs=16,
-        verbose=2,
-        factor=3,
-        random_state=cfg.seed,
-        scoring=&#34;f1_macro&#34;,
-    )</code></pre>
 </details>
 <div class="desc"></div>
 </dd>
@@ -372,7 +342,6 @@ class Sample(typing.TypedDict):
 <li><code><a title="biobench.herbarium19.benchmark" href="#biobench.herbarium19.benchmark">benchmark</a></code></li>
 <li><code><a title="biobench.herbarium19.bootstrap_scores" href="#biobench.herbarium19.bootstrap_scores">bootstrap_scores</a></code></li>
 <li><code><a title="biobench.herbarium19.get_features" href="#biobench.herbarium19.get_features">get_features</a></code></li>
-<li><code><a title="biobench.herbarium19.init_clf" href="#biobench.herbarium19.init_clf">init_clf</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>

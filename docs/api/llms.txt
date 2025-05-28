@@ -781,7 +781,7 @@ def main(cfgs: list[str], dry_run: bool = True, max_pending: int = 8):
     # Setup logging.
     # --------------
     log_format = "[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s"
-    level = logging.DEBUG if cfg.verbose else logging.INFO
+    level = logging.DEBUG if first.debug else logging.INFO
     logging.basicConfig(level=level, format=log_format)
     logger = logging.getLogger("benchmark.py")
 
@@ -801,8 +801,13 @@ def main(cfgs: list[str], dry_run: bool = True, max_pending: int = 8):
         # See biobench.third_party_models.get_ssl() for a discussion of this variable.
         if not first.ssl:
             executor.update_parameters(setup=["export BIOBENCH_DISABLE_SSL=1"])
-    else:
+    elif first.debug:
         executor = submitit.DebugExecutor(folder=first.log_to)
+        # See biobench.third_party_models.get_ssl() for a discussion of this variable.
+        if not first.ssl:
+            os.environ["BIOBENCH_DISABLE_SSL"] = "1"
+    else:
+        executor = jobkit.SerialExecutor(folder=first.log_to)
         # See biobench.third_party_models.get_ssl() for a discussion of this variable.
         if not first.ssl:
             os.environ["BIOBENCH_DISABLE_SSL"] = "1"
@@ -825,12 +830,13 @@ def main(cfgs: list[str], dry_run: bool = True, max_pending: int = 8):
         Get the next finished job from queue, blocking if necessary, write the report and relinquish the claim.
         """
         job, cfg, task = fq.pop()
+
         try:
             report: reporting.Report = job.result()
             report.write()
             logger.info("%s+%s/%s done", task, cfg.model.org, cfg.model.ckpt)
-        except Exception as err:
-            logger.info("%s+%s/%s failed: %s", task, cfg.model.org, cfg.model.ckpt, err)
+        except Exception:
+            logger.exception("%s+%s/%s failed", task, cfg.model.org, cfg.model.ckpt)
         finally:
             exit_hook.discard((cfg, task))
 
@@ -1043,8 +1049,6 @@ class Experiment:
     """where to save logs to."""
     seed: int = 17
     """Random seed."""
-    verbose: bool = False
-    """DEBUG logging or not."""
 
     def to_dict(self) -> dict[str, object]:
         return dataclasses.asdict(self)
@@ -1107,6 +1111,24 @@ def load(path: str) -> list[Experiment]:
 
     # Convert dictionaries to Experiment objects
     return [Experiment(**exp) for exp in experiments]
+
+>>>> fishcounting/__init__.py
+import beartype
+import numpy as np
+import polars as pl
+from jaxtyping import Float, jaxtyped
+
+from .. import config, reporting
+
+
+@beartype.beartype
+def benchmark(cfg: config.Experiment) -> reporting.Report: ...
+
+
+@jaxtyped(typechecker=beartype.beartype)
+def bootstrap_scores(
+    df: pl.DataFrame, *, b: int = 0, rng: np.random.Generator | None = None
+) -> dict[str, Float[np.ndarray, " b"]]: ...
 
 >>>> fishnet/__init__.py
 """
@@ -1303,22 +1325,6 @@ def bootstrap_scores(
     return scores
 
 
-def infinite(dataloader):
-    """Creates an infinite iterator from a dataloader by creating a new iterator each time the previous one is exhausted.
-
-    Args:
-        dataloader: A PyTorch dataloader or similar iterable
-
-    Yields:
-        Batches from the dataloader, indefinitely
-    """
-    while True:
-        # Create a fresh iterator from the dataloader
-        it = iter(dataloader)
-        for batch in it:
-            yield batch
-
-
 @beartype.beartype
 def benchmark(cfg: config.Experiment) -> reporting.Report:
     """
@@ -1346,7 +1352,7 @@ def benchmark(cfg: config.Experiment) -> reporting.Report:
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.5)
 
     # 5. Fit the classifier.
-    it = infinite(train_loader)
+    it = helpers.infinite(train_loader)
     for step in range(n_steps):
         features, labels, _ = next(it)
         features = features.to(cfg.device)
@@ -1585,7 +1591,7 @@ def main(cfg: str, n: int = 1_000, seed: int = 42):
     cfg = next(cfg for cfg in config.load(cfg))
 
     log_format = "[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s"
-    level = logging.DEBUG if cfg.verbose else logging.INFO
+    level = logging.DEBUG if cfg.debug else logging.INFO
     logging.basicConfig(level=level, format=log_format)
     logger = logging.getLogger(__name__)
 
@@ -1870,7 +1876,7 @@ def get_features(
         # for each unique obs take mean of its image features
         uniq, inv = np.unique(obs_ids, return_inverse=True)
         pooled = np.empty((len(uniq), x.shape[1]), dtype=x.dtype)
-        for k, u in enumerate(helpers.progress(uniq, every=10_000, desc="groupby")):
+        for k, u in enumerate(uniq):
             pooled[k] = x[inv == k].mean(axis=0)
         # labels should be identical within an observation
         pooled_y = np.array([y[inv == k][0] for k in range(len(uniq))], dtype=int)
@@ -2041,7 +2047,7 @@ def main(cfg: str, n: int = 1_000, seed: int = 42):
     cfg = next(cfg for cfg in config.load(cfg))
 
     log_format = "[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s"
-    level = logging.DEBUG if cfg.verbose else logging.INFO
+    level = logging.DEBUG if cfg.debug else logging.INFO
     logging.basicConfig(level=level, format=log_format)
     logger = logging.getLogger(__name__)
 
@@ -2319,8 +2325,6 @@ def user_loss_score_normalized(
     n_unknown = (y_true == -1).sum()
     n_poisonous = np.isin(y_true, POISONOUS_SPECIES).sum()
 
-    # breakpoint()
-
     # TODO: is this 1 supposed to be 0.1?
     worst_ce = (cost_unknown_mis - 1) * n_unknown / n + 1
     worst_psc = (cost_psc * n_poisonous + cost_esc * (n - n_poisonous)) / n
@@ -2511,8 +2515,15 @@ import warnings
 
 import beartype
 import numpy as np
+import scipy.stats
+import sklearn.linear_model
+import sklearn.model_selection
+import sklearn.pipeline
+import sklearn.preprocessing
 import torch
 from jaxtyping import Int, jaxtyped
+
+from . import config
 
 
 @beartype.beartype
@@ -2791,7 +2802,7 @@ def auto_batch_size(
 
     Args:
         dataloader: The already constructed loader you use in your loop. Its `batch_sampler.batch_size` attribute is patched on the fly.
-        probe: A 1-argument callable used to test memory. Typical usage: `lambda x: backbone.img_encode(x).img_features`.
+        probe: A 1-argument callable used to test memory usage. Typical: `lambda x: backbone.img_encode(x).img_features`.
         schedule: An iterator of candidate batch sizes. If None, use the canonical schedule.
         schedule: An iterator of strictly increasing candidate batch sizes (2, 4, 8, ...). A *ValueError* is raised when a non-increasing value is encountered. If None, use the canonical schedule.
         upper: Maximum batch size to try, regardless of available memory.
@@ -2994,6 +3005,47 @@ def warn_if_nfs(path: str | os.PathLike):
             stacklevel=2,
         )
 
+
+def infinite(dataloader):
+    """Creates an infinite iterator from a dataloader by creating a new iterator each time the previous one is exhausted.
+
+    Args:
+        dataloader: A PyTorch dataloader or similar iterable
+
+    Yields:
+        Batches from the dataloader, indefinitely
+    """
+    while True:
+        # Create a fresh iterator from the dataloader
+        it = iter(dataloader)
+        for batch in it:
+            yield batch
+
+
+@beartype.beartype
+def init_logreg_clf(cfg: config.Experiment):
+    clf = sklearn.pipeline.make_pipeline(
+        sklearn.preprocessing.StandardScaler(),
+        sklearn.linear_model.LogisticRegression(
+            max_iter=1_000,
+            multi_class="multinomial",
+            class_weight="balanced",
+            penalty="l2",
+            random_state=cfg.seed,
+            solver="saga",
+        ),
+    )
+
+    return sklearn.model_selection.RandomizedSearchCV(
+        clf,
+        {"logisticregression__C": scipy.stats.loguniform(a=1e-3, b=1e1)},
+        n_iter=30,
+        n_jobs=8,
+        verbose=3,
+        random_state=cfg.seed,
+        scoring="f1_macro",
+    )
+
 >>>> herbarium19/__init__.py
 """
 Herbarium19: classify specimens into species based on the 2019 FGVC6 competition.
@@ -3016,10 +3068,6 @@ import typing
 import beartype
 import numpy as np
 import polars as pl
-import sklearn.linear_model
-import sklearn.model_selection
-import sklearn.pipeline
-import sklearn.preprocessing
 import torch
 import torchvision.datasets
 from jaxtyping import Float, Int, Shaped, jaxtyped
@@ -3062,18 +3110,16 @@ class Dataset(torchvision.datasets.ImageFolder):
 
 
 @beartype.beartype
-@torch.no_grad()
 def benchmark(cfg: config.Experiment) -> reporting.Report:
     backbone = registry.load_vision_backbone(cfg.model)
 
     train_feats = get_features(cfg, backbone, is_train=True)
     test_feats = get_features(cfg, backbone, is_train=False)
 
-    clf = init_clf(cfg)
-    clf.fit(train_feats.x, train_feats.y)
+    torch.cuda.empty_cache()  # Be nice to others on the machine.
 
-    if hasattr(clf, "best_params_"):
-        helpers.write_hparam_sweep_plot("herbarium19", cfg.model.ckpt, clf)
+    clf = helpers.init_logreg_clf(cfg)
+    clf.fit(train_feats.x, train_feats.y)
 
     preds = clf.predict(test_feats.x)
     examples = [
@@ -3110,6 +3156,7 @@ def get_features(
     images_dir_path = os.path.join(cfg.data.herbarium19, split)
 
     img_transform = backbone.make_img_transform()
+    backbone = backbone.to(cfg.device)
     dataset = Dataset(images_dir_path, img_transform)
 
     if is_train and cfg.n_train > 0:
@@ -3127,22 +3174,25 @@ def get_features(
         persistent_workers=False,
     )
 
-    backbone = torch.compile(backbone.to(cfg.device))
-
     def probe(batch):
         imgs = batch["img"].to(cfg.device, non_blocking=True)
         with torch.amp.autocast(cfg.device):
-            _ = backbone.img_encode(imgs).img_features  # forward only
+            # forward only
+            _ = backbone.img_encode(imgs).img_features
 
     all_ids, all_features, all_labels = [], [], []
-    with helpers.auto_batch_size(dataloader, probe=probe):
-        total = len(dataloader) if not cfg.debug else 2
-        it = iter(dataloader)
-        for b in helpers.progress(range(total), every=10, desc=f"hb19/{split}"):
-            batch = next(it)
+    with helpers.auto_batch_size(
+        dataloader,
+        probe=probe,
+        # Set an upper limit that's around 1/40 of the dataset size. Otherwise we spend a lot of time picking an optimal batch size when we could just rip through the dataset. And naturally we want a power of 2.
+        upper=2 ** np.log2(len(dataset) / 40).astype(int).item(),
+    ):
+        backbone = torch.compile(backbone)
+
+        for batch in helpers.progress(dataloader, every=10, desc=f"hb19/{split}"):
             imgs = batch["img"].to(cfg.device, non_blocking=True)
 
-            with torch.amp.autocast("cuda"):
+            with torch.amp.autocast(cfg.device):
                 features = backbone.img_encode(imgs).img_features
                 all_features.append(features.cpu())
 
@@ -3156,29 +3206,6 @@ def get_features(
     logger.info("Got features for %d images.", len(all_ids))
 
     return Features(all_features, all_labels, all_ids)
-
-
-@beartype.beartype
-def init_clf(cfg: config.Experiment):
-    alpha = np.pow(2.0, np.arange(-15, 5))
-    if cfg.debug:
-        alpha = np.pow(2.0, np.arange(-2, 2))
-
-    if 0 < cfg.n_train <= 300:
-        return sklearn.linear_model.RidgeClassifier()
-
-    return sklearn.model_selection.HalvingGridSearchCV(
-        sklearn.pipeline.make_pipeline(
-            sklearn.preprocessing.StandardScaler(),
-            sklearn.linear_model.RidgeClassifier(1.0),
-        ),
-        {"ridgeclassifier__alpha": alpha},
-        n_jobs=16,
-        verbose=2,
-        factor=3,
-        random_state=cfg.seed,
-        scoring="f1_macro",
-    )
 
 >>>> herbarium19/download.py
 # biobench/herbarium19/download.py
@@ -3325,15 +3352,10 @@ import datasets
 import datasets.formatting.torch_formatter
 import numpy as np
 import polars as pl
-import sklearn.experimental.enable_halving_search_cv
-import sklearn.linear_model
-import sklearn.model_selection
-import sklearn.pipeline
-import sklearn.preprocessing
 import torch
 from jaxtyping import Float, Float16, Int, Shaped, jaxtyped
 
-from biobench import config, helpers, registry, reporting
+from .. import config, helpers, linear_probing, registry, reporting
 
 logger = logging.getLogger("imagenet1k")
 
@@ -3359,14 +3381,11 @@ def benchmark(cfg: config.Experiment) -> reporting.Report:
     test_features = get_features(cfg, backbone, is_train=False)
     train_features = get_features(cfg, backbone, is_train=True)
 
+    torch.cuda.empty_cache()  # Be nice to others on the machine.
+
     clf = init_clf(cfg)
     clf.fit(train_features.x, train_features.y)
     logger.info("Trained a classifier on %d examples.", len(train_features.y))
-
-    if hasattr(clf, "best_params_"):
-        helpers.write_hparam_sweep_plot("imagenet1k", cfg.model.ckpt, clf)
-        alpha = clf.best_params_["ridgeclassifier__alpha"].item()
-        logger.info("alpha=%.2g scored %.3f.", alpha, clf.best_score_.item())
 
     true_labels = test_features.y
     pred_labels = clf.predict(test_features.x)
@@ -3457,11 +3476,14 @@ def get_features(
     cfg: config.Experiment, backbone: registry.VisionBackbone, *, is_train: bool
 ) -> Features:
     img_transform = backbone.make_img_transform()
-    backbone = torch.compile(backbone.to(cfg.device))
+    backbone = backbone.to(cfg.device)
     split = "train" if is_train else "validation"
 
     dataset = datasets.load_dataset(
-        "ILSVRC/imagenet-1k", split=split, cache_dir=helpers.get_cache_dir()
+        "ILSVRC/imagenet-1k",
+        split=split,
+        cache_dir=helpers.get_cache_dir(),
+        trust_remote_code=True,
     )
 
     if is_train and cfg.n_train > 0:
@@ -3496,13 +3518,9 @@ def get_features(
         with torch.amp.autocast(cfg.device):
             backbone.img_encode(imgs).img_features
 
-    with helpers.auto_batch_size(dataloader, probe=probe) as batch_size:
-        total = max(n_workers, math.ceil(len(i) / batch_size))
-        it = iter(dataloader)
-        logger.debug("Need to embed %d batches of %d images.", total, batch_size)
-        for b in helpers.progress(range(total), every=10, desc=f"in1k/{split}"):
-            batch = next(it)
-
+    with helpers.auto_batch_size(dataloader, probe=probe):
+        backbone = torch.compile(backbone)
+        for batch in helpers.progress(dataloader, every=10, desc=f"in1k/{split}"):
             images = batch["image"].to(cfg.device, non_blocking=True)
 
             with torch.amp.autocast(cfg.device):
@@ -3523,25 +3541,8 @@ def get_features(
 
 @beartype.beartype
 def init_clf(cfg: config.Experiment):
-    alpha = np.pow(2.0, np.arange(-15, 5))
-    if cfg.debug:
-        alpha = np.pow(2.0, np.arange(-2, 2))
-
-    clf = sklearn.pipeline.make_pipeline(
-        sklearn.preprocessing.StandardScaler(),
-        sklearn.linear_model.RidgeClassifier(),
-    )
-    if 0 < cfg.n_train < 2_000:
-        return clf
-
-    return sklearn.model_selection.HalvingGridSearchCV(
-        clf,
-        {"ridgeclassifier__alpha": alpha},
-        n_jobs=8,
-        verbose=3,
-        factor=3,
-        random_state=cfg.seed,
-    )
+    clf = linear_probing.LinearProbeClassifier(device=cfg.device)
+    return clf
 
 >>>> inat21/__init__.py
 """
@@ -3571,14 +3572,11 @@ import os
 
 import beartype
 import numpy as np
-import sklearn.model_selection
-import sklearn.pipeline
-import sklearn.preprocessing
 import torch
 import torchvision.datasets
 from jaxtyping import Float16, Int, Shaped, jaxtyped
 
-from biobench import config, helpers, registry, reporting
+from .. import config, helpers, linear_probing, registry, reporting
 
 logger = logging.getLogger("inat21")
 
@@ -3610,11 +3608,6 @@ def benchmark(cfg: config.Experiment) -> reporting.Report:
     # 2. Fit model.
     clf = init_clf(cfg)
     clf.fit(train_features.x, train_features.y)
-
-    if hasattr(clf, "best_params_"):
-        helpers.write_hparam_sweep_plot("imagenet1k", cfg.model.ckpt, clf)
-        alpha = clf.best_params_["ridgeclassifier__alpha"].item()
-        logger.info("alpha=%.2g scored %.3f.", alpha, clf.best_score_.item())
 
     true_labels = val_features.y
     pred_labels = clf.predict(val_features.x)
@@ -3670,7 +3663,7 @@ def get_features(
     cfg: config.Experiment, backbone: registry.VisionBackbone, *, is_train: bool
 ) -> Features:
     img_transform = backbone.make_img_transform()
-    backbone = torch.compile(backbone.to(cfg.device))
+    backbone = backbone.to(cfg.device)
     split = "train_mini" if is_train else "val"
 
     root = os.path.join(cfg.data.inat21, split)
@@ -3702,11 +3695,15 @@ def get_features(
         with torch.amp.autocast(cfg.device):
             backbone.img_encode(imgs).img_features
 
-    with helpers.auto_batch_size(dataloader, probe=probe):
-        total = len(dataloader) if not cfg.debug else 2
-        it = iter(dataloader)
-        for b in helpers.progress(range(total), desc=f"inat21/{split}"):
-            ids, images, labels = next(it)
+    with helpers.auto_batch_size(
+        dataloader,
+        probe=probe,
+        # Set an upper limit that's around 1/40 of the dataset size. Otherwise we spend a lot of time picking an optimal batch size when we could just rip through the dataset. And naturally we want a power of 2.
+        upper=2 ** np.log2(len(dataset) / 40).astype(int).item(),
+    ):
+        backbone = torch.compile(backbone)
+        for batch in helpers.progress(dataloader, desc=f"inat21/{split}"):
+            ids, images, labels = batch
             images = images.to(cfg.device, non_blocking=True)
 
             with torch.amp.autocast(cfg.device):
@@ -3727,24 +3724,8 @@ def get_features(
 
 @beartype.beartype
 def init_clf(cfg: config.Experiment):
-    alpha = np.pow(2.0, np.arange(-15, 5))
-    if cfg.debug:
-        alpha = np.pow(2.0, np.arange(-2, 2))
-
-    clf = sklearn.pipeline.make_pipeline(
-        sklearn.preprocessing.StandardScaler(),
-        sklearn.linear_model.RidgeClassifier(),
-    )
-    if 0 < cfg.n_train < 20_000:
-        clf
-
-    return sklearn.model_selection.HalvingGridSearchCV(
-        clf,
-        {"ridgeclassifier__alpha": alpha},
-        n_jobs=8,
-        verbose=3,
-        factor=3,
-    )
+    clf = linear_probing.LinearProbeClassifier(device=cfg.device)
+    return clf
 
 >>>> inat21/download.py
 # /// script
@@ -3880,15 +3861,12 @@ import os.path
 import beartype
 import numpy as np
 import polars as pl
-import sklearn.model_selection
-import sklearn.pipeline
-import sklearn.preprocessing
 import torch
 import wilds
 import wilds.common.data_loaders
 from jaxtyping import Float, Int, Shaped, jaxtyped
 
-from biobench import config, helpers, registry, reporting
+from .. import config, helpers, linear_probing, registry, reporting
 
 logger = logging.getLogger("iwildcam")
 
@@ -3905,21 +3883,18 @@ class Features:
 def benchmark(cfg: config.Experiment) -> reporting.Report:
     backbone = registry.load_vision_backbone(cfg.model)
 
-    # 1. Load dataloaders.
+    # 1. Load features.
     test_features = get_features(cfg, backbone, is_train=False)
     logger.info("Got test features.")
 
     train_features = get_features(cfg, backbone, is_train=True)
     logger.info("Got train features.")
 
+    torch.cuda.empty_cache()  # Be nice to others on the machine.
+
     # 2. Fit model.
     clf = init_clf(cfg)
     clf.fit(train_features.x, train_features.y)
-
-    if hasattr(clf, "best_params_"):
-        helpers.write_hparam_sweep_plot("iwildcam", cfg.model.ckpt, clf)
-        alpha = clf.best_params_["ridgeclassifier__alpha"].item()
-        logger.info("alpha=%.2g scored %.3f.", alpha, clf.best_score_.item())
 
     true_labels = test_features.y
     pred_labels = clf.predict(test_features.x)
@@ -3957,7 +3932,9 @@ def get_features(
         dataset="iwildcam", download=False, root_dir=cfg.data.iwildcam
     )
 
+    backbone = backbone.to(cfg.device)
     transform = backbone.make_img_transform()
+
     if is_train:
         subset = "train"
         dataset = dataset.get_subset(subset, transform=transform)
@@ -3983,7 +3960,6 @@ def get_features(
             num_workers=cfg.n_workers,
         )
 
-    backbone = torch.compile(backbone.to(cfg.device))
     all_features, all_labels, all_ids = [], [], []
 
     def probe(batch):
@@ -3992,12 +3968,16 @@ def get_features(
         with torch.amp.autocast(cfg.device):
             _ = backbone.img_encode(imgs).img_features
 
-    with helpers.auto_batch_size(dataloader, probe=probe):
-        total = len(dataloader) if not cfg.debug else 2
-        it = iter(dataloader)
-        for b in helpers.progress(range(total), desc=f"iwildcam/{subset}"):
-            imgs, labels, _ = next(it)
-            imgs = imgs.to(cfg.device)
+    with helpers.auto_batch_size(
+        dataloader,
+        probe=probe,
+        # Set an upper limit that's around 1/40 of the dataset size. Otherwise we spend a lot of time picking an optimal batch size when we could just rip through the dataset. And naturally we want a power of 2.
+        upper=2 ** np.log2(len(dataset) / 40).astype(int).item(),
+    ):
+        backbone = torch.compile(backbone)
+        for batch in helpers.progress(dataloader, desc=f"iwildcam/{subset}"):
+            imgs, labels, _ = batch
+            imgs = imgs.to(cfg.device, non_blocking=True)
 
             with torch.amp.autocast(cfg.device):
                 features = backbone.img_encode(imgs).img_features
@@ -4017,24 +3997,8 @@ def get_features(
 
 @beartype.beartype
 def init_clf(cfg: config.Experiment):
-    alpha = np.pow(2.0, np.arange(-15, 5))
-    if cfg.debug:
-        alpha = np.pow(2.0, np.arange(-2, 2))
-
-    if 0 < cfg.n_train <= 300:
-        return sklearn.linear_model.RidgeClassifier()
-
-    return sklearn.model_selection.GridSearchCV(
-        sklearn.pipeline.make_pipeline(
-            sklearn.preprocessing.StandardScaler(),
-            sklearn.linear_model.RidgeClassifier(1.0),
-        ),
-        {"ridgeclassifier__alpha": alpha},
-        n_jobs=16,
-        verbose=2,
-        # This uses sklearn.metrics.f1_score with average="macro", just like our final score calculator.
-        scoring="f1_macro",
-    )
+    clf = linear_probing.LinearProbeClassifier(device=cfg.device)
+    return clf
 
 >>>> iwildcam/download.py
 # /// script
@@ -4066,18 +4030,109 @@ if __name__ == "__main__":
     main(tyro.cli(Args))
 
 >>>> jobkit/__init__.py
+from .executors import SerialExecutor
 from .futures import FutureQueue
 from .hooks import ExitHook
 
-__all__ = ["ExitHook", "FutureQueue"]
+__all__ = ["ExitHook", "FutureQueue", "SerialExecutor"]
+
+>>>> jobkit/executors.py
+import logging
+import os
+import pathlib
+import typing
+
+import beartype
+import submitit
+
+
+@beartype.beartype
+class SerialJob(submitit.DebugJob):
+    """DebugJob without the pdb step."""
+
+    def results(self) -> list[object]:
+        self._check_not_cancelled()
+        if self._submission.done():
+            return [self._submission._result]
+
+        environ_backup = dict(os.environ)
+        # Restore os.environ from job creation time.
+        os.environ.clear()
+        os.environ.update(self.environ)
+
+        root_logger = logging.getLogger("")
+        self.paths.stdout.parent.mkdir(exist_ok=True, parents=True)
+        stdout_handler = logging.FileHandler(self.paths.stdout)
+        stdout_handler.setLevel(logging.DEBUG)
+        stderr_handler = logging.FileHandler(self.paths.stderr)
+        stderr_handler.setLevel(logging.WARNING)
+        root_logger.addHandler(stdout_handler)
+        root_logger.addHandler(stderr_handler)
+        root_logger.warning(
+            f"Logging is written both to stderr/stdout and to {self.paths.stdout}/err. "
+            "But call to print will only appear in the console."
+        )
+        try:
+            return [self._submission.result()]
+        except Exception as e:
+            print(e)
+            raise
+        finally:
+            os.environ.clear()
+            os.environ.update(environ_backup)
+            root_logger.removeHandler(stdout_handler)
+            root_logger.removeHandler(stderr_handler)
+
+
+@beartype.beartype
+class SerialExecutor(submitit.Executor):
+    """
+    Execute submitit jobs **sequentially in-process** with no interactive debugger.
+
+    * One Python process, one GPU/CPU context: the function is called directly in the parent interpreter--exactly like DebugExecutor--but any un-caught exception is *immediately* re-raised instead of dropping into ``pdb.post_mortem``.
+
+    * This lets a launcher loop handle failures programmatically (log, skip, retry, etc.) while preserving DebugExecutor's simple bookkeeping, stdout/stderr redirection, and environment capture.
+
+    * Contrast:
+        DebugExecutor  - in-process, blocks in pdb on error.
+        LocalExecutor  - spawns a child process per job, may run jobs concurrently depending on submitit version.
+        SerialExecutor - in-process, **no pdb**, always exactly one job running.
+
+    Usage
+    -----
+    >>> ex = SerialExecutor("logs")
+    >>> job = ex.submit(train_one, cfg)
+    >>> try:
+    ...     result = job.result()   # raises on failure, no (pdb) prompt
+    ... except Exception as err:
+    ...     handle(err, job)
+
+    Notes
+    -----
+    * Inherits all parameter handling from DebugExecutor; only ``job_class`` is swapped to remove the post-mortem call.
+    * Suitable for deterministic, single-GPU jobs where you want clean failure handling without interactive prompts.
+    """
+
+    job_class = SerialJob
+
+    def __init__(self, folder: str | pathlib.Path):
+        super().__init__(folder)
+
+    def _internal_process_submissions(
+        self, delayed_submissions: list[submitit.core.utils.DelayedSubmission]
+    ) -> list[submitit.core.core.Job[typing.Any]]:
+        return [self.job_class(self.folder, ds) for ds in delayed_submissions]
 
 >>>> jobkit/futures.py
+import logging
 import time
 import typing
 
 import beartype
 
 T = typing.TypeVar("T")
+
+logger = logging.getLogger(__name__)
 
 
 @beartype.beartype
@@ -4113,54 +4168,52 @@ class FutureQueue(typing.Generic[T]):
 
         return None
 
+    def _is_obj_done(self, obj) -> bool:
+        # Direct check for objects with done() method
+        if hasattr(obj, "done") and callable(obj.done):
+            try:
+                # done() may raise when the job failed. Swallow it.
+                return obj.done()  # True => finished (success or failed)
+            except Exception:
+                # Treat "raises inside done()" as "finished but failed".
+                logger.exception("obj.done() failed")
+                return True
+
+        return False
+
     def _is_done(self, obj) -> bool:
         """Check if an object or any of its nested items is done."""
-        # Direct check for objects with done() method
-        if hasattr(obj, "done") and callable(obj.done) and obj.done():
+        if self._is_obj_done(obj):
             return True
 
         # Check first level of nesting (tuples, lists, dicts)
         if isinstance(obj, (tuple, list)):
             for item in obj:
-                if hasattr(item, "done") and callable(item.done) and item.done():
+                if self._is_obj_done(item):
                     return True
+
                 # Check second level of nesting
                 if isinstance(item, (tuple, list)):
                     for subitem in item:
-                        if (
-                            hasattr(subitem, "done")
-                            and callable(subitem.done)
-                            and subitem.done()
-                        ):
+                        if self._is_obj_done(subitem):
                             return True
                 elif isinstance(item, dict):
                     for subitem in item.values():
-                        if (
-                            hasattr(subitem, "done")
-                            and callable(subitem.done)
-                            and subitem.done()
-                        ):
+                        if self._is_obj_done(subitem):
                             return True
         elif isinstance(obj, dict):
             for item in obj.values():
-                if hasattr(item, "done") and callable(item.done) and item.done():
+                if self._is_obj_done(item):
                     return True
+
                 # Check second level of nesting
                 if isinstance(item, (tuple, list)):
                     for subitem in item:
-                        if (
-                            hasattr(subitem, "done")
-                            and callable(subitem.done)
-                            and subitem.done()
-                        ):
+                        if self._is_obj_done(subitem):
                             return True
                 elif isinstance(item, dict):
                     for subitem in item.values():
-                        if (
-                            hasattr(subitem, "done")
-                            and callable(subitem.done)
-                            and subitem.done()
-                        ):
+                        if self._is_obj_done(subitem):
                             return True
 
         return False
@@ -4263,6 +4316,7 @@ class ExitHook(typing.Generic[HashableT]):
     def discard(self, claim: HashableT) -> None:
         """Remove a claim from tracking."""
         with self._lock:
+            self.release_run(claim)
             self._claims.discard(claim)
 
     def release_run(self, claim: HashableT) -> None:
@@ -5328,8 +5382,8 @@ def benchmark(cfg: config.Experiment) -> reporting.Report:
     backbone = backbone.to(cfg.device)
 
     # 2. Load data.
-    test_features = get_features(cfg, backbone, is_train=False)
     train_features = get_features(cfg, backbone, is_train=True)
+    test_features = get_features(cfg, backbone, is_train=False)
 
     # 4. Do simpleshot.
     clf = init_clf(cfg)
@@ -5368,6 +5422,12 @@ def get_features(
     split = "train" if is_train else "val"
 
     dataset = Dataset(cfg.data.kabr, split, transform=img_transform)
+
+    if is_train and cfg.n_train > 0:
+        i = helpers.balanced_random_sample(dataset.labels, cfg.n_train)
+        assert len(i) == cfg.n_train
+        dataset = torch.utils.data.Subset(dataset, i)
+
     dataloader = torch.utils.data.DataLoader(
         dataset,
         batch_size=max(1, cfg.batch_size // 32),
@@ -5713,535 +5773,218 @@ def test_video_length_check():
     with pytest.raises(AssertionError):
         Video(1, ["f1"], [0, 0])
 
->>>> logbook.md
-# Logbook
-
-This provides a set of notes, step-by-step, of my process developing this paper.
-In combination with the preprint, code comments, and git blame, it's probably the best way to understand *why* a decision was made, rather than *what* decision was made.
-
-*Open science y'all*
-
-# 02/10/2025
-
-What are the core experiments?
-
-We need to choose different number of samples, and run experiments multiple times.
-I think I have a good set of tasks.
-NeWT is probably the best first task.
-Then we sample 0, 1, 3, 10, 30, 100, 300, ... MAX samples per task.
-For each task and number of samples, we need to run at least 5 trials.
-I should double check and see how much it would cost me to run these trials with OpenAI's GPT-4o mini.
-
-GPT-4o mini:
-Affordable small model for fast, everyday tasks | 128k context length
-* Input: $0.150 / 1M tokens
-* Cached input: $0.075 / 1M tokens
-* Output: $0.600 / 1M tokens
-
-Plus I can halve these costs with the Batched API.
-
-Sonnet 3.5 is $3M / 1M input tokens, which is waaaay more expensive.
-Even Haiku is $0.80 / 1M tokens, which is like 6 times more expensive.
-Sorry Anthropic :(
-
-Gemini 2.0 is $0.10 / 1M input tokens and $0.40 / 1M output tokens, which is 1/3 cheaper than 4o mini.
-Then I could try Llama 3.2 11B vision which I know is garbage, and Pixtral 12B.
-I think that four models is enough.
-If moondream is available, that would be great.
-
-I can do CLIP, BioCLIP, DINOv2 and ResNet50 for vision models.
-
-How would I get this result as soon as possible?
-
-# 02/11/2025
-
-Some paper motivtion ideas from Claude:
-
-Goal: Enable informed data collection strategies for ecological ML systems
-Problem: Ecologists are willing to invest in data labeling, but lack clear guidance on whether additional labeling effort will translate to meaningful performance improvements
-Solution: Empirical analysis of performance scaling curves for VLMs vs traditional ML approaches, revealing the point at which additional data collection yields diminishing returns
-
-Goal: Optimize resource allocation in ecological ML projects
-Problem: Projects must decide upfront whether to invest in (a) extensive data collection and traditional ML or (b) minimal data collection and VLMs, but lack empirical guidance for this decision
-Solution: Characterization of performance vs sample size curves across multiple ecological tasks, enabling data-driven decisions about collection strategies
-
-Goal: Bridge the "medium-data" gap in ecological ML
-Problem: Current literature focuses on few-shot (1-5 samples) or large-data (10000+ samples) regimes, while many ecological projects operate in the 100-1000 sample range
-Solution: Targeted analysis of the critical "medium-data" regime where VLM and traditional ML approaches may cross over in performance
-
-Goal: Create sustainable ecological ML pipelines
-Problem: Projects often start with few samples but accumulate more over time, making it unclear whether to invest in VLMs (good initial performance) or traditional ML (better scaling)
-Solution: Framework for understanding when and how to transition between approaches as more data becomes available
-
-Goal: Align ML approaches with ecological data collection realities
-Problem: Standard few-shot learning research assumes fixed, small sample sizes, while ecological projects often have gradually expanding datasets
-Solution: Analysis of how different approaches scale with increasing data, matching real-world ecological data collection patterns
-
-# 02/12/2025
-
-Gemini Flash 1.5 8B spent ~13c on Ages with no examples.
-Now I'm trying with 1 training example.
-
-# 02/18/2025
-
-When I provide examples in the user/assistant/user/assistant format (mutiple messages), then the model responds with a classification for each example in the history.
-
-Here is the JSON:
-
-```json
-[
-  {
-    "role": "user",
-    "content": [
-      {
-        "type": "image_url",
-        "image_url": {
-          "url": "<BASE64>"
-        }
-      },
-      {
-        "type": "text",
-        "text": "What is this a picture of, western sandpiper, whimbrel, Cooper's hawk, black-bellied plover, sharp-shinned hawk, dunlin, sanderling, Swainson's hawk, semipalmated plover, rough-legged hawk, least sandpiper or bald eagle? Respond with your answer in bold."
-      }
-    ]
-  },
-  {
-    "role": "assistant",
-    "content": "**semipalmated plover**"
-  },
-  {
-    "role": "user",
-    "content": [
-      {
-        "type": "image_url",
-        "image_url": {
-          "url": "<BASE64>"
-        }
-      },
-      {
-        "type": "text",
-        "text": "What is this a picture of, least sandpiper, sanderling, whimbrel, dunlin, semipalmated plover, Swainson's hawk, rough-legged hawk, bald eagle, western sandpiper, Cooper's hawk, black-bellied plover or sharp-shinned hawk? Respond with your answer in bold."
-      }
-    ]
-  },
-  {
-    "role": "assistant",
-    "content": "**Cooper's hawk**"
-  },
-  {
-    "role": "user",
-    "content": [
-      {
-        "type": "image_url",
-        "image_url": {
-          "url": "<BASE64>"
-        }
-      },
-      {
-        "type": "text",
-        "text": "What is this a picture of, whimbrel, black-bellied plover, least sandpiper, bald eagle, Swainson's hawk, sharp-shinned hawk, dunlin, sanderling, Cooper's hawk, semipalmated plover, rough-legged hawk or western sandpiper? Respond with your answer in bold."
-      }
-    ]
-  },
-  {
-    "role": "assistant",
-    "content": "**bald eagle**"
-  },
-  {
-    "role": "user",
-    "content": [
-      {
-        "type": "image_url",
-        "image_url": {
-          "url": "<BASE64>"
-        }
-      },
-      {
-        "type": "text",
-        "text": "What is this a picture of, Swainson's hawk, bald eagle, western sandpiper, whimbrel, black-bellied plover, least sandpiper, semipalmated plover, rough-legged hawk, sanderling, dunlin, sharp-shinned hawk or Cooper's hawk? Respond with your answer in bold."
-      }
-    ]
-  }
-]
-```
-
-And the model responds with
-
-`"From top to bottom, left to right:\n\n1. **Whimbrel**\n2. **Cooper's hawk**\n3. **Bald eagle**\n4. **Sharp-shinned hawk**"`
-
-# 02/19/2025
-
-[pyinstrument](https://pyinstrument.readthedocs.io/en/latest/guide.html) worked really well for profiling.
-
-Some thoughts on the research questions:
-
-This is sort of a guide for how to apply MLLMs to ai4ecology tasks.
-Some of the questions I've had:
-
-* Should I label data? This is the overarching question.
-* Do MLLMs do better with more data (few-shot prompting)?
-  * Do MLLMs need to be a certain size to leverage more examples?
-* Do ViT+kNNs do better?
-* How should you include multiple images in MLLM prompts (multiple turns or one message)?
-
-One thing is that I'm not sure how to frame this as a *research* paper.
-This is a technical report or a tutorial or a blog post.
-But what is the core research question being asked?
-Such a question should be timeless to some degree.
-Whether to put multiple images in the same message or across multiple turns depends on the current set of MLLMs.
-This is likely to change as we continue making better models.
-What's the core question?
-
-
-Timeless Research Framing:
-
-Instead of asking:
-
-    "Do MLLMs outperform traditional ML?"
-    → (Too dependent on current model architectures)
-    "How do MLLMs scale with data in ecological tasks?"
-    → (Still somewhat tied to specifics)
-
-Consider asking:
-"What are the fundamental trade-offs between MLLMs and traditional ML for ecological data collection?"
-
-    This frames the problem around trade-offs rather than absolute comparisons, which are bound to change.
-    It ensures relevance even as models evolve.
-    It guides ecological practitioners on when to choose one approach over another, rather than just evaluating models.
-
-Framing the Contributions as Lasting Principles
-
-Rather than reporting on absolute performance metrics (which will become outdated), the paper could:
-
-    Characterize key factors that determine performance scaling
-        E.g., when does task complexity demand more supervision?
-        How does domain shift impact MLLMs vs. traditional ML?
-        What types of ecological tasks benefit from VLMs (e.g., general object recognition vs fine-grained species classification)?
-
-    Propose a decision-making framework
-        How should an ecologist decide between investing in more labeled data vs using an MLLM?
-        What characteristics of a dataset (e.g., class imbalance, domain diversity, image quality) affect whether few-shot methods will work?
-
-    Identify inflection points
-        Rather than saying "MLLMs need X samples to work," identify the conditions under which adding more data stops improving performance significantly.
-
-Example Hypothesis-Driven Approach
-
-A lasting insight could be testing a hypothesis that generalizes beyond current models, such as:
-
-📌 "Vision-language models rely on semantic generalization, while traditional ML relies on statistical optimization—how does this affect their sample efficiency in ecological tasks?"
-
-    This abstracts away specific model architectures and instead frames the comparison in terms of two fundamental learning paradigms:
-        MLLMs (leveraging pre-trained world knowledge, generalizing with few examples)
-        Traditional ML (learning purely from the data distribution, scaling better with more labels)
-    This would help researchers and practitioners understand the strengths and weaknesses of different approaches even as new models emerge.
-
-Takeaways
-
-If we focus too much on specifics (e.g., "Does GPT-4V outperform a ViT?"), the work will quickly become outdated. Instead:
-
-    Focus on trade-offs rather than head-to-head comparisons.
-    Analyze patterns in data efficiency, not just raw performance numbers.
-    Frame findings in a way that applies to future models.
-
-Would this kind of framing align with what you're aiming for?
-
-
-
-# CVPR Experiment Implementation Checklist
-
-## 1. Models
-- [ ] **MLLMs (API-based inference):**
-  - [ ] Gemini Flash 2.0
-  - [ ] Gemini Flash 1.5 8B
-  - [ ] GPT-4o-mini
-  - [ ] GPT-4o
-  - [ ] Sonnet 3.5
-  - [ ] Qwen2-VL 7B
-  - [ ] Haiku 3.5
-  - [ ] Qwen2-VL 72B
-  - [ ] Llama 3.2 11B Vision
-  - [ ] Llama 3.2 90B  
-  - [ ] **API Settings:** Temperature = 0, batched API calls where possible  
-
-- [ ] **Vision Encoders (Feature Extraction):**
-  - [ ] DINOv2 (ViT-B, ViT-L, ViT-H)
-  - [ ] CLIP (ViT-B, ViT-L, ViT-H)
-  - [ ] SigLIP (ViT-B, ViT-L, ViT-H)
-  - [ ] ResNet50 (ImageNet Pretrained)
-  - [ ] BioCLIP  
-
-- [ ] **ML Classifiers:**
-  - [ ] kNN ($k$ autotuned via GridSearchCV)
-  - [ ] SVM (RBF kernel, default hyperparams)
-  - [ ] Ridge Classifier (regularization $\alpha=1.0$)
-
-## 2. Datasets & Tasks
-- [ ] **Species Classification:**
-  - [ ] Birds525
-  - [ ] iNat2021
-  - [ ] PlantNet
-- [ ] **Domain Adaptation:**
-  - [ ] Plankton (microscope imagery)
-  - [ ] iWildcam (camera trap images)
-- [ ] **Functional Trait Prediction:**
-  - [ ] FishNet
-- [ ] **Generalization:**
-  - [ ] Ages (Adult train → Juvenile test)
-- [ ] **Multi-task Generalization:**
-  - [ ] NeWT Benchmark
-
-## 3. Data Preprocessing
-- [ ] Resize images: **Smaller side = 224 px, then center crop to 224×224**
-- [ ] Normalize images using **ImageNet mean/std**
-- [ ] No augmentations applied (e.g., cropping, flipping)
-- [ ] No image modifications before MLLM inference
-
-## 4. Few-shot Sampling & Data Regimes
-- [ ] Train subsets: **1, 3, 10, 30, 100, 300, 1000, 3000, 10,000** samples
-- [ ] Uniform random sampling from training data
-- [ ] **PlantNet & Long-tail datasets:** Secondary experiment with class-balanced sampling
-- [ ] Fixed random seed (\texttt{42}) for reproducibility
-
-## 5. MLLM Prompting Strategies
-- [ ] **Single-turn prompting:** All few-shot examples + query in a single message
-- [ ] **Multi-turn prompting:** Few-shot examples provided sequentially before query
-- [ ] **Minimal text prompts:** (e.g., "Classify this species")
-- [ ] **CoT variant:** "Think step by step first" appended to prompt (not in few-shot examples)
-
-## 6. MLLM Response Parsing
-- [ ] Deterministic regex-based extraction
-- [ ] Take the **first species mentioned** if multiple species are listed
-- [ ] Track **successful parses** as a function of few-shot examples
-
-## 7. Evaluation Metrics
-- [ ] Accuracy@1, Accuracy@5 (micro/macro) for classification tasks
-- [ ] Domain adaptation: Accuracy drop (iWildCam, Plankton)
-- [ ] Generalization gap (Ages task)
-- [ ] FishNet: Mean Squared Error (MSE)
-- [ ] **Compute bootstrapped confidence intervals:**
-  - [ ] Resample test set **500 times with replacement**
-  - [ ] Compute mean metric for each resample
-  - [ ] Report **95\% confidence interval**
-
-## 8. Compute Infrastructure
-- [ ] **Hardware:**
-  - [ ] Traditional ML models trained on NVIDIA A6000 GPUs
-  - [ ] ViT-based inference batched for efficiency
-  - [ ] MLLM inference run on cloud-based APIs
-- [ ] **Parallelization:**
-  - [ ] Vision encoder inference parallelized across GPUs
-  - [ ] API queries batched where possible
-
----
-
-## **Final Checks Before Running Experiments**
-- [ ] Confirm all models are accessible (API keys, dependencies, etc.)
-- [ ] Ensure dataset splits and sampling methods are correctly implemented
-- [ ] Validate MLLM output parsing pipeline
-- [ ] Test bootstrapping method with a small dataset before full-scale evaluation
-- [ ] Set up logging to track MLLM responses, successful parses, and failure cases
-
----
-
-**Once all boxes are checked, you’re ready to launch experiments!**
-
-
-I want to summarize the project goals, progress, and next steps.
-I need to have a short (2-sentence) and a medium (2-paragraph) description.
-A long description is available in this logbook.md and in the paper.
-
-Hi all,
-
-TL;DR: I'm comparing the sample efficiency of MLLMs and CV+ML methods using a suite of biology-related computer vision tasks (https://github.com/samuelstevens/biobench) and making recommendations to practioners in the field.
-
-Why you're receiving this email: I have talked about this project a bunch to many people and I wanted to provide an update. If you aren't interested, just reply saying you don't want to hear about this anymore.
-
-Details: I am evaluating the performance scaling of multimodal large language models (MLLMs) versus traditional vision encoders with machine learning classifiers across diverse ecological tasks, including species classification, domain adaptation, and functional trait prediction using BioBench (https://github.com/samuelstevens/biobench). I am comparing MLLMs (e.g., GPT-4o, Gemini, Qwen2-VL) and vision models (DINOv2, CLIP, SigLIP) under varying data regimes (1–10K samples), prompting strategies (single-turn, multi-turn, CoT), and sampling methods (uniform vs. class-balanced) to determine when additional labeled data improves performance, when MLLMs can compensate for data scarcity, and how prompting choices impact reliability. I expect to find that MLLM performance "saturates" with fewer samples compared to CV+ML methods, and will describe (hopefully) lasting insights based on these empirical findings.
-
-Goals:
-
-1. CV4Animals 4-page submission due March 28th
-2. Public codebase and results shortly thereafter
-
-Progress:
-
-1. I have a codebase to evaluate CV+ML methods that is fairly battle-tested.
-2. I am developing the MLLMs evaluation methods now.
-3. After ICCV (March 7th) I am going to run many experiments in parallel, leveraging API-based MLLMs and local GPUs (OSU, OSC) for CV+ML methods.
-4. I have an Overleaf draft with methodological details and a rough outline already. I will continue writing as I get experimental results.
-
-How you can help (if you want):
-
-* Doing analysis. Once I have some experimental results (hopefully March 14th at the latest) then I will want to ask why particular tasks are better/worse, why particular ML methods are better/worse, why particular MLLMs are better/worse, etc. This will need some time with notebooks/scripts to make graphs and tables.
-* Writing. The core insight and message is not super clear, even though I feel their is high value in knowing the answer to these questions. Writing the introduction and conclusion would be great.
-* Ideas. I would love to hear ideas on models, experiments, tasks or other parts that you are happy to share.
-
-I'm explicitly not asking for help with implementation because I currently wrote the entire codebase  and can hold it all in my head. In combination with AI tool support, I feel that adding additional people to the experiments will slow me down.
-
-I think analysis and meaningful writing will warrant authorship, and offhand ideas warrant acknowledgements. If you feel differently, I am happy to discuss further. Right now, I am first author and Jenna is second author.
-
-Again, if you're not interested, feel free to let me know and I'll take you off this "mailing list"; I plan on sending an update every couple weeks until the CV4Animals deadline.
-
-Best,
-Sam
-
-# 02/20/2025
-
-I need to run some experiments with MLLMs and get some progress.
-
-Ages: 1800 test samples (600 x 3)
-Plankton: 151K
-Newt: 16.4K
-iWildcam: 42.7K
-
-Let's just stick with --debug using only 100 random samples.
-This is enough for me to notice meaningful differences in prompting strategies (and bugs).
-
-Right now, both models are returning nothing.
-(I fixed this by changing the 'role' parameter)
-
-I would like to see one comparison so far:
-
-With 100 randomly sampled examples from `ages`, compare:
-
-* Gemini 1.5 Flash 8B
-* Qwen2-VL-7B
-* Llama3.2 11B
-* GPT-4o-mini
-
-With 0, 1, 3, and 10 samples, multi and single-turn prompts.
-I want to know a couple things:
-
-1. How many examples actually fit into their prompt
-2. Accuracy (obviously)
-
-Hopefully we will see
-
-1. GPT-4o-mini > Gemini > Qwen > Llama
-2. Performance goes up with samples
-3. Single > multi
-
-# 02/24/2025
-
-Ages is such a dumb task, it explicitly is a train/test mismatch.
-Without any training samples, obviously you do better.
-
-What about FishNet?
-
-FishNet worked! More samples is better.
-Now I want to track
-
-1. How many examples actually fit into the prompt.
-2. I want to save a sample of the MLLM responses
-3. Cost per response
-
-And I need to try multi-turn prompts as well.
-Then just show me the freaking graphs baby!
-
-# 03/19/2025
-
-Okay, after abandoning this repo for cv4animals, I am back for a neurips submission.
-I think I need to find some prior work in benchmark papers, and ask around to see if anyone has written one or more benchmark paper for neurips.
-Kazi has, so I'm talking to him
-Yi Tay wrote a great "Benchmark Lottery" paper that I'm going to draw heavily from.
-I think I need to think carefully about which tasks to include when creating a "benchmark suite".
-
-These are some of the tasks we plan to use for BioCLIP 2.
-
-* MammalNet
-* Herbarium19
-* Rolnick's Moth Benchmark (Yuyan's ICML submission); clustering
-* iWildCam
-* KABR
-* NeWT
-* Pl@ntNet
-* Fishnet
-* RareSpecies
-* (Ages)
-
-Detection/Segmentation
-
-* Ciona17 (https://ieeexplore.ieee.org/abstract/document/8287716)
-* MASNet (https://github.com/zhenqifu/MASNet/tree/main)
-* Sawit (https://github.com/dtnguyen0304/sawit)
-
-I think MammalNet and Herbarium19 are excellent.
-Probably each task needs to be considered in terms of what it adds to a benchmark, and its inclusion should be justified.
-
-We can justify decisions with:
-
-* Popularity (citations) as a proxy for a task being important to the community (iNat21)
-* Adding a specific distribution (camera trap classification, for example)
-* Adding a modality (video classification, for example)
-* Adding a specific clade (fish, for example)
-
-Other ideas besides imagenet correlation (or lack thereof)
-
-1. Long-tail Performance Gap - Quantify how dramatically performance drops on rare species vs. common ones across models, showing your benchmark better captures this critical ecological dimension
-2. Data Efficiency Curves - Show learning curves (performance vs. training data size) differ dramatically across ecological tasks compared to generic vision tasks
-3. Task Independence Analysis - Use principal component analysis on task performance to show your tasks capture fundamentally different capabilities -> not sure about PCA but task independence is good for comparing to the openclip zero-shot benchmark or the VTAB benchmark.
-4. Time-Based Evaluation. Plot model performance on imagenet with publication date on x-axis, and model performance on biobench with date on x-axis. Are we improving?
-
-
-So now I will have the following empirical results:
-1. Correlation (or lack thereof) between ImageNet-1K results/rankings and BioBench results/rankings.
-2. Pre-training objective and its effect on BioBench scores (compare DINOv2, CLIP, SigLIP, SAMv2, BioCLIP and V-JEPA)
-3. FLOPS/image, pretraining FLOPs, model parameters and its effect on BioBench scores
-4. Data efficiency (number of training images) and its effect on BioBench scores
-5. Benchmark stability (leave-one-out vs full benchmark)
-
-Is that enough for a benchmark paper? I'm just curating existing datasets.
-
-
-# 03/25/2025
-
-We have actually three parts to the target audience:
-
-1. Reviewers at NeurIPS. They will be CV/ML/AI researchers with an interest in AI in ecology (hopefully) who are looking to poke holes in the submission.
-2. Professors who will read the title, abstract and main figures, then decide whether to share it with their students.
-3. Practitioners and other researchers looking to use our benchmark for evaluating a new methodology (model)
-
-Keep this in mind when writing. We need to convince reviewers, but groups 2 and 3 are more important long-term.
-
-# 03/26/2025
-
-Ecological CV is important.
-Why?
-
-# 04/23/2025
-
-Good outline:
-
-Do we need benchmarks? -> Most AI/ML researchers agree yes. There are good studies on the history of bechmark, shared tasks, etc.
-
-Are current benchmarks good enough? -> Not anymore. I show that this is true with the statistical graphs. I give an explanation why by showing images in ImageNet-1K, MS-COCO, ADE20K, iNat21 and the tasks in BioBench.
-
-How should we build new benchmarks?
-
-* Engineeering why: benchmarks should help us answer new questions about models, goldilocks zone, etc.
-* Science why: benchmarks should drive progress outside of the benchmark task itself.
-
-# 05/08/2025
-
-Things I want to change after NeurIPS submission:
-
-1. Splits should be better aligned with either site/location, past/future (time) or other reasonable distribution splits.
-2. We should also report performance for 100 samples, or 1 of each class, whichever is more. Then I can cite both my cv4animals submission and callista's website.
-3. We should use GPU accelerated training for doing sweeps on linear probing for large models like DINOv2's probing code.
-4. Justify the particular task-specific head (ridgeclassifier, logistic regression, simpleshot, svm, etc).
-5. Use [`wildlife_datasets`](https://github.com/WildlifeDatasets/wildlife-datasets) for Beluga data loading.
-6. Plot progress on ImageNet and BioBench over time (normalized to each leaderboard).
-
-Some of these can be worked on before the NeurIPS reviews come out in prep fo rebuttal.
-
-Additional models:
-
-1. SigLIP2
-2. [OpenVision](https://arxiv.org/abs/2505.04601)
-3. [WebSSL](https://huggingface.co/collections/facebook/web-ssl-68094132c15fbd7808d1e9bb)
-4. [CATALOG](https://arxiv.org/pdf/2412.10624)
-5. [WildCLIP](https://github.com/amathislab/wildclip) (see [here](https://zenodo.org/records/11102888) for the checkpoints)
+>>>> linear_probing.py
+import logging
+import math
+
+import beartype
+import numpy as np
+import sklearn.base
+import sklearn.utils.validation
+import torch
+import torch.nn
+import torch.utils.data
+
+from . import helpers
+
+
+@beartype.beartype
+class LinearProbeClassifier(sklearn.base.BaseEstimator, sklearn.base.ClassifierMixin):
+    """
+    LayerNorm + Linear soft-max head trained with AdamW on fixed feature vectors.
+    """
+
+    def __init__(
+        self,
+        n_steps: int = 10_000,
+        batch_size: int = 2048,
+        lr: float = 3e-4,
+        weight_decay: float = 1e-2,
+        device: str = "cpu",
+    ):
+        self.n_steps = n_steps
+        self.batch_size = batch_size
+        self.lr = lr
+        self.weight_decay = weight_decay
+        self.device = device
+        self.logger = logging.getLogger("linear-probe-clf")
+
+    # fit
+    def fit(self, X, y):
+        x, y = sklearn.utils.validation.check_X_y(X, y, dtype=np.float32, order="C")
+        x_dim, n_cls = x.shape[1], int(np.max(y) + 1)
+
+        # model
+        self.model_ = torch.nn.Sequential(
+            torch.nn.LayerNorm(x_dim, elementwise_affine=True),
+            torch.nn.Linear(x_dim, n_cls, bias=True),
+        ).to(self.device)
+        self.model_.train()
+
+        # param-wise wd: skip bias & LN γ,β
+        decay, no_decay = [], []
+        for n, p in self.model_.named_parameters():
+            (decay if p.ndim > 1 else no_decay).append(p)
+        opt = torch.optim.AdamW(
+            [
+                {"params": decay, "weight_decay": self.weight_decay},
+                {"params": no_decay, "weight_decay": 0.0},
+            ],
+            lr=self.lr,
+        )
+        lr_scheduler = CosineWarmup(
+            init=self.lr,
+            max=self.lr,
+            final=self.lr * 1e-2,
+            n_warmup_steps=0,
+            n_steps=self.n_steps,
+        )
+
+        # data
+        dataset = torch.utils.data.TensorDataset(
+            torch.from_numpy(x), torch.from_numpy(y).long()
+        )
+        loader = torch.utils.data.DataLoader(
+            dataset, self.batch_size, shuffle=True, pin_memory=True, drop_last=False
+        )
+
+        scaler = torch.amp.GradScaler()
+
+        # training loop
+        it = helpers.infinite(loader)
+        for step in helpers.progress(
+            range(self.n_steps), every=self.n_steps // 100, desc="sgd"
+        ):
+            xb, yb = next(it)
+            xb, yb = xb.to(self.device), yb.to(self.device)
+            with torch.amp.autocast(self.device):
+                logits = self.model_(xb)
+                loss = torch.nn.functional.cross_entropy(logits, yb)
+            scaler.scale(loss).backward()
+            scaler.step(opt)
+            scaler.update()
+            lr = lr_scheduler.step()
+            for param_group in opt.param_groups:
+                param_group["lr"] = lr
+            opt.zero_grad(set_to_none=True)
+
+            if step % (self.n_steps // 100) == 0:
+                self.logger.info(
+                    "step: %d/%d (%.1f%%) loss: %.6f lr: %.3g",
+                    step,
+                    self.n_steps,
+                    (step / self.n_steps * 100),
+                    loss.item(),
+                    lr,
+                )
+
+        self.model_.eval()
+        return self
+
+    # predict
+    def predict(self, X):
+        sklearn.utils.validation.check_is_fitted(self, ["model_"])
+        x = sklearn.utils.validation.check_array(X, dtype=np.float32, order="C")
+        xb = torch.from_numpy(x).to(self.device)
+        with torch.no_grad():
+            logits = self.model_(xb)
+            preds = logits.argmax(dim=1).cpu().numpy()
+        return preds
+
+    # predict_proba
+    def predict_proba(self, X):
+        sklearn.utils.validation.check_is_fitted(self, ["model_"])
+        x = sklearn.utils.validation.check_array(X, dtype=np.float32, order="C")
+        xb = torch.from_numpy(x).to(self.device)
+        with torch.no_grad():
+            probs = torch.nn.functional.softmax(self.model_(xb), dim=1)
+        return probs.cpu().numpy()
+
+
+@beartype.beartype
+class Scheduler:
+    def step(self) -> float:
+        err_msg = f"{self.__class__.__name__} must implement step()."
+        raise NotImplementedError(err_msg)
+
+
+@beartype.beartype
+class Linear(Scheduler):
+    def __init__(self, init: float, final: float, n_steps: int):
+        self.init = init
+        self.final = final
+        self.n_steps = n_steps
+        self._step = 0
+
+    def step(self) -> float:
+        self._step += 1
+        return self.init + (self.final - self.init) * (self._step / self.n_steps)
+
+
+@beartype.beartype
+class CosineWarmup(Scheduler):
+    def __init__(
+        self,
+        *,
+        init: float,
+        max: float,
+        final: float,
+        n_warmup_steps: int,
+        n_steps: int,
+    ):
+        self.init = init
+        self.max = max
+        self.final = final
+        self.n_warmup_steps = n_warmup_steps
+        self.n_steps = n_steps
+        self._step = 0
+
+    def step(self) -> float:
+        self._step += 1
+        if self._step < self.n_warmup_steps:
+            # Linear warmup
+            return self.init + (self.max - self.init) * (
+                self._step / self.n_warmup_steps
+            )
+
+        # Cosine decay.
+        return self.final + 0.5 * (self.max - self.final) * (
+            1
+            + math.cos(
+                (self._step - self.n_warmup_steps)
+                / (self.n_steps - self.n_warmup_steps)
+                * math.pi
+            )
+        )
+
+
+def _plot_example_schedules():
+    import matplotlib.pyplot as plt
+    import numpy as np
+
+    fig, (ax1, ax2) = plt.subplots(ncols=2, figsize=(16, 8))
+
+    n_steps = 1000
+    xs = np.arange(n_steps)
+
+    schedule = Linear(0.1, 0.9, n_steps)
+    ys = [schedule.step() for _ in xs]
+
+    ax1.plot(xs, ys)
+    ax1.set_title("Linear")
+
+    schedule = CosineWarmup(0.1, 1.0, 0.0, 0, n_steps)
+    ys = [schedule.step() for _ in xs]
+
+    ax2.plot(xs, ys)
+    ax2.set_title("CosineWarmup")
+
+    fig.tight_layout()
+    fig.savefig("schedules.png")
+
+
+if __name__ == "__main__":
+    _plot_example_schedules()
 
 >>>> mammalnet/__init__.py
 """
@@ -6278,11 +6021,6 @@ import os.path
 import beartype
 import numpy as np
 import polars as pl
-import scipy.stats
-import sklearn.linear_model
-import sklearn.model_selection
-import sklearn.pipeline
-import sklearn.preprocessing
 import torch
 from jaxtyping import Float, Float16, Int, Shaped, jaxtyped
 from PIL import Image
@@ -6300,12 +6038,12 @@ def benchmark(cfg: config.Experiment) -> reporting.Report:
     backbone = backbone.to(cfg.device)
 
     # 2. Load data.
-    test_features = get_features(cfg, backbone, is_train=False)
     train_features = get_features(cfg, backbone, is_train=True)
+    test_features = get_features(cfg, backbone, is_train=False)
     torch.cuda.empty_cache()
 
     # 4. Do simpleshot.
-    clf = init_clf(cfg)
+    clf = helpers.init_logreg_clf(cfg)
     clf.fit(train_features.x, train_features.y)
 
     true_labels = test_features.y
@@ -6502,26 +6240,6 @@ def aggregate_frames(
     features: Float16[Tensor, "batch n_frames dim"],
 ) -> Float16[Tensor, "batch dim"]:
     return torch.max(features, dim=1).values
-
-
-@beartype.beartype
-def init_clf(cfg: config.Experiment):
-    clf = sklearn.pipeline.make_pipeline(
-        sklearn.preprocessing.StandardScaler(),
-        sklearn.linear_model.LogisticRegression(max_iter=200),
-    )
-    if 0 < cfg.n_train <= 1000:
-        return clf
-
-    return sklearn.model_selection.RandomizedSearchCV(
-        clf,
-        {"logisticregression__C": scipy.stats.loguniform(a=1e-2, b=1e2)},
-        n_iter=30,
-        n_jobs=8,
-        verbose=3,
-        random_state=cfg.seed,
-        scoring="f1_macro",
-    )
 
 >>>> mammalnet/download.py
 # /// script
@@ -8561,6 +8279,7 @@ import numpy as np
 import polars as pl
 import statsmodels.stats.multitest
 import tyro
+import whenever
 
 from biobench import helpers
 
@@ -8606,69 +8325,493 @@ task_lookup = {task.name: task for task in prior_work_tasks + benchmark_tasks}
 
 
 @beartype.beartype
+def date_to_ms(year: int, month: int, day: int) -> int:
+    return whenever.Instant.from_utc(year, month, day).timestamp_millis()
+
+
+@beartype.beartype
 @dataclasses.dataclass(frozen=True)
 class Model:
     ckpt: str
     display: str
     family: str
+    resolution: int
+    params: int
+    release_ms: int | None
 
     def to_dict(self) -> dict[str, object]:
         return dataclasses.asdict(self)
 
 
 models = [
-    Model("ViT-B-32/openai", "CLIP ViT-B/32", "CLIP"),
-    Model("ViT-B-16/openai", "CLIP ViT-B/16", "CLIP"),
-    Model("ViT-L-14/openai", "CLIP ViT-L/14", "CLIP"),
-    Model("ViT-L-14-336/openai", "CLIP ViT-L/14 (336px)", "CLIP"),
-    Model("ViT-B-16-SigLIP/webli", "SigLIP ViT-B/16", "SigLIP"),
-    Model("ViT-B-16-SigLIP-256/webli", "SigLIP ViT-B/16 (256px)", "SigLIP"),
-    Model("ViT-B-16-SigLIP-384/webli", "SigLIP ViT-B/16 (384px)", "SigLIP"),
-    Model("ViT-B-16-SigLIP-512/webli", "SigLIP ViT-B/16 (512px)", "SigLIP"),
-    Model("ViT-L-16-SigLIP-256/webli", "SigLIP ViT-L/16 (256px)", "SigLIP"),
-    Model("ViT-L-16-SigLIP-384/webli", "SigLIP ViT-L/16 (384px)", "SigLIP"),
-    Model("ViT-SO400M-14-SigLIP/webli", "SigLIP SO400M/14", "SigLIP"),
-    Model("ViT-SO400M-14-SigLIP-384/webli", "SigLIP SO400M/14 (384px)", "SigLIP"),
-    Model("dinov2_vits14_reg", "DINOv2 ViT-S/14", "DINOv2"),
-    Model("dinov2_vitb14_reg", "DINOv2 ViT-B/14", "DINOv2"),
-    Model("dinov2_vitl14_reg", "DINOv2 ViT-L/14", "DINOv2"),
-    Model("dinov2_vitg14_reg", "DINOv2 ViT-g/14", "DINOv2"),
-    Model("apple/aimv2-large-patch14-224", "AIMv2 ViT-L/14 (224px)", "AIMv2"),
-    Model("apple/aimv2-large-patch14-336", "AIMv2 ViT-L/14 (336px)", "AIMv2"),
-    Model("apple/aimv2-large-patch14-448", "AIMv2 ViT-L/14 (448px)", "AIMv2"),
-    Model("apple/aimv2-huge-patch14-224", "AIMv2 ViT-H/14 (224px)", "AIMv2"),
-    Model("apple/aimv2-huge-patch14-336", "AIMv2 ViT-H/14 (336px)", "AIMv2"),
-    Model("apple/aimv2-huge-patch14-448", "AIMv2 ViT-H/14 (448px)", "AIMv2"),
-    Model("apple/aimv2-1B-patch14-224", "AIMv2 ViT-1B/14 (224px)", "AIMv2"),
-    Model("apple/aimv2-1B-patch14-336", "AIMv2 ViT-1B/14 (336px)", "AIMv2"),
-    Model("apple/aimv2-1B-patch14-448", "AIMv2 ViT-1B/14 (448px)", "AIMv2"),
-    Model("apple/aimv2-3B-patch14-224", "AIMv2 ViT-3B/14 (224px)", "AIMv2"),
-    Model("apple/aimv2-3B-patch14-336", "AIMv2 ViT-3B/14 (336px)", "AIMv2"),
-    Model("apple/aimv2-3B-patch14-448", "AIMv2 ViT-3B/14 (448px)", "AIMv2"),
-    Model("efficientnet_b0.ra_in1k", "EfficientNet B0", "CNN"),
-    Model("efficientnet_b3.ra2_in1k", "EfficientNet B3", "CNN"),
-    Model("mobilenetv2_100.ra_in1k", "MobileNet V2", "CNN"),
-    Model("mobilenetv3_large_100.ra_in1k", "MobileNet V3 L", "CNN"),
-    Model("resnet18.a1_in1k", "ResNet-18", "CNN"),
-    Model("resnet18d.ra2_in1k", "ResNet-18", "CNN"),
-    Model("resnet50.a1_in1k", "ResNet-50", "CNN"),
-    Model("resnet50d.a1_in1k", "ResNet-50d", "CNN"),
-    Model("convnext_tiny.in12k", "ConvNext-T", "CNN"),
-    Model("convnext_tiny.in12k_ft_in1k", "ConvNext-T (IN1K)", "CNN"),
-    Model("vit_base_patch16_224.augreg2_in21k_ft_in1k", "ViT-B/16 (IN1K)", "ViT"),
-    Model("hf-hub:imageomics/bioclip", "BioCLIP ViT-B/16", "cv4ecology"),
-    Model("hf-hub:BGLab/BioTrove-CLIP", "BioTrove ViT-B/16", "cv4ecology"),
+    Model(
+        "ViT-B-32/openai",
+        "CLIP ViT-B/32",
+        "CLIP",
+        224,
+        87_849_216,
+        date_to_ms(2021, 1, 5),
+    ),
+    Model(
+        "ViT-B-16/openai",
+        "CLIP ViT-B/16",
+        "CLIP",
+        224,
+        86_192_640,
+        date_to_ms(2021, 1, 5),
+    ),
+    Model(
+        "ViT-L-14/openai",
+        "CLIP ViT-L/14",
+        "CLIP",
+        224,
+        303_966_208,
+        date_to_ms(2021, 1, 5),
+    ),
+    Model(
+        "ViT-L-14-336/openai",
+        "CLIP ViT-L/14",
+        "CLIP",
+        336,
+        304_293_888,
+        date_to_ms(2021, 1, 5),
+    ),
+    Model(
+        "ViT-B-16-SigLIP/webli",
+        "SigLIP ViT-B/16",
+        "SigLIP",
+        224,
+        92_884_224,
+        date_to_ms(2023, 9, 27),
+    ),
+    Model(
+        "ViT-B-16-SigLIP-256/webli",
+        "SigLIP ViT-B/16",
+        "SigLIP",
+        256,
+        92_930_304,
+        date_to_ms(2023, 9, 27),
+    ),
+    Model(
+        "ViT-B-16-SigLIP-384/webli",
+        "SigLIP ViT-B/16",
+        "SigLIP",
+        384,
+        93_176_064,
+        date_to_ms(2023, 9, 27),
+    ),
+    Model(
+        "ViT-B-16-SigLIP-512/webli",
+        "SigLIP ViT-B/16",
+        "SigLIP",
+        512,
+        93_520_128,
+        date_to_ms(2023, 9, 27),
+    ),
+    Model(
+        "ViT-L-16-SigLIP-256/webli",
+        "SigLIP ViT-L/16",
+        "SigLIP",
+        256,
+        315_956_224,
+        date_to_ms(2023, 9, 27),
+    ),
+    Model(
+        "ViT-L-16-SigLIP-384/webli",
+        "SigLIP ViT-L/16",
+        "SigLIP",
+        384,
+        316_283_904,
+        date_to_ms(2023, 9, 27),
+    ),
+    Model(
+        "ViT-SO400M-14-SigLIP/webli",
+        "SigLIP SO400M/14",
+        "SigLIP",
+        224,
+        427_680_704,
+        date_to_ms(2023, 9, 27),
+    ),
+    Model(
+        "ViT-SO400M-14-SigLIP-384/webli",
+        "SigLIP SO400M/14",
+        "SigLIP",
+        384,
+        428_225_600,
+        date_to_ms(2023, 9, 27),
+    ),
+    Model(
+        "ViT-B-32-SigLIP2-256/webli",
+        "SigLIP2 ViT-B/32",
+        "SigLIP2",
+        256,
+        94_552_320,
+        date_to_ms(2025, 2, 20),
+    ),
+    Model(
+        "ViT-B-16-SigLIP2/webli",
+        "SigLIP2 ViT-B/16",
+        "SigLIP2",
+        224,
+        92_884_224,
+        date_to_ms(2025, 2, 20),
+    ),
+    Model(
+        "ViT-B-16-SigLIP2-256/webli",
+        "SigLIP2 ViT-B/16",
+        "SigLIP2",
+        256,
+        92_930_304,
+        date_to_ms(2025, 2, 20),
+    ),
+    Model(
+        "ViT-B-16-SigLIP2-384/webli",
+        "SigLIP2 ViT-B/16",
+        "SigLIP2",
+        384,
+        93_176_064,
+        date_to_ms(2025, 2, 20),
+    ),
+    Model(
+        "ViT-B-16-SigLIP2-512/webli",
+        "SigLIP2 ViT-B/16",
+        "SigLIP2",
+        512,
+        93_520_128,
+        date_to_ms(2025, 2, 20),
+    ),
+    Model(
+        "ViT-L-16-SigLIP2-256/webli",
+        "SigLIP2 ViT-L/16",
+        "SigLIP2",
+        256,
+        315_956_224,
+        date_to_ms(2025, 2, 20),
+    ),
+    Model(
+        "ViT-L-16-SigLIP2-384/webli",
+        "SigLIP2 ViT-L/16",
+        "SigLIP2",
+        384,
+        316_283_904,
+        date_to_ms(2025, 2, 20),
+    ),
+    Model(
+        "ViT-L-16-SigLIP2-512/webli",
+        "SigLIP2 ViT-L/16",
+        "SigLIP2",
+        512,
+        316_742_656,
+        date_to_ms(2025, 2, 20),
+    ),
+    Model(
+        "ViT-SO400M-16-SigLIP2-256/webli",
+        "SigLIP2 SO400M/16",
+        "SigLIP2",
+        256,
+        427_888_064,
+        date_to_ms(2025, 2, 20),
+    ),
+    Model(
+        "ViT-SO400M-16-SigLIP2-384/webli",
+        "SigLIP2 SO400M/16",
+        "SigLIP2",
+        384,
+        428_256_704,
+        date_to_ms(2025, 2, 20),
+    ),
+    Model(
+        "ViT-SO400M-16-SigLIP2-512/webli",
+        "SigLIP2 SO400M/16",
+        "SigLIP2",
+        512,
+        428_772_800,
+        date_to_ms(2025, 2, 20),
+    ),
+    Model(
+        "ViT-gopt-16-SigLIP2-256/webli",
+        "SigLIP2 ViT-1B/16",
+        "SigLIP2",
+        256,
+        1_163_168_256,
+        date_to_ms(2025, 2, 20),
+    ),
+    Model(
+        "ViT-gopt-16-SigLIP2-384/webli",
+        "SigLIP2 ViT-1B/16",
+        "SigLIP2",
+        384,
+        1_163_659_776,
+        date_to_ms(2025, 2, 20),
+    ),
+    Model(
+        "hf-hub:UCSC-VLAA/openvision-vit-tiny-patch16-224",
+        "OpenVision ViT-T/16",
+        "OpenVision",
+        224,
+        5_561_088,
+        date_to_ms(2025, 5, 7),
+    ),
+    Model(
+        "hf-hub:UCSC-VLAA/openvision-vit-small-patch16-224",
+        "OpenVision ViT-S/16",
+        "OpenVision",
+        224,
+        21_812_736,
+        date_to_ms(2025, 5, 7),
+    ),
+    Model(
+        "hf-hub:UCSC-VLAA/openvision-vit-base-patch16-224",
+        "OpenVision ViT-B/16",
+        "OpenVision",
+        224,
+        86_191_104,
+        date_to_ms(2025, 5, 7),
+    ),
+    Model(
+        "hf-hub:UCSC-VLAA/openvision-vit-large-patch14-224",
+        "OpenVision ViT-L/14",
+        "OpenVision",
+        224,
+        303_964_160,
+        date_to_ms(2025, 5, 7),
+    ),
+    Model(
+        "hf-hub:UCSC-VLAA/openvision-vit-so400m-patch14-224",
+        "OpenVision SO400M/14",
+        "OpenVision",
+        224,
+        413_770_608,
+        date_to_ms(2025, 5, 7),
+    ),
+    Model(
+        "hf-hub:UCSC-VLAA/openvision-vit-so400m-patch14-384",
+        "OpenVision SO400M/14",
+        "OpenVision",
+        384,
+        414_315_504,
+        date_to_ms(2025, 5, 7),
+    ),
+    Model(
+        "hf-hub:UCSC-VLAA/openvision-vit-huge-patch14-224",
+        "OpenVision ViT-H/14",
+        "OpenVision",
+        224,
+        632_074_240,
+        date_to_ms(2025, 5, 7),
+    ),
+    Model(
+        "dinov2_vits14_reg",
+        "DINOv2 ViT-S/14",
+        "DINOv2",
+        224,
+        22_058_112,
+        date_to_ms(2024, 4, 12),
+    ),
+    Model(
+        "dinov2_vitb14_reg",
+        "DINOv2 ViT-B/14",
+        "DINOv2",
+        224,
+        86_583_552,
+        date_to_ms(2024, 4, 12),
+    ),
+    Model(
+        "dinov2_vitl14_reg",
+        "DINOv2 ViT-L/14",
+        "DINOv2",
+        224,
+        304_372_736,
+        date_to_ms(2024, 4, 12),
+    ),
+    Model(
+        "dinov2_vitg14_reg",
+        "DINOv2 ViT-g/14",
+        "DINOv2",
+        224,
+        1_136_486_912,
+        date_to_ms(2024, 4, 12),
+    ),
+    Model(
+        "apple/aimv2-large-patch14-224",
+        "AIMv2 ViT-L/14",
+        "AIMv2",
+        224,
+        309_197_824,
+        date_to_ms(2024, 11, 21),
+    ),
+    Model(
+        "apple/aimv2-large-patch14-336",
+        "AIMv2 ViT-L/14",
+        "AIMv2",
+        336,
+        309_525_504,
+        date_to_ms(2024, 11, 21),
+    ),
+    Model(
+        "apple/aimv2-large-patch14-448",
+        "AIMv2 ViT-L/14",
+        "AIMv2",
+        448,
+        309_984_256,
+        date_to_ms(2024, 11, 21),
+    ),
+    Model(
+        "apple/aimv2-huge-patch14-224",
+        "AIMv2 ViT-H/14",
+        "AIMv2",
+        224,
+        680_851_968,
+        date_to_ms(2024, 11, 21),
+    ),
+    Model(
+        "apple/aimv2-huge-patch14-336",
+        "AIMv2 ViT-H/14",
+        "AIMv2",
+        336,
+        681_343_488,
+        date_to_ms(2024, 11, 21),
+    ),
+    Model(
+        "apple/aimv2-huge-patch14-448",
+        "AIMv2 ViT-H/14",
+        "AIMv2",
+        448,
+        682_031_616,
+        date_to_ms(2024, 11, 21),
+    ),
+    Model(
+        "apple/aimv2-1B-patch14-224",
+        "AIMv2 ViT-1B/14",
+        "AIMv2",
+        224,
+        1_234_958_336,
+        date_to_ms(2024, 11, 21),
+    ),
+    Model(
+        "apple/aimv2-1B-patch14-336",
+        "AIMv2 ViT-1B/14",
+        "AIMv2",
+        336,
+        1_235_613_696,
+        date_to_ms(2024, 11, 21),
+    ),
+    Model(
+        "apple/aimv2-1B-patch14-448",
+        "AIMv2 ViT-1B/14",
+        "AIMv2",
+        448,
+        1_236_531_200,
+        date_to_ms(2024, 11, 21),
+    ),
+    Model(
+        "apple/aimv2-3B-patch14-224",
+        "AIMv2 ViT-3B/14",
+        "AIMv2",
+        224,
+        2_720_658_432,
+        date_to_ms(2024, 11, 21),
+    ),
+    Model(
+        "apple/aimv2-3B-patch14-336",
+        "AIMv2 ViT-3B/14",
+        "AIMv2",
+        336,
+        2_721_641_472,
+        date_to_ms(2024, 11, 21),
+    ),
+    Model(
+        "apple/aimv2-3B-patch14-448",
+        "AIMv2 ViT-3B/14",
+        "AIMv2",
+        448,
+        2_723_017_728,
+        date_to_ms(2024, 11, 21),
+    ),
+    Model("efficientnet_b0.ra_in1k", "EfficientNet B0", "CNN", 224, 5_288_548, None),
+    Model("efficientnet_b3.ra2_in1k", "EfficientNet B3", "CNN", 320, 12_233_232, None),
+    Model("mobilenetv2_100.ra_in1k", "MobileNet V2", "CNN", 224, 3_504_872, None),
+    Model(
+        "mobilenetv3_large_100.ra_in1k", "MobileNet V3 L", "CNN", 224, 5_483_032, None
+    ),
+    Model("resnet18.a1_in1k", "ResNet-18", "CNN", 288, 11_689_512, None),
+    Model("resnet18d.ra2_in1k", "ResNet-18", "CNN", 288, 25_576_264, None),
+    Model("resnet50.a1_in1k", "ResNet-50", "CNN", 288, 25_557_032, None),
+    Model("resnet50d.a1_in1k", "ResNet-50d", "CNN", 288, 25_576_264, None),
+    Model("convnext_tiny.in12k", "ConvNext-T", "CNN", 224, 36_910_477, None),
+    Model(
+        "convnext_tiny.in12k_ft_in1k", "ConvNext-T (IN1K)", "CNN", 288, 28_589_128, None
+    ),
+    Model(
+        "vit_base_patch16_224.augreg2_in21k_ft_in1k",
+        "ViT-B/16 (IN1K)",
+        "ViT",
+        224,
+        86_567_656,
+        None,
+    ),
+    Model(
+        "hf-hub:imageomics/bioclip",
+        "BioCLIP ViT-B/16",
+        "cv4ecology",
+        224,
+        86_192_640,
+        date_to_ms(2024, 5, 14),
+    ),
+    Model(
+        "hf-hub:BGLab/BioTrove-CLIP",
+        "BioTrove ViT-B/16",
+        "cv4ecology",
+        224,
+        86_192_640,
+        date_to_ms(2025, 1, 27),
+    ),
     Model(
         "hf-hub:BVRA/MegaDescriptor-L-384",
-        "MegaDescriptor Swin-L/4 (384px)",
+        "MegaDescriptor Swin-L/4",
         "cv4ecology",
+        384,
+        195_198_516,
+        date_to_ms(2023, 12, 14),
     ),
-    Model("vitl16", "V-JEPA ViT-L/16", "V-JEPA"),
-    Model("vith16", "V-JEPA ViT-H/16", "V-JEPA"),
-    Model("sam2_hiera_tiny.fb_r896_2pt1", "SAM2 Hiera-T", "SAM2"),
-    Model("sam2_hiera_small.fb_r896_2pt1", "SAM2 Hiera-S", "SAM2"),
-    Model("sam2_hiera_base_plus.fb_r896_2pt1", "SAM2 Hiera-B+", "SAM2"),
-    Model("sam2_hiera_large.fb_r1024_2pt1", "SAM2 Hiera-L", "SAM2"),
+    Model(
+        "vitl16", "V-JEPA ViT-L/16", "V-JEPA", 224, 305_490_944, date_to_ms(2024, 2, 15)
+    ),
+    Model(
+        "vith16", "V-JEPA ViT-H/16", "V-JEPA", 224, 633_655_040, date_to_ms(2024, 2, 15)
+    ),
+    Model(
+        "sam2_hiera_tiny.fb_r896_2pt1",
+        "SAM2 Hiera-T",
+        "SAM2",
+        896,
+        26_851_008,
+        date_to_ms(2024, 10, 28),
+    ),
+    Model(
+        "sam2_hiera_small.fb_r896_2pt1",
+        "SAM2 Hiera-S",
+        "SAM2",
+        896,
+        33_948_864,
+        date_to_ms(2024, 10, 28),
+    ),
+    Model(
+        "sam2_hiera_base_plus.fb_r896_2pt1",
+        "SAM2 Hiera-B+",
+        "SAM2",
+        896,
+        68_677_504,
+        date_to_ms(2024, 10, 28),
+    ),
+    Model(
+        "sam2_hiera_large.fb_r1024_2pt1",
+        "SAM2 Hiera-L",
+        "SAM2",
+        1024,
+        212_151_600,
+        date_to_ms(2024, 10, 28),
+    ),
 ]
 
 
@@ -8704,6 +8847,9 @@ def calc_scores(
             (pl.col("task_name") == task.name)
             & (pl.col("model_ckpt").is_in(model_lookup))
         )
+
+        if sub.height == 0:
+            continue
 
         scores = bootstrap_scores(sub, b=n_bootstraps, rng=rng)
         # freeze model order once
@@ -8786,6 +8932,15 @@ def main(
         .collect()
     )
     logger.info("Loaded %d predictions.", df.height)
+
+    # Print any unknown checkpoints
+    unknown_ckpts = set(df["model_ckpt"].unique()) - set(model_lookup.keys())
+    if unknown_ckpts:
+        logger.warning(
+            "Found %d unknown checkpoints: %s",
+            len(unknown_ckpts),
+            sorted(unknown_ckpts),
+        )
 
     scores_df, bests_df = calc_scores(
         df, n_bootstraps=n_bootstraps, alpha=alpha, seed=seed
@@ -8945,7 +9100,16 @@ def claim_run(db: sqlite3.Connection, cfg: config.Experiment, task_name: str) ->
     try:
         cur = db.execute(stmt, values)
         db.commit()
-        return cur.rowcount == 1  # 1 row inserted -> we won
+        claimed = cur.rowcount == 1  # 1 row inserted -> we won
+        if claimed:
+            logger.info(
+                "Claimed (%s, %s, %s, %d).",
+                task_name,
+                cfg.model.org,
+                cfg.model.ckpt,
+                cfg.n_train,
+            )
+        return claimed
     except Exception:
         db.rollback()
         raise
@@ -8965,12 +9129,12 @@ def release_run(db: sqlite3.Connection, cfg: config.Experiment, task_name: str) 
     WHERE task_name=? AND model_org=? AND model_ckpt=? AND n_train=?
     """
     values = (task_name, cfg.model.org, cfg.model.ckpt, cfg.n_train)
-    logger.info("Releasing claim on (%s, %s, %s, %d)", *values)
+    logger.info("Releasing claim on (%s, %s, %s, %d).", *values)
 
     try:
         db.execute(stmt, values)
         db.commit()
-        logger.info("Released claim on (%s, %s, %s, %d)", *values)
+        logger.info("Released claim on (%s, %s, %s, %d).", *values)
     except Exception:
         db.rollback()
         raise
@@ -9170,7 +9334,7 @@ def micro_acc_batch(
     Parameters
     ----------
     y_true, y_pred
-        Integer class labels / predictions ≥ 0.  All leading dimensions
+        Integer class labels / predictions >= 0.  All leading dimensions
         (`*batch`) must match; `n` is the sample count.
 
     Returns
@@ -9196,7 +9360,7 @@ def macro_f1_batch(
     of examples.  Runs in O(B·n) time and O(B·C) memory, where
     B = prod(*batch) and C = #classes.
 
-    All elements in y_true, y_pred, and labels must be integers ≥ 0. (Negative IDs would break the offset arithmetic; floats break np.bincount.)
+    All elements in y_true, y_pred, and labels must be integers >= 0. (Negative IDs would break the offset arithmetic; floats break np.bincount.)
     """
 
     # flatten batch prefix
@@ -10432,7 +10596,7 @@ def _prediction_list(draw):
 
 @st.composite
 def _prediction_batch(draw):
-    """Generate a *batch* (B ≥ 1) of equal-length prediction lists."""
+    """Generate a *batch* (B >= 1) of equal-length prediction lists."""
     B = draw(st.integers(1, 2))  # batch size
     n = draw(st.integers(1, 4))  # common sample count
     batch = []

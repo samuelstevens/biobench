@@ -124,7 +124,7 @@ def main(cfgs: list[str], dry_run: bool = True, max_pending: int = 8):
     # Setup logging.
     # --------------
     log_format = &#34;[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s&#34;
-    level = logging.DEBUG if cfg.verbose else logging.INFO
+    level = logging.DEBUG if first.debug else logging.INFO
     logging.basicConfig(level=level, format=log_format)
     logger = logging.getLogger(&#34;benchmark.py&#34;)
 
@@ -144,8 +144,13 @@ def main(cfgs: list[str], dry_run: bool = True, max_pending: int = 8):
         # See biobench.third_party_models.get_ssl() for a discussion of this variable.
         if not first.ssl:
             executor.update_parameters(setup=[&#34;export BIOBENCH_DISABLE_SSL=1&#34;])
-    else:
+    elif first.debug:
         executor = submitit.DebugExecutor(folder=first.log_to)
+        # See biobench.third_party_models.get_ssl() for a discussion of this variable.
+        if not first.ssl:
+            os.environ[&#34;BIOBENCH_DISABLE_SSL&#34;] = &#34;1&#34;
+    else:
+        executor = jobkit.SerialExecutor(folder=first.log_to)
         # See biobench.third_party_models.get_ssl() for a discussion of this variable.
         if not first.ssl:
             os.environ[&#34;BIOBENCH_DISABLE_SSL&#34;] = &#34;1&#34;
@@ -168,12 +173,13 @@ def main(cfgs: list[str], dry_run: bool = True, max_pending: int = 8):
         Get the next finished job from queue, blocking if necessary, write the report and relinquish the claim.
         &#34;&#34;&#34;
         job, cfg, task = fq.pop()
+
         try:
             report: reporting.Report = job.result()
             report.write()
             logger.info(&#34;%s+%s/%s done&#34;, task, cfg.model.org, cfg.model.ckpt)
-        except Exception as err:
-            logger.info(&#34;%s+%s/%s failed: %s&#34;, task, cfg.model.org, cfg.model.ckpt, err)
+        except Exception:
+            logger.exception(&#34;%s+%s/%s failed&#34;, task, cfg.model.org, cfg.model.ckpt)
         finally:
             exit_hook.discard((cfg, task))
 

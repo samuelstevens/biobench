@@ -108,7 +108,7 @@ def benchmark(cfg: config.Experiment) -&gt; reporting.Report:
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.5)
 
     # 5. Fit the classifier.
-    it = infinite(train_loader)
+    it = helpers.infinite(train_loader)
     for step in range(n_steps):
         features, labels, _ = next(it)
         features = features.to(cfg.device)
@@ -281,38 +281,6 @@ def get_features(
     return Features(all_features, all_labels, all_ids)</code></pre>
 </details>
 <div class="desc"><p>Extract visual features.</p></div>
-</dd>
-<dt id="biobench.fishnet.infinite"><code class="name flex">
-<span>def <span class="ident">infinite</span></span>(<span>dataloader)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def infinite(dataloader):
-    &#34;&#34;&#34;Creates an infinite iterator from a dataloader by creating a new iterator each time the previous one is exhausted.
-
-    Args:
-        dataloader: A PyTorch dataloader or similar iterable
-
-    Yields:
-        Batches from the dataloader, indefinitely
-    &#34;&#34;&#34;
-    while True:
-        # Create a fresh iterator from the dataloader
-        it = iter(dataloader)
-        for batch in it:
-            yield batch</code></pre>
-</details>
-<div class="desc"><p>Creates an infinite iterator from a dataloader by creating a new iterator each time the previous one is exhausted.</p>
-<h2 id="args">Args</h2>
-<dl>
-<dt><strong><code>dataloader</code></strong></dt>
-<dd>A PyTorch dataloader or similar iterable</dd>
-</dl>
-<h2 id="yields">Yields</h2>
-<p>Batches from the dataloader, indefinitely</p></div>
 </dd>
 <dt id="biobench.fishnet.init_clf"><code class="name flex">
 <span>def <span class="ident">init_clf</span></span>(<span>input_dim: int) ‑> torch.nn.modules.module.Module</span>
@@ -676,7 +644,6 @@ def labels(self) -&gt; Int[np.ndarray, &#34;n 9&#34;]:
 <li><code><a title="biobench.fishnet.benchmark" href="#biobench.fishnet.benchmark">benchmark</a></code></li>
 <li><code><a title="biobench.fishnet.bootstrap_scores" href="#biobench.fishnet.bootstrap_scores">bootstrap_scores</a></code></li>
 <li><code><a title="biobench.fishnet.get_features" href="#biobench.fishnet.get_features">get_features</a></code></li>
-<li><code><a title="biobench.fishnet.infinite" href="#biobench.fishnet.infinite">infinite</a></code></li>
 <li><code><a title="biobench.fishnet.init_clf" href="#biobench.fishnet.init_clf">init_clf</a></code></li>
 <li><code><a title="biobench.fishnet.predict" href="#biobench.fishnet.predict">predict</a></code></li>
 <li><code><a title="biobench.fishnet.score" href="#biobench.fishnet.score">score</a></code></li>

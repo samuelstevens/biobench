@@ -60,14 +60,11 @@ def benchmark(cfg: config.Experiment) -&gt; reporting.Report:
     test_features = get_features(cfg, backbone, is_train=False)
     train_features = get_features(cfg, backbone, is_train=True)
 
+    torch.cuda.empty_cache()  # Be nice to others on the machine.
+
     clf = init_clf(cfg)
     clf.fit(train_features.x, train_features.y)
     logger.info(&#34;Trained a classifier on %d examples.&#34;, len(train_features.y))
-
-    if hasattr(clf, &#34;best_params_&#34;):
-        helpers.write_hparam_sweep_plot(&#34;imagenet1k&#34;, cfg.model.ckpt, clf)
-        alpha = clf.best_params_[&#34;ridgeclassifier__alpha&#34;].item()
-        logger.info(&#34;alpha=%.2g scored %.3f.&#34;, alpha, clf.best_score_.item())
 
     true_labels = test_features.y
     pred_labels = clf.predict(test_features.x)
@@ -161,11 +158,14 @@ def get_features(
     cfg: config.Experiment, backbone: registry.VisionBackbone, *, is_train: bool
 ) -&gt; Features:
     img_transform = backbone.make_img_transform()
-    backbone = torch.compile(backbone.to(cfg.device))
+    backbone = backbone.to(cfg.device)
     split = &#34;train&#34; if is_train else &#34;validation&#34;
 
     dataset = datasets.load_dataset(
-        &#34;ILSVRC/imagenet-1k&#34;, split=split, cache_dir=helpers.get_cache_dir()
+        &#34;ILSVRC/imagenet-1k&#34;,
+        split=split,
+        cache_dir=helpers.get_cache_dir(),
+        trust_remote_code=True,
     )
 
     if is_train and cfg.n_train &gt; 0:
@@ -200,13 +200,9 @@ def get_features(
         with torch.amp.autocast(cfg.device):
             backbone.img_encode(imgs).img_features
 
-    with helpers.auto_batch_size(dataloader, probe=probe) as batch_size:
-        total = max(n_workers, math.ceil(len(i) / batch_size))
-        it = iter(dataloader)
-        logger.debug(&#34;Need to embed %d batches of %d images.&#34;, total, batch_size)
-        for b in helpers.progress(range(total), every=10, desc=f&#34;in1k/{split}&#34;):
-            batch = next(it)
-
+    with helpers.auto_batch_size(dataloader, probe=probe):
+        backbone = torch.compile(backbone)
+        for batch in helpers.progress(dataloader, every=10, desc=f&#34;in1k/{split}&#34;):
             images = batch[&#34;image&#34;].to(cfg.device, non_blocking=True)
 
             with torch.amp.autocast(cfg.device):
@@ -236,25 +232,8 @@ def get_features(
 </summary>
 <pre><code class="python">@beartype.beartype
 def init_clf(cfg: config.Experiment):
-    alpha = np.pow(2.0, np.arange(-15, 5))
-    if cfg.debug:
-        alpha = np.pow(2.0, np.arange(-2, 2))
-
-    clf = sklearn.pipeline.make_pipeline(
-        sklearn.preprocessing.StandardScaler(),
-        sklearn.linear_model.RidgeClassifier(),
-    )
-    if 0 &lt; cfg.n_train &lt; 2_000:
-        return clf
-
-    return sklearn.model_selection.HalvingGridSearchCV(
-        clf,
-        {&#34;ridgeclassifier__alpha&#34;: alpha},
-        n_jobs=8,
-        verbose=3,
-        factor=3,
-        random_state=cfg.seed,
-    )</code></pre>
+    clf = linear_probing.LinearProbeClassifier(device=cfg.device)
+    return clf</code></pre>
 </details>
 <div class="desc"></div>
 </dd>

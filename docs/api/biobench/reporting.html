@@ -205,7 +205,16 @@ def claim_run(db: sqlite3.Connection, cfg: config.Experiment, task_name: str) -&
     try:
         cur = db.execute(stmt, values)
         db.commit()
-        return cur.rowcount == 1  # 1 row inserted -&gt; we won
+        claimed = cur.rowcount == 1  # 1 row inserted -&gt; we won
+        if claimed:
+            logger.info(
+                &#34;Claimed (%s, %s, %s, %d).&#34;,
+                task_name,
+                cfg.model.org,
+                cfg.model.ckpt,
+                cfg.n_train,
+            )
+        return claimed
     except Exception:
         db.rollback()
         raise</code></pre>
@@ -468,7 +477,7 @@ def macro_f1_batch(
     of examples.  Runs in O(B·n) time and O(B·C) memory, where
     B = prod(*batch) and C = #classes.
 
-    All elements in y_true, y_pred, and labels must be integers ≥ 0. (Negative IDs would break the offset arithmetic; floats break np.bincount.)
+    All elements in y_true, y_pred, and labels must be integers &gt;= 0. (Negative IDs would break the offset arithmetic; floats break np.bincount.)
     &#34;&#34;&#34;
 
     # flatten batch prefix
@@ -516,7 +525,7 @@ def macro_f1_batch(
 of examples.
 Runs in O(B·n) time and O(B·C) memory, where
 B = prod(*batch) and C = #classes.</p>
-<p>All elements in y_true, y_pred, and labels must be integers ≥ 0. (Negative IDs would break the offset arithmetic; floats break np.bincount.)</p></div>
+<p>All elements in y_true, y_pred, and labels must be integers &gt;= 0. (Negative IDs would break the offset arithmetic; floats break np.bincount.)</p></div>
 </dd>
 <dt id="biobench.reporting.micro_acc"><code class="name flex">
 <span>def <span class="ident">micro_acc</span></span>(<span>preds: list[<a title="biobench.reporting.Prediction" href="#biobench.reporting.Prediction">Prediction</a>]) ‑> float</span>
@@ -558,7 +567,7 @@ def micro_acc_batch(
     Parameters
     ----------
     y_true, y_pred
-        Integer class labels / predictions ≥ 0.  All leading dimensions
+        Integer class labels / predictions &gt;= 0.  All leading dimensions
         (`*batch`) must match; `n` is the sample count.
 
     Returns
@@ -577,7 +586,7 @@ def micro_acc_batch(
 <h2 id="parameters">Parameters</h2>
 <dl>
 <dt><strong><code>y_true</code></strong>, <strong><code>y_pred</code></strong></dt>
-<dd>Integer class labels / predictions ≥ 0.
+<dd>Integer class labels / predictions &gt;= 0.
 All leading dimensions
 (<code>*batch</code>) must match; <code>n</code> is the sample count.</dd>
 </dl>
@@ -628,12 +637,12 @@ def release_run(db: sqlite3.Connection, cfg: config.Experiment, task_name: str) 
     WHERE task_name=? AND model_org=? AND model_ckpt=? AND n_train=?
     &#34;&#34;&#34;
     values = (task_name, cfg.model.org, cfg.model.ckpt, cfg.n_train)
-    logger.info(&#34;Releasing claim on (%s, %s, %s, %d)&#34;, *values)
+    logger.info(&#34;Releasing claim on (%s, %s, %s, %d).&#34;, *values)
 
     try:
         db.execute(stmt, values)
         db.commit()
-        logger.info(&#34;Released claim on (%s, %s, %s, %d)&#34;, *values)
+        logger.info(&#34;Released claim on (%s, %s, %s, %d).&#34;, *values)
     except Exception:
         db.rollback()
         raise</code></pre>
@@ -694,7 +703,7 @@ class Prediction:
 </dd>
 <dt id="biobench.reporting.Report"><code class="flex name class">
 <span>class <span class="ident">Report</span></span>
-<span>(</span><span>task_name: str,<br>predictions: list[<a title="biobench.reporting.Prediction" href="#biobench.reporting.Prediction">Prediction</a>],<br>cfg: <a title="biobench.config.Experiment" href="config.html#biobench.config.Experiment">Experiment</a>,<br>*,<br>splits: dict[str, float] = &lt;factory&gt;,<br>argv: list[str] = &lt;factory&gt;,<br>git_commit: str = '71908c5e323059fd690e24234e4698508f1856d8',<br>posix: float = &lt;factory&gt;,<br>gpu_name: str = &lt;factory&gt;,<br>hostname: str = &lt;factory&gt;)</span>
+<span>(</span><span>task_name: str,<br>predictions: list[<a title="biobench.reporting.Prediction" href="#biobench.reporting.Prediction">Prediction</a>],<br>cfg: <a title="biobench.config.Experiment" href="config.html#biobench.config.Experiment">Experiment</a>,<br>*,<br>splits: dict[str, float] = &lt;factory&gt;,<br>argv: list[str] = &lt;factory&gt;,<br>git_commit: str = 'ea3c0383fe441424ead3db355938251a92a5cbc4',<br>posix: float = &lt;factory&gt;,<br>gpu_name: str = &lt;factory&gt;,<br>hostname: str = &lt;factory&gt;)</span>
 </code></dt>
 <dd>
 <details class="source">

@@ -121,8 +121,8 @@ def benchmark(cfg: config.Experiment) -&gt; reporting.Report:
     backbone = backbone.to(cfg.device)
 
     # 2. Load data.
-    test_features = get_features(cfg, backbone, is_train=False)
     train_features = get_features(cfg, backbone, is_train=True)
+    test_features = get_features(cfg, backbone, is_train=False)
 
     # 4. Do simpleshot.
     clf = init_clf(cfg)
@@ -179,6 +179,12 @@ def get_features(
     split = &#34;train&#34; if is_train else &#34;val&#34;
 
     dataset = Dataset(cfg.data.kabr, split, transform=img_transform)
+
+    if is_train and cfg.n_train &gt; 0:
+        i = helpers.balanced_random_sample(dataset.labels, cfg.n_train)
+        assert len(i) == cfg.n_train
+        dataset = torch.utils.data.Subset(dataset, i)
+
     dataloader = torch.utils.data.DataLoader(
         dataset,
         batch_size=max(1, cfg.batch_size // 32),

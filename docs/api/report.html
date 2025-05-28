@@ -74,6 +74,9 @@ def calc_scores(
             &amp; (pl.col(&#34;model_ckpt&#34;).is_in(model_lookup))
         )
 
+        if sub.height == 0:
+            continue
+
         scores = bootstrap_scores(sub, b=n_bootstraps, rng=rng)
         # freeze model order once
         ckpts = sorted(scores)  # list[str]  length = m
@@ -115,6 +118,20 @@ def calc_scores(
 </details>
 <div class="desc"></div>
 </dd>
+<dt id="report.date_to_ms"><code class="name flex">
+<span>def <span class="ident">date_to_ms</span></span>(<span>year: int, month: int, day: int) ‑> int</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@beartype.beartype
+def date_to_ms(year: int, month: int, day: int) -&gt; int:
+    return whenever.Instant.from_utc(year, month, day).timestamp_millis()</code></pre>
+</details>
+<div class="desc"></div>
+</dd>
 <dt id="report.get_git_hash"><code class="name flex">
 <span>def <span class="ident">get_git_hash</span></span>(<span>) ‑> str</span>
 </code></dt>
@@ -140,7 +157,7 @@ def get_git_hash() -&gt; str:
 </dl></div>
 </dd>
 <dt id="report.main"><code class="name flex">
-<span>def <span class="ident">main</span></span>(<span>db: pathlib.Path = PosixPath('/local/scratch/samstevens/experiments/biobench/reports.sqlite'),<br>out: pathlib.Path = PosixPath('docs/data/results.json'),<br>seed: int = 17,<br>alpha=0.05,<br>n_bootstraps: int = 500)</span>
+<span>def <span class="ident">main</span></span>(<span>db: pathlib.Path = PosixPath('/local/scratch/stevens.994/experiments/biobench/reports.sqlite'),<br>out: pathlib.Path = PosixPath('docs/data/results.json'),<br>seed: int = 17,<br>alpha=0.05,<br>n_bootstraps: int = 500)</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -189,6 +206,15 @@ def main(
     )
     logger.info(&#34;Loaded %d predictions.&#34;, df.height)
 
+    # Print any unknown checkpoints
+    unknown_ckpts = set(df[&#34;model_ckpt&#34;].unique()) - set(model_lookup.keys())
+    if unknown_ckpts:
+        logger.warning(
+            &#34;Found %d unknown checkpoints: %s&#34;,
+            len(unknown_ckpts),
+            sorted(unknown_ckpts),
+        )
+
     scores_df, bests_df = calc_scores(
         df, n_bootstraps=n_bootstraps, alpha=alpha, seed=seed
     )
@@ -235,7 +261,7 @@ def main(
 <dl>
 <dt id="report.Model"><code class="flex name class">
 <span>class <span class="ident">Model</span></span>
-<span>(</span><span>ckpt: str, display: str, family: str)</span>
+<span>(</span><span>ckpt: str,<br>display: str,<br>family: str,<br>resolution: int,<br>params: int,<br>release_ms: int | None)</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -248,11 +274,14 @@ class Model:
     ckpt: str
     display: str
     family: str
+    resolution: int
+    params: int
+    release_ms: int | None
 
     def to_dict(self) -&gt; dict[str, object]:
         return dataclasses.asdict(self)</code></pre>
 </details>
-<div class="desc"><p>Model(ckpt: str, display: str, family: str)</p></div>
+<div class="desc"><p>Model(ckpt: str, display: str, family: str, resolution: int, params: int, release_ms: int | None)</p></div>
 <h3>Instance variables</h3>
 <dl>
 <dt id="report.Model.ckpt"><code class="name">var <span class="ident">ckpt</span> : str</code></dt>
@@ -264,6 +293,18 @@ class Model:
 <div class="desc"></div>
 </dd>
 <dt id="report.Model.family"><code class="name">var <span class="ident">family</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="report.Model.params"><code class="name">var <span class="ident">params</span> : int</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="report.Model.release_ms"><code class="name">var <span class="ident">release_ms</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="report.Model.resolution"><code class="name">var <span class="ident">resolution</span> : int</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -363,6 +404,7 @@ def bootstrap_scores_fn(self) -&gt; collections.abc.Callable:
 <li><h3><a href="#header-functions">Functions</a></h3>
 <ul class="">
 <li><code><a title="report.calc_scores" href="#report.calc_scores">calc_scores</a></code></li>
+<li><code><a title="report.date_to_ms" href="#report.date_to_ms">date_to_ms</a></code></li>
 <li><code><a title="report.get_git_hash" href="#report.get_git_hash">get_git_hash</a></code></li>
 <li><code><a title="report.main" href="#report.main">main</a></code></li>
 </ul>
@@ -371,10 +413,13 @@ def bootstrap_scores_fn(self) -&gt; collections.abc.Callable:
 <ul>
 <li>
 <h4><code><a title="report.Model" href="#report.Model">Model</a></code></h4>
-<ul class="">
+<ul class="two-column">
 <li><code><a title="report.Model.ckpt" href="#report.Model.ckpt">ckpt</a></code></li>
 <li><code><a title="report.Model.display" href="#report.Model.display">display</a></code></li>
 <li><code><a title="report.Model.family" href="#report.Model.family">family</a></code></li>
+<li><code><a title="report.Model.params" href="#report.Model.params">params</a></code></li>
+<li><code><a title="report.Model.release_ms" href="#report.Model.release_ms">release_ms</a></code></li>
+<li><code><a title="report.Model.resolution" href="#report.Model.resolution">resolution</a></code></li>
 <li><code><a title="report.Model.to_dict" href="#report.Model.to_dict">to_dict</a></code></li>
 </ul>
 </li>

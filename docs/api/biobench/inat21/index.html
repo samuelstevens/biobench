@@ -94,11 +94,6 @@ def benchmark(cfg: config.Experiment) -&gt; reporting.Report:
     clf = init_clf(cfg)
     clf.fit(train_features.x, train_features.y)
 
-    if hasattr(clf, &#34;best_params_&#34;):
-        helpers.write_hparam_sweep_plot(&#34;imagenet1k&#34;, cfg.model.ckpt, clf)
-        alpha = clf.best_params_[&#34;ridgeclassifier__alpha&#34;].item()
-        logger.info(&#34;alpha=%.2g scored %.3f.&#34;, alpha, clf.best_score_.item())
-
     true_labels = val_features.y
     pred_labels = clf.predict(val_features.x)
 
@@ -132,7 +127,7 @@ def get_features(
     cfg: config.Experiment, backbone: registry.VisionBackbone, *, is_train: bool
 ) -&gt; Features:
     img_transform = backbone.make_img_transform()
-    backbone = torch.compile(backbone.to(cfg.device))
+    backbone = backbone.to(cfg.device)
     split = &#34;train_mini&#34; if is_train else &#34;val&#34;
 
     root = os.path.join(cfg.data.inat21, split)
@@ -164,11 +159,15 @@ def get_features(
         with torch.amp.autocast(cfg.device):
             backbone.img_encode(imgs).img_features
 
-    with helpers.auto_batch_size(dataloader, probe=probe):
-        total = len(dataloader) if not cfg.debug else 2
-        it = iter(dataloader)
-        for b in helpers.progress(range(total), desc=f&#34;inat21/{split}&#34;):
-            ids, images, labels = next(it)
+    with helpers.auto_batch_size(
+        dataloader,
+        probe=probe,
+        # Set an upper limit that&#39;s around 1/40 of the dataset size. Otherwise we spend a lot of time picking an optimal batch size when we could just rip through the dataset. And naturally we want a power of 2.
+        upper=2 ** np.log2(len(dataset) / 40).astype(int).item(),
+    ):
+        backbone = torch.compile(backbone)
+        for batch in helpers.progress(dataloader, desc=f&#34;inat21/{split}&#34;):
+            ids, images, labels = batch
             images = images.to(cfg.device, non_blocking=True)
 
             with torch.amp.autocast(cfg.device):
@@ -198,24 +197,8 @@ def get_features(
 </summary>
 <pre><code class="python">@beartype.beartype
 def init_clf(cfg: config.Experiment):
-    alpha = np.pow(2.0, np.arange(-15, 5))
-    if cfg.debug:
-        alpha = np.pow(2.0, np.arange(-2, 2))
-
-    clf = sklearn.pipeline.make_pipeline(
-        sklearn.preprocessing.StandardScaler(),
-        sklearn.linear_model.RidgeClassifier(),
-    )
-    if 0 &lt; cfg.n_train &lt; 20_000:
-        clf
-
-    return sklearn.model_selection.HalvingGridSearchCV(
-        clf,
-        {&#34;ridgeclassifier__alpha&#34;: alpha},
-        n_jobs=8,
-        verbose=3,
-        factor=3,
-    )</code></pre>
+    clf = linear_probing.LinearProbeClassifier(device=cfg.device)
+    return clf</code></pre>
 </details>
 <div class="desc"></div>
 </dd>

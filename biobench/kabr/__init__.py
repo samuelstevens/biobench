@@ -29,7 +29,7 @@ from jaxtyping import Float, Int, Shaped, jaxtyped
 from PIL import Image
 from torch import Tensor
 
-from .. import config, helpers, registry, reporting, simpleshot
+from .. import config, helpers, registry, reporting
 
 logger = logging.getLogger(__name__)
 
@@ -157,11 +157,11 @@ def benchmark(cfg: config.Experiment) -> reporting.Report:
     backbone = backbone.to(cfg.device)
 
     # 2. Load data.
-    test_features = get_features(cfg, backbone, is_train=False)
     train_features = get_features(cfg, backbone, is_train=True)
+    test_features = get_features(cfg, backbone, is_train=False)
 
     # 4. Do simpleshot.
-    clf = init_clf(cfg)
+    clf = helpers.init_logreg_clf(cfg)
     clf.fit(train_features.x, train_features.y)
 
     true_labels = test_features.y
@@ -197,6 +197,12 @@ def get_features(
     split = "train" if is_train else "val"
 
     dataset = Dataset(cfg.data.kabr, split, transform=img_transform)
+
+    if is_train and cfg.n_train > 0:
+        i = helpers.balanced_random_sample(dataset.labels, cfg.n_train)
+        assert len(i) == cfg.n_train
+        dataset = torch.utils.data.Subset(dataset, i)
+
     dataloader = torch.utils.data.DataLoader(
         dataset,
         batch_size=max(1, cfg.batch_size // 32),
@@ -250,11 +256,6 @@ def get_features(
     all_ids = np.array(all_ids)
 
     return Features(all_feats, all_labels, all_ids)
-
-
-@beartype.beartype
-def init_clf(cfg: config.Experiment):
-    return simpleshot.SimpleShotClassifier(device="cuda:0")
 
 
 @jaxtyped(typechecker=beartype.beartype)

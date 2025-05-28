@@ -79,7 +79,6 @@ def benchmark(cfg: config.Experiment) -> reporting.Report:
 def bootstrap_scores(
     df: pl.DataFrame, *, b: int = 0, rng: np.random.Generator | None = None
 ) -> dict[str, Float[np.ndarray, " b"]]:
-    # Assert that all task_name == 'herbarium'
     assert df.get_column("task_name").unique().to_list() == ["beluga"]
     return reporting.bootstrap_scores_macro_f1(df, b=b, rng=rng)
 

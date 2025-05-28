@@ -293,8 +293,6 @@ def user_loss_score_normalized(
     n_unknown = (y_true == -1).sum()
     n_poisonous = np.isin(y_true, POISONOUS_SPECIES).sum()
 
-    # breakpoint()
-
     # TODO: is this 1 supposed to be 0.1?
     worst_ce = (cost_unknown_mis - 1) * n_unknown / n + 1
     worst_psc = (cost_psc * n_poisonous + cost_esc * (n - n_poisonous)) / n

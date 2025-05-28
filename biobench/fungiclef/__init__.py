@@ -164,7 +164,7 @@ def get_features(
         # for each unique obs take mean of its image features
         uniq, inv = np.unique(obs_ids, return_inverse=True)
         pooled = np.empty((len(uniq), x.shape[1]), dtype=x.dtype)
-        for k, u in enumerate(helpers.progress(uniq, every=10_000, desc="groupby")):
+        for k, u in enumerate(uniq):
             pooled[k] = x[inv == k].mean(axis=0)
         # labels should be identical within an observation
         pooled_y = np.array([y[inv == k][0] for k in range(len(uniq))], dtype=int)

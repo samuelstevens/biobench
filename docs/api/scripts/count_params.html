@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
 <meta name="generator" content="pdoc3 0.11.6">
-<title>biobench.fishnet.baseline API documentation</title>
-<meta name="description" content="Uniform-random baseline for FishNet functional-trait prediction …">
+<title>scripts.count_params API documentation</title>
+<meta name="description" content="">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
@@ -35,19 +35,9 @@ el.replaceWith(d);
 <main>
 <article id="content">
 <header>
-<h1 class="title">Module <code>biobench.fishnet.baseline</code></h1>
+<h1 class="title">Module <code>scripts.count_params</code></h1>
 </header>
 <section id="section-intro">
-<p>Uniform-random baseline for FishNet functional-trait prediction.</p>
-<p>Each bootstrap trial:</p>
-<ol>
-<li>Loads the FishNet test split specified in the experiment config.</li>
-<li>Generates a 9-bit prediction vector for every image by i.i.d. Bernoulli(0.5).</li>
-<li>Scores macro-F1 via the existing <code>fishnet.score</code> helper.</li>
-</ol>
-<p>After <em>n</em> trials it prints the mean and standard deviation of the macro-F1 (expressed as a percentage). No training statistics are used; this is a pure chance-level reference.</p>
-<p>Run from the command line:</p>
-<p>uv run python -m biobench.fishnet.random_baseline &ndash;cfg configs/neurips.toml</p>
 </section>
 <section>
 </section>
@@ -56,8 +46,8 @@ el.replaceWith(d);
 <section>
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
-<dt id="biobench.fishnet.baseline.main"><code class="name flex">
-<span>def <span class="ident">main</span></span>(<span>cfg: str, n: int = 1000, seed: int = 42)</span>
+<dt id="scripts.count_params.main"><code class="name flex">
+<span>def <span class="ident">main</span></span>(<span>cfg: str, ckpt: str) ‑> None</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -65,56 +55,16 @@ el.replaceWith(d);
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">@beartype.beartype
-def main(cfg: str, n: int = 1_000, seed: int = 42):
-    &#34;&#34;&#34;Estimate the macro-F1 of uniform random guessing on FishNet.
-
-    Args:
-        cfg: Path or key understood by `config.load`; must point to an experiment that defines `data.fishnet` and the `verbose` flag.
-        n: Number of bootstrap trials. Default is 1_000.
-        seed: Seed for NumPy&#39;s `default_rng`. Default is 42.
-
-    Prints:
-        &#34;Mean score: mean (std dev)&#34; where scores are macro-F1 x 100.
-    &#34;&#34;&#34;
-    cfg = next(cfg for cfg in config.load(cfg))
-
-    log_format = &#34;[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s&#34;
-    level = logging.DEBUG if cfg.debug else logging.INFO
-    logging.basicConfig(level=level, format=log_format)
-    logger = logging.getLogger(__name__)
-
-    rng = np.random.default_rng(seed)
-
-    test_ds = ImageDataset(cfg.data.fishnet, &#34;test.csv&#34;, transform=None)
-    logger.info(&#34;Loaded test dataset.&#34;)
-
-    scores = []
-    for _ in helpers.progress(range(n), every=n // 100, desc=&#34;bootstrapping&#34;):
-        y_pred = (rng.random((len(test_ds), 9)) &lt; 0.5).astype(int)
-        preds = [
-            reporting.Prediction(
-                &#34;deadbeef&#34;,
-                (p == t).mean().item(),
-                {&#34;y_pred&#34;: p.tolist(), &#34;y_true&#34;: t.tolist()},
-            )
-            for p, t in zip(y_pred, test_ds.labels)
-        ]
-        scores.append(score(preds) * 100)
-
-    print(f&#34;Mean score: {np.mean(scores):.3f} ({np.std(scores):.3f})&#34;)</code></pre>
+def main(cfg: str, ckpt: str) -&gt; None:
+    for cfg in config.load(cfg):
+        if not fnmatch.fnmatch(cfg.model.ckpt, ckpt):
+            continue
+        model = registry.load_vision_backbone(cfg.model)
+        print(
+            f&#34;{cfg.model.ckpt} : {sum(params.numel() for params in model.parameters()):_}&#34;
+        )</code></pre>
 </details>
-<div class="desc"><p>Estimate the macro-F1 of uniform random guessing on FishNet.</p>
-<h2 id="args">Args</h2>
-<dl>
-<dt><strong><code>cfg</code></strong></dt>
-<dd>Path or key understood by <code>config.load</code>; must point to an experiment that defines <code>data.fishnet</code> and the <code>verbose</code> flag.</dd>
-<dt><strong><code>n</code></strong></dt>
-<dd>Number of bootstrap trials. Default is 1_000.</dd>
-<dt><strong><code>seed</code></strong></dt>
-<dd>Seed for NumPy's <code>default_rng</code>. Default is 42.</dd>
-</dl>
-<h2 id="prints">Prints</h2>
-<p>"Mean score: mean (std dev)" where scores are macro-F1 x 100.</p></div>
+<div class="desc"></div>
 </dd>
 </dl>
 </section>
@@ -128,12 +78,12 @@ def main(cfg: str, n: int = 1_000, seed: int = 42):
 <ul id="index">
 <li><h3>Super-module</h3>
 <ul>
-<li><code><a title="biobench.fishnet" href="index.html">biobench.fishnet</a></code></li>
+<li><code><a title="scripts" href="index.html">scripts</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-functions">Functions</a></h3>
 <ul class="">
-<li><code><a title="biobench.fishnet.baseline.main" href="#biobench.fishnet.baseline.main">main</a></code></li>
+<li><code><a title="scripts.count_params.main" href="#scripts.count_params.main">main</a></code></li>
 </ul>
 </li>
 </ul>

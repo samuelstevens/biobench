@@ -579,6 +579,8 @@ def calc_scores(
             print(f"No `bootstrap_scores` for {task.name}")
             continue
 
+        print(f"Getting scores for {task.name}.")
+
         sub = df.filter(
             (pl.col("task_name") == task.name)
             & (pl.col("model_ckpt").is_in(model_lookup))

@@ -123,6 +123,7 @@ class ExitHook(typing.Generic[HashableT]):
     def discard(self, claim: HashableT) -&gt; None:
         &#34;&#34;&#34;Remove a claim from tracking.&#34;&#34;&#34;
         with self._lock:
+            self.release_run(claim)
             self._claims.discard(claim)
 
     def release_run(self, claim: HashableT) -&gt; None:
@@ -208,6 +209,7 @@ for a stub in tests.</dd>
 <pre><code class="python">def discard(self, claim: HashableT) -&gt; None:
     &#34;&#34;&#34;Remove a claim from tracking.&#34;&#34;&#34;
     with self._lock:
+        self.release_run(claim)
         self._claims.discard(claim)</code></pre>
 </details>
 <div class="desc"><p>Remove a claim from tracking.</p></div>

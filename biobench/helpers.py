@@ -20,8 +20,15 @@ import warnings
 
 import beartype
 import numpy as np
+import scipy.stats
+import sklearn.linear_model
+import sklearn.model_selection
+import sklearn.pipeline
+import sklearn.preprocessing
 import torch
 from jaxtyping import Int, jaxtyped
+
+from . import config
 
 
 @beartype.beartype
@@ -518,3 +525,27 @@ def infinite(dataloader):
         it = iter(dataloader)
         for batch in it:
             yield batch
+
+
+@beartype.beartype
+def init_logreg_clf(cfg: config.Experiment):
+    clf = sklearn.pipeline.make_pipeline(
+        sklearn.preprocessing.StandardScaler(),
+        sklearn.linear_model.LogisticRegression(
+            max_iter=1_000,
+            class_weight="balanced",
+            penalty="l2",
+            random_state=cfg.seed,
+            solver="saga",
+        ),
+    )
+
+    return sklearn.model_selection.RandomizedSearchCV(
+        clf,
+        {"logisticregression__C": scipy.stats.loguniform(a=1e-3, b=1e1)},
+        n_iter=30,
+        n_jobs=8,
+        verbose=3,
+        random_state=cfg.seed,
+        scoring="f1_macro",
+    )

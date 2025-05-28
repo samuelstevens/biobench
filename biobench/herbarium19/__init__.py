@@ -67,11 +67,10 @@ def benchmark(cfg: config.Experiment) -> reporting.Report:
     train_feats = get_features(cfg, backbone, is_train=True)
     test_feats = get_features(cfg, backbone, is_train=False)
 
+    torch.cuda.empty_cache()  # Be nice to others on the machine.
+
     clf = init_clf(cfg)
     clf.fit(train_feats.x, train_feats.y)
-
-    if hasattr(clf, "best_params_"):
-        helpers.write_hparam_sweep_plot("herbarium19", cfg.model.ckpt, clf)
 
     preds = clf.predict(test_feats.x)
     examples = [

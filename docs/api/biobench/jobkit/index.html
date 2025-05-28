@@ -42,6 +42,10 @@ el.replaceWith(d);
 <section>
 <h2 class="section-title" id="header-submodules">Sub-modules</h2>
 <dl>
+<dt><code class="name"><a title="biobench.jobkit.executors" href="executors.html">biobench.jobkit.executors</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt><code class="name"><a title="biobench.jobkit.futures" href="futures.html">biobench.jobkit.futures</a></code></dt>
 <dd>
 <div class="desc"></div>
@@ -142,6 +146,7 @@ class ExitHook(typing.Generic[HashableT]):
     def discard(self, claim: HashableT) -&gt; None:
         &#34;&#34;&#34;Remove a claim from tracking.&#34;&#34;&#34;
         with self._lock:
+            self.release_run(claim)
             self._claims.discard(claim)
 
     def release_run(self, claim: HashableT) -&gt; None:
@@ -227,6 +232,7 @@ for a stub in tests.</dd>
 <pre><code class="python">def discard(self, claim: HashableT) -&gt; None:
     &#34;&#34;&#34;Remove a claim from tracking.&#34;&#34;&#34;
     with self._lock:
+        self.release_run(claim)
         self._claims.discard(claim)</code></pre>
 </details>
 <div class="desc"><p>Remove a claim from tracking.</p></div>
@@ -312,54 +318,52 @@ class FutureQueue(typing.Generic[T]):
 
         return None
 
+    def _is_obj_done(self, obj) -&gt; bool:
+        # Direct check for objects with done() method
+        if hasattr(obj, &#34;done&#34;) and callable(obj.done):
+            try:
+                # done() may raise when the job failed. Swallow it.
+                return obj.done()  # True =&gt; finished (success or failed)
+            except Exception:
+                # Treat &#34;raises inside done()&#34; as &#34;finished but failed&#34;.
+                logger.exception(&#34;obj.done() failed&#34;)
+                return True
+
+        return False
+
     def _is_done(self, obj) -&gt; bool:
         &#34;&#34;&#34;Check if an object or any of its nested items is done.&#34;&#34;&#34;
-        # Direct check for objects with done() method
-        if hasattr(obj, &#34;done&#34;) and callable(obj.done) and obj.done():
+        if self._is_obj_done(obj):
             return True
 
         # Check first level of nesting (tuples, lists, dicts)
         if isinstance(obj, (tuple, list)):
             for item in obj:
-                if hasattr(item, &#34;done&#34;) and callable(item.done) and item.done():
+                if self._is_obj_done(item):
                     return True
+
                 # Check second level of nesting
                 if isinstance(item, (tuple, list)):
                     for subitem in item:
-                        if (
-                            hasattr(subitem, &#34;done&#34;)
-                            and callable(subitem.done)
-                            and subitem.done()
-                        ):
+                        if self._is_obj_done(subitem):
                             return True
                 elif isinstance(item, dict):
                     for subitem in item.values():
-                        if (
-                            hasattr(subitem, &#34;done&#34;)
-                            and callable(subitem.done)
-                            and subitem.done()
-                        ):
+                        if self._is_obj_done(subitem):
                             return True
         elif isinstance(obj, dict):
             for item in obj.values():
-                if hasattr(item, &#34;done&#34;) and callable(item.done) and item.done():
+                if self._is_obj_done(item):
                     return True
+
                 # Check second level of nesting
                 if isinstance(item, (tuple, list)):
                     for subitem in item:
-                        if (
-                            hasattr(subitem, &#34;done&#34;)
-                            and callable(subitem.done)
-                            and subitem.done()
-                        ):
+                        if self._is_obj_done(subitem):
                             return True
                 elif isinstance(item, dict):
                     for subitem in item.values():
-                        if (
-                            hasattr(subitem, &#34;done&#34;)
-                            and callable(subitem.done)
-                            and subitem.done()
-                        ):
+                        if self._is_obj_done(subitem):
                             return True
 
         return False
@@ -471,6 +475,97 @@ follows::</p>
 </dd>
 </dl>
 </dd>
+<dt id="biobench.jobkit.SerialExecutor"><code class="flex name class">
+<span>class <span class="ident">SerialExecutor</span></span>
+<span>(</span><span>folder: str | pathlib.Path)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@beartype.beartype
+class SerialExecutor(submitit.Executor):
+    &#34;&#34;&#34;
+    Execute submitit jobs **sequentially in-process** with no interactive debugger.
+
+    * One Python process, one GPU/CPU context: the function is called directly in the parent interpreter--exactly like DebugExecutor--but any un-caught exception is *immediately* re-raised instead of dropping into ``pdb.post_mortem``.
+
+    * This lets a launcher loop handle failures programmatically (log, skip, retry, etc.) while preserving DebugExecutor&#39;s simple bookkeeping, stdout/stderr redirection, and environment capture.
+
+    * Contrast:
+        DebugExecutor  - in-process, blocks in pdb on error.
+        LocalExecutor  - spawns a child process per job, may run jobs concurrently depending on submitit version.
+        SerialExecutor - in-process, **no pdb**, always exactly one job running.
+
+    Usage
+    -----
+    &gt;&gt;&gt; ex = SerialExecutor(&#34;logs&#34;)
+    &gt;&gt;&gt; job = ex.submit(train_one, cfg)
+    &gt;&gt;&gt; try:
+    ...     result = job.result()   # raises on failure, no (pdb) prompt
+    ... except Exception as err:
+    ...     handle(err, job)
+
+    Notes
+    -----
+    * Inherits all parameter handling from DebugExecutor; only ``job_class`` is swapped to remove the post-mortem call.
+    * Suitable for deterministic, single-GPU jobs where you want clean failure handling without interactive prompts.
+    &#34;&#34;&#34;
+
+    job_class = SerialJob
+
+    def __init__(self, folder: str | pathlib.Path):
+        super().__init__(folder)
+
+    def _internal_process_submissions(
+        self, delayed_submissions: list[submitit.core.utils.DelayedSubmission]
+    ) -&gt; list[submitit.core.core.Job[typing.Any]]:
+        return [self.job_class(self.folder, ds) for ds in delayed_submissions]</code></pre>
+</details>
+<div class="desc"><p>Execute submitit jobs <strong>sequentially in-process</strong> with no interactive debugger.</p>
+<ul>
+<li>
+<p>One Python process, one GPU/CPU context: the function is called directly in the parent interpreter&ndash;exactly like DebugExecutor&ndash;but any un-caught exception is <em>immediately</em> re-raised instead of dropping into <code>pdb.post_mortem</code>.</p>
+</li>
+<li>
+<p>This lets a launcher loop handle failures programmatically (log, skip, retry, etc.) while preserving DebugExecutor's simple bookkeeping, stdout/stderr redirection, and environment capture.</p>
+</li>
+<li>
+<p>Contrast:
+DebugExecutor
+- in-process, blocks in pdb on error.
+LocalExecutor
+- spawns a child process per job, may run jobs concurrently depending on submitit version.
+SerialExecutor - in-process, <strong>no pdb</strong>, always exactly one job running.</p>
+</li>
+</ul>
+<h2 id="usage">Usage</h2>
+<pre><code class="language-python-repl">&gt;&gt;&gt; ex = SerialExecutor(&quot;logs&quot;)
+&gt;&gt;&gt; job = ex.submit(train_one, cfg)
+&gt;&gt;&gt; try:
+...     result = job.result()   # raises on failure, no (pdb) prompt
+... except Exception as err:
+...     handle(err, job)
+</code></pre>
+<h2 id="notes">Notes</h2>
+<ul>
+<li>Inherits all parameter handling from DebugExecutor; only <code>job_class</code> is swapped to remove the post-mortem call.</li>
+<li>Suitable for deterministic, single-GPU jobs where you want clean failure handling without interactive prompts.</li>
+</ul></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>submitit.core.core.Executor</li>
+<li>abc.ABC</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="biobench.jobkit.SerialExecutor.job_class"><code class="name">var <span class="ident">job_class</span> : Type[submitit.core.core.Job[Any]]</code></dt>
+<dd>
+<div class="desc"><p>DebugJob without the pdb step.</p></div>
+</dd>
+</dl>
+</dd>
 </dl>
 </section>
 </article>
@@ -486,6 +581,7 @@ follows::</p>
 </li>
 <li><h3><a href="#header-submodules">Sub-modules</a></h3>
 <ul>
+<li><code><a title="biobench.jobkit.executors" href="executors.html">biobench.jobkit.executors</a></code></li>
 <li><code><a title="biobench.jobkit.futures" href="futures.html">biobench.jobkit.futures</a></code></li>
 <li><code><a title="biobench.jobkit.hooks" href="hooks.html">biobench.jobkit.hooks</a></code></li>
 <li><code><a title="biobench.jobkit.test_futures" href="test_futures.html">biobench.jobkit.test_futures</a></code></li>
@@ -509,6 +605,12 @@ follows::</p>
 <li><code><a title="biobench.jobkit.FutureQueue.full" href="#biobench.jobkit.FutureQueue.full">full</a></code></li>
 <li><code><a title="biobench.jobkit.FutureQueue.pop" href="#biobench.jobkit.FutureQueue.pop">pop</a></code></li>
 <li><code><a title="biobench.jobkit.FutureQueue.submit" href="#biobench.jobkit.FutureQueue.submit">submit</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="biobench.jobkit.SerialExecutor" href="#biobench.jobkit.SerialExecutor">SerialExecutor</a></code></h4>
+<ul class="">
+<li><code><a title="biobench.jobkit.SerialExecutor.job_class" href="#biobench.jobkit.SerialExecutor.job_class">job_class</a></code></li>
 </ul>
 </li>
 </ul>

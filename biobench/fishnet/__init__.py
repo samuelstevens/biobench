@@ -192,22 +192,6 @@ def bootstrap_scores(
     return scores
 
 
-def infinite(dataloader):
-    """Creates an infinite iterator from a dataloader by creating a new iterator each time the previous one is exhausted.
-
-    Args:
-        dataloader: A PyTorch dataloader or similar iterable
-
-    Yields:
-        Batches from the dataloader, indefinitely
-    """
-    while True:
-        # Create a fresh iterator from the dataloader
-        it = iter(dataloader)
-        for batch in it:
-            yield batch
-
-
 @beartype.beartype
 def benchmark(cfg: config.Experiment) -> reporting.Report:
     """
@@ -235,7 +219,7 @@ def benchmark(cfg: config.Experiment) -> reporting.Report:
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.5)
 
     # 5. Fit the classifier.
-    it = infinite(train_loader)
+    it = helpers.infinite(train_loader)
     for step in range(n_steps):
         features, labels, _ = next(it)
         features = features.to(cfg.device)

@@ -71,7 +71,7 @@ def auto_batch_size(
 
     Args:
         dataloader: The already constructed loader you use in your loop. Its `batch_sampler.batch_size` attribute is patched on the fly.
-        probe: A 1-argument callable used to test memory. Typical usage: `lambda x: backbone.img_encode(x).img_features`.
+        probe: A 1-argument callable used to test memory usage. Typical: `lambda x: backbone.img_encode(x).img_features`.
         schedule: An iterator of candidate batch sizes. If None, use the canonical schedule.
         schedule: An iterator of strictly increasing candidate batch sizes (2, 4, 8, ...). A *ValueError* is raised when a non-increasing value is encountered. If None, use the canonical schedule.
         upper: Maximum batch size to try, regardless of available memory.
@@ -232,7 +232,7 @@ def auto_batch_size(
 <dt><strong><code>dataloader</code></strong></dt>
 <dd>The already constructed loader you use in your loop. Its <code>batch_sampler.batch_size</code> attribute is patched on the fly.</dd>
 <dt><strong><code>probe</code></strong></dt>
-<dd>A 1-argument callable used to test memory. Typical usage: <code>lambda x: backbone.img_encode(x).img_features</code>.</dd>
+<dd>A 1-argument callable used to test memory usage. Typical: <code>lambda x: backbone.img_encode(x).img_features</code>.</dd>
 <dt><strong><code>schedule</code></strong></dt>
 <dd>An iterator of candidate batch sizes. If None, use the canonical schedule.</dd>
 <dt><strong><code>schedule</code></strong></dt>
@@ -431,6 +431,72 @@ def infer_batch_size(batch: object) -&gt; int | None:
     return None</code></pre>
 </details>
 <div class="desc"><p>Return the leading dimension of the <em>first</em> tensor found inside <code>batch</code>. Works for arbitrary nested structures.</p></div>
+</dd>
+<dt id="biobench.helpers.infinite"><code class="name flex">
+<span>def <span class="ident">infinite</span></span>(<span>dataloader)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def infinite(dataloader):
+    &#34;&#34;&#34;Creates an infinite iterator from a dataloader by creating a new iterator each time the previous one is exhausted.
+
+    Args:
+        dataloader: A PyTorch dataloader or similar iterable
+
+    Yields:
+        Batches from the dataloader, indefinitely
+    &#34;&#34;&#34;
+    while True:
+        # Create a fresh iterator from the dataloader
+        it = iter(dataloader)
+        for batch in it:
+            yield batch</code></pre>
+</details>
+<div class="desc"><p>Creates an infinite iterator from a dataloader by creating a new iterator each time the previous one is exhausted.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>dataloader</code></strong></dt>
+<dd>A PyTorch dataloader or similar iterable</dd>
+</dl>
+<h2 id="yields">Yields</h2>
+<p>Batches from the dataloader, indefinitely</p></div>
+</dd>
+<dt id="biobench.helpers.init_logreg_clf"><code class="name flex">
+<span>def <span class="ident">init_logreg_clf</span></span>(<span>cfg: <a title="biobench.config.Experiment" href="config.html#biobench.config.Experiment">Experiment</a>)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@beartype.beartype
+def init_logreg_clf(cfg: config.Experiment):
+    clf = sklearn.pipeline.make_pipeline(
+        sklearn.preprocessing.StandardScaler(),
+        sklearn.linear_model.LogisticRegression(
+            max_iter=1_000,
+            multi_class=&#34;multinomial&#34;,
+            class_weight=&#34;balanced&#34;,
+            penalty=&#34;l2&#34;,
+            random_state=cfg.seed,
+            solver=&#34;saga&#34;,
+        ),
+    )
+
+    return sklearn.model_selection.RandomizedSearchCV(
+        clf,
+        {&#34;logisticregression__C&#34;: scipy.stats.loguniform(a=1e-3, b=1e1)},
+        n_iter=30,
+        n_jobs=8,
+        verbose=3,
+        random_state=cfg.seed,
+        scoring=&#34;f1_macro&#34;,
+    )</code></pre>
+</details>
+<div class="desc"></div>
 </dd>
 <dt id="biobench.helpers.warn_if_nfs"><code class="name flex">
 <span>def <span class="ident">warn_if_nfs</span></span>(<span>path: str | os.PathLike)</span>
@@ -683,6 +749,8 @@ class progress:
 <li><code><a title="biobench.helpers.fs_safe" href="#biobench.helpers.fs_safe">fs_safe</a></code></li>
 <li><code><a title="biobench.helpers.get_cache_dir" href="#biobench.helpers.get_cache_dir">get_cache_dir</a></code></li>
 <li><code><a title="biobench.helpers.infer_batch_size" href="#biobench.helpers.infer_batch_size">infer_batch_size</a></code></li>
+<li><code><a title="biobench.helpers.infinite" href="#biobench.helpers.infinite">infinite</a></code></li>
+<li><code><a title="biobench.helpers.init_logreg_clf" href="#biobench.helpers.init_logreg_clf">init_logreg_clf</a></code></li>
 <li><code><a title="biobench.helpers.warn_if_nfs" href="#biobench.helpers.warn_if_nfs">warn_if_nfs</a></code></li>
 <li><code><a title="biobench.helpers.write_hparam_sweep_plot" href="#biobench.helpers.write_hparam_sweep_plot">write_hparam_sweep_plot</a></code></li>
 </ul>
