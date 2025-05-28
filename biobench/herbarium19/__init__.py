@@ -132,12 +132,8 @@ def get_features(
             _ = backbone.img_encode(imgs).img_features
 
     all_ids, all_features, all_labels = [], [], []
-    with helpers.auto_batch_size(
-        dataloader,
-        probe=probe,
-        # Set an upper limit that's around 1/40 of the dataset size. Otherwise we spend a lot of time picking an optimal batch size when we could just rip through the dataset. And naturally we want a power of 2.
-        upper=2 ** np.log2(len(dataset) / 40).astype(int).item(),
-    ):
+    # Set an upper limit. Otherwise we spend a lot of time picking an optimal batch size when we could just rip through the dataset.
+    with helpers.auto_batch_size(dataloader, probe=probe, upper=512):
         backbone = torch.compile(backbone)
 
         for batch in helpers.progress(dataloader, every=10, desc=f"hb19/{split}"):

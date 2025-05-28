@@ -32,11 +32,6 @@ import os.path
 import beartype
 import numpy as np
 import polars as pl
-import scipy.stats
-import sklearn.linear_model
-import sklearn.model_selection
-import sklearn.pipeline
-import sklearn.preprocessing
 import torch
 from jaxtyping import Float, Float16, Int, Shaped, jaxtyped
 from PIL import Image
@@ -54,12 +49,12 @@ def benchmark(cfg: config.Experiment) -> reporting.Report:
     backbone = backbone.to(cfg.device)
 
     # 2. Load data.
-    test_features = get_features(cfg, backbone, is_train=False)
     train_features = get_features(cfg, backbone, is_train=True)
+    test_features = get_features(cfg, backbone, is_train=False)
     torch.cuda.empty_cache()
 
     # 4. Do simpleshot.
-    clf = init_clf(cfg)
+    clf = helpers.init_logreg_clf(cfg)
     clf.fit(train_features.x, train_features.y)
 
     true_labels = test_features.y
@@ -256,23 +251,3 @@ def aggregate_frames(
     features: Float16[Tensor, "batch n_frames dim"],
 ) -> Float16[Tensor, "batch dim"]:
     return torch.max(features, dim=1).values
-
-
-@beartype.beartype
-def init_clf(cfg: config.Experiment):
-    clf = sklearn.pipeline.make_pipeline(
-        sklearn.preprocessing.StandardScaler(),
-        sklearn.linear_model.LogisticRegression(max_iter=200),
-    )
-    if 0 < cfg.n_train <= 1000:
-        return clf
-
-    return sklearn.model_selection.RandomizedSearchCV(
-        clf,
-        {"logisticregression__C": scipy.stats.loguniform(a=1e-2, b=1e2)},
-        n_iter=30,
-        n_jobs=8,
-        verbose=3,
-        random_state=cfg.seed,
-        scoring="f1_macro",
-    )
