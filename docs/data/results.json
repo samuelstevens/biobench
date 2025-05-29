@@ -1,8 +1,8 @@
 {
     "meta": {
         "schema": 1,
-        "generated": 1748550328077,
-        "git_commit": "080a6173f1d5511df24b94e629a0e2aad3aaaa92",
+        "generated": 1748562126086,
+        "git_commit": "b062cd56ff4f31e5aaba441863260c2d41f61f66",
         "seed": 17,
         "alpha": 0.05,
         "n_bootstraps": 100
@@ -2508,6 +2508,30 @@
         },
         {
             "task": "herbarium19",
+            "model": "ViT-B-16-SigLIP-256/webli",
+            "mean": 0.4908116746745255,
+            "bootstrap_mean": 0.4288348586467991,
+            "ci_low": 0.40853057726524905,
+            "ci_high": 0.4475487452576911
+        },
+        {
+            "task": "herbarium19",
+            "model": "ViT-B-16-SigLIP-384/webli",
+            "mean": 0.5544128860002119,
+            "bootstrap_mean": 0.49003854712104533,
+            "ci_low": 0.47159405748662964,
+            "ci_high": 0.5081116085125934
+        },
+        {
+            "task": "herbarium19",
+            "model": "ViT-B-16-SigLIP/webli",
+            "mean": 0.4435446101070421,
+            "bootstrap_mean": 0.38659840213810215,
+            "ci_low": 0.36567944215968745,
+            "ci_high": 0.4067302108674026
+        },
+        {
+            "task": "herbarium19",
             "model": "ViT-B-16/openai",
             "mean": 0.3851334222050167,
             "bootstrap_mean": 0.33748250503052574,
@@ -2972,6 +2996,14 @@
         },
         {
             "task": "mammalnet",
+            "model": "ViT-B-16-SigLIP/webli",
+            "mean": 0.5313962541533639,
+            "bootstrap_mean": 0.5312370298484307,
+            "ci_low": 0.5162491296905308,
+            "ci_high": 0.5500068231771887
+        },
+        {
+            "task": "mammalnet",
             "model": "ViT-B-16/openai",
             "mean": 0.5100010534036639,
             "bootstrap_mean": 0.5091127221182848,
@@ -2985,6 +3017,22 @@
             "bootstrap_mean": 0.4887090803803897,
             "ci_low": 0.4734755352878782,
             "ci_high": 0.507609415778444
+        },
+        {
+            "task": "mammalnet",
+            "model": "ViT-L-14-336/openai",
+            "mean": 0.6279326505056143,
+            "bootstrap_mean": 0.6266195342889653,
+            "ci_low": 0.6078566673119213,
+            "ci_high": 0.6479141803062209
+        },
+        {
+            "task": "mammalnet",
+            "model": "ViT-L-14/openai",
+            "mean": 0.6231671107478404,
+            "bootstrap_mean": 0.6219259147835953,
+            "ci_low": 0.6041918953713602,
+            "ci_high": 0.6436570216797036
         },
         {
             "task": "mammalnet",
@@ -3099,8 +3147,10 @@
         },
         {
             "task": "mammalnet",
-            "best": "hf-hub:UCSC-VLAA/openvision-vit-so400m-patch14-384",
+            "best": "ViT-L-14-336/openai",
             "ties": [
+                "ViT-L-14-336/openai",
+                "ViT-L-14/openai",
                 "hf-hub:UCSC-VLAA/openvision-vit-huge-patch14-224",
                 "hf-hub:UCSC-VLAA/openvision-vit-so400m-patch14-224",
                 "hf-hub:UCSC-VLAA/openvision-vit-so400m-patch14-384"
