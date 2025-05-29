@@ -1,8 +1,8 @@
 {
     "meta": {
         "schema": 1,
-        "generated": 1748523972352,
-        "git_commit": "b153ebb10a89a2d0f8be03ec6e6e4b848dd78bbe",
+        "generated": 1748550328077,
+        "git_commit": "080a6173f1d5511df24b94e629a0e2aad3aaaa92",
         "seed": 17,
         "alpha": 0.05,
         "n_bootstraps": 100
@@ -2508,11 +2508,51 @@
         },
         {
             "task": "herbarium19",
+            "model": "ViT-B-16/openai",
+            "mean": 0.3851334222050167,
+            "bootstrap_mean": 0.33748250503052574,
+            "ci_low": 0.3201404415328867,
+            "ci_high": 0.35393834284586884
+        },
+        {
+            "task": "herbarium19",
+            "model": "ViT-B-32/openai",
+            "mean": 0.3367997087494287,
+            "bootstrap_mean": 0.2933750739245631,
+            "ci_low": 0.27942530678236877,
+            "ci_high": 0.30917359075683537
+        },
+        {
+            "task": "herbarium19",
+            "model": "ViT-L-14-336/openai",
+            "mean": 0.535804638241756,
+            "bootstrap_mean": 0.4729673379346969,
+            "ci_low": 0.4533160279072737,
+            "ci_high": 0.49016980546990535
+        },
+        {
+            "task": "herbarium19",
+            "model": "ViT-L-14/openai",
+            "mean": 0.45653810411554757,
+            "bootstrap_mean": 0.39832537303267684,
+            "ci_low": 0.38153196883339413,
+            "ci_high": 0.415142955809805
+        },
+        {
+            "task": "herbarium19",
             "model": "hf-hub:UCSC-VLAA/openvision-vit-base-patch16-224",
             "mean": 0.5248790302288089,
             "bootstrap_mean": 0.4608855310200762,
             "ci_low": 0.4452162410442519,
             "ci_high": 0.47841649794390406
+        },
+        {
+            "task": "herbarium19",
+            "model": "hf-hub:UCSC-VLAA/openvision-vit-huge-patch14-224",
+            "mean": 0.6077781221647411,
+            "bootstrap_mean": 0.5354491362387721,
+            "ci_low": 0.5171832812177464,
+            "ci_high": 0.5541943076517107
         },
         {
             "task": "herbarium19",
@@ -2788,6 +2828,14 @@
         },
         {
             "task": "kabr",
+            "model": "ViT-B-16-SigLIP2-512/webli",
+            "mean": 0.5682932165415369,
+            "bootstrap_mean": 0.5677617074473527,
+            "ci_low": 0.53865717988355,
+            "ci_high": 0.5953169911860978
+        },
+        {
+            "task": "kabr",
             "model": "ViT-B-16-SigLIP2/webli",
             "mean": 0.4979497216507742,
             "bootstrap_mean": 0.4964145659193453,
@@ -2924,11 +2972,35 @@
         },
         {
             "task": "mammalnet",
+            "model": "ViT-B-16/openai",
+            "mean": 0.5100010534036639,
+            "bootstrap_mean": 0.5091127221182848,
+            "ci_low": 0.4917841347206486,
+            "ci_high": 0.5269859112249314
+        },
+        {
+            "task": "mammalnet",
+            "model": "ViT-B-32/openai",
+            "mean": 0.48965779556029165,
+            "bootstrap_mean": 0.4887090803803897,
+            "ci_low": 0.4734755352878782,
+            "ci_high": 0.507609415778444
+        },
+        {
+            "task": "mammalnet",
             "model": "hf-hub:UCSC-VLAA/openvision-vit-base-patch16-224",
             "mean": 0.5060815781459546,
             "bootstrap_mean": 0.5041893862295236,
             "ci_low": 0.48967157393249594,
             "ci_high": 0.5210237571643556
+        },
+        {
+            "task": "mammalnet",
+            "model": "hf-hub:UCSC-VLAA/openvision-vit-huge-patch14-224",
+            "mean": 0.6133885811569315,
+            "bootstrap_mean": 0.6122177545058639,
+            "ci_low": 0.5887670993328369,
+            "ci_high": 0.6346436769669442
         },
         {
             "task": "mammalnet",
@@ -3020,6 +3092,7 @@
             "task": "kabr",
             "best": "ViT-SO400M-14-SigLIP-384/webli",
             "ties": [
+                "ViT-B-16-SigLIP2-512/webli",
                 "ViT-L-16-SigLIP-384/webli",
                 "ViT-SO400M-14-SigLIP-384/webli"
             ]
@@ -3028,6 +3101,7 @@
             "task": "mammalnet",
             "best": "hf-hub:UCSC-VLAA/openvision-vit-so400m-patch14-384",
             "ties": [
+                "hf-hub:UCSC-VLAA/openvision-vit-huge-patch14-224",
                 "hf-hub:UCSC-VLAA/openvision-vit-so400m-patch14-224",
                 "hf-hub:UCSC-VLAA/openvision-vit-so400m-patch14-384"
             ]
