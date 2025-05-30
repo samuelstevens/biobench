@@ -1,8 +1,8 @@
 {
     "meta": {
         "schema": 1,
-        "generated": 1748613333210,
-        "git_commit": "13ccb1967bd4baa0b8fcb413392863ac803a70cf",
+        "generated": 1748625313389,
+        "git_commit": "0ac073ee9602154f449a7243db8baa8f1a376e5d",
         "seed": 17,
         "alpha": 0.05,
         "n_bootstraps": 500
@@ -732,6 +732,14 @@
         },
         {
             "task": "newt",
+            "model": "ViT-L-16-SigLIP2-384/webli",
+            "mean": 0.8477030396461487,
+            "bootstrap_mean": 0.8476009368896484,
+            "ci_low": 0.8425696343183517,
+            "ci_high": 0.8525590762495995
+        },
+        {
+            "task": "newt",
             "model": "ViT-SO400M-14-SigLIP-384/webli",
             "mean": 0.8600754737854004,
             "bootstrap_mean": 0.8599263429641724,
@@ -1228,6 +1236,14 @@
         },
         {
             "task": "beluga",
+            "model": "ViT-L-16-SigLIP2-512/webli",
+            "mean": 0.039952594538256864,
+            "bootstrap_mean": 0.03874010196224522,
+            "ci_low": 0.03553146734530391,
+            "ci_high": 0.04225009969892131
+        },
+        {
+            "task": "beluga",
             "model": "ViT-SO400M-14-SigLIP-384/webli",
             "mean": 0.040156415457883725,
             "bootstrap_mean": 0.038855120665522797,
@@ -1705,6 +1721,14 @@
             "bootstrap_mean": 0.517154421071696,
             "ci_low": 0.5148248923247072,
             "ci_high": 0.5195843567420412
+        },
+        {
+            "task": "fishnet",
+            "model": "ViT-L-16-SigLIP2-384/webli",
+            "mean": 0.6728591213180386,
+            "bootstrap_mean": 0.5309386781986434,
+            "ci_low": 0.5283566586880207,
+            "ci_high": 0.5334324442164562
         },
         {
             "task": "fishnet",
@@ -2196,6 +2220,14 @@
         },
         {
             "task": "fungiclef",
+            "model": "ViT-L-16-SigLIP2-384/webli",
+            "mean": 0.37469643954906184,
+            "bootstrap_mean": 0.37511567143598873,
+            "ci_low": 0.35843763206716384,
+            "ci_high": 0.3932105139117085
+        },
+        {
+            "task": "fungiclef",
             "model": "ViT-SO400M-14-SigLIP-384/webli",
             "mean": 0.38587375028310744,
             "bootstrap_mean": 0.38594471461762825,
@@ -2668,6 +2700,14 @@
         },
         {
             "task": "herbarium19",
+            "model": "ViT-L-16-SigLIP2-384/webli",
+            "mean": 0.6175088012071975,
+            "bootstrap_mean": 0.5451680200886153,
+            "ci_low": 0.5251454468741181,
+            "ci_high": 0.5646902219400945
+        },
+        {
+            "task": "herbarium19",
             "model": "ViT-SO400M-14-SigLIP-384/webli",
             "mean": 0.6370667207284582,
             "bootstrap_mean": 0.5623603791983826,
@@ -2865,6 +2905,14 @@
             "bootstrap_mean": 0.23280029176283232,
             "ci_low": 0.2220211964711913,
             "ci_high": 0.2437149739653188
+        },
+        {
+            "task": "iwildcam",
+            "model": "ViT-L-16-SigLIP2-384/webli",
+            "mean": 0.26515470659793855,
+            "bootstrap_mean": 0.2590964387481198,
+            "ci_low": 0.24673786442228438,
+            "ci_high": 0.2705676246653844
         },
         {
             "task": "iwildcam",
@@ -3068,6 +3116,14 @@
         },
         {
             "task": "kabr",
+            "model": "ViT-L-16-SigLIP2-384/webli",
+            "mean": 0.49714846350546915,
+            "bootstrap_mean": 0.4966586576881283,
+            "ci_low": 0.47476796328764664,
+            "ci_high": 0.5193823561845586
+        },
+        {
+            "task": "kabr",
             "model": "ViT-SO400M-14-SigLIP-384/webli",
             "mean": 0.5926242698768309,
             "bootstrap_mean": 0.5915553202206838,
@@ -3260,6 +3316,14 @@
         },
         {
             "task": "mammalnet",
+            "model": "ViT-L-16-SigLIP2-256/webli",
+            "mean": 0.6553356064536123,
+            "bootstrap_mean": 0.654389759096611,
+            "ci_low": 0.6325951824088186,
+            "ci_high": 0.676397797320418
+        },
+        {
+            "task": "mammalnet",
             "model": "ViT-SO400M-14-SigLIP-384/webli",
             "mean": 0.6628371828547462,
             "bootstrap_mean": 0.6624120652200505,
@@ -3366,14 +3430,16 @@
             "task": "herbarium19",
             "best": "hf-hub:UCSC-VLAA/openvision-vit-so400m-patch14-384",
             "ties": [
+                "ViT-L-16-SigLIP2-384/webli",
                 "ViT-SO400M-14-SigLIP-384/webli",
                 "hf-hub:UCSC-VLAA/openvision-vit-so400m-patch14-384"
             ]
         },
         {
             "task": "iwildcam",
-            "best": "ViT-SO400M-14-SigLIP-384/webli",
+            "best": "ViT-L-16-SigLIP2-384/webli",
             "ties": [
+                "ViT-L-16-SigLIP2-384/webli",
                 "ViT-SO400M-14-SigLIP-384/webli"
             ]
         },
@@ -3389,6 +3455,7 @@
             "task": "mammalnet",
             "best": "ViT-SO400M-14-SigLIP-384/webli",
             "ties": [
+                "ViT-L-16-SigLIP2-256/webli",
                 "ViT-SO400M-14-SigLIP-384/webli"
             ]
         }
