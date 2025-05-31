@@ -78,7 +78,7 @@ def benchmark(cfg: config.Experiment) -&gt; reporting.Report:
 
     torch.cuda.empty_cache()  # Be nice to others on the machine.
 
-    clf = helpers.init_logreg_clf(cfg)
+    clf = init_clf(cfg)
     clf.fit(train_feats.x, train_feats.y)
 
     preds = clf.predict(test_feats.x)
@@ -151,12 +151,8 @@ def get_features(
             _ = backbone.img_encode(imgs).img_features
 
     all_ids, all_features, all_labels = [], [], []
-    with helpers.auto_batch_size(
-        dataloader,
-        probe=probe,
-        # Set an upper limit that&#39;s around 1/40 of the dataset size. Otherwise we spend a lot of time picking an optimal batch size when we could just rip through the dataset. And naturally we want a power of 2.
-        upper=2 ** np.log2(len(dataset) / 40).astype(int).item(),
-    ):
+    # Set an upper limit. Otherwise we spend a lot of time picking an optimal batch size when we could just rip through the dataset.
+    with helpers.auto_batch_size(dataloader, probe=probe, upper=512):
         backbone = torch.compile(backbone)
 
         for batch in helpers.progress(dataloader, every=10, desc=f&#34;hb19/{split}&#34;):
@@ -176,6 +172,21 @@ def get_features(
     logger.info(&#34;Got features for %d images.&#34;, len(all_ids))
 
     return Features(all_features, all_labels, all_ids)</code></pre>
+</details>
+<div class="desc"></div>
+</dd>
+<dt id="biobench.herbarium19.init_clf"><code class="name flex">
+<span>def <span class="ident">init_clf</span></span>(<span>cfg: <a title="biobench.config.Experiment" href="../config.html#biobench.config.Experiment">Experiment</a>)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@beartype.beartype
+def init_clf(cfg: config.Experiment):
+    clf = linear_probing.LinearProbeClassifier(device=cfg.device)
+    return clf</code></pre>
 </details>
 <div class="desc"></div>
 </dd>
@@ -342,6 +353,7 @@ class Sample(typing.TypedDict):
 <li><code><a title="biobench.herbarium19.benchmark" href="#biobench.herbarium19.benchmark">benchmark</a></code></li>
 <li><code><a title="biobench.herbarium19.bootstrap_scores" href="#biobench.herbarium19.bootstrap_scores">bootstrap_scores</a></code></li>
 <li><code><a title="biobench.herbarium19.get_features" href="#biobench.herbarium19.get_features">get_features</a></code></li>
+<li><code><a title="biobench.herbarium19.init_clf" href="#biobench.herbarium19.init_clf">init_clf</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>

@@ -163,7 +163,11 @@ def bootstrap_scores(
     y_pred_buf = np.empty((b, 9, n), dtype=np.int32)
     y_true_buf = np.empty((b, 9, n), dtype=np.int32)
 
-    for model_ckpt in df.get_column(&#34;model_ckpt&#34;).unique().sort().to_list():
+    for model_ckpt in helpers.progress(
+        df.get_column(&#34;model_ckpt&#34;).unique().sort().to_list(),
+        desc=&#34;fishnet/bootstrap&#34;,
+        every=3,
+    ):
         # pull y_true and y_pred for *one* model
         y_pred = (
             df.filter(pl.col(&#34;model_ckpt&#34;) == model_ckpt)
@@ -258,7 +262,7 @@ def get_features(
     with helpers.auto_batch_size(dataloader, probe=probe):
         total = len(dataloader) if not cfg.debug else 2
         it = iter(dataloader)
-        for b in helpers.progress(range(total), every=10, desc=f&#34;fish/{file}&#34;):
+        for b in helpers.progress(range(total), every=10, desc=f&#34;fishnet/{file}&#34;):
             debug_cuda_mem(&#34;loop start&#34;)
             images, labels, ids = next(it)
             debug_cuda_mem(&#34;after batch&#34;)

@@ -71,10 +71,13 @@ Inside a task folder:
 - Stream with `requests.get(..., stream=True)` and wrap in `tqdm` for progress.
 - Verify checksums before extraction.
 
+>>>> CONTRIBUTING.md
+
+
 >>>> README.md
 # Biology Benchmark (`biobench`)
 
-![Coverage](docs/coverage.svg)
+![Coverage](docs/assets/coverage.svg)
 
 This library is an easy-to-read benchmark for biology-related computer vision tasks.
 
@@ -122,8 +125,8 @@ Download it wherever you want on your own filesystem.
 We at [Imageomics](https://imageomics.osu.edu) use this library for testing [BioCLIP](https://imageomics.github.io/bioclip) and other internal models  during development.
 Because of this, there are two main classes of tasks:
 
-1. Downstream applications. These are tasks like [KABR](https://samuelstevens.me/biobench/biobench/kabr/index.html) or [Beluga whale re-ID](https://samuelstevens.me/biobench/biobench/beluga/index.html). These tasks represent real problems that computer vision systems fail to solve today.
-2. Benchmarks. These are made-up tasks like [RareSpecies](https://samuelstevens.me/biobench/biobench/rarespecies/index.html) that are artificial tasks, created to help us understand how useful a model might be in the real world for similar tasks.
+1. Downstream applications. These are tasks like [KABR](https://samuelstevens.me/biobench/api/biobench/kabr) or [Beluga whale re-ID](https://samuelstevens.me/biobench/api/biobench/beluga). These tasks represent real problems that computer vision systems fail to solve today.
+2. Benchmarks. These are made-up tasks like [NeWT](https://samuelstevens.me/biobench/api/biobench/newt) that are artificial tasks, created to help us understand how useful a model might be in the real world for similar tasks.
 
 
 ## Road Map
@@ -547,7 +550,6 @@ def benchmark(cfg: config.Experiment) -> reporting.Report:
 def bootstrap_scores(
     df: pl.DataFrame, *, b: int = 0, rng: np.random.Generator | None = None
 ) -> dict[str, Float[np.ndarray, " b"]]:
-    # Assert that all task_name == 'herbarium'
     assert df.get_column("task_name").unique().to_list() == ["beluga"]
     return reporting.bootstrap_scores_macro_f1(df, b=b, rng=rng)
 
@@ -748,14 +750,14 @@ from biobench import config, helpers, jobkit, reporting
 
 
 @beartype.beartype
-def main(cfgs: list[str], dry_run: bool = True, max_pending: int = 8):
+def main(cfgs: list[str], dry_run: bool = True, n_parallel: int = 1):
     """
     Launch all jobs, using either a local GPU or a Slurm cluster. Then report results and save to disk.
 
     Args:
         cfgs: List of paths to TOML config files.
         dry_run: If --no-dry-run, actually run experiment.
-        max_pending: Number of jobs that can be claimed by any one launcher process.
+        n_parallel: Number of jobs that can be claimed by any one launcher process.
     """
 
     # Load all configs from the provided paths.
@@ -820,7 +822,7 @@ def main(cfgs: list[str], dry_run: bool = True, max_pending: int = 8):
 
     job_stats = collections.defaultdict(int)
     model_stats = collections.defaultdict(int)
-    fq = jobkit.FutureQueue(max_size=max_pending)
+    fq = jobkit.FutureQueue(max_size=n_parallel)
     exit_hook = jobkit.ExitHook(
         lambda args: reporting.release_run(db, *args)
     ).register()
@@ -1283,7 +1285,11 @@ def bootstrap_scores(
     y_pred_buf = np.empty((b, 9, n), dtype=np.int32)
     y_true_buf = np.empty((b, 9, n), dtype=np.int32)
 
-    for model_ckpt in df.get_column("model_ckpt").unique().sort().to_list():
+    for model_ckpt in helpers.progress(
+        df.get_column("model_ckpt").unique().sort().to_list(),
+        desc="fishnet/bootstrap",
+        every=3,
+    ):
         # pull y_true and y_pred for *one* model
         y_pred = (
             df.filter(pl.col("model_ckpt") == model_ckpt)
@@ -1451,7 +1457,7 @@ def get_features(
     with helpers.auto_batch_size(dataloader, probe=probe):
         total = len(dataloader) if not cfg.debug else 2
         it = iter(dataloader)
-        for b in helpers.progress(range(total), every=10, desc=f"fish/{file}"):
+        for b in helpers.progress(range(total), every=10, desc=f"fishnet/{file}"):
             debug_cuda_mem("loop start")
             images, labels, ids = next(it)
             debug_cuda_mem("after batch")
@@ -3028,7 +3034,6 @@ def init_logreg_clf(cfg: config.Experiment):
         sklearn.preprocessing.StandardScaler(),
         sklearn.linear_model.LogisticRegression(
             max_iter=1_000,
-            multi_class="multinomial",
             class_weight="balanced",
             penalty="l2",
             random_state=cfg.seed,
@@ -3073,7 +3078,7 @@ import torchvision.datasets
 from jaxtyping import Float, Int, Shaped, jaxtyped
 from torch import Tensor
 
-from .. import config, helpers, registry, reporting
+from .. import config, helpers, linear_probing, registry, reporting
 
 logger = logging.getLogger("herbarium19")
 
@@ -3118,7 +3123,7 @@ def benchmark(cfg: config.Experiment) -> reporting.Report:
 
     torch.cuda.empty_cache()  # Be nice to others on the machine.
 
-    clf = helpers.init_logreg_clf(cfg)
+    clf = init_clf(cfg)
     clf.fit(train_feats.x, train_feats.y)
 
     preds = clf.predict(test_feats.x)
@@ -3181,12 +3186,8 @@ def get_features(
             _ = backbone.img_encode(imgs).img_features
 
     all_ids, all_features, all_labels = [], [], []
-    with helpers.auto_batch_size(
-        dataloader,
-        probe=probe,
-        # Set an upper limit that's around 1/40 of the dataset size. Otherwise we spend a lot of time picking an optimal batch size when we could just rip through the dataset. And naturally we want a power of 2.
-        upper=2 ** np.log2(len(dataset) / 40).astype(int).item(),
-    ):
+    # Set an upper limit. Otherwise we spend a lot of time picking an optimal batch size when we could just rip through the dataset.
+    with helpers.auto_batch_size(dataloader, probe=probe, upper=512):
         backbone = torch.compile(backbone)
 
         for batch in helpers.progress(dataloader, every=10, desc=f"hb19/{split}"):
@@ -3206,6 +3207,12 @@ def get_features(
     logger.info("Got features for %d images.", len(all_ids))
 
     return Features(all_features, all_labels, all_ids)
+
+
+@beartype.beartype
+def init_clf(cfg: config.Experiment):
+    clf = linear_probing.LinearProbeClassifier(device=cfg.device)
+    return clf
 
 >>>> herbarium19/download.py
 # biobench/herbarium19/download.py
@@ -3344,7 +3351,6 @@ if __name__ == "__main__":
 
 import dataclasses
 import logging
-import math
 import warnings
 
 import beartype
@@ -5254,7 +5260,7 @@ from jaxtyping import Float, Int, Shaped, jaxtyped
 from PIL import Image
 from torch import Tensor
 
-from .. import config, helpers, registry, reporting, simpleshot
+from .. import config, helpers, registry, reporting
 
 logger = logging.getLogger(__name__)
 
@@ -5386,7 +5392,7 @@ def benchmark(cfg: config.Experiment) -> reporting.Report:
     test_features = get_features(cfg, backbone, is_train=False)
 
     # 4. Do simpleshot.
-    clf = init_clf(cfg)
+    clf = helpers.init_logreg_clf(cfg)
     clf.fit(train_features.x, train_features.y)
 
     true_labels = test_features.y
@@ -5481,11 +5487,6 @@ def get_features(
     all_ids = np.array(all_ids)
 
     return Features(all_feats, all_labels, all_ids)
-
-
-@beartype.beartype
-def init_clf(cfg: config.Experiment):
-    return simpleshot.SimpleShotClassifier(device="cuda:0")
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -7384,10 +7385,6 @@ import typing
 import beartype
 import numpy as np
 import polars as pl
-import sklearn.naive_bayes
-import sklearn.pipeline
-import sklearn.preprocessing
-import sklearn.svm
 import torch
 from jaxtyping import Float, Int, Shaped, jaxtyped
 from PIL import Image
@@ -7421,7 +7418,7 @@ def benchmark(cfg: config.Experiment) -> reporting.Report:
     val_features = get_features(cfg, backbone, is_train=False)
 
     # 2. Fit model.
-    clf = init_clf(cfg)
+    clf = helpers.init_logreg_clf(cfg)
     clf.fit(train_features.x, train_features.y)
 
     # 3. Predict.
@@ -7563,29 +7560,6 @@ def get_features(
     logger.info("Got features for %d images.", len(all_ids))
 
     return Features(all_features, all_labels, all_ids)
-
-
-@beartype.beartype
-def init_clf(cfg: config.Experiment):
-    alpha = np.pow(2.0, np.arange(-15, 5))
-    if cfg.debug:
-        alpha = np.pow(2.0, np.arange(-2, 2))
-
-    if 0 < cfg.n_train <= 300:
-        return sklearn.linear_model.RidgeClassifier()
-
-    return sklearn.model_selection.HalvingGridSearchCV(
-        sklearn.pipeline.make_pipeline(
-            sklearn.preprocessing.StandardScaler(),
-            sklearn.linear_model.RidgeClassifier(1.0),
-        ),
-        {"ridgeclassifier__alpha": alpha},
-        n_jobs=16,
-        verbose=2,
-        factor=3,
-        random_state=cfg.seed,
-        scoring="f1_macro",
-    )
 
 >>>> plankton/download.py
 # /// script
@@ -8285,7 +8259,7 @@ from biobench import helpers
 
 log_format = "[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s"
 logging.basicConfig(level=logging.INFO, format=log_format)
-logger = logging.getLogger("make_json.py")
+logger = logging.getLogger("report.py")
 
 
 @beartype.beartype
@@ -8840,8 +8814,10 @@ def calc_scores(
         try:
             bootstrap_scores = task.bootstrap_scores_fn
         except AttributeError:
-            print(f"No `bootstrap_scores` for {task.name}")
+            logger.warning("No `bootstrap_scores` for %s", task.name)
             continue
+
+        logger.info("Getting score for %s", task.name)
 
         sub = df.filter(
             (pl.col("task_name") == task.name)
@@ -9387,7 +9363,7 @@ def macro_f1_batch(
     true_cnt = np.bincount(yz_true.ravel(), minlength=(b * c)).reshape(b, c)
     pred_cnt = np.bincount(yz_pred.ravel(), minlength=(b * c)).reshape(b, c)
 
-    # true-positives
+    # true positives
     tp_mask = y_true == y_pred  # (B, n)
     tp_off = yz_true[tp_mask]  # 1-D
     tp_cnt = np.bincount(tp_off, minlength=(b * c)).reshape(b, c)
@@ -9415,7 +9391,8 @@ def bootstrap_scores_macro_f1(
     """
 
     n, *rest = df.group_by("model_ckpt").agg(n=pl.len()).get_column("n").to_list()
-    assert all(n == i for i in rest)
+    if not all(n == i for i in rest):
+        breakpoint()
 
     if b > 0:
         assert rng is not None, "must provide rng argument"
@@ -9426,7 +9403,11 @@ def bootstrap_scores_macro_f1(
     y_pred_buf = np.empty((b, n), dtype=np.int32)
     y_true_buf = np.empty((b, n), dtype=np.int32)
 
-    for model_ckpt in df.get_column("model_ckpt").unique().sort().to_list():
+    for model_ckpt in helpers.progress(
+        df.get_column("model_ckpt").unique().sort().to_list(),
+        desc="bootstrap/macro-f1",
+        every=3,
+    ):
         # pull y_true and y_pred for *one* model
         y_pred = (
             df.filter(pl.col("model_ckpt") == model_ckpt)

@@ -117,7 +117,7 @@ def benchmark(cfg: config.Experiment) -&gt; reporting.Report:
     val_features = get_features(cfg, backbone, is_train=False)
 
     # 2. Fit model.
-    clf = init_clf(cfg)
+    clf = helpers.init_logreg_clf(cfg)
     clf.fit(train_features.x, train_features.y)
 
     # 3. Predict.
@@ -223,38 +223,6 @@ def get_features(
     logger.info(&#34;Got features for %d images.&#34;, len(all_ids))
 
     return Features(all_features, all_labels, all_ids)</code></pre>
-</details>
-<div class="desc"></div>
-</dd>
-<dt id="biobench.plankton.init_clf"><code class="name flex">
-<span>def <span class="ident">init_clf</span></span>(<span>cfg: <a title="biobench.config.Experiment" href="../config.html#biobench.config.Experiment">Experiment</a>)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">@beartype.beartype
-def init_clf(cfg: config.Experiment):
-    alpha = np.pow(2.0, np.arange(-15, 5))
-    if cfg.debug:
-        alpha = np.pow(2.0, np.arange(-2, 2))
-
-    if 0 &lt; cfg.n_train &lt;= 300:
-        return sklearn.linear_model.RidgeClassifier()
-
-    return sklearn.model_selection.HalvingGridSearchCV(
-        sklearn.pipeline.make_pipeline(
-            sklearn.preprocessing.StandardScaler(),
-            sklearn.linear_model.RidgeClassifier(1.0),
-        ),
-        {&#34;ridgeclassifier__alpha&#34;: alpha},
-        n_jobs=16,
-        verbose=2,
-        factor=3,
-        random_state=cfg.seed,
-        scoring=&#34;f1_macro&#34;,
-    )</code></pre>
 </details>
 <div class="desc"></div>
 </dd>
@@ -471,7 +439,6 @@ class Sample(typing.TypedDict):
 <li><code><a title="biobench.plankton.benchmark" href="#biobench.plankton.benchmark">benchmark</a></code></li>
 <li><code><a title="biobench.plankton.bootstrap_scores" href="#biobench.plankton.bootstrap_scores">bootstrap_scores</a></code></li>
 <li><code><a title="biobench.plankton.get_features" href="#biobench.plankton.get_features">get_features</a></code></li>
-<li><code><a title="biobench.plankton.init_clf" href="#biobench.plankton.init_clf">init_clf</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>

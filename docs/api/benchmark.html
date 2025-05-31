@@ -83,7 +83,7 @@ def get_skip_reason(
 <div class="desc"><p>Return a short reason string if we should skip (None -&gt; keep).</p></div>
 </dd>
 <dt id="benchmark.main"><code class="name flex">
-<span>def <span class="ident">main</span></span>(<span>cfgs: list[str], dry_run: bool = True, max_pending: int = 8)</span>
+<span>def <span class="ident">main</span></span>(<span>cfgs: list[str], dry_run: bool = True, n_parallel: int = 1)</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -91,14 +91,14 @@ def get_skip_reason(
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">@beartype.beartype
-def main(cfgs: list[str], dry_run: bool = True, max_pending: int = 8):
+def main(cfgs: list[str], dry_run: bool = True, n_parallel: int = 1):
     &#34;&#34;&#34;
     Launch all jobs, using either a local GPU or a Slurm cluster. Then report results and save to disk.
 
     Args:
         cfgs: List of paths to TOML config files.
         dry_run: If --no-dry-run, actually run experiment.
-        max_pending: Number of jobs that can be claimed by any one launcher process.
+        n_parallel: Number of jobs that can be claimed by any one launcher process.
     &#34;&#34;&#34;
 
     # Load all configs from the provided paths.
@@ -163,7 +163,7 @@ def main(cfgs: list[str], dry_run: bool = True, max_pending: int = 8):
 
     job_stats = collections.defaultdict(int)
     model_stats = collections.defaultdict(int)
-    fq = jobkit.FutureQueue(max_size=max_pending)
+    fq = jobkit.FutureQueue(max_size=n_parallel)
     exit_hook = jobkit.ExitHook(
         lambda args: reporting.release_run(db, *args)
     ).register()
@@ -235,7 +235,7 @@ def main(cfgs: list[str], dry_run: bool = True, max_pending: int = 8):
 <dd>List of paths to TOML config files.</dd>
 <dt><strong><code>dry_run</code></strong></dt>
 <dd>If &ndash;no-dry-run, actually run experiment.</dd>
-<dt><strong><code>max_pending</code></strong></dt>
+<dt><strong><code>n_parallel</code></strong></dt>
 <dd>Number of jobs that can be claimed by any one launcher process.</dd>
 </dl></div>
 </dd>

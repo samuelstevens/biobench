@@ -66,8 +66,10 @@ def calc_scores(
         try:
             bootstrap_scores = task.bootstrap_scores_fn
         except AttributeError:
-            print(f&#34;No `bootstrap_scores` for {task.name}&#34;)
+            logger.warning(&#34;No `bootstrap_scores` for %s&#34;, task.name)
             continue
+
+        logger.info(&#34;Getting score for %s&#34;, task.name)
 
         sub = df.filter(
             (pl.col(&#34;task_name&#34;) == task.name)

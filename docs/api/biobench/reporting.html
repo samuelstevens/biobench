@@ -114,7 +114,8 @@ def bootstrap_scores_macro_f1(
     &#34;&#34;&#34;
 
     n, *rest = df.group_by(&#34;model_ckpt&#34;).agg(n=pl.len()).get_column(&#34;n&#34;).to_list()
-    assert all(n == i for i in rest)
+    if not all(n == i for i in rest):
+        breakpoint()
 
     if b &gt; 0:
         assert rng is not None, &#34;must provide rng argument&#34;
@@ -125,7 +126,11 @@ def bootstrap_scores_macro_f1(
     y_pred_buf = np.empty((b, n), dtype=np.int32)
     y_true_buf = np.empty((b, n), dtype=np.int32)
 
-    for model_ckpt in df.get_column(&#34;model_ckpt&#34;).unique().sort().to_list():
+    for model_ckpt in helpers.progress(
+        df.get_column(&#34;model_ckpt&#34;).unique().sort().to_list(),
+        desc=&#34;bootstrap/macro-f1&#34;,
+        every=3,
+    ):
         # pull y_true and y_pred for *one* model
         y_pred = (
             df.filter(pl.col(&#34;model_ckpt&#34;) == model_ckpt)
@@ -504,7 +509,7 @@ def macro_f1_batch(
     true_cnt = np.bincount(yz_true.ravel(), minlength=(b * c)).reshape(b, c)
     pred_cnt = np.bincount(yz_pred.ravel(), minlength=(b * c)).reshape(b, c)
 
-    # true-positives
+    # true positives
     tp_mask = y_true == y_pred  # (B, n)
     tp_off = yz_true[tp_mask]  # 1-D
     tp_cnt = np.bincount(tp_off, minlength=(b * c)).reshape(b, c)
@@ -703,7 +708,7 @@ class Prediction:
 </dd>
 <dt id="biobench.reporting.Report"><code class="flex name class">
 <span>class <span class="ident">Report</span></span>
-<span>(</span><span>task_name: str,<br>predictions: list[<a title="biobench.reporting.Prediction" href="#biobench.reporting.Prediction">Prediction</a>],<br>cfg: <a title="biobench.config.Experiment" href="config.html#biobench.config.Experiment">Experiment</a>,<br>*,<br>splits: dict[str, float] = &lt;factory&gt;,<br>argv: list[str] = &lt;factory&gt;,<br>git_commit: str = 'ea3c0383fe441424ead3db355938251a92a5cbc4',<br>posix: float = &lt;factory&gt;,<br>gpu_name: str = &lt;factory&gt;,<br>hostname: str = &lt;factory&gt;)</span>
+<span>(</span><span>task_name: str,<br>predictions: list[<a title="biobench.reporting.Prediction" href="#biobench.reporting.Prediction">Prediction</a>],<br>cfg: <a title="biobench.config.Experiment" href="config.html#biobench.config.Experiment">Experiment</a>,<br>*,<br>splits: dict[str, float] = &lt;factory&gt;,<br>argv: list[str] = &lt;factory&gt;,<br>git_commit: str = '8156173146b67d8b00dbcae21e5e234332b5aa59',<br>posix: float = &lt;factory&gt;,<br>gpu_name: str = &lt;factory&gt;,<br>hostname: str = &lt;factory&gt;)</span>
 </code></dt>
 <dd>
 <details class="source">

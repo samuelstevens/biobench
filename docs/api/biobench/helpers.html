@@ -478,7 +478,6 @@ def init_logreg_clf(cfg: config.Experiment):
         sklearn.preprocessing.StandardScaler(),
         sklearn.linear_model.LogisticRegression(
             max_iter=1_000,
-            multi_class=&#34;multinomial&#34;,
             class_weight=&#34;balanced&#34;,
             penalty=&#34;l2&#34;,
             random_state=cfg.seed,
