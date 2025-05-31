@@ -1,8 +1,8 @@
 {
     "meta": {
         "schema": 1,
-        "generated": 1748625313389,
-        "git_commit": "0ac073ee9602154f449a7243db8baa8f1a376e5d",
+        "generated": 1748710089451,
+        "git_commit": "58d7867957a80fa9f946a17101c19646a75dcc17",
         "seed": 17,
         "alpha": 0.05,
         "n_bootstraps": 500
@@ -740,6 +740,14 @@
         },
         {
             "task": "newt",
+            "model": "ViT-L-16-SigLIP2-512/webli",
+            "mean": 0.8499777913093567,
+            "bootstrap_mean": 0.8498538732528687,
+            "ci_low": 0.8445905387401581,
+            "ci_high": 0.8548366025090217
+        },
+        {
+            "task": "newt",
             "model": "ViT-SO400M-14-SigLIP-384/webli",
             "mean": 0.8600754737854004,
             "bootstrap_mean": 0.8599263429641724,
@@ -753,6 +761,46 @@
             "bootstrap_mean": 0.8468003869056702,
             "ci_low": 0.8413490191102028,
             "ci_high": 0.8520916447043418
+        },
+        {
+            "task": "newt",
+            "model": "ViT-SO400M-16-SigLIP2-256/webli",
+            "mean": 0.8467598557472229,
+            "bootstrap_mean": 0.8467870950698853,
+            "ci_low": 0.8417901203036309,
+            "ci_high": 0.85197514295578
+        },
+        {
+            "task": "newt",
+            "model": "ViT-SO400M-16-SigLIP2-384/webli",
+            "mean": 0.8583555221557617,
+            "bootstrap_mean": 0.8582297563552856,
+            "ci_low": 0.8527519106864929,
+            "ci_high": 0.8634043335914612
+        },
+        {
+            "task": "newt",
+            "model": "ViT-SO400M-16-SigLIP2-512/webli",
+            "mean": 0.8599089980125427,
+            "bootstrap_mean": 0.8597815036773682,
+            "ci_low": 0.854165269434452,
+            "ci_high": 0.864741450548172
+        },
+        {
+            "task": "newt",
+            "model": "ViT-gopt-16-SigLIP2-256/webli",
+            "mean": 0.8514758348464966,
+            "bootstrap_mean": 0.8514940738677979,
+            "ci_low": 0.8461731478571892,
+            "ci_high": 0.8561653956770897
+        },
+        {
+            "task": "newt",
+            "model": "ViT-gopt-16-SigLIP2-384/webli",
+            "mean": 0.8667887449264526,
+            "bootstrap_mean": 0.86665278673172,
+            "ci_low": 0.8616816386580467,
+            "ci_high": 0.8716156482696533
         },
         {
             "task": "newt",
@@ -1260,6 +1308,46 @@
         },
         {
             "task": "beluga",
+            "model": "ViT-SO400M-16-SigLIP2-256/webli",
+            "mean": 0.036050453022970254,
+            "bootstrap_mean": 0.03507033109148807,
+            "ci_low": 0.03212208740860396,
+            "ci_high": 0.03807891008359221
+        },
+        {
+            "task": "beluga",
+            "model": "ViT-SO400M-16-SigLIP2-384/webli",
+            "mean": 0.03617897075437176,
+            "bootstrap_mean": 0.035138028156874015,
+            "ci_low": 0.03215046948633609,
+            "ci_high": 0.038301369865150425
+        },
+        {
+            "task": "beluga",
+            "model": "ViT-SO400M-16-SigLIP2-512/webli",
+            "mean": 0.037432180575994914,
+            "bootstrap_mean": 0.036490897680301206,
+            "ci_low": 0.03358274485668127,
+            "ci_high": 0.039661794396638916
+        },
+        {
+            "task": "beluga",
+            "model": "ViT-gopt-16-SigLIP2-256/webli",
+            "mean": 0.03476554825501875,
+            "bootstrap_mean": 0.03374083883085002,
+            "ci_low": 0.030819793439211676,
+            "ci_high": 0.03683289283299246
+        },
+        {
+            "task": "beluga",
+            "model": "ViT-gopt-16-SigLIP2-384/webli",
+            "mean": 0.03568284702220759,
+            "bootstrap_mean": 0.03457310459517014,
+            "ci_low": 0.0313184021340404,
+            "ci_high": 0.03778694389334536
+        },
+        {
+            "task": "beluga",
             "model": "apple/aimv2-1B-patch14-224",
             "mean": 0.017129272044296755,
             "bootstrap_mean": 0.016530257553549296,
@@ -1732,6 +1820,14 @@
         },
         {
             "task": "fishnet",
+            "model": "ViT-L-16-SigLIP2-512/webli",
+            "mean": 0.6713809330205271,
+            "bootstrap_mean": 0.5204437803702614,
+            "ci_low": 0.5181186249815849,
+            "ci_high": 0.5230748109763113
+        },
+        {
+            "task": "fishnet",
             "model": "ViT-SO400M-14-SigLIP-384/webli",
             "mean": 0.6904050599623751,
             "bootstrap_mean": 0.5790614054322826,
@@ -1745,6 +1841,46 @@
             "bootstrap_mean": 0.5670239824217125,
             "ci_low": 0.5644055637587835,
             "ci_high": 0.5696614182631254
+        },
+        {
+            "task": "fishnet",
+            "model": "ViT-SO400M-16-SigLIP2-256/webli",
+            "mean": 0.6782832747043215,
+            "bootstrap_mean": 0.534520906080665,
+            "ci_low": 0.5316270113739129,
+            "ci_high": 0.5373220081194753
+        },
+        {
+            "task": "fishnet",
+            "model": "ViT-SO400M-16-SigLIP2-384/webli",
+            "mean": 0.6833820004723461,
+            "bootstrap_mean": 0.5554488611692301,
+            "ci_low": 0.5527078893454233,
+            "ci_high": 0.5581965722615092
+        },
+        {
+            "task": "fishnet",
+            "model": "ViT-SO400M-16-SigLIP2-512/webli",
+            "mean": 0.6862305301466199,
+            "bootstrap_mean": 0.5556618602732796,
+            "ci_low": 0.5529887432989424,
+            "ci_high": 0.5586167959360414
+        },
+        {
+            "task": "fishnet",
+            "model": "ViT-gopt-16-SigLIP2-256/webli",
+            "mean": 0.7078357293806656,
+            "bootstrap_mean": 0.5796085789843637,
+            "ci_low": 0.5768252241871331,
+            "ci_high": 0.5822467529539431
+        },
+        {
+            "task": "fishnet",
+            "model": "ViT-gopt-16-SigLIP2-384/webli",
+            "mean": 0.7068851240554728,
+            "bootstrap_mean": 0.5780128429272356,
+            "ci_low": 0.5752582479610396,
+            "ci_high": 0.5807617521911818
         },
         {
             "task": "fishnet",
@@ -2228,6 +2364,14 @@
         },
         {
             "task": "fungiclef",
+            "model": "ViT-L-16-SigLIP2-512/webli",
+            "mean": 0.3730999449962792,
+            "bootstrap_mean": 0.3736690871995521,
+            "ci_low": 0.35660957595448367,
+            "ci_high": 0.39057472819693223
+        },
+        {
+            "task": "fungiclef",
             "model": "ViT-SO400M-14-SigLIP-384/webli",
             "mean": 0.38587375028310744,
             "bootstrap_mean": 0.38594471461762825,
@@ -2241,6 +2385,46 @@
             "bootstrap_mean": 0.373628104061602,
             "ci_low": 0.35673066375888324,
             "ci_high": 0.3902726441658228
+        },
+        {
+            "task": "fungiclef",
+            "model": "ViT-SO400M-16-SigLIP2-256/webli",
+            "mean": 0.3671216414219618,
+            "bootstrap_mean": 0.3673943310405805,
+            "ci_low": 0.34963487220434714,
+            "ci_high": 0.3845961102881403
+        },
+        {
+            "task": "fungiclef",
+            "model": "ViT-SO400M-16-SigLIP2-384/webli",
+            "mean": 0.3781066702411381,
+            "bootstrap_mean": 0.37860966927528306,
+            "ci_low": 0.36099884710545194,
+            "ci_high": 0.39638323391639446
+        },
+        {
+            "task": "fungiclef",
+            "model": "ViT-SO400M-16-SigLIP2-512/webli",
+            "mean": 0.38266412139644745,
+            "bootstrap_mean": 0.3831269477978551,
+            "ci_low": 0.36606648726137353,
+            "ci_high": 0.4005411326166852
+        },
+        {
+            "task": "fungiclef",
+            "model": "ViT-gopt-16-SigLIP2-256/webli",
+            "mean": 0.38210021770380265,
+            "bootstrap_mean": 0.3825079229090703,
+            "ci_low": 0.36664306394220825,
+            "ci_high": 0.39935180311803314
+        },
+        {
+            "task": "fungiclef",
+            "model": "ViT-gopt-16-SigLIP2-384/webli",
+            "mean": 0.3899537321642347,
+            "bootstrap_mean": 0.39040555882867495,
+            "ci_low": 0.37405220485316776,
+            "ci_high": 0.4063212612705362
         },
         {
             "task": "fungiclef",
@@ -2708,6 +2892,14 @@
         },
         {
             "task": "herbarium19",
+            "model": "ViT-L-16-SigLIP2-512/webli",
+            "mean": 0.639319087898069,
+            "bootstrap_mean": 0.5668162951712407,
+            "ci_low": 0.5475116440595846,
+            "ci_high": 0.5887627353480646
+        },
+        {
+            "task": "herbarium19",
             "model": "ViT-SO400M-14-SigLIP-384/webli",
             "mean": 0.6370667207284582,
             "bootstrap_mean": 0.5623603791983826,
@@ -2721,6 +2913,46 @@
             "bootstrap_mean": 0.4899788473705828,
             "ci_low": 0.4691751668160398,
             "ci_high": 0.509914793781265
+        },
+        {
+            "task": "herbarium19",
+            "model": "ViT-SO400M-16-SigLIP2-256/webli",
+            "mean": 0.5497659478028669,
+            "bootstrap_mean": 0.48302372535142835,
+            "ci_low": 0.46370796233360345,
+            "ci_high": 0.502362606113128
+        },
+        {
+            "task": "herbarium19",
+            "model": "ViT-SO400M-16-SigLIP2-384/webli",
+            "mean": 0.6251169539303884,
+            "bootstrap_mean": 0.5549031485149375,
+            "ci_low": 0.5356304517717322,
+            "ci_high": 0.5746173258923348
+        },
+        {
+            "task": "herbarium19",
+            "model": "ViT-SO400M-16-SigLIP2-512/webli",
+            "mean": 0.6789516181809839,
+            "bootstrap_mean": 0.6016668091179488,
+            "ci_low": 0.5816340972213585,
+            "ci_high": 0.622432433446023
+        },
+        {
+            "task": "herbarium19",
+            "model": "ViT-gopt-16-SigLIP2-256/webli",
+            "mean": 0.5807382158998109,
+            "bootstrap_mean": 0.5127874168910588,
+            "ci_low": 0.49385841728128144,
+            "ci_high": 0.5329148504784275
+        },
+        {
+            "task": "herbarium19",
+            "model": "ViT-gopt-16-SigLIP2-384/webli",
+            "mean": 0.6515878539488897,
+            "bootstrap_mean": 0.5774900742167716,
+            "ci_low": 0.5575427765174036,
+            "ci_high": 0.5994847724686015
         },
         {
             "task": "herbarium19",
@@ -2916,6 +3148,14 @@
         },
         {
             "task": "iwildcam",
+            "model": "ViT-L-16-SigLIP2-512/webli",
+            "mean": 0.2729249361781376,
+            "bootstrap_mean": 0.2693198660974068,
+            "ci_low": 0.25809398833853076,
+            "ci_high": 0.27905270223641343
+        },
+        {
+            "task": "iwildcam",
             "model": "ViT-SO400M-14-SigLIP-384/webli",
             "mean": 0.2572935777366912,
             "bootstrap_mean": 0.2517101065373893,
@@ -2929,6 +3169,38 @@
             "bootstrap_mean": 0.21922685613492082,
             "ci_low": 0.20947393219811639,
             "ci_high": 0.2290344142879828
+        },
+        {
+            "task": "iwildcam",
+            "model": "ViT-SO400M-16-SigLIP2-256/webli",
+            "mean": 0.2418590998354569,
+            "bootstrap_mean": 0.23829816227339104,
+            "ci_low": 0.22790567455735544,
+            "ci_high": 0.2491027864920478
+        },
+        {
+            "task": "iwildcam",
+            "model": "ViT-SO400M-16-SigLIP2-384/webli",
+            "mean": 0.2854101710617194,
+            "bootstrap_mean": 0.27725380094552177,
+            "ci_low": 0.26453646127608027,
+            "ci_high": 0.28951357893721336
+        },
+        {
+            "task": "iwildcam",
+            "model": "ViT-SO400M-16-SigLIP2-512/webli",
+            "mean": 0.2863436823104666,
+            "bootstrap_mean": 0.2803182885598591,
+            "ci_low": 0.2681855608006826,
+            "ci_high": 0.2921290527268314
+        },
+        {
+            "task": "iwildcam",
+            "model": "ViT-gopt-16-SigLIP2-256/webli",
+            "mean": 0.25849613771473184,
+            "bootstrap_mean": 0.2512051054727628,
+            "ci_low": 0.23812450604520696,
+            "ci_high": 0.26282474972181236
         },
         {
             "task": "iwildcam",
@@ -3124,6 +3396,14 @@
         },
         {
             "task": "kabr",
+            "model": "ViT-L-16-SigLIP2-512/webli",
+            "mean": 0.45093181502607704,
+            "bootstrap_mean": 0.4501370567872457,
+            "ci_low": 0.42741217752370425,
+            "ci_high": 0.47352942328125025
+        },
+        {
+            "task": "kabr",
             "model": "ViT-SO400M-14-SigLIP-384/webli",
             "mean": 0.5926242698768309,
             "bootstrap_mean": 0.5915553202206838,
@@ -3137,6 +3417,46 @@
             "bootstrap_mean": 0.5123558928199002,
             "ci_low": 0.48816056571408384,
             "ci_high": 0.5357365719230957
+        },
+        {
+            "task": "kabr",
+            "model": "ViT-SO400M-16-SigLIP2-256/webli",
+            "mean": 0.5508389103843838,
+            "bootstrap_mean": 0.5486647551665762,
+            "ci_low": 0.5184903359887315,
+            "ci_high": 0.5783633433204526
+        },
+        {
+            "task": "kabr",
+            "model": "ViT-SO400M-16-SigLIP2-384/webli",
+            "mean": 0.5247962700344937,
+            "bootstrap_mean": 0.5242578307377258,
+            "ci_low": 0.4938774932560743,
+            "ci_high": 0.551875314055513
+        },
+        {
+            "task": "kabr",
+            "model": "ViT-SO400M-16-SigLIP2-512/webli",
+            "mean": 0.5573391275235737,
+            "bootstrap_mean": 0.5566563529309745,
+            "ci_low": 0.5309110555861934,
+            "ci_high": 0.5827680361896492
+        },
+        {
+            "task": "kabr",
+            "model": "ViT-gopt-16-SigLIP2-256/webli",
+            "mean": 0.5798323510232684,
+            "bootstrap_mean": 0.5784568650878739,
+            "ci_low": 0.5475680904743584,
+            "ci_high": 0.6076894610161987
+        },
+        {
+            "task": "kabr",
+            "model": "ViT-gopt-16-SigLIP2-384/webli",
+            "mean": 0.5844379610806979,
+            "bootstrap_mean": 0.5834831361290044,
+            "ci_low": 0.554722118771395,
+            "ci_high": 0.6115642622101155
         },
         {
             "task": "kabr",
@@ -3324,6 +3644,22 @@
         },
         {
             "task": "mammalnet",
+            "model": "ViT-L-16-SigLIP2-384/webli",
+            "mean": 0.673740643736271,
+            "bootstrap_mean": 0.6731676910488851,
+            "ci_low": 0.6516531087632031,
+            "ci_high": 0.6930747416934956
+        },
+        {
+            "task": "mammalnet",
+            "model": "ViT-L-16-SigLIP2-512/webli",
+            "mean": 0.6803264470576198,
+            "bootstrap_mean": 0.6798118861296671,
+            "ci_low": 0.6599641404636557,
+            "ci_high": 0.700511235085957
+        },
+        {
+            "task": "mammalnet",
             "model": "ViT-SO400M-14-SigLIP-384/webli",
             "mean": 0.6628371828547462,
             "bootstrap_mean": 0.6624120652200505,
@@ -3337,6 +3673,30 @@
             "bootstrap_mean": 0.6270145937844147,
             "ci_low": 0.6066402736604639,
             "ci_high": 0.6472244279019411
+        },
+        {
+            "task": "mammalnet",
+            "model": "ViT-SO400M-16-SigLIP2-256/webli",
+            "mean": 0.6790741422379573,
+            "bootstrap_mean": 0.6784013292304351,
+            "ci_low": 0.6588353371714152,
+            "ci_high": 0.6996661744824849
+        },
+        {
+            "task": "mammalnet",
+            "model": "ViT-SO400M-16-SigLIP2-512/webli",
+            "mean": 0.7054787849085447,
+            "bootstrap_mean": 0.7055303955601014,
+            "ci_low": 0.6862209352201112,
+            "ci_high": 0.7277561572734593
+        },
+        {
+            "task": "mammalnet",
+            "model": "ViT-gopt-16-SigLIP2-256/webli",
+            "mean": 0.7260338393111301,
+            "bootstrap_mean": 0.7254376704621719,
+            "ci_low": 0.7031617013374734,
+            "ci_high": 0.7457628201040978
         },
         {
             "task": "mammalnet",
@@ -3398,9 +3758,9 @@
     "bests": [
         {
             "task": "newt",
-            "best": "ViT-SO400M-14-SigLIP-384/webli",
+            "best": "ViT-gopt-16-SigLIP2-384/webli",
             "ties": [
-                "ViT-SO400M-14-SigLIP-384/webli"
+                "ViT-gopt-16-SigLIP2-384/webli"
             ]
         },
         {
@@ -3428,19 +3788,17 @@
         },
         {
             "task": "herbarium19",
-            "best": "hf-hub:UCSC-VLAA/openvision-vit-so400m-patch14-384",
+            "best": "ViT-SO400M-16-SigLIP2-512/webli",
             "ties": [
-                "ViT-L-16-SigLIP2-384/webli",
-                "ViT-SO400M-14-SigLIP-384/webli",
-                "hf-hub:UCSC-VLAA/openvision-vit-so400m-patch14-384"
+                "ViT-SO400M-16-SigLIP2-512/webli"
             ]
         },
         {
             "task": "iwildcam",
-            "best": "ViT-L-16-SigLIP2-384/webli",
+            "best": "ViT-SO400M-16-SigLIP2-512/webli",
             "ties": [
-                "ViT-L-16-SigLIP2-384/webli",
-                "ViT-SO400M-14-SigLIP-384/webli"
+                "ViT-SO400M-16-SigLIP2-384/webli",
+                "ViT-SO400M-16-SigLIP2-512/webli"
             ]
         },
         {
@@ -3448,15 +3806,18 @@
             "best": "ViT-SO400M-14-SigLIP-384/webli",
             "ties": [
                 "ViT-B-16-SigLIP2-512/webli",
-                "ViT-SO400M-14-SigLIP-384/webli"
+                "ViT-L-16-SigLIP-384/webli",
+                "ViT-SO400M-14-SigLIP-384/webli",
+                "ViT-gopt-16-SigLIP2-256/webli",
+                "ViT-gopt-16-SigLIP2-384/webli"
             ]
         },
         {
             "task": "mammalnet",
-            "best": "ViT-SO400M-14-SigLIP-384/webli",
+            "best": "ViT-gopt-16-SigLIP2-256/webli",
             "ties": [
-                "ViT-L-16-SigLIP2-256/webli",
-                "ViT-SO400M-14-SigLIP-384/webli"
+                "ViT-SO400M-16-SigLIP2-512/webli",
+                "ViT-gopt-16-SigLIP2-256/webli"
             ]
         }
     ]
