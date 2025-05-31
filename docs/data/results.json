@@ -1,8 +1,8 @@
 {
     "meta": {
         "schema": 1,
-        "generated": 1748710089451,
-        "git_commit": "58d7867957a80fa9f946a17101c19646a75dcc17",
+        "generated": 1748726669395,
+        "git_commit": "eccfce729a6a3005aeb2168a5134fe5b273fd9b0",
         "seed": 17,
         "alpha": 0.05,
         "n_bootstraps": 500
@@ -2956,6 +2956,22 @@
         },
         {
             "task": "herbarium19",
+            "model": "efficientnet_b0.ra_in1k",
+            "mean": 0.11919201381248161,
+            "bootstrap_mean": 0.10208007805153783,
+            "ci_low": 0.09072807137169532,
+            "ci_high": 0.11346922468407
+        },
+        {
+            "task": "herbarium19",
+            "model": "hf-hub:BVRA/MegaDescriptor-L-384",
+            "mean": 0.13983256240910072,
+            "bootstrap_mean": 0.12254311777230562,
+            "ci_low": 0.11224803974906734,
+            "ci_high": 0.13355815982434485
+        },
+        {
+            "task": "herbarium19",
             "model": "hf-hub:UCSC-VLAA/openvision-vit-base-patch16-224",
             "mean": 0.5248790302288089,
             "bootstrap_mean": 0.46099704958348514,
@@ -3201,6 +3217,30 @@
             "bootstrap_mean": 0.2512051054727628,
             "ci_low": 0.23812450604520696,
             "ci_high": 0.26282474972181236
+        },
+        {
+            "task": "iwildcam",
+            "model": "ViT-gopt-16-SigLIP2-384/webli",
+            "mean": 0.29287785462767446,
+            "bootstrap_mean": 0.28601405394452484,
+            "ci_low": 0.27377592291235564,
+            "ci_high": 0.29869268693964357
+        },
+        {
+            "task": "iwildcam",
+            "model": "efficientnet_b0.ra_in1k",
+            "mean": 0.025849430140358502,
+            "bootstrap_mean": 0.025386518589236132,
+            "ci_low": 0.022429385016717665,
+            "ci_high": 0.028126114470581342
+        },
+        {
+            "task": "iwildcam",
+            "model": "hf-hub:BVRA/MegaDescriptor-L-384",
+            "mean": 0.06886077581120388,
+            "bootstrap_mean": 0.06772053738720252,
+            "ci_low": 0.06214615117909041,
+            "ci_high": 0.07334641569485822
         },
         {
             "task": "iwildcam",
@@ -3460,6 +3500,14 @@
         },
         {
             "task": "kabr",
+            "model": "hf-hub:BVRA/MegaDescriptor-L-384",
+            "mean": 0.3230865304526074,
+            "bootstrap_mean": 0.3222517936247262,
+            "ci_low": 0.30117088035549505,
+            "ci_high": 0.34527342010819867
+        },
+        {
+            "task": "kabr",
             "model": "hf-hub:UCSC-VLAA/openvision-vit-base-patch16-224",
             "mean": 0.5051200127471874,
             "bootstrap_mean": 0.504231403332304,
@@ -3700,6 +3748,22 @@
         },
         {
             "task": "mammalnet",
+            "model": "ViT-gopt-16-SigLIP2-384/webli",
+            "mean": 0.7388046726973889,
+            "bootstrap_mean": 0.738253950662092,
+            "ci_low": 0.7172713577912456,
+            "ci_high": 0.7602566671383987
+        },
+        {
+            "task": "mammalnet",
+            "model": "hf-hub:BVRA/MegaDescriptor-L-384",
+            "mean": 0.31116477336863524,
+            "bootstrap_mean": 0.31042210390669756,
+            "ci_low": 0.2898436307149472,
+            "ci_high": 0.32936400492436835
+        },
+        {
+            "task": "mammalnet",
             "model": "hf-hub:UCSC-VLAA/openvision-vit-base-patch16-224",
             "mean": 0.5060815781459546,
             "bootstrap_mean": 0.5058082982632681,
@@ -3795,10 +3859,11 @@
         },
         {
             "task": "iwildcam",
-            "best": "ViT-SO400M-16-SigLIP2-512/webli",
+            "best": "ViT-gopt-16-SigLIP2-384/webli",
             "ties": [
                 "ViT-SO400M-16-SigLIP2-384/webli",
-                "ViT-SO400M-16-SigLIP2-512/webli"
+                "ViT-SO400M-16-SigLIP2-512/webli",
+                "ViT-gopt-16-SigLIP2-384/webli"
             ]
         },
         {
@@ -3814,10 +3879,10 @@
         },
         {
             "task": "mammalnet",
-            "best": "ViT-gopt-16-SigLIP2-256/webli",
+            "best": "ViT-gopt-16-SigLIP2-384/webli",
             "ties": [
-                "ViT-SO400M-16-SigLIP2-512/webli",
-                "ViT-gopt-16-SigLIP2-256/webli"
+                "ViT-gopt-16-SigLIP2-256/webli",
+                "ViT-gopt-16-SigLIP2-384/webli"
             ]
         }
     ]

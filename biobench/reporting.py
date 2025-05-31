@@ -406,7 +406,7 @@ def macro_f1_batch(
     true_cnt = np.bincount(yz_true.ravel(), minlength=(b * c)).reshape(b, c)
     pred_cnt = np.bincount(yz_pred.ravel(), minlength=(b * c)).reshape(b, c)
 
-    # true-positives
+    # true positives
     tp_mask = y_true == y_pred  # (B, n)
     tp_off = yz_true[tp_mask]  # 1-D
     tp_cnt = np.bincount(tp_off, minlength=(b * c)).reshape(b, c)
@@ -434,7 +434,8 @@ def bootstrap_scores_macro_f1(
     """
 
     n, *rest = df.group_by("model_ckpt").agg(n=pl.len()).get_column("n").to_list()
-    assert all(n == i for i in rest)
+    if not all(n == i for i in rest):
+        breakpoint()
 
     if b > 0:
         assert rng is not None, "must provide rng argument"
@@ -445,7 +446,11 @@ def bootstrap_scores_macro_f1(
     y_pred_buf = np.empty((b, n), dtype=np.int32)
     y_true_buf = np.empty((b, n), dtype=np.int32)
 
-    for model_ckpt in df.get_column("model_ckpt").unique().sort().to_list():
+    for model_ckpt in helpers.progress(
+        df.get_column("model_ckpt").unique().sort().to_list(),
+        desc="bootstrap/macro-f1",
+        every=3,
+    ):
         # pull y_true and y_pred for *one* model
         y_pred = (
             df.filter(pl.col("model_ckpt") == model_ckpt)

@@ -21,7 +21,7 @@ from biobench import helpers
 
 log_format = "[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s"
 logging.basicConfig(level=logging.INFO, format=log_format)
-logger = logging.getLogger("make_json.py")
+logger = logging.getLogger("report.py")
 
 
 @beartype.beartype
@@ -576,10 +576,10 @@ def calc_scores(
         try:
             bootstrap_scores = task.bootstrap_scores_fn
         except AttributeError:
-            print(f"No `bootstrap_scores` for {task.name}")
+            logger.warning("No `bootstrap_scores` for %s", task.name)
             continue
 
-        print(f"Getting scores for {task.name}.")
+        logger.info("Getting score for %s", task.name)
 
         sub = df.filter(
             (pl.col("task_name") == task.name)
