@@ -1,8 +1,8 @@
 {
     "meta": {
         "schema": 1,
-        "generated": 1748726669395,
-        "git_commit": "eccfce729a6a3005aeb2168a5134fe5b273fd9b0",
+        "generated": 1748795553528,
+        "git_commit": "fa3cecedb6b574b156e8a54b20a0b5ee7f487002",
         "seed": 17,
         "alpha": 0.05,
         "n_bootstraps": 500
@@ -2956,11 +2956,51 @@
         },
         {
             "task": "herbarium19",
+            "model": "apple/aimv2-large-patch14-224",
+            "mean": 0.3358822549561813,
+            "bootstrap_mean": 0.29092553786646674,
+            "ci_low": 0.27410057002812027,
+            "ci_high": 0.3083892508653635
+        },
+        {
+            "task": "herbarium19",
+            "model": "dinov2_vitb14_reg",
+            "mean": 0.5546731415153736,
+            "bootstrap_mean": 0.4852016978690889,
+            "ci_low": 0.4635552876715185,
+            "ci_high": 0.5043962155992021
+        },
+        {
+            "task": "herbarium19",
+            "model": "dinov2_vitl14_reg",
+            "mean": 0.6279695936765046,
+            "bootstrap_mean": 0.5529267782428114,
+            "ci_low": 0.53034045105917,
+            "ci_high": 0.5753695392090031
+        },
+        {
+            "task": "herbarium19",
+            "model": "dinov2_vits14_reg",
+            "mean": 0.4978581171930347,
+            "bootstrap_mean": 0.43291400719797685,
+            "ci_low": 0.4138547764794978,
+            "ci_high": 0.45277776293882155
+        },
+        {
+            "task": "herbarium19",
             "model": "efficientnet_b0.ra_in1k",
             "mean": 0.11919201381248161,
             "bootstrap_mean": 0.10208007805153783,
             "ci_low": 0.09072807137169532,
             "ci_high": 0.11346922468407
+        },
+        {
+            "task": "herbarium19",
+            "model": "efficientnet_b3.ra2_in1k",
+            "mean": 0.07857475913032765,
+            "bootstrap_mean": 0.06804443583326714,
+            "ci_low": 0.059635266068568026,
+            "ci_high": 0.07580444875962883
         },
         {
             "task": "herbarium19",
@@ -3025,6 +3065,54 @@
             "bootstrap_mean": 0.29777861680887013,
             "ci_low": 0.279143559679233,
             "ci_high": 0.3159196350573963
+        },
+        {
+            "task": "herbarium19",
+            "model": "mobilenetv2_100.ra_in1k",
+            "mean": 0.11253237303957063,
+            "bootstrap_mean": 0.09649195812610087,
+            "ci_low": 0.08593504442815317,
+            "ci_high": 0.10595171715029192
+        },
+        {
+            "task": "herbarium19",
+            "model": "mobilenetv3_large_100.ra_in1k",
+            "mean": 0.1840666363558283,
+            "bootstrap_mean": 0.15882178788018597,
+            "ci_low": 0.14620800481451382,
+            "ci_high": 0.17189161181587972
+        },
+        {
+            "task": "herbarium19",
+            "model": "resnet18.a1_in1k",
+            "mean": 0.10448251920104966,
+            "bootstrap_mean": 0.09034853926936409,
+            "ci_low": 0.08099817462441758,
+            "ci_high": 0.09976225709402221
+        },
+        {
+            "task": "herbarium19",
+            "model": "resnet18d.ra2_in1k",
+            "mean": 0.0967849508731909,
+            "bootstrap_mean": 0.08399338276699783,
+            "ci_low": 0.0743759591774692,
+            "ci_high": 0.09407437257004944
+        },
+        {
+            "task": "herbarium19",
+            "model": "resnet50.a1_in1k",
+            "mean": 0.11432816378632013,
+            "bootstrap_mean": 0.09883861358779761,
+            "ci_low": 0.08840921588917873,
+            "ci_high": 0.10926517358495387
+        },
+        {
+            "task": "herbarium19",
+            "model": "resnet50d.a1_in1k",
+            "mean": 0.13909986091294899,
+            "bootstrap_mean": 0.12093033087544268,
+            "ci_low": 0.11027216946103308,
+            "ci_high": 0.13258395889206231
         },
         {
             "task": "iwildcam",
@@ -3228,11 +3316,43 @@
         },
         {
             "task": "iwildcam",
+            "model": "dinov2_vitb14_reg",
+            "mean": 0.24597827799477262,
+            "bootstrap_mean": 0.24133235819970045,
+            "ci_low": 0.22992400103209049,
+            "ci_high": 0.252453539198943
+        },
+        {
+            "task": "iwildcam",
+            "model": "dinov2_vitl14_reg",
+            "mean": 0.29548864553862403,
+            "bootstrap_mean": 0.28691847985758173,
+            "ci_low": 0.27159404746406335,
+            "ci_high": 0.29945887531468374
+        },
+        {
+            "task": "iwildcam",
+            "model": "dinov2_vits14_reg",
+            "mean": 0.20806881039992828,
+            "bootstrap_mean": 0.2028422079487399,
+            "ci_low": 0.19218284747085126,
+            "ci_high": 0.2128516246580338
+        },
+        {
+            "task": "iwildcam",
             "model": "efficientnet_b0.ra_in1k",
             "mean": 0.025849430140358502,
             "bootstrap_mean": 0.025386518589236132,
             "ci_low": 0.022429385016717665,
             "ci_high": 0.028126114470581342
+        },
+        {
+            "task": "iwildcam",
+            "model": "efficientnet_b3.ra2_in1k",
+            "mean": 0.027654461001523214,
+            "bootstrap_mean": 0.02715263418092776,
+            "ci_low": 0.023389008669640887,
+            "ci_high": 0.030436631426080774
         },
         {
             "task": "iwildcam",
@@ -3297,6 +3417,46 @@
             "bootstrap_mean": 0.12087715107515168,
             "ci_low": 0.1144290366387702,
             "ci_high": 0.12678389420025493
+        },
+        {
+            "task": "iwildcam",
+            "model": "mobilenetv2_100.ra_in1k",
+            "mean": 0.021351073546588394,
+            "bootstrap_mean": 0.021297285053804557,
+            "ci_low": 0.01991578524119772,
+            "ci_high": 0.022755068114521847
+        },
+        {
+            "task": "iwildcam",
+            "model": "mobilenetv3_large_100.ra_in1k",
+            "mean": 0.0275992733249845,
+            "bootstrap_mean": 0.027040243371415022,
+            "ci_low": 0.02348668878194594,
+            "ci_high": 0.0309554787846622
+        },
+        {
+            "task": "iwildcam",
+            "model": "resnet18.a1_in1k",
+            "mean": 0.028506546309601664,
+            "bootstrap_mean": 0.028103604674578477,
+            "ci_low": 0.02552735544344444,
+            "ci_high": 0.030860757528812906
+        },
+        {
+            "task": "iwildcam",
+            "model": "resnet18d.ra2_in1k",
+            "mean": 0.030969114512773274,
+            "bootstrap_mean": 0.030666010200908325,
+            "ci_low": 0.028121178852846363,
+            "ci_high": 0.03368043798336398
+        },
+        {
+            "task": "iwildcam",
+            "model": "resnet50d.a1_in1k",
+            "mean": 0.03583057791648027,
+            "bootstrap_mean": 0.03508716988877127,
+            "ci_low": 0.030442066235801785,
+            "ci_high": 0.039445731118234975
         },
         {
             "task": "kabr",
@@ -3500,6 +3660,46 @@
         },
         {
             "task": "kabr",
+            "model": "dinov2_vitb14_reg",
+            "mean": 0.46258134331549683,
+            "bootstrap_mean": 0.4614288322709275,
+            "ci_low": 0.4376198015730806,
+            "ci_high": 0.4848176904978647
+        },
+        {
+            "task": "kabr",
+            "model": "dinov2_vitl14_reg",
+            "mean": 0.5290550754774495,
+            "bootstrap_mean": 0.527311451708656,
+            "ci_low": 0.4992796311458139,
+            "ci_high": 0.5584620685915851
+        },
+        {
+            "task": "kabr",
+            "model": "dinov2_vits14_reg",
+            "mean": 0.47006649447238436,
+            "bootstrap_mean": 0.4690905110043126,
+            "ci_low": 0.4439149435412679,
+            "ci_high": 0.4942925532295904
+        },
+        {
+            "task": "kabr",
+            "model": "efficientnet_b0.ra_in1k",
+            "mean": 0.22832651284648658,
+            "bootstrap_mean": 0.2286807954938422,
+            "ci_low": 0.21345942451985842,
+            "ci_high": 0.24349173198440488
+        },
+        {
+            "task": "kabr",
+            "model": "efficientnet_b3.ra2_in1k",
+            "mean": 0.2503741118847455,
+            "bootstrap_mean": 0.25020339591002944,
+            "ci_low": 0.23528069898426157,
+            "ci_high": 0.26871474367860815
+        },
+        {
+            "task": "kabr",
             "model": "hf-hub:BVRA/MegaDescriptor-L-384",
             "mean": 0.3230865304526074,
             "bootstrap_mean": 0.3222517936247262,
@@ -3561,6 +3761,46 @@
             "bootstrap_mean": 0.43955469724509666,
             "ci_low": 0.41664440265707764,
             "ci_high": 0.46291603952894383
+        },
+        {
+            "task": "kabr",
+            "model": "mobilenetv2_100.ra_in1k",
+            "mean": 0.221674364303581,
+            "bootstrap_mean": 0.22164306019917734,
+            "ci_low": 0.2096079829014797,
+            "ci_high": 0.23450472085914528
+        },
+        {
+            "task": "kabr",
+            "model": "mobilenetv3_large_100.ra_in1k",
+            "mean": 0.29873398694464715,
+            "bootstrap_mean": 0.298410643867113,
+            "ci_low": 0.27983591135997943,
+            "ci_high": 0.3155266059137172
+        },
+        {
+            "task": "kabr",
+            "model": "resnet18.a1_in1k",
+            "mean": 0.30561292796697864,
+            "bootstrap_mean": 0.30553166376973717,
+            "ci_low": 0.28604265012118507,
+            "ci_high": 0.32396863249280594
+        },
+        {
+            "task": "kabr",
+            "model": "resnet18d.ra2_in1k",
+            "mean": 0.30924554633859797,
+            "bootstrap_mean": 0.3099529264878852,
+            "ci_low": 0.2923507609123938,
+            "ci_high": 0.32911300969758184
+        },
+        {
+            "task": "kabr",
+            "model": "resnet50d.a1_in1k",
+            "mean": 0.33297536093527264,
+            "bootstrap_mean": 0.3327028417771028,
+            "ci_low": 0.31088237387310363,
+            "ci_high": 0.35491846402220634
         },
         {
             "task": "mammalnet",
@@ -3732,6 +3972,14 @@
         },
         {
             "task": "mammalnet",
+            "model": "ViT-SO400M-16-SigLIP2-384/webli",
+            "mean": 0.7081575979230764,
+            "bootstrap_mean": 0.7077351559838446,
+            "ci_low": 0.688724464504059,
+            "ci_high": 0.7270723976725589
+        },
+        {
+            "task": "mammalnet",
             "model": "ViT-SO400M-16-SigLIP2-512/webli",
             "mean": 0.7054787849085447,
             "bootstrap_mean": 0.7055303955601014,
@@ -3753,6 +4001,46 @@
             "bootstrap_mean": 0.738253950662092,
             "ci_low": 0.7172713577912456,
             "ci_high": 0.7602566671383987
+        },
+        {
+            "task": "mammalnet",
+            "model": "dinov2_vitb14_reg",
+            "mean": 0.4995225525529096,
+            "bootstrap_mean": 0.498554836526083,
+            "ci_low": 0.476455254543163,
+            "ci_high": 0.5199320045288622
+        },
+        {
+            "task": "mammalnet",
+            "model": "dinov2_vitl14_reg",
+            "mean": 0.4990327215449088,
+            "bootstrap_mean": 0.4972812939017361,
+            "ci_low": 0.47632657387044147,
+            "ci_high": 0.5187681661356341
+        },
+        {
+            "task": "mammalnet",
+            "model": "dinov2_vits14_reg",
+            "mean": 0.4618133396924266,
+            "bootstrap_mean": 0.461215213863838,
+            "ci_low": 0.44189519079722595,
+            "ci_high": 0.48080151846519265
+        },
+        {
+            "task": "mammalnet",
+            "model": "efficientnet_b0.ra_in1k",
+            "mean": 0.3126073982424205,
+            "bootstrap_mean": 0.312215406328688,
+            "ci_low": 0.2965286452113779,
+            "ci_high": 0.32818480317650967
+        },
+        {
+            "task": "mammalnet",
+            "model": "efficientnet_b3.ra2_in1k",
+            "mean": 0.3199407553301202,
+            "bootstrap_mean": 0.31958392784102646,
+            "ci_low": 0.30464331488421903,
+            "ci_high": 0.3352267859643353
         },
         {
             "task": "mammalnet",
@@ -3817,6 +4105,46 @@
             "bootstrap_mean": 0.3636657916597344,
             "ci_low": 0.3473545558885817,
             "ci_high": 0.3817526724948915
+        },
+        {
+            "task": "mammalnet",
+            "model": "mobilenetv2_100.ra_in1k",
+            "mean": 0.32568021984056256,
+            "bootstrap_mean": 0.32523447199978167,
+            "ci_low": 0.3091434350037176,
+            "ci_high": 0.3410331041625193
+        },
+        {
+            "task": "mammalnet",
+            "model": "mobilenetv3_large_100.ra_in1k",
+            "mean": 0.3682537940184702,
+            "bootstrap_mean": 0.3682717095102215,
+            "ci_low": 0.3498650731249733,
+            "ci_high": 0.38452374990412613
+        },
+        {
+            "task": "mammalnet",
+            "model": "resnet18.a1_in1k",
+            "mean": 0.3250299224679902,
+            "bootstrap_mean": 0.32538588827962306,
+            "ci_low": 0.31117367292954606,
+            "ci_high": 0.340353151775835
+        },
+        {
+            "task": "mammalnet",
+            "model": "resnet18d.ra2_in1k",
+            "mean": 0.3285941933475966,
+            "bootstrap_mean": 0.32804951502975965,
+            "ci_low": 0.3119711979126225,
+            "ci_high": 0.34334916029703283
+        },
+        {
+            "task": "mammalnet",
+            "model": "resnet50d.a1_in1k",
+            "mean": 0.39441095224999606,
+            "bootstrap_mean": 0.3939408598388455,
+            "ci_low": 0.3735639600444846,
+            "ci_high": 0.4147439197336443
         }
     ],
     "bests": [
@@ -3859,11 +4187,12 @@
         },
         {
             "task": "iwildcam",
-            "best": "ViT-gopt-16-SigLIP2-384/webli",
+            "best": "dinov2_vitl14_reg",
             "ties": [
                 "ViT-SO400M-16-SigLIP2-384/webli",
                 "ViT-SO400M-16-SigLIP2-512/webli",
-                "ViT-gopt-16-SigLIP2-384/webli"
+                "ViT-gopt-16-SigLIP2-384/webli",
+                "dinov2_vitl14_reg"
             ]
         },
         {
