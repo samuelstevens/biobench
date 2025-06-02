@@ -1,8 +1,8 @@
 {
     "meta": {
         "schema": 1,
-        "generated": 1748895152716,
-        "git_commit": "43ec8b253a95fa135425086e817b176673bdec92",
+        "generated": 1748896626556,
+        "git_commit": "6f5c976b7f1c61f9b373cbd1e5384cd0d47a7a19",
         "seed": 17,
         "alpha": 0.05,
         "n_bootstraps": 500
@@ -3020,6 +3020,14 @@
         },
         {
             "task": "herbarium19",
+            "model": "apple/aimv2-huge-patch14-448",
+            "mean": 0.41637469252500736,
+            "bootstrap_mean": 0.3659338456955238,
+            "ci_low": 0.34894437893369323,
+            "ci_high": 0.38408734757640717
+        },
+        {
+            "task": "herbarium19",
             "model": "apple/aimv2-large-patch14-224",
             "mean": 0.3358822549561813,
             "bootstrap_mean": 0.29092553786646674,
@@ -3508,6 +3516,14 @@
         },
         {
             "task": "iwildcam",
+            "model": "dinov2_vitg14_reg",
+            "mean": 0.30540471914158046,
+            "bootstrap_mean": 0.29860324030193164,
+            "ci_low": 0.28514662635025073,
+            "ci_high": 0.3114291418064746
+        },
+        {
+            "task": "iwildcam",
             "model": "dinov2_vitl14_reg",
             "mean": 0.29548864553862403,
             "bootstrap_mean": 0.28691847985758173,
@@ -3937,6 +3953,14 @@
             "bootstrap_mean": 0.4614288322709275,
             "ci_low": 0.4376198015730806,
             "ci_high": 0.4848176904978647
+        },
+        {
+            "task": "kabr",
+            "model": "dinov2_vitg14_reg",
+            "mean": 0.5369285181868113,
+            "bootstrap_mean": 0.5350580722536874,
+            "ci_low": 0.5036640657674432,
+            "ci_high": 0.5669851540721124
         },
         {
             "task": "kabr",
@@ -4578,12 +4602,9 @@
         },
         {
             "task": "iwildcam",
-            "best": "dinov2_vitl14_reg",
+            "best": "dinov2_vitg14_reg",
             "ties": [
-                "ViT-SO400M-16-SigLIP2-384/webli",
-                "ViT-SO400M-16-SigLIP2-512/webli",
-                "ViT-gopt-16-SigLIP2-384/webli",
-                "dinov2_vitl14_reg"
+                "dinov2_vitg14_reg"
             ]
         },
         {
