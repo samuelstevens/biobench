@@ -1,8 +1,8 @@
 {
     "meta": {
         "schema": 1,
-        "generated": 1748879867492,
-        "git_commit": "dd440ac5f4ff3a9ef5ca38987b3a7212848b3d67",
+        "generated": 1748895152716,
+        "git_commit": "43ec8b253a95fa135425086e817b176673bdec92",
         "seed": 17,
         "alpha": 0.05,
         "n_bootstraps": 500
@@ -3068,6 +3068,14 @@
         },
         {
             "task": "herbarium19",
+            "model": "dinov2_vitg14_reg",
+            "mean": 0.6430190772806728,
+            "bootstrap_mean": 0.5690299422459645,
+            "ci_low": 0.5484095667278787,
+            "ci_high": 0.590748208473528
+        },
+        {
+            "task": "herbarium19",
             "model": "dinov2_vitl14_reg",
             "mean": 0.6279695936765046,
             "bootstrap_mean": 0.5529267782428114,
@@ -3097,6 +3105,14 @@
             "bootstrap_mean": 0.06804443583326714,
             "ci_low": 0.059635266068568026,
             "ci_high": 0.07580444875962883
+        },
+        {
+            "task": "herbarium19",
+            "model": "hf-hub:BGLab/BioTrove-CLIP",
+            "mean": 0.47001125347058803,
+            "bootstrap_mean": 0.41371290848855186,
+            "ci_low": 0.39416218158179656,
+            "ci_high": 0.43408438860261495
         },
         {
             "task": "herbarium19",
@@ -3524,6 +3540,14 @@
         },
         {
             "task": "iwildcam",
+            "model": "hf-hub:BGLab/BioTrove-CLIP",
+            "mean": 0.111093450125372,
+            "bootstrap_mean": 0.10831271469663363,
+            "ci_low": 0.09830178635861712,
+            "ci_high": 0.11704092615237698
+        },
+        {
+            "task": "iwildcam",
             "model": "hf-hub:BVRA/MegaDescriptor-L-384",
             "mean": 0.06886077581120388,
             "bootstrap_mean": 0.06772053738720252,
@@ -3593,6 +3617,14 @@
             "bootstrap_mean": 0.16894118016885795,
             "ci_low": 0.16040436911856773,
             "ci_high": 0.17753849199461263
+        },
+        {
+            "task": "iwildcam",
+            "model": "hf-hub:imageomics/bioclip-2",
+            "mean": 0.2466737097074035,
+            "bootstrap_mean": 0.240821848319555,
+            "ci_low": 0.22956110382633743,
+            "ci_high": 0.25191875103346023
         },
         {
             "task": "iwildcam",
@@ -3937,6 +3969,14 @@
             "bootstrap_mean": 0.25020339591002944,
             "ci_low": 0.23528069898426157,
             "ci_high": 0.26871474367860815
+        },
+        {
+            "task": "kabr",
+            "model": "hf-hub:BGLab/BioTrove-CLIP",
+            "mean": 0.3732906888281807,
+            "bootstrap_mean": 0.37315035662695323,
+            "ci_low": 0.3511341857689606,
+            "ci_high": 0.3965926490304295
         },
         {
             "task": "kabr",
@@ -4364,6 +4404,14 @@
         },
         {
             "task": "mammalnet",
+            "model": "hf-hub:BGLab/BioTrove-CLIP",
+            "mean": 0.3002981975281234,
+            "bootstrap_mean": 0.29959796148519546,
+            "ci_low": 0.2842402862225133,
+            "ci_high": 0.31384791100911125
+        },
+        {
+            "task": "mammalnet",
             "model": "hf-hub:BVRA/MegaDescriptor-L-384",
             "mean": 0.31116477336863524,
             "bootstrap_mean": 0.31042210390669756,
@@ -4433,6 +4481,14 @@
             "bootstrap_mean": 0.35628454824404504,
             "ci_low": 0.33818492020332586,
             "ci_high": 0.372900398215503
+        },
+        {
+            "task": "mammalnet",
+            "model": "hf-hub:imageomics/bioclip-2",
+            "mean": 0.46407160388163327,
+            "bootstrap_mean": 0.4641083168084969,
+            "ci_low": 0.4472483784350705,
+            "ci_high": 0.48138316065402403
         },
         {
             "task": "mammalnet",
