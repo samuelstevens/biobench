@@ -1,8 +1,8 @@
 {
     "meta": {
         "schema": 1,
-        "generated": 1748874972495,
-        "git_commit": "792e07c134b550ddc79b7dc52fadfd2a63acbb4a",
+        "generated": 1748879867492,
+        "git_commit": "dd440ac5f4ff3a9ef5ca38987b3a7212848b3d67",
         "seed": 17,
         "alpha": 0.05,
         "n_bootstraps": 500
@@ -1049,6 +1049,14 @@
             "bootstrap_mean": 0.827069103717804,
             "ci_low": 0.8215629383921623,
             "ci_high": 0.8326411992311478
+        },
+        {
+            "task": "newt",
+            "model": "hf-hub:imageomics/bioclip-2",
+            "mean": 0.8913115859031677,
+            "bootstrap_mean": 0.8911207318305969,
+            "ci_low": 0.886175374686718,
+            "ci_high": 0.8961412638425827
         },
         {
             "task": "newt",
@@ -2148,6 +2156,14 @@
         },
         {
             "task": "fishnet",
+            "model": "hf-hub:imageomics/bioclip-2",
+            "mean": 0.7176625956343358,
+            "bootstrap_mean": 0.5780304682739322,
+            "ci_low": 0.5751367623738868,
+            "ci_high": 0.5809998299455159
+        },
+        {
+            "task": "fishnet",
             "model": "mobilenetv2_100.ra_in1k",
             "mean": 0.505846843988792,
             "bootstrap_mean": 0.4595253019792789,
@@ -2692,6 +2708,14 @@
         },
         {
             "task": "fungiclef",
+            "model": "hf-hub:imageomics/bioclip-2",
+            "mean": 0.509676032706414,
+            "bootstrap_mean": 0.510015824881967,
+            "ci_low": 0.4995169058771648,
+            "ci_high": 0.5207514432765058
+        },
+        {
+            "task": "fungiclef",
             "model": "mobilenetv2_100.ra_in1k",
             "mean": 0.23646839134916264,
             "bootstrap_mean": 0.23647144610459933,
@@ -3145,6 +3169,14 @@
             "bootstrap_mean": 0.46171586827176636,
             "ci_low": 0.4412802373856324,
             "ci_high": 0.47911477100478816
+        },
+        {
+            "task": "herbarium19",
+            "model": "hf-hub:imageomics/bioclip-2",
+            "mean": 0.7306928163083967,
+            "bootstrap_mean": 0.6510570555305492,
+            "ci_low": 0.6312967638275613,
+            "ci_high": 0.6727346011314994
         },
         {
             "task": "herbarium19",
@@ -3980,6 +4012,14 @@
         },
         {
             "task": "kabr",
+            "model": "hf-hub:imageomics/bioclip-2",
+            "mean": 0.47986171360980423,
+            "bootstrap_mean": 0.4780296056053172,
+            "ci_low": 0.44878137784555,
+            "ci_high": 0.5076060132171
+        },
+        {
+            "task": "kabr",
             "model": "mobilenetv2_100.ra_in1k",
             "mean": 0.221674364303581,
             "bootstrap_mean": 0.22164306019917734,
@@ -4388,6 +4428,14 @@
         },
         {
             "task": "mammalnet",
+            "model": "hf-hub:imageomics/bioclip",
+            "mean": 0.35668035211807175,
+            "bootstrap_mean": 0.35628454824404504,
+            "ci_low": 0.33818492020332586,
+            "ci_high": 0.372900398215503
+        },
+        {
+            "task": "mammalnet",
             "model": "mobilenetv2_100.ra_in1k",
             "mean": 0.32568021984056256,
             "bootstrap_mean": 0.32523447199978167,
@@ -4438,9 +4486,9 @@
     "bests": [
         {
             "task": "newt",
-            "best": "ViT-gopt-16-SigLIP2-384/webli",
+            "best": "hf-hub:imageomics/bioclip-2",
             "ties": [
-                "ViT-gopt-16-SigLIP2-384/webli"
+                "hf-hub:imageomics/bioclip-2"
             ]
         },
         {
@@ -4460,17 +4508,16 @@
         },
         {
             "task": "fungiclef",
-            "best": "hf-hub:BGLab/BioTrove-CLIP",
+            "best": "hf-hub:imageomics/bioclip-2",
             "ties": [
-                "hf-hub:BGLab/BioTrove-CLIP",
-                "hf-hub:imageomics/bioclip"
+                "hf-hub:imageomics/bioclip-2"
             ]
         },
         {
             "task": "herbarium19",
-            "best": "ViT-SO400M-16-SigLIP2-512/webli",
+            "best": "hf-hub:imageomics/bioclip-2",
             "ties": [
-                "ViT-SO400M-16-SigLIP2-512/webli"
+                "hf-hub:imageomics/bioclip-2"
             ]
         },
         {
