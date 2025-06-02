@@ -3,6 +3,7 @@ docs: fmt
     mkdir -p docs/api
     yek biobench *.py *.md > docs/api/llms.txt
     uv run pdoc3 --force --html --output-dir docs/api --config latex_math=True biobench benchmark report scripts
+    lychee .
 
 leaderboard: fmt
     cp web/index.html docs/index.html
@@ -18,6 +19,7 @@ test: fmt
 lint: fmt
     uv run ruff check --fix biobench benchmark.py report.py
     uv run scripts/ascii_only.py --in-paths benchmark.py report.py biobench/ scripts/ --fix
+    lychee .
 
 fmt:
     uv run ruff format --preview .

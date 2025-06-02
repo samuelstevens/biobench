@@ -1,8 +1,8 @@
 {
     "meta": {
         "schema": 1,
-        "generated": 1748835319028,
-        "git_commit": "792bacde5382e1f0a5db2b84cce354d0089bd338",
+        "generated": 1748870569834,
+        "git_commit": "cc71d27b8b0e1f4cb94da5857f0a4aaa27f0a129",
         "seed": 17,
         "alpha": 0.05,
         "n_bootstraps": 500
@@ -2964,6 +2964,14 @@
         },
         {
             "task": "herbarium19",
+            "model": "apple/aimv2-huge-patch14-336",
+            "mean": 0.4082783997010792,
+            "bootstrap_mean": 0.36012167477800494,
+            "ci_low": 0.3421847662989714,
+            "ci_high": 0.37868088294188795
+        },
+        {
+            "task": "herbarium19",
             "model": "apple/aimv2-large-patch14-224",
             "mean": 0.3358822549561813,
             "bootstrap_mean": 0.29092553786646674,
@@ -3105,6 +3113,14 @@
             "bootstrap_mean": 0.29777861680887013,
             "ci_low": 0.279143559679233,
             "ci_high": 0.3159196350573963
+        },
+        {
+            "task": "herbarium19",
+            "model": "hf-hub:imageomics/bioclip",
+            "mean": 0.5264119745093407,
+            "bootstrap_mean": 0.46171586827176636,
+            "ci_low": 0.4412802373856324,
+            "ci_high": 0.47911477100478816
         },
         {
             "task": "herbarium19",
@@ -3356,6 +3372,22 @@
         },
         {
             "task": "iwildcam",
+            "model": "apple/aimv2-huge-patch14-224",
+            "mean": 0.15915117594219644,
+            "bootstrap_mean": 0.1559825433574781,
+            "ci_low": 0.14772368281232928,
+            "ci_high": 0.16375566098605707
+        },
+        {
+            "task": "iwildcam",
+            "model": "apple/aimv2-huge-patch14-336",
+            "mean": 0.17149514286072445,
+            "bootstrap_mean": 0.1687565807241243,
+            "ci_low": 0.16108304663107098,
+            "ci_high": 0.17698361677145388
+        },
+        {
+            "task": "iwildcam",
             "model": "apple/aimv2-large-patch14-224",
             "mean": 0.14797584200140515,
             "bootstrap_mean": 0.1460068051326052,
@@ -3369,6 +3401,14 @@
             "bootstrap_mean": 0.15082637812649566,
             "ci_low": 0.1435589501793737,
             "ci_high": 0.15697090000083183
+        },
+        {
+            "task": "iwildcam",
+            "model": "apple/aimv2-large-patch14-448",
+            "mean": 0.16955875735717213,
+            "bootstrap_mean": 0.16708202163090966,
+            "ci_low": 0.15858266535389534,
+            "ci_high": 0.1757676837103366
         },
         {
             "task": "iwildcam",
@@ -3748,6 +3788,14 @@
         },
         {
             "task": "kabr",
+            "model": "apple/aimv2-huge-patch14-336",
+            "mean": 0.5291859796552971,
+            "bootstrap_mean": 0.5277956142069694,
+            "ci_low": 0.5001685712539461,
+            "ci_high": 0.5587540712452091
+        },
+        {
+            "task": "kabr",
             "model": "apple/aimv2-large-patch14-224",
             "mean": 0.4806903428994179,
             "bootstrap_mean": 0.47985782632337004,
@@ -3889,6 +3937,14 @@
             "bootstrap_mean": 0.43955469724509666,
             "ci_low": 0.41664440265707764,
             "ci_high": 0.46291603952894383
+        },
+        {
+            "task": "kabr",
+            "model": "hf-hub:imageomics/bioclip",
+            "mean": 0.46082521772838825,
+            "bootstrap_mean": 0.4600652277909523,
+            "ci_low": 0.43432131940967084,
+            "ci_high": 0.48712489143172727
         },
         {
             "task": "kabr",
@@ -4137,6 +4193,14 @@
             "bootstrap_mean": 0.738253950662092,
             "ci_low": 0.7172713577912456,
             "ci_high": 0.7602566671383987
+        },
+        {
+            "task": "mammalnet",
+            "model": "apple/aimv2-huge-patch14-224",
+            "mean": 0.6049114438232794,
+            "bootstrap_mean": 0.6041291916779196,
+            "ci_low": 0.5839991846117486,
+            "ci_high": 0.6233980704614994
         },
         {
             "task": "mammalnet",
