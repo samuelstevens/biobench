@@ -1,8 +1,8 @@
 {
     "meta": {
         "schema": 1,
-        "generated": 1748795553528,
-        "git_commit": "fa3cecedb6b574b156e8a54b20a0b5ee7f487002",
+        "generated": 1748835319028,
+        "git_commit": "792bacde5382e1f0a5db2b84cce354d0089bd338",
         "seed": 17,
         "alpha": 0.05,
         "n_bootstraps": 500
@@ -2956,11 +2956,51 @@
         },
         {
             "task": "herbarium19",
+            "model": "apple/aimv2-huge-patch14-224",
+            "mean": 0.3830531077145775,
+            "bootstrap_mean": 0.3354934365177088,
+            "ci_low": 0.3174889121206904,
+            "ci_high": 0.35418704324607314
+        },
+        {
+            "task": "herbarium19",
             "model": "apple/aimv2-large-patch14-224",
             "mean": 0.3358822549561813,
             "bootstrap_mean": 0.29092553786646674,
             "ci_low": 0.27410057002812027,
             "ci_high": 0.3083892508653635
+        },
+        {
+            "task": "herbarium19",
+            "model": "apple/aimv2-large-patch14-336",
+            "mean": 0.37989210737430046,
+            "bootstrap_mean": 0.3331340023933132,
+            "ci_low": 0.31648823563538064,
+            "ci_high": 0.35128978454392085
+        },
+        {
+            "task": "herbarium19",
+            "model": "apple/aimv2-large-patch14-448",
+            "mean": 0.3823506596775208,
+            "bootstrap_mean": 0.33335869286711056,
+            "ci_low": 0.3162527154977525,
+            "ci_high": 0.35064201405468115
+        },
+        {
+            "task": "herbarium19",
+            "model": "convnext_tiny.in12k",
+            "mean": 0.23871288374827984,
+            "bootstrap_mean": 0.20722140218027457,
+            "ci_low": 0.1941030224896385,
+            "ci_high": 0.22217803214127405
+        },
+        {
+            "task": "herbarium19",
+            "model": "convnext_tiny.in12k_ft_in1k",
+            "mean": 0.16079373144932854,
+            "bootstrap_mean": 0.1394136443236414,
+            "ci_low": 0.12774253557405948,
+            "ci_high": 0.15156928237080483
         },
         {
             "task": "herbarium19",
@@ -3316,6 +3356,38 @@
         },
         {
             "task": "iwildcam",
+            "model": "apple/aimv2-large-patch14-224",
+            "mean": 0.14797584200140515,
+            "bootstrap_mean": 0.1460068051326052,
+            "ci_low": 0.13883408763986374,
+            "ci_high": 0.15355748056080942
+        },
+        {
+            "task": "iwildcam",
+            "model": "apple/aimv2-large-patch14-336",
+            "mean": 0.15248119465216625,
+            "bootstrap_mean": 0.15082637812649566,
+            "ci_low": 0.1435589501793737,
+            "ci_high": 0.15697090000083183
+        },
+        {
+            "task": "iwildcam",
+            "model": "convnext_tiny.in12k",
+            "mean": 0.17492228467186455,
+            "bootstrap_mean": 0.17069606480512245,
+            "ci_low": 0.1603801561900222,
+            "ci_high": 0.18069047933175014
+        },
+        {
+            "task": "iwildcam",
+            "model": "convnext_tiny.in12k_ft_in1k",
+            "mean": 0.16752135057566267,
+            "bootstrap_mean": 0.1633398187469564,
+            "ci_low": 0.15406802177187692,
+            "ci_high": 0.17196728484179635
+        },
+        {
+            "task": "iwildcam",
             "model": "dinov2_vitb14_reg",
             "mean": 0.24597827799477262,
             "bootstrap_mean": 0.24133235819970045,
@@ -3449,6 +3521,14 @@
             "bootstrap_mean": 0.030666010200908325,
             "ci_low": 0.028121178852846363,
             "ci_high": 0.03368043798336398
+        },
+        {
+            "task": "iwildcam",
+            "model": "resnet50.a1_in1k",
+            "mean": 0.03256342361331245,
+            "bootstrap_mean": 0.032025720831171445,
+            "ci_low": 0.02753127950575464,
+            "ci_high": 0.035603074646846006
         },
         {
             "task": "iwildcam",
@@ -3660,6 +3740,54 @@
         },
         {
             "task": "kabr",
+            "model": "apple/aimv2-huge-patch14-224",
+            "mean": 0.5188779936311463,
+            "bootstrap_mean": 0.5170198968918875,
+            "ci_low": 0.4796761688196768,
+            "ci_high": 0.5566156797774401
+        },
+        {
+            "task": "kabr",
+            "model": "apple/aimv2-large-patch14-224",
+            "mean": 0.4806903428994179,
+            "bootstrap_mean": 0.47985782632337004,
+            "ci_low": 0.45699663642158134,
+            "ci_high": 0.5042665785621386
+        },
+        {
+            "task": "kabr",
+            "model": "apple/aimv2-large-patch14-336",
+            "mean": 0.4803111264263745,
+            "bootstrap_mean": 0.4791591824743448,
+            "ci_low": 0.4534101097629806,
+            "ci_high": 0.5059681364702221
+        },
+        {
+            "task": "kabr",
+            "model": "apple/aimv2-large-patch14-448",
+            "mean": 0.46012913133293537,
+            "bootstrap_mean": 0.4596971710600106,
+            "ci_low": 0.43252936747833864,
+            "ci_high": 0.4858249280355484
+        },
+        {
+            "task": "kabr",
+            "model": "convnext_tiny.in12k",
+            "mean": 0.43788808841145144,
+            "bootstrap_mean": 0.4374071157423738,
+            "ci_low": 0.41632367103001955,
+            "ci_high": 0.4630234586212383
+        },
+        {
+            "task": "kabr",
+            "model": "convnext_tiny.in12k_ft_in1k",
+            "mean": 0.37406172309704167,
+            "bootstrap_mean": 0.3731450831618272,
+            "ci_low": 0.3509334458821963,
+            "ci_high": 0.39680238533491086
+        },
+        {
+            "task": "kabr",
             "model": "dinov2_vitb14_reg",
             "mean": 0.46258134331549683,
             "bootstrap_mean": 0.4614288322709275,
@@ -3793,6 +3921,14 @@
             "bootstrap_mean": 0.3099529264878852,
             "ci_low": 0.2923507609123938,
             "ci_high": 0.32911300969758184
+        },
+        {
+            "task": "kabr",
+            "model": "resnet50.a1_in1k",
+            "mean": 0.31072480741753444,
+            "bootstrap_mean": 0.3105264356352128,
+            "ci_low": 0.28917324880570744,
+            "ci_high": 0.3324580765679113
         },
         {
             "task": "kabr",
@@ -4004,6 +4140,46 @@
         },
         {
             "task": "mammalnet",
+            "model": "apple/aimv2-large-patch14-224",
+            "mean": 0.5479475357848939,
+            "bootstrap_mean": 0.546953026657781,
+            "ci_low": 0.5264136065028392,
+            "ci_high": 0.5657395442789521
+        },
+        {
+            "task": "mammalnet",
+            "model": "apple/aimv2-large-patch14-336",
+            "mean": 0.5450638476642111,
+            "bootstrap_mean": 0.5444786547852865,
+            "ci_low": 0.5250532566443735,
+            "ci_high": 0.5629290184313012
+        },
+        {
+            "task": "mammalnet",
+            "model": "apple/aimv2-large-patch14-448",
+            "mean": 0.5210711982830489,
+            "bootstrap_mean": 0.5204671470807364,
+            "ci_low": 0.5009160967425015,
+            "ci_high": 0.5421732002111864
+        },
+        {
+            "task": "mammalnet",
+            "model": "convnext_tiny.in12k",
+            "mean": 0.3755727810771385,
+            "bootstrap_mean": 0.37530522081165396,
+            "ci_low": 0.35825232444391614,
+            "ci_high": 0.3933292427541713
+        },
+        {
+            "task": "mammalnet",
+            "model": "convnext_tiny.in12k_ft_in1k",
+            "mean": 0.3052193583914594,
+            "bootstrap_mean": 0.3049820350337209,
+            "ci_low": 0.2896468300340974,
+            "ci_high": 0.32124160258661844
+        },
+        {
+            "task": "mammalnet",
             "model": "dinov2_vitb14_reg",
             "mean": 0.4995225525529096,
             "bootstrap_mean": 0.498554836526083,
@@ -4137,6 +4313,14 @@
             "bootstrap_mean": 0.32804951502975965,
             "ci_low": 0.3119711979126225,
             "ci_high": 0.34334916029703283
+        },
+        {
+            "task": "mammalnet",
+            "model": "resnet50.a1_in1k",
+            "mean": 0.3806823767281768,
+            "bootstrap_mean": 0.3799239032603562,
+            "ci_low": 0.358455450430152,
+            "ci_high": 0.40312785197713663
         },
         {
             "task": "mammalnet",
