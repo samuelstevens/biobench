@@ -1,8 +1,8 @@
 {
     "meta": {
         "schema": 1,
-        "generated": 1748870569834,
-        "git_commit": "cc71d27b8b0e1f4cb94da5857f0a4aaa27f0a129",
+        "generated": 1748874972495,
+        "git_commit": "792e07c134b550ddc79b7dc52fadfd2a63acbb4a",
         "seed": 17,
         "alpha": 0.05,
         "n_bootstraps": 500
@@ -487,6 +487,14 @@
             "resolution": 224,
             "params": 86192640,
             "release_ms": 1715644800000
+        },
+        {
+            "ckpt": "hf-hub:imageomics/bioclip-2",
+            "display": "BioCLIP-2 ViT-L/14",
+            "family": "cv4ecology",
+            "resolution": 224,
+            "params": 303966208,
+            "release_ms": 1748476800000
         },
         {
             "ckpt": "hf-hub:BGLab/BioTrove-CLIP",
@@ -1588,6 +1596,14 @@
         },
         {
             "task": "beluga",
+            "model": "hf-hub:imageomics/bioclip-2",
+            "mean": 0.03035584262896089,
+            "bootstrap_mean": 0.029366864957417863,
+            "ci_low": 0.026242405922133963,
+            "ci_high": 0.032291392139750776
+        },
+        {
+            "task": "beluga",
             "model": "mobilenetv2_100.ra_in1k",
             "mean": 0.026471226346619126,
             "bootstrap_mean": 0.025597552591113317,
@@ -1721,6 +1737,14 @@
             "bootstrap_mean": 0.4918686660392459,
             "ci_low": 0.48957420380317684,
             "ci_high": 0.4940527498980975
+        },
+        {
+            "task": "fishnet",
+            "model": "ViT-B-16-SigLIP2-256/webli",
+            "mean": 0.6315215384308347,
+            "bootstrap_mean": 0.4510829100639289,
+            "ci_low": 0.4494476264004769,
+            "ci_high": 0.45278621165983945
         },
         {
             "task": "fishnet",
@@ -3532,6 +3556,14 @@
         },
         {
             "task": "iwildcam",
+            "model": "hf-hub:imageomics/bioclip",
+            "mean": 0.17216958256370218,
+            "bootstrap_mean": 0.16894118016885795,
+            "ci_low": 0.16040436911856773,
+            "ci_high": 0.17753849199461263
+        },
+        {
+            "task": "iwildcam",
             "model": "mobilenetv2_100.ra_in1k",
             "mean": 0.021351073546588394,
             "bootstrap_mean": 0.021297285053804557,
@@ -4201,6 +4233,14 @@
             "bootstrap_mean": 0.6041291916779196,
             "ci_low": 0.5839991846117486,
             "ci_high": 0.6233980704614994
+        },
+        {
+            "task": "mammalnet",
+            "model": "apple/aimv2-huge-patch14-336",
+            "mean": 0.605516452315745,
+            "bootstrap_mean": 0.604933332186257,
+            "ci_low": 0.5828869970471366,
+            "ci_high": 0.6259147196906706
         },
         {
             "task": "mammalnet",
