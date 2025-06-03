@@ -1,8 +1,8 @@
 {
     "meta": {
         "schema": 1,
-        "generated": 1748951216553,
-        "git_commit": "d024c53a085505b0f384b3d07c8ee02704b57caf",
+        "generated": 1748961137538,
+        "git_commit": "835771dca264726a406c1b6d9148b627b9b20ae6",
         "seed": 17,
         "alpha": 0.05,
         "n_bootstraps": 500
@@ -652,6 +652,22 @@
         },
         {
             "task": "imagenet1k",
+            "model": "ViT-B-16-SigLIP2-384/webli",
+            "mean": 0.8604651162790697,
+            "bootstrap_mean": 0.8604757100603704,
+            "ci_low": 0.8572652040030793,
+            "ci_high": 0.8632753940277946
+        },
+        {
+            "task": "imagenet1k",
+            "model": "ViT-B-16-SigLIP2-512/webli",
+            "mean": 0.8655092780163682,
+            "bootstrap_mean": 0.8655270450954176,
+            "ci_low": 0.8622209391839877,
+            "ci_high": 0.8684114298448199
+        },
+        {
+            "task": "imagenet1k",
             "model": "ViT-B-16-SigLIP2/webli",
             "mean": 0.8417672797990439,
             "bootstrap_mean": 0.8417958753697176,
@@ -713,6 +729,22 @@
             "bootstrap_mean": 0.8727511851221587,
             "ci_low": 0.8698487703091448,
             "ci_high": 0.8755829382926137
+        },
+        {
+            "task": "imagenet1k",
+            "model": "ViT-L-16-SigLIP2-256/webli",
+            "mean": 0.8693379790940766,
+            "bootstrap_mean": 0.869315222235728,
+            "ci_low": 0.8666276690571695,
+            "ci_high": 0.8720579595640371
+        },
+        {
+            "task": "imagenet1k",
+            "model": "ViT-SO400M-14-SigLIP-384/webli",
+            "mean": 0.8778239470711635,
+            "bootstrap_mean": 0.8778629715165511,
+            "ci_low": 0.8752481666058912,
+            "ci_high": 0.8805260119119971
         },
         {
             "task": "imagenet1k",
@@ -4076,6 +4108,14 @@
         },
         {
             "task": "kabr",
+            "model": "apple/aimv2-1B-patch14-224",
+            "mean": 0.540149877639226,
+            "bootstrap_mean": 0.5383692894750348,
+            "ci_low": 0.5077237963667466,
+            "ci_high": 0.5709757926775342
+        },
+        {
+            "task": "kabr",
             "model": "apple/aimv2-huge-patch14-224",
             "mean": 0.5188779936311463,
             "bootstrap_mean": 0.5186917796762262,
@@ -4774,9 +4814,9 @@
     "bests": [
         {
             "task": "imagenet1k",
-            "best": "ViT-L-16-SigLIP-384/webli",
+            "best": "ViT-SO400M-14-SigLIP-384/webli",
             "ties": [
-                "ViT-L-16-SigLIP-384/webli"
+                "ViT-SO400M-14-SigLIP-384/webli"
             ]
         },
         {
