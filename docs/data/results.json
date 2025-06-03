@@ -1,8 +1,8 @@
 {
     "meta": {
         "schema": 1,
-        "generated": 1748897459698,
-        "git_commit": "f720faa7be0576fa739ad2d92eeeb4018709a04c",
+        "generated": 1748922815864,
+        "git_commit": "5b64dfc9cb8753bf1d54a053f8280c1bc6becbd6",
         "seed": 17,
         "alpha": 0.05,
         "n_bootstraps": 500
@@ -612,11 +612,75 @@
     "results": [
         {
             "task": "imagenet1k",
+            "model": "ViT-B-16/openai",
+            "mean": 0.782412284255733,
+            "bootstrap_mean": 0.7824826384668369,
+            "ci_low": 0.778815688181192,
+            "ci_high": 0.7858676714881893
+        },
+        {
+            "task": "imagenet1k",
+            "model": "ViT-B-32/openai",
+            "mean": 0.7423020824892634,
+            "bootstrap_mean": 0.7423811028726551,
+            "ci_low": 0.7385033021352457,
+            "ci_high": 0.7459391839876829
+        },
+        {
+            "task": "imagenet1k",
+            "model": "ViT-L-14/openai",
+            "mean": 0.83009885746698,
+            "bootstrap_mean": 0.8300427454317086,
+            "ci_low": 0.8267685669138203,
+            "ci_high": 0.8331616425590535
+        },
+        {
+            "task": "imagenet1k",
+            "model": "hf-hub:UCSC-VLAA/openvision-vit-base-patch16-224",
+            "mean": 0.820881614131756,
+            "bootstrap_mean": 0.8208598922247884,
+            "ci_low": 0.8175104331266966,
+            "ci_high": 0.8241060937563307
+        },
+        {
+            "task": "imagenet1k",
+            "model": "hf-hub:UCSC-VLAA/openvision-vit-huge-patch14-224",
+            "mean": 0.8600194473705535,
+            "bootstrap_mean": 0.8599947733074024,
+            "ci_low": 0.8572778655646043,
+            "ci_high": 0.8625972407925124
+        },
+        {
+            "task": "imagenet1k",
+            "model": "hf-hub:UCSC-VLAA/openvision-vit-large-patch14-224",
+            "mean": 0.851693541852362,
+            "bootstrap_mean": 0.8516539848466432,
+            "ci_low": 0.8488716016368867,
+            "ci_high": 0.8545044771281552
+        },
+        {
+            "task": "imagenet1k",
             "model": "hf-hub:UCSC-VLAA/openvision-vit-small-patch16-224",
             "mean": 0.765294546633174,
             "bootstrap_mean": 0.7652576070661644,
             "ci_low": 0.7616856083627082,
             "ci_high": 0.768851545723431
+        },
+        {
+            "task": "imagenet1k",
+            "model": "hf-hub:UCSC-VLAA/openvision-vit-so400m-patch14-224",
+            "mean": 0.854853739567296,
+            "bootstrap_mean": 0.8548009399943276,
+            "ci_low": 0.8517984481990195,
+            "ci_high": 0.8575240063206515
+        },
+        {
+            "task": "imagenet1k",
+            "model": "hf-hub:UCSC-VLAA/openvision-vit-so400m-patch14-384",
+            "mean": 0.8581152256705291,
+            "bootstrap_mean": 0.858135569871561,
+            "ci_low": 0.855097544669989,
+            "ci_high": 0.8607633402212228
         },
         {
             "task": "imagenet1k",
@@ -3924,6 +3988,14 @@
         },
         {
             "task": "kabr",
+            "model": "apple/aimv2-huge-patch14-448",
+            "mean": 0.5364334804032891,
+            "bootstrap_mean": 0.536486896800687,
+            "ci_low": 0.5075201748503352,
+            "ci_high": 0.5679404549392864
+        },
+        {
+            "task": "kabr",
             "model": "apple/aimv2-large-patch14-224",
             "mean": 0.4806903428994179,
             "bootstrap_mean": 0.48067699918002427,
@@ -4412,6 +4484,14 @@
         },
         {
             "task": "mammalnet",
+            "model": "dinov2_vitg14_reg",
+            "mean": 0.5705903125108848,
+            "bootstrap_mean": 0.5692514703309014,
+            "ci_low": 0.5501580133449261,
+            "ci_high": 0.5889285324761925
+        },
+        {
+            "task": "mammalnet",
             "model": "dinov2_vitl14_reg",
             "mean": 0.4990327215449088,
             "bootstrap_mean": 0.49744712238261835,
@@ -4582,9 +4662,10 @@
     "bests": [
         {
             "task": "imagenet1k",
-            "best": "hf-hub:UCSC-VLAA/openvision-vit-small-patch16-224",
+            "best": "hf-hub:UCSC-VLAA/openvision-vit-huge-patch14-224",
             "ties": [
-                "hf-hub:UCSC-VLAA/openvision-vit-small-patch16-224"
+                "hf-hub:UCSC-VLAA/openvision-vit-huge-patch14-224",
+                "hf-hub:UCSC-VLAA/openvision-vit-so400m-patch14-384"
             ]
         },
         {
