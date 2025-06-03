@@ -1,7 +1,7 @@
-""" """
-
 import dataclasses
+import io
 import logging
+import math
 import warnings
 
 import beartype
@@ -11,6 +11,7 @@ import numpy as np
 import polars as pl
 import torch
 from jaxtyping import Float, Float16, Int, Shaped, jaxtyped
+from PIL import Image
 
 from .. import config, helpers, linear_probing, registry, reporting
 
@@ -122,8 +123,9 @@ class Transform:
         self._img_transform = img_transform
 
     def __call__(self, example):
-        example["image"] = example["image"].convert("RGB")
-        example["image"] = self._img_transform(example["image"])
+        img_bytes = example["image"]["bytes"]
+        img = Image.open(io.BytesIO(img_bytes)).convert("RGB")
+        example["image"] = self._img_transform(img)
         return example
 
 
@@ -153,7 +155,8 @@ def get_features(
 
     # Map
     dataset = (
-        dataset.map(lambda ex, idx: {"id": str(idx)}, with_indices=True)
+        dataset.cast_column("image", datasets.Image(decode=False))
+        .map(lambda ex, idx: {"id": str(idx)}, with_indices=True)
         .select(i)
         .to_iterable_dataset(num_shards=n_workers)
         .map(Transform(img_transform))
@@ -175,9 +178,17 @@ def get_features(
         with torch.amp.autocast(cfg.device):
             backbone.img_encode(imgs).img_features
 
-    with helpers.auto_batch_size(dataloader, probe=probe):
+    with helpers.auto_batch_size(dataloader, probe=probe) as batch_size:
         backbone = torch.compile(backbone)
-        for batch in helpers.progress(dataloader, every=10, desc=f"in1k/{split}"):
+
+        total = max(n_workers, math.ceil(len(i) / batch_size))
+        it = iter(dataloader)
+
+        logger.info("Need to embed %d batches of %d images.", total, batch_size)
+
+        for b in helpers.progress(range(total), every=10, desc=f"in1k/{split}"):
+            batch = next(it)
+
             images = batch["image"].to(cfg.device, non_blocking=True)
 
             with torch.amp.autocast(cfg.device):

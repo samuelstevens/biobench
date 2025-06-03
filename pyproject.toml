@@ -32,6 +32,7 @@ dependencies = [
     "mlcroissant>=1.0.17",
     "statsmodels>=0.14.4",
     "whenever>=0.8.3",
+    "pillow>=11.2.1",
 ]
 
 [tool.ruff.lint]
