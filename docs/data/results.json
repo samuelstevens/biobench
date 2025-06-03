@@ -1,8 +1,8 @@
 {
     "meta": {
         "schema": 1,
-        "generated": 1748961137538,
-        "git_commit": "835771dca264726a406c1b6d9148b627b9b20ae6",
+        "generated": 1748979086071,
+        "git_commit": "32e21cc0cce16be4ca25de741233f312eee34062",
         "seed": 17,
         "alpha": 0.05,
         "n_bootstraps": 500
@@ -740,6 +740,22 @@
         },
         {
             "task": "imagenet1k",
+            "model": "ViT-L-16-SigLIP2-384/webli",
+            "mean": 0.8776638846122681,
+            "bootstrap_mean": 0.877637494428913,
+            "ci_low": 0.874791843928528,
+            "ci_high": 0.8803543211377173
+        },
+        {
+            "task": "imagenet1k",
+            "model": "ViT-L-16-SigLIP2-512/webli",
+            "mean": 0.8813337098596095,
+            "bootstrap_mean": 0.8815614440257689,
+            "ci_low": 0.878812649406426,
+            "ci_high": 0.884324986831976
+        },
+        {
+            "task": "imagenet1k",
             "model": "ViT-SO400M-14-SigLIP-384/webli",
             "mean": 0.8778239470711635,
             "bootstrap_mean": 0.8778629715165511,
@@ -753,6 +769,22 @@
             "bootstrap_mean": 0.8700123171670516,
             "ci_low": 0.8671245087314128,
             "ci_high": 0.8728085369312426
+        },
+        {
+            "task": "imagenet1k",
+            "model": "ViT-SO400M-16-SigLIP2-256/webli",
+            "mean": 0.8778462037112066,
+            "bootstrap_mean": 0.8778072606458409,
+            "ci_low": 0.874994428912929,
+            "ci_high": 0.8808116567400024
+        },
+        {
+            "task": "imagenet1k",
+            "model": "ViT-SO400M-16-SigLIP2-384/webli",
+            "mean": 0.8838222186208573,
+            "bootstrap_mean": 0.8837878935213324,
+            "ci_low": 0.8808086179652365,
+            "ci_high": 0.886442506381427
         },
         {
             "task": "imagenet1k",
@@ -3212,6 +3244,14 @@
         },
         {
             "task": "herbarium19",
+            "model": "apple/aimv2-1B-patch14-336",
+            "mean": 0.5014522090799157,
+            "bootstrap_mean": 0.4389205580538919,
+            "ci_low": 0.42073165748095964,
+            "ci_high": 0.4574692296752914
+        },
+        {
+            "task": "herbarium19",
             "model": "apple/aimv2-huge-patch14-224",
             "mean": 0.3830531077145775,
             "bootstrap_mean": 0.33511981684297715,
@@ -3657,6 +3697,14 @@
             "bootstrap_mean": 0.2854439563856244,
             "ci_low": 0.2724649089283774,
             "ci_high": 0.297639685995622
+        },
+        {
+            "task": "iwildcam",
+            "model": "apple/aimv2-1B-patch14-224",
+            "mean": 0.16371442163476893,
+            "bootstrap_mean": 0.16036913378006762,
+            "ci_low": 0.15176295930181063,
+            "ci_high": 0.1680081086036086
         },
         {
             "task": "iwildcam",
@@ -4564,6 +4612,14 @@
         },
         {
             "task": "mammalnet",
+            "model": "apple/aimv2-1B-patch14-224",
+            "mean": 0.6522818881756193,
+            "bootstrap_mean": 0.6510604007798851,
+            "ci_low": 0.6279113972281009,
+            "ci_high": 0.673255238911766
+        },
+        {
+            "task": "mammalnet",
             "model": "apple/aimv2-huge-patch14-224",
             "mean": 0.6049114438232794,
             "bootstrap_mean": 0.6031039582550803,
@@ -4814,9 +4870,10 @@
     "bests": [
         {
             "task": "imagenet1k",
-            "best": "ViT-SO400M-14-SigLIP-384/webli",
+            "best": "ViT-SO400M-16-SigLIP2-384/webli",
             "ties": [
-                "ViT-SO400M-14-SigLIP-384/webli"
+                "ViT-L-16-SigLIP2-512/webli",
+                "ViT-SO400M-16-SigLIP2-384/webli"
             ]
         },
         {
