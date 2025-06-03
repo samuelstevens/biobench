@@ -1,8 +1,8 @@
 {
     "meta": {
         "schema": 1,
-        "generated": 1748922815864,
-        "git_commit": "5b64dfc9cb8753bf1d54a053f8280c1bc6becbd6",
+        "generated": 1748951216553,
+        "git_commit": "d024c53a085505b0f384b3d07c8ee02704b57caf",
         "seed": 17,
         "alpha": 0.05,
         "n_bootstraps": 500
@@ -612,11 +612,67 @@
     "results": [
         {
             "task": "imagenet1k",
+            "model": "ViT-B-16-SigLIP-256/webli",
+            "mean": 0.834575804229803,
+            "bootstrap_mean": 0.8345666302013695,
+            "ci_low": 0.8310643815080426,
+            "ci_high": 0.8376590292127547
+        },
+        {
+            "task": "imagenet1k",
+            "model": "ViT-B-16-SigLIP-384/webli",
+            "mean": 0.8490600437565837,
+            "bootstrap_mean": 0.848982415623354,
+            "ci_low": 0.8456185932498683,
+            "ci_high": 0.852094728738706
+        },
+        {
+            "task": "imagenet1k",
+            "model": "ViT-B-16-SigLIP-512/webli",
+            "mean": 0.8544485860140993,
+            "bootstrap_mean": 0.8543650581418906,
+            "ci_low": 0.851281350026336,
+            "ci_high": 0.8573735869697339
+        },
+        {
+            "task": "imagenet1k",
+            "model": "ViT-B-16-SigLIP/webli",
+            "mean": 0.8312940604489102,
+            "bootstrap_mean": 0.83124857177586,
+            "ci_low": 0.8281972975163081,
+            "ci_high": 0.8345594789514201
+        },
+        {
+            "task": "imagenet1k",
+            "model": "ViT-B-16-SigLIP2-256/webli",
+            "mean": 0.8490397860789239,
+            "bootstrap_mean": 0.849002714638791,
+            "ci_low": 0.8457305214537498,
+            "ci_high": 0.8520136947449455
+        },
+        {
+            "task": "imagenet1k",
+            "model": "ViT-B-16-SigLIP2/webli",
+            "mean": 0.8417672797990439,
+            "bootstrap_mean": 0.8417958753697176,
+            "ci_low": 0.8383969450184352,
+            "ci_high": 0.844932843077671
+        },
+        {
+            "task": "imagenet1k",
             "model": "ViT-B-16/openai",
             "mean": 0.782412284255733,
             "bootstrap_mean": 0.7824826384668369,
             "ci_low": 0.778815688181192,
             "ci_high": 0.7858676714881893
+        },
+        {
+            "task": "imagenet1k",
+            "model": "ViT-B-32-SigLIP2-256/webli",
+            "mean": 0.8036828457985576,
+            "bootstrap_mean": 0.8037184879056763,
+            "ci_low": 0.8002279081074511,
+            "ci_high": 0.806998298286131
         },
         {
             "task": "imagenet1k",
@@ -628,11 +684,43 @@
         },
         {
             "task": "imagenet1k",
+            "model": "ViT-L-14-336/openai",
+            "mean": 0.8394173891905032,
+            "bootstrap_mean": 0.8393838175114461,
+            "ci_low": 0.8361386289048256,
+            "ci_high": 0.8424901746282566
+        },
+        {
+            "task": "imagenet1k",
             "model": "ViT-L-14/openai",
             "mean": 0.83009885746698,
             "bootstrap_mean": 0.8300427454317086,
             "ci_low": 0.8267685669138203,
             "ci_high": 0.8331616425590535
+        },
+        {
+            "task": "imagenet1k",
+            "model": "ViT-L-16-SigLIP-256/webli",
+            "mean": 0.8607284660886476,
+            "bootstrap_mean": 0.8606643977148414,
+            "ci_low": 0.8576328957497671,
+            "ci_high": 0.8636603054981564
+        },
+        {
+            "task": "imagenet1k",
+            "model": "ViT-L-16-SigLIP-384/webli",
+            "mean": 0.8727615266185884,
+            "bootstrap_mean": 0.8727511851221587,
+            "ci_low": 0.8698487703091448,
+            "ci_high": 0.8755829382926137
+        },
+        {
+            "task": "imagenet1k",
+            "model": "ViT-SO400M-14-SigLIP/webli",
+            "mean": 0.8700672554898307,
+            "bootstrap_mean": 0.8700123171670516,
+            "ci_low": 0.8671245087314128,
+            "ci_high": 0.8728085369312426
         },
         {
             "task": "imagenet1k",
@@ -3084,6 +3172,14 @@
         },
         {
             "task": "herbarium19",
+            "model": "apple/aimv2-1B-patch14-224",
+            "mean": 0.4325211040695123,
+            "bootstrap_mean": 0.3786799293078259,
+            "ci_low": 0.36089964626294796,
+            "ci_high": 0.3956021918256668
+        },
+        {
+            "task": "herbarium19",
             "model": "apple/aimv2-huge-patch14-224",
             "mean": 0.3830531077145775,
             "bootstrap_mean": 0.33511981684297715,
@@ -3545,6 +3641,14 @@
             "bootstrap_mean": 0.16847724982006962,
             "ci_low": 0.16022100683412452,
             "ci_high": 0.17756297124484746
+        },
+        {
+            "task": "iwildcam",
+            "model": "apple/aimv2-huge-patch14-448",
+            "mean": 0.1872671612392096,
+            "bootstrap_mean": 0.1823406630121915,
+            "ci_low": 0.17184277200892117,
+            "ci_high": 0.1910106213262447
         },
         {
             "task": "iwildcam",
@@ -4436,6 +4540,14 @@
         },
         {
             "task": "mammalnet",
+            "model": "apple/aimv2-huge-patch14-448",
+            "mean": 0.6020211755123974,
+            "bootstrap_mean": 0.6009092667231942,
+            "ci_low": 0.5767145935880564,
+            "ci_high": 0.6233354319989932
+        },
+        {
+            "task": "mammalnet",
             "model": "apple/aimv2-large-patch14-224",
             "mean": 0.5479475357848939,
             "bootstrap_mean": 0.5473868745268912,
@@ -4662,10 +4774,9 @@
     "bests": [
         {
             "task": "imagenet1k",
-            "best": "hf-hub:UCSC-VLAA/openvision-vit-huge-patch14-224",
+            "best": "ViT-L-16-SigLIP-384/webli",
             "ties": [
-                "hf-hub:UCSC-VLAA/openvision-vit-huge-patch14-224",
-                "hf-hub:UCSC-VLAA/openvision-vit-so400m-patch14-384"
+                "ViT-L-16-SigLIP-384/webli"
             ]
         },
         {
