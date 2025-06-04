@@ -127,6 +127,7 @@ def main(cfgs: list[str], dry_run: bool = True, n_parallel: int = 1):
     level = logging.DEBUG if first.debug else logging.INFO
     logging.basicConfig(level=level, format=log_format)
     logger = logging.getLogger(&#34;benchmark.py&#34;)
+    logging.getLogger(&#34;PIL.TiffImagePlugin&#34;).setLevel(logging.INFO)
 
     # ---------------
     # Setup executor.

@@ -178,7 +178,8 @@ def get_features(
 
     # Map
     dataset = (
-        dataset.map(lambda ex, idx: {&#34;id&#34;: str(idx)}, with_indices=True)
+        dataset.cast_column(&#34;image&#34;, datasets.Image(decode=False))
+        .map(lambda ex, idx: {&#34;id&#34;: str(idx)}, with_indices=True)
         .select(i)
         .to_iterable_dataset(num_shards=n_workers)
         .map(Transform(img_transform))
@@ -200,9 +201,17 @@ def get_features(
         with torch.amp.autocast(cfg.device):
             backbone.img_encode(imgs).img_features
 
-    with helpers.auto_batch_size(dataloader, probe=probe):
+    with helpers.auto_batch_size(dataloader, probe=probe) as batch_size:
         backbone = torch.compile(backbone)
-        for batch in helpers.progress(dataloader, every=10, desc=f&#34;in1k/{split}&#34;):
+
+        total = max(n_workers, math.ceil(len(i) / batch_size))
+        it = iter(dataloader)
+
+        logger.info(&#34;Need to embed %d batches of %d images.&#34;, total, batch_size)
+
+        for b in helpers.progress(range(total), every=10, desc=f&#34;in1k/{split}&#34;):
+            batch = next(it)
+
             images = batch[&#34;image&#34;].to(cfg.device, non_blocking=True)
 
             with torch.amp.autocast(cfg.device):
@@ -303,8 +312,9 @@ class Features:
         self._img_transform = img_transform
 
     def __call__(self, example):
-        example[&#34;image&#34;] = example[&#34;image&#34;].convert(&#34;RGB&#34;)
-        example[&#34;image&#34;] = self._img_transform(example[&#34;image&#34;])
+        img_bytes = example[&#34;image&#34;][&#34;bytes&#34;]
+        img = Image.open(io.BytesIO(img_bytes)).convert(&#34;RGB&#34;)
+        example[&#34;image&#34;] = self._img_transform(img)
         return example</code></pre>
 </details>
 <div class="desc"></div>

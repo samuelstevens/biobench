@@ -63,7 +63,30 @@ Each task lives in its own folder, for example `biobench/herbarium19/`.
 Inside a task folder:
 
 - `download.py` fetches the dataset.
-- `__init__.py` exposes the task API, including a `benchmark(cfg)` entry point.
+- `__init__.py` exposes the task API.
+
+`__init__.py` includes a
+
+```py
+@beartype.beartype
+def benchmark(cfg: config.Experiment) -> reporting.Report:
+    ...
+    
+
+@jaxtyped(typechecker=beartype.beartype)
+def bootstrap_scores(
+    df: pl.DataFrame, *, b: int = 0, rng: np.random.Generator | None = None
+) -> dict[str, Float[np.ndarray, " b"]]:
+    assert df.get_column("task_name").unique().to_list() == ["TASKNAME"]
+```
+
+To add a new task, both of these functions must be implemented.
+
+Some guidelines:
+
+* You probably will record a bunch of frozen features, then do some CPU-only processing. If you do, call `torch.cuda.empty_cache()` to free up PyTorch's CUDA memory usage so that other users can use the GPU while your CPU-only work happens.
+* Use `helpers.auto_batch_size()` to figure out an optimal batch size.
+* Call `torch.compile()` after the batch size is determined. `torch.compile` records an optimized version for each forward pass, so each different batch size results in a new "compilation".
 
 ## Download scripts
 
@@ -71,8 +94,88 @@ Inside a task folder:
 - Stream with `requests.get(..., stream=True)` and wrap in `tqdm` for progress.
 - Verify checksums before extraction.
 
->>>> CONTRIBUTING.md
+## Command Runner
 
+A `justfile` is provided only as convenient documentation.
+Do **not** call `just` (the binary may be missing).
+Instead:
+
+1. Open `justfile`, locate the target you need.
+2. Copy the shell lines that follow the target and execute them directly.
+
+Example
+
+```sh
+# don’t run
+just test
+
+# do run
+uv run ruff format --preview .
+uv run pytest --cov shhelp --cov-report term
+```
+
+>>>> CONTRIBUTING.md
+# CONTRIBUTING
+
+## 1. TL;DR
+
+Install [uv](https://docs.astral.sh/uv/).
+Clone this repository, then from the root directory:
+
+```sh
+uv run python -m saev --help
+```
+
+You also need [yek](https://github.com/bodo-run/yek) and [lychee](https://github.com/lycheeverse/lychee) for generating docs.
+
+If you want to do any of the web interface work, you need [elm](https://guide.elm-lang.org/install/elm.html), [elm-format](https://github.com/avh4/elm-format/releases/latest), [tailwindcss](https://github.com/tailwindlabs/tailwindcss/releases/latest) and [bun](https://bun.sh/).
+
+## 2. Repo Layout
+
+```
+benchmark.py  <- Launch script for benchmarking models on tasks.
+report.py     <- Launch script for producing the report.json file.
+biobench/     <- Source code for benchmarking.
+  beluga/
+    __init__.py
+    download.py
+  fishnet/
+    __init__.py
+    download.py
+  ...
+  config.py
+  registry.py
+  reporting.py
+  schema.sql
+  third_party_models.py
+docs/
+  api/
+  assets/
+  data/
+  research/
+  todo/
+  index.html
+web/
+  src/
+    Leaderboard.elm
+  index.html
+  main.css
+```
+
+## 3. Coding Style & Conventions
+
+See [AGENTS.md](AGENTS.md).
+
+## 4. Testing & Linting
+
+1. Run `just test`.
+2. Check that there are no regressions. Unless you are certain tests are not needed, the coverage % should either stay the same or increase.
+3. Run `just docs`.
+4. Fix any missing doc links.
+
+## 5. Code of Conduct
+
+Be polite, kind and assume good intent.
 
 >>>> README.md
 # Biology Benchmark (`biobench`)
@@ -141,21 +244,47 @@ Because of this, there are two main classes of tasks:
 [Counting insects on sticky insect traps](https://github.com/md-121/yellow-sticky-traps-dataset)
 [Predicting plant stem angle](https://plantvision.unl.edu/datasets/download-panicoid-phenomap-1-dataset/)
 
+## Contributing New Tasks
+
+We welcome new tasks.
+Here are a few guidelines for doing that.
+
+Choose a task that offers new signal. We want tasks that:
+
+* Uses a sensor or modality we do not cover (thermal, sonar, hyperspectral, LiDAR, microscopy, drone video, and so on),
+* Introduces a different prediction type (counts, traits, time series, segmentation, ordinal labels),
+* Or targets an under-represented group or environment (marine life, airborne organisms, underground roots, cell imagery).
+
+Stay within our contraints:
+
+* Evaluation must run on frozen image embeddings with a lightweight probe (logistic/linear, small MLP, or similar). See the `biobench.registry.VisionBackbone` class for the API that models conform to.
+* A ViT-L/14 checkpoint should finish your task in under two hours on a single A6000 or A100 GPU.
+* Data must be publicly downloadable and licensed for academic use; we redistribute predictions.
+
+Match the style:
+
+* `download.py` fetches the dataset and verifies checksums.
+* `__init__.py` runs the benchmark, defines the bootstrapped evaluation metric.
+
+If the task is simply another RGB species classification challenge, it probably fits better in iNat. Counting fish in noisy sonar frames or predicting tree-ring widths from microscopy slides—those are the kinds of additions we welcome.
+
+
 >>>> REGRESSIONS.md
 # Regressions
 
-Last checked: 2025-05-13
+Last checked: 2025-05-31
 
-# 5 failing test(s)
+# 6 failing test(s)
 
-- biobench/jobkit/test_hooks.py::test_multiple_hooks_each_release_their_own_claims
-- biobench/test_auto_batch_size.py::test_schedule_not_materialised
-- biobench/test_openset.py::test_fuzz_no_exceptions
+- biobench/jobkit/test_hooks.py::test_discarded_claims_on_one_hook_do_not_affect_others
+- biobench/jobkit/test_hooks.py::test_lock_prevents_set_mutation_during_discards
+- biobench/jobkit/test_hooks.py::test_release_run_invokes_callback_exactly_each_time
+- biobench/jobkit/test_hooks.py::test_sigterm_handler_releases_only_current_claims
 - biobench/test_openset.py::test_min_mahalanobis_sq_batched_equal
-- biobench/test_reporting.py::test_reclaim_after_failure
+- biobench/test_openset.py::test_min_mahalanobis_sq_batched_no_error
 # Coverage
 
-Coverage: 3147/5106 lines (61.6%)
+Coverage: 3210/5326 lines (60.3%)
 
 >>>> __init__.py
 """ """
@@ -786,6 +915,7 @@ def main(cfgs: list[str], dry_run: bool = True, n_parallel: int = 1):
     level = logging.DEBUG if first.debug else logging.INFO
     logging.basicConfig(level=level, format=log_format)
     logger = logging.getLogger("benchmark.py")
+    logging.getLogger("PIL.TiffImagePlugin").setLevel(logging.INFO)
 
     # ---------------
     # Setup executor.
@@ -1454,7 +1584,7 @@ def get_features(
 
     all_features, all_labels, all_ids = [], [], []
 
-    with helpers.auto_batch_size(dataloader, probe=probe):
+    with helpers.auto_batch_size(dataloader, probe=probe, upper=2048):
         total = len(dataloader) if not cfg.debug else 2
         it = iter(dataloader)
         for b in helpers.progress(range(total), every=10, desc=f"fishnet/{file}"):
@@ -3347,10 +3477,10 @@ if __name__ == "__main__":
     main(tyro.cli(Args))
 
 >>>> imagenet1k/__init__.py
-""" """
-
 import dataclasses
+import io
 import logging
+import math
 import warnings
 
 import beartype
@@ -3360,6 +3490,7 @@ import numpy as np
 import polars as pl
 import torch
 from jaxtyping import Float, Float16, Int, Shaped, jaxtyped
+from PIL import Image
 
 from .. import config, helpers, linear_probing, registry, reporting
 
@@ -3471,8 +3602,9 @@ class Transform:
         self._img_transform = img_transform
 
     def __call__(self, example):
-        example["image"] = example["image"].convert("RGB")
-        example["image"] = self._img_transform(example["image"])
+        img_bytes = example["image"]["bytes"]
+        img = Image.open(io.BytesIO(img_bytes)).convert("RGB")
+        example["image"] = self._img_transform(img)
         return example
 
 
@@ -3502,7 +3634,8 @@ def get_features(
 
     # Map
     dataset = (
-        dataset.map(lambda ex, idx: {"id": str(idx)}, with_indices=True)
+        dataset.cast_column("image", datasets.Image(decode=False))
+        .map(lambda ex, idx: {"id": str(idx)}, with_indices=True)
         .select(i)
         .to_iterable_dataset(num_shards=n_workers)
         .map(Transform(img_transform))
@@ -3524,9 +3657,17 @@ def get_features(
         with torch.amp.autocast(cfg.device):
             backbone.img_encode(imgs).img_features
 
-    with helpers.auto_batch_size(dataloader, probe=probe):
+    with helpers.auto_batch_size(dataloader, probe=probe) as batch_size:
         backbone = torch.compile(backbone)
-        for batch in helpers.progress(dataloader, every=10, desc=f"in1k/{split}"):
+
+        total = max(n_workers, math.ceil(len(i) / batch_size))
+        it = iter(dataloader)
+
+        logger.info("Need to embed %d batches of %d images.", total, batch_size)
+
+        for b in helpers.progress(range(total), every=10, desc=f"in1k/{split}"):
+            batch = next(it)
+
             images = batch["image"].to(cfg.device, non_blocking=True)
 
             with torch.amp.autocast(cfg.device):
@@ -7417,6 +7558,8 @@ def benchmark(cfg: config.Experiment) -> reporting.Report:
     train_features = get_features(cfg, backbone, is_train=True)
     val_features = get_features(cfg, backbone, is_train=False)
 
+    torch.cuda.empty_cache()  # Be nice to others on the machine.
+
     # 2. Fit model.
     clf = helpers.init_logreg_clf(cfg)
     clf.fit(train_features.x, train_features.y)
@@ -8731,6 +8874,14 @@ models = [
         224,
         86_192_640,
         date_to_ms(2024, 5, 14),
+    ),
+    Model(
+        "hf-hub:imageomics/bioclip-2",
+        "BioCLIP-2 ViT-L/14",
+        "cv4ecology",
+        224,
+        303_966_208,
+        date_to_ms(2025, 5, 29),
     ),
     Model(
         "hf-hub:BGLab/BioTrove-CLIP",

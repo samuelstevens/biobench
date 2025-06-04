@@ -63,3 +63,27 @@ Because of this, there are two main classes of tasks:
 
 [Counting insects on sticky insect traps](https://github.com/md-121/yellow-sticky-traps-dataset)
 [Predicting plant stem angle](https://plantvision.unl.edu/datasets/download-panicoid-phenomap-1-dataset/)
+
+## Contributing New Tasks
+
+We welcome new tasks.
+Here are a few guidelines for doing that.
+
+Choose a task that offers new signal. We want tasks that:
+
+* Uses a sensor or modality we do not cover (thermal, sonar, hyperspectral, LiDAR, microscopy, drone video, and so on),
+* Introduces a different prediction type (counts, traits, time series, segmentation, ordinal labels),
+* Or targets an under-represented group or environment (marine life, airborne organisms, underground roots, cell imagery).
+
+Stay within our contraints:
+
+* Evaluation must run on frozen image embeddings with a lightweight probe (logistic/linear, small MLP, or similar). See the `biobench.registry.VisionBackbone` class for the API that models conform to.
+* A ViT-L/14 checkpoint should finish your task in under two hours on a single A6000 or A100 GPU.
+* Data must be publicly downloadable and licensed for academic use; we redistribute predictions.
+
+Match the style:
+
+* `download.py` fetches the dataset and verifies checksums.
+* `__init__.py` runs the benchmark, defines the bootstrapped evaluation metric.
+
+If the task is simply another RGB species classification challenge, it probably fits better in iNat. Counting fish in noisy sonar frames or predicting tree-ring widths from microscopy slides—those are the kinds of additions we welcome.

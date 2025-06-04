@@ -60,10 +60,6 @@ import typing
 import beartype
 import numpy as np
 import polars as pl
-import sklearn.naive_bayes
-import sklearn.pipeline
-import sklearn.preprocessing
-import sklearn.svm
 import torch
 from jaxtyping import Float, Int, Shaped, jaxtyped
 from PIL import Image
@@ -96,8 +92,10 @@ def benchmark(cfg: config.Experiment) -> reporting.Report:
     train_features = get_features(cfg, backbone, is_train=True)
     val_features = get_features(cfg, backbone, is_train=False)
 
+    torch.cuda.empty_cache()  # Be nice to others on the machine.
+
     # 2. Fit model.
-    clf = init_clf(cfg)
+    clf = helpers.init_logreg_clf(cfg)
     clf.fit(train_features.x, train_features.y)
 
     # 3. Predict.
@@ -239,26 +237,3 @@ def get_features(
     logger.info("Got features for %d images.", len(all_ids))
 
     return Features(all_features, all_labels, all_ids)
-
-
-@beartype.beartype
-def init_clf(cfg: config.Experiment):
-    alpha = np.pow(2.0, np.arange(-15, 5))
-    if cfg.debug:
-        alpha = np.pow(2.0, np.arange(-2, 2))
-
-    if 0 < cfg.n_train <= 300:
-        return sklearn.linear_model.RidgeClassifier()
-
-    return sklearn.model_selection.HalvingGridSearchCV(
-        sklearn.pipeline.make_pipeline(
-            sklearn.preprocessing.StandardScaler(),
-            sklearn.linear_model.RidgeClassifier(1.0),
-        ),
-        {"ridgeclassifier__alpha": alpha},
-        n_jobs=16,
-        verbose=2,
-        factor=3,
-        random_state=cfg.seed,
-        scoring="f1_macro",
-    )

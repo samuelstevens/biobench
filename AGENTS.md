@@ -62,10 +62,53 @@ Each task lives in its own folder, for example `biobench/herbarium19/`.
 Inside a task folder:
 
 - `download.py` fetches the dataset.
-- `__init__.py` exposes the task API, including a `benchmark(cfg)` entry point.
+- `__init__.py` exposes the task API.
+
+`__init__.py` includes a
+
+```py
+@beartype.beartype
+def benchmark(cfg: config.Experiment) -> reporting.Report:
+    ...
+
+
+@jaxtyped(typechecker=beartype.beartype)
+def bootstrap_scores(
+    df: pl.DataFrame, *, b: int = 0, rng: np.random.Generator | None = None
+) -> dict[str, Float[np.ndarray, " b"]]:
+    assert df.get_column("task_name").unique().to_list() == ["TASKNAME"]
+```
+
+To add a new task, both of these functions must be implemented.
+
+Some guidelines:
+
+* You probably will record a bunch of frozen features, then do some CPU-only processing. If you do, call `torch.cuda.empty_cache()` to free up PyTorch's CUDA memory usage so that other users can use the GPU while your CPU-only work happens.
+* Use `helpers.auto_batch_size()` to figure out an optimal batch size.
+* Call `torch.compile()` after the batch size is determined. `torch.compile` records an optimized version for each forward pass, so each different batch size results in a new "compilation".
 
 ## Download scripts
 
 - Start each downloader with a header line `/// script` and a `dependencies = [...]` list.
 - Stream with `requests.get(..., stream=True)` and wrap in `tqdm` for progress.
 - Verify checksums before extraction.
+
+## Command Runner
+
+A `justfile` is provided only as convenient documentation.
+Do **not** call `just` (the binary may be missing).
+Instead:
+
+1. Open `justfile`, locate the target you need.
+2. Copy the shell lines that follow the target and execute them directly.
+
+Example
+
+```sh
+# don’t run
+just test
+
+# do run
+uv run ruff format --preview .
+uv run pytest --cov shhelp --cov-report term
+```

@@ -10,11 +10,11 @@ herbarium19 = "/research/nfs_su_809/workspace/stevens.994/datasets/herbarium19"
 iwildcam = "/research/nfs_su_809/workspace/stevens.994/datasets/iwildcam"
 kabr = "/research/nfs_su_809/workspace/stevens.994/datasets/kabr"
 mammalnet = "/research/nfs_su_809/workspace/stevens.994/datasets/mammalnet"
-# plankton = "/research/nfs_su_809/workspace/stevens.994/datasets/plankton"
+plankton = "/research/nfs_su_809/workspace/stevens.994/datasets/plankton"
 # plantnet = "/research/nfs_su_809/workspace/stevens.994/datasets/plantnet"
 
 # Prior work
-# imagenet1k = "huggingface"
+imagenet1k = "huggingface"
 newt = "/research/nfs_su_809/workspace/stevens.994/datasets/newt"
 # inat21 = "/research/nfs_su_809/workspace/stevens.994/datasets/inat21"
 

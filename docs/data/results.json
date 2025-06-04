@@ -1,8 +1,8 @@
 {
     "meta": {
         "schema": 1,
-        "generated": 1748979086071,
-        "git_commit": "32e21cc0cce16be4ca25de741233f312eee34062",
+        "generated": 1748993057828,
+        "git_commit": "6b5672c8f90c2313592bca6c0be5dc561432b716",
         "seed": 17,
         "alpha": 0.05,
         "n_bootstraps": 500
@@ -785,6 +785,30 @@
             "bootstrap_mean": 0.8837878935213324,
             "ci_low": 0.8808086179652365,
             "ci_high": 0.886442506381427
+        },
+        {
+            "task": "imagenet1k",
+            "model": "ViT-SO400M-16-SigLIP2-512/webli",
+            "mean": 0.8857713409714378,
+            "bootstrap_mean": 0.8857834366516754,
+            "ci_low": 0.882844090596005,
+            "ci_high": 0.8884876017989546
+        },
+        {
+            "task": "imagenet1k",
+            "model": "ViT-gopt-16-SigLIP2-256/webli",
+            "mean": 0.8838424762985171,
+            "bootstrap_mean": 0.8838348122037195,
+            "ci_low": 0.8807989951784774,
+            "ci_high": 0.886461751954945
+        },
+        {
+            "task": "imagenet1k",
+            "model": "efficientnet_b0.ra_in1k",
+            "mean": 0.7195527104772709,
+            "bootstrap_mean": 0.7195930067663385,
+            "ci_low": 0.7156198087597747,
+            "ci_high": 0.7235930472833354
         },
         {
             "task": "imagenet1k",
@@ -4164,6 +4188,14 @@
         },
         {
             "task": "kabr",
+            "model": "apple/aimv2-1B-patch14-336",
+            "mean": 0.5143841216253445,
+            "bootstrap_mean": 0.5144930545035624,
+            "ci_low": 0.4851031384467533,
+            "ci_high": 0.5424293276741693
+        },
+        {
+            "task": "kabr",
             "model": "apple/aimv2-huge-patch14-224",
             "mean": 0.5188779936311463,
             "bootstrap_mean": 0.5186917796762262,
@@ -4870,10 +4902,11 @@
     "bests": [
         {
             "task": "imagenet1k",
-            "best": "ViT-SO400M-16-SigLIP2-384/webli",
+            "best": "ViT-SO400M-16-SigLIP2-512/webli",
             "ties": [
-                "ViT-L-16-SigLIP2-512/webli",
-                "ViT-SO400M-16-SigLIP2-384/webli"
+                "ViT-SO400M-16-SigLIP2-384/webli",
+                "ViT-SO400M-16-SigLIP2-512/webli",
+                "ViT-gopt-16-SigLIP2-256/webli"
             ]
         },
         {

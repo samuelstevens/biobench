@@ -116,6 +116,8 @@ def benchmark(cfg: config.Experiment) -&gt; reporting.Report:
     train_features = get_features(cfg, backbone, is_train=True)
     val_features = get_features(cfg, backbone, is_train=False)
 
+    torch.cuda.empty_cache()  # Be nice to others on the machine.
+
     # 2. Fit model.
     clf = helpers.init_logreg_clf(cfg)
     clf.fit(train_features.x, train_features.y)
