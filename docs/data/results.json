@@ -1,8 +1,8 @@
 {
     "meta": {
         "schema": 1,
-        "generated": 1749140909138,
-        "git_commit": "bc465c2b37762018b869368cc12d700e88ba4d1d",
+        "generated": 1749144748769,
+        "git_commit": "f689316617c7ee4e509585d4bfaeb31ce2879d13",
         "seed": 17,
         "alpha": 0.05,
         "n_bootstraps": 500
@@ -5548,35 +5548,91 @@
         },
         {
             "task": "plantnet",
+            "model": "ViT-B-16-SigLIP/webli",
+            "mean": 0.4106012931107765,
+            "bootstrap_mean": 0.3773697756301491,
+            "ci_low": 0.3739456586748466,
+            "ci_high": 0.38052983492715553
+        },
+        {
+            "task": "plantnet",
+            "model": "ViT-B-16/openai",
+            "mean": 0.34075629498726634,
+            "bootstrap_mean": 0.3177518167935897,
+            "ci_low": 0.3149446935304093,
+            "ci_high": 0.3208965891224895
+        },
+        {
+            "task": "plantnet",
+            "model": "ViT-B-32/openai",
+            "mean": 0.3049911869630142,
+            "bootstrap_mean": 0.283765022120663,
+            "ci_low": 0.2810149513099532,
+            "ci_high": 0.2866375708369215
+        },
+        {
+            "task": "plantnet",
+            "model": "ViT-L-14/openai",
+            "mean": 0.3876666427632234,
+            "bootstrap_mean": 0.3583305884678156,
+            "ci_low": 0.3550799227566481,
+            "ci_high": 0.3613095064973925
+        },
+        {
+            "task": "plantnet",
             "model": "hf-hub:UCSC-VLAA/openvision-vit-base-patch16-224",
             "mean": 0.37722710180138086,
-            "bootstrap_mean": 0.34787212052535355,
-            "ci_low": 0.34473753589047634,
-            "ci_high": 0.3509819865642715
+            "bootstrap_mean": 0.34782643769684596,
+            "ci_low": 0.3446549954246203,
+            "ci_high": 0.35106502698734166
+        },
+        {
+            "task": "plantnet",
+            "model": "hf-hub:UCSC-VLAA/openvision-vit-huge-patch14-224",
+            "mean": 0.42043205784266613,
+            "bootstrap_mean": 0.38538057101795936,
+            "ci_low": 0.3820445941889629,
+            "ci_high": 0.3889661443724333
         },
         {
             "task": "plantnet",
             "model": "hf-hub:UCSC-VLAA/openvision-vit-large-patch14-224",
             "mean": 0.41441309584224273,
-            "bootstrap_mean": 0.3801622188997142,
-            "ci_low": 0.3764677604051859,
-            "ci_high": 0.38332420313079196
+            "bootstrap_mean": 0.3801271831045046,
+            "ci_low": 0.37655100438696976,
+            "ci_high": 0.38364905951328804
         },
         {
             "task": "plantnet",
             "model": "hf-hub:UCSC-VLAA/openvision-vit-small-patch16-224",
             "mean": 0.3304413347549033,
-            "bootstrap_mean": 0.3059118805868485,
-            "ci_low": 0.3029473048723395,
-            "ci_high": 0.30917283520187777
+            "bootstrap_mean": 0.30602021963445697,
+            "ci_low": 0.30292057682871426,
+            "ci_high": 0.3090096213380963
+        },
+        {
+            "task": "plantnet",
+            "model": "hf-hub:UCSC-VLAA/openvision-vit-so400m-patch14-224",
+            "mean": 0.4157086335610189,
+            "bootstrap_mean": 0.3824899677083498,
+            "ci_low": 0.37905025041414914,
+            "ci_high": 0.3857975203788618
+        },
+        {
+            "task": "plantnet",
+            "model": "hf-hub:UCSC-VLAA/openvision-vit-so400m-patch14-384",
+            "mean": 0.42507761507289393,
+            "bootstrap_mean": 0.3911949091670483,
+            "ci_low": 0.3876993305787048,
+            "ci_high": 0.3946542674667832
         },
         {
             "task": "plantnet",
             "model": "hf-hub:UCSC-VLAA/openvision-vit-tiny-patch16-224",
             "mean": 0.22879298404092677,
-            "bootstrap_mean": 0.21631658132986462,
-            "ci_low": 0.21400586326410762,
-            "ci_high": 0.21854991331319046
+            "bootstrap_mean": 0.21622280475287903,
+            "ci_low": 0.21397176142849383,
+            "ci_high": 0.21849455662209752
         }
     ],
     "bests": [
@@ -5663,9 +5719,9 @@
         },
         {
             "task": "plantnet",
-            "best": "hf-hub:UCSC-VLAA/openvision-vit-large-patch14-224",
+            "best": "hf-hub:UCSC-VLAA/openvision-vit-so400m-patch14-384",
             "ties": [
-                "hf-hub:UCSC-VLAA/openvision-vit-large-patch14-224"
+                "hf-hub:UCSC-VLAA/openvision-vit-so400m-patch14-384"
             ]
         }
     ]
