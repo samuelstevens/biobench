@@ -91,15 +91,11 @@ def main(cfg: str, n: int = 1_000, seed: int = 42):
     scores = []
     for _ in helpers.progress(range(n), every=n // 100, desc=&#34;bootstrapping&#34;):
         y_pred = (rng.random((len(test_ds), 9)) &lt; 0.5).astype(int)
-        preds = [
-            reporting.Prediction(
-                &#34;deadbeef&#34;,
-                (p == t).mean().item(),
-                {&#34;y_pred&#34;: p.tolist(), &#34;y_true&#34;: t.tolist()},
-            )
-            for p, t in zip(y_pred, test_ds.labels)
-        ]
-        scores.append(score(preds) * 100)
+        y_true = test_ds.labels
+        score = sklearn.metrics.f1_score(
+            test_ds.labels, y_pred, average=&#34;macro&#34;, labels=np.unique(y_true)
+        )
+        scores.append(score * 100)
 
     print(f&#34;Mean score: {np.mean(scores):.3f} ({np.std(scores):.3f})&#34;)</code></pre>
 </details>

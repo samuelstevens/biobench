@@ -29,7 +29,6 @@ import os.path
 import beartype
 import numpy as np
 import polars as pl
-import sklearn.metrics
 import torch
 from jaxtyping import Float, Int, jaxtyped
 from PIL import Image
@@ -93,8 +92,10 @@ def init_clf(input_dim: int) -> torch.nn.Module:
     )
 
 
-@beartype.beartype
-def score(preds: list[reporting.Prediction]) -> float:
+@jaxtyped(typechecker=beartype.beartype)
+def bootstrap_scores(
+    df: pl.DataFrame, *, b: int = 0, rng: np.random.Generator | None = None
+) -> dict[str, Float[np.ndarray, " b"]]:
     """
     Calculate the macro-averaged F1 score across all fish trait predictions.
 
@@ -116,26 +117,7 @@ def score(preds: list[reporting.Prediction]) -> float:
     2. Takes the unweighted mean of these 9 F1 scores
 
     This ensures each trait contributes equally to the final score, regardless of class imbalance in the dataset (e.g., if there are many more tropical fish than brackish water fish).
-
-    Args:
-        preds: List of predictions, each containing:
-            - info["y_pred"]: List of 9 binary predictions
-            - info["y_true"]: List of 9 binary ground truth values
-
-    Returns:
-        The macro-averaged F1 score across all 9 traits
     """
-    y_pred = np.array([pred.info["y_pred"] for pred in preds])
-    y_true = np.array([pred.info["y_true"] for pred in preds])
-    return sklearn.metrics.f1_score(
-        y_true, y_pred, average="macro", labels=np.unique(y_true)
-    )
-
-
-@jaxtyped(typechecker=beartype.beartype)
-def bootstrap_scores(
-    df: pl.DataFrame, *, b: int = 0, rng: np.random.Generator | None = None
-) -> dict[str, Float[np.ndarray, " b"]]:
     assert df.get_column("task_name").unique().to_list() == ["fishnet"]
 
     n, *rest = df.group_by("model_ckpt").agg(n=pl.len()).get_column("n").to_list()
@@ -150,7 +132,11 @@ def bootstrap_scores(
     y_pred_buf = np.empty((b, 9, n), dtype=np.int32)
     y_true_buf = np.empty((b, 9, n), dtype=np.int32)
 
-    for model_ckpt in df.get_column("model_ckpt").unique().sort().to_list():
+    for model_ckpt in helpers.progress(
+        df.get_column("model_ckpt").unique().sort().to_list(),
+        desc="fishnet/bootstrap",
+        every=3,
+    ):
         # pull y_true and y_pred for *one* model
         y_pred = (
             df.filter(pl.col("model_ckpt") == model_ckpt)
@@ -220,7 +206,7 @@ def benchmark(cfg: config.Experiment) -> reporting.Report:
 
     # 5. Fit the classifier.
     it = helpers.infinite(train_loader)
-    for step in range(n_steps):
+    for step in helpers.progress(range(n_steps), every=n_steps // 300, desc="sgd"):
         features, labels, _ = next(it)
         features = features.to(cfg.device)
         labels = labels.to(cfg.device, dtype=torch.float)
@@ -232,18 +218,7 @@ def benchmark(cfg: config.Experiment) -> reporting.Report:
         optimizer.step()
         scheduler.step()
 
-        # Evaluate the classifier.
-        if (step + 1) % 1_000 == 0:
-            preds = predict(cfg, classifier, test_loader)
-            logger.info(
-                "Step %d/%d (%.1f%%): %.3f (macro F1)",
-                step + 1,
-                n_steps,
-                (step + 1) / n_steps * 100,
-                score(preds),
-            )
     preds = predict(cfg, classifier, test_loader)
-
     return reporting.Report("fishnet", preds, cfg)
 
 
@@ -257,11 +232,9 @@ def predict(
     Returns:
         List of `reporting.Prediction`s
     """
-    total = 2 if cfg.debug else len(dataloader)
-    it = iter(dataloader)
     preds = []
-    for b in range(total):
-        features, labels, ids = next(it)
+    for batch in dataloader:
+        features, labels, ids = batch
         features = features.to(cfg.device)
         labels = labels.numpy()
         with torch.no_grad():
@@ -318,7 +291,7 @@ def get_features(
     with helpers.auto_batch_size(dataloader, probe=probe):
         total = len(dataloader) if not cfg.debug else 2
         it = iter(dataloader)
-        for b in helpers.progress(range(total), every=10, desc=f"fish/{file}"):
+        for b in helpers.progress(range(total), every=10, desc=f"fishnet/{file}"):
             debug_cuda_mem("loop start")
             images, labels, ids = next(it)
             debug_cuda_mem("after batch")

@@ -154,7 +154,7 @@ def get_features(
     imgs_dir_path = os.path.join(cfg.data.plantnet, &#34;images&#34;, split)
 
     img_transform = backbone.make_img_transform()
-    backbone = torch.compile(backbone.to(cfg.device))
+    backbone = backbone.to(cfg.device)
 
     dataset = Dataset(imgs_dir_path, img_transform)
     dataloader = torch.utils.data.DataLoader(
@@ -178,6 +178,7 @@ def get_features(
     with helpers.auto_batch_size(dataloader, probe=probe):
         total = len(dataloader) if not cfg.debug else 2
         it = iter(dataloader)
+        backbone = torch.compile(backbone)
         for b in helpers.progress(range(total), every=10, desc=f&#34;plnt/{split}&#34;):
             ids, imgs, labels = next(it)
             imgs = imgs.to(cfg.device)
@@ -212,22 +213,8 @@ def get_features(
 </summary>
 <pre><code class="python">@beartype.beartype
 def init_clf(cfg: config.Experiment):
-    alpha = np.pow(2.0, np.arange(-15, 11))
-    if cfg.debug:
-        alpha = np.pow(2.0, np.arange(-2, 2))
-
-    return sklearn.model_selection.HalvingGridSearchCV(
-        sklearn.pipeline.make_pipeline(
-            sklearn.preprocessing.StandardScaler(),
-            sklearn.linear_model.RidgeClassifier(1.0, class_weight=&#34;balanced&#34;),
-        ),
-        {&#34;ridgeclassifier__alpha&#34;: alpha},
-        n_jobs=16,
-        verbose=2,
-        # This uses sklearn.metrics.f1_score with average=&#34;macro&#34;
-        scoring=&#34;f1_macro&#34;,
-        factor=3,
-    )</code></pre>
+    clf = linear_probing.LinearProbeClassifier(device=cfg.device)
+    return clf</code></pre>
 </details>
 <div class="desc"></div>
 </dd>

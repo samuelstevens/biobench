@@ -109,7 +109,7 @@ def benchmark(cfg: config.Experiment) -&gt; reporting.Report:
 
     # 5. Fit the classifier.
     it = helpers.infinite(train_loader)
-    for step in range(n_steps):
+    for step in helpers.progress(range(n_steps), every=n_steps // 300, desc=&#34;sgd&#34;):
         features, labels, _ = next(it)
         features = features.to(cfg.device)
         labels = labels.to(cfg.device, dtype=torch.float)
@@ -121,18 +121,7 @@ def benchmark(cfg: config.Experiment) -&gt; reporting.Report:
         optimizer.step()
         scheduler.step()
 
-        # Evaluate the classifier.
-        if (step + 1) % 1_000 == 0:
-            preds = predict(cfg, classifier, test_loader)
-            logger.info(
-                &#34;Step %d/%d (%.1f%%): %.3f (macro F1)&#34;,
-                step + 1,
-                n_steps,
-                (step + 1) / n_steps * 100,
-                score(preds),
-            )
     preds = predict(cfg, classifier, test_loader)
-
     return reporting.Report(&#34;fishnet&#34;, preds, cfg)</code></pre>
 </details>
 <div class="desc"><p>The FishNet benchmark.</p></div>
@@ -149,6 +138,28 @@ def benchmark(cfg: config.Experiment) -&gt; reporting.Report:
 def bootstrap_scores(
     df: pl.DataFrame, *, b: int = 0, rng: np.random.Generator | None = None
 ) -&gt; dict[str, Float[np.ndarray, &#34; b&#34;]]:
+    &#34;&#34;&#34;
+    Calculate the macro-averaged F1 score across all fish trait predictions.
+
+    For each fish image, we predict 9 binary traits:
+
+    1. Feeding Path (benthic/pelagic)
+    2. Tropical habitat (yes/no)
+    3. Temperate habitat (yes/no)
+    4. Subtropical habitat (yes/no)
+    5. Boreal habitat (yes/no)
+    6. Polar habitat (yes/no)
+    7. Freshwater habitat (yes/no)
+    8. Saltwater habitat (yes/no)
+    9. Brackish water habitat (yes/no)
+
+    The macro-averaging:
+
+    1. Calculates an F1 score for each trait independently
+    2. Takes the unweighted mean of these 9 F1 scores
+
+    This ensures each trait contributes equally to the final score, regardless of class imbalance in the dataset (e.g., if there are many more tropical fish than brackish water fish).
+    &#34;&#34;&#34;
     assert df.get_column(&#34;task_name&#34;).unique().to_list() == [&#34;fishnet&#34;]
 
     n, *rest = df.group_by(&#34;model_ckpt&#34;).agg(n=pl.len()).get_column(&#34;n&#34;).to_list()
@@ -208,7 +219,25 @@ def bootstrap_scores(
 
     return scores</code></pre>
 </details>
-<div class="desc"></div>
+<div class="desc"><p>Calculate the macro-averaged F1 score across all fish trait predictions.</p>
+<p>For each fish image, we predict 9 binary traits:</p>
+<ol>
+<li>Feeding Path (benthic/pelagic)</li>
+<li>Tropical habitat (yes/no)</li>
+<li>Temperate habitat (yes/no)</li>
+<li>Subtropical habitat (yes/no)</li>
+<li>Boreal habitat (yes/no)</li>
+<li>Polar habitat (yes/no)</li>
+<li>Freshwater habitat (yes/no)</li>
+<li>Saltwater habitat (yes/no)</li>
+<li>Brackish water habitat (yes/no)</li>
+</ol>
+<p>The macro-averaging:</p>
+<ol>
+<li>Calculates an F1 score for each trait independently</li>
+<li>Takes the unweighted mean of these 9 F1 scores</li>
+</ol>
+<p>This ensures each trait contributes equally to the final score, regardless of class imbalance in the dataset (e.g., if there are many more tropical fish than brackish water fish).</p></div>
 </dd>
 <dt id="biobench.fishnet.get_features"><code class="name flex">
 <span>def <span class="ident">get_features</span></span>(<span>cfg: <a title="biobench.config.Experiment" href="../config.html#biobench.config.Experiment">Experiment</a>,<br>backbone: <a title="biobench.registry.VisionBackbone" href="../registry.html#biobench.registry.VisionBackbone">VisionBackbone</a>,<br>*,<br>is_train: bool) ‑> <a title="biobench.fishnet.Features" href="#biobench.fishnet.Features">Features</a></span>
@@ -259,7 +288,7 @@ def get_features(
 
     all_features, all_labels, all_ids = [], [], []
 
-    with helpers.auto_batch_size(dataloader, probe=probe, upper=2048):
+    with helpers.auto_batch_size(dataloader, probe=probe):
         total = len(dataloader) if not cfg.debug else 2
         it = iter(dataloader)
         for b in helpers.progress(range(total), every=10, desc=f&#34;fishnet/{file}&#34;):
@@ -323,11 +352,9 @@ def predict(
     Returns:
         List of `reporting.Prediction`s
     &#34;&#34;&#34;
-    total = 2 if cfg.debug else len(dataloader)
-    it = iter(dataloader)
     preds = []
-    for b in range(total):
-        features, labels, ids = next(it)
+    for batch in dataloader:
+        features, labels, ids = batch
         features = features.to(cfg.device)
         labels = labels.numpy()
         with torch.no_grad():
@@ -342,81 +369,6 @@ def predict(
 <div class="desc"><p>Evaluates the trained classifier on a test split.</p>
 <h2 id="returns">Returns</h2>
 <p>List of <code>reporting.Prediction</code>s</p></div>
-</dd>
-<dt id="biobench.fishnet.score"><code class="name flex">
-<span>def <span class="ident">score</span></span>(<span>preds: list[<a title="biobench.reporting.Prediction" href="../reporting.html#biobench.reporting.Prediction">Prediction</a>]) ‑> float</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">@beartype.beartype
-def score(preds: list[reporting.Prediction]) -&gt; float:
-    &#34;&#34;&#34;
-    Calculate the macro-averaged F1 score across all fish trait predictions.
-
-    For each fish image, we predict 9 binary traits:
-
-    1. Feeding Path (benthic/pelagic)
-    2. Tropical habitat (yes/no)
-    3. Temperate habitat (yes/no)
-    4. Subtropical habitat (yes/no)
-    5. Boreal habitat (yes/no)
-    6. Polar habitat (yes/no)
-    7. Freshwater habitat (yes/no)
-    8. Saltwater habitat (yes/no)
-    9. Brackish water habitat (yes/no)
-
-    The macro-averaging:
-
-    1. Calculates an F1 score for each trait independently
-    2. Takes the unweighted mean of these 9 F1 scores
-
-    This ensures each trait contributes equally to the final score, regardless of class imbalance in the dataset (e.g., if there are many more tropical fish than brackish water fish).
-
-    Args:
-        preds: List of predictions, each containing:
-            - info[&#34;y_pred&#34;]: List of 9 binary predictions
-            - info[&#34;y_true&#34;]: List of 9 binary ground truth values
-
-    Returns:
-        The macro-averaged F1 score across all 9 traits
-    &#34;&#34;&#34;
-    y_pred = np.array([pred.info[&#34;y_pred&#34;] for pred in preds])
-    y_true = np.array([pred.info[&#34;y_true&#34;] for pred in preds])
-    return sklearn.metrics.f1_score(
-        y_true, y_pred, average=&#34;macro&#34;, labels=np.unique(y_true)
-    )</code></pre>
-</details>
-<div class="desc"><p>Calculate the macro-averaged F1 score across all fish trait predictions.</p>
-<p>For each fish image, we predict 9 binary traits:</p>
-<ol>
-<li>Feeding Path (benthic/pelagic)</li>
-<li>Tropical habitat (yes/no)</li>
-<li>Temperate habitat (yes/no)</li>
-<li>Subtropical habitat (yes/no)</li>
-<li>Boreal habitat (yes/no)</li>
-<li>Polar habitat (yes/no)</li>
-<li>Freshwater habitat (yes/no)</li>
-<li>Saltwater habitat (yes/no)</li>
-<li>Brackish water habitat (yes/no)</li>
-</ol>
-<p>The macro-averaging:</p>
-<ol>
-<li>Calculates an F1 score for each trait independently</li>
-<li>Takes the unweighted mean of these 9 F1 scores</li>
-</ol>
-<p>This ensures each trait contributes equally to the final score, regardless of class imbalance in the dataset (e.g., if there are many more tropical fish than brackish water fish).</p>
-<h2 id="args">Args</h2>
-<dl>
-<dt><strong><code>preds</code></strong></dt>
-<dd>List of predictions, each containing:
-- info["y_pred"]: List of 9 binary predictions
-- info["y_true"]: List of 9 binary ground truth values</dd>
-</dl>
-<h2 id="returns">Returns</h2>
-<p>The macro-averaged F1 score across all 9 traits</p></div>
 </dd>
 </dl>
 </section>
@@ -644,13 +596,12 @@ def labels(self) -&gt; Int[np.ndarray, &#34;n 9&#34;]:
 </ul>
 </li>
 <li><h3><a href="#header-functions">Functions</a></h3>
-<ul class="two-column">
+<ul class="">
 <li><code><a title="biobench.fishnet.benchmark" href="#biobench.fishnet.benchmark">benchmark</a></code></li>
 <li><code><a title="biobench.fishnet.bootstrap_scores" href="#biobench.fishnet.bootstrap_scores">bootstrap_scores</a></code></li>
 <li><code><a title="biobench.fishnet.get_features" href="#biobench.fishnet.get_features">get_features</a></code></li>
 <li><code><a title="biobench.fishnet.init_clf" href="#biobench.fishnet.init_clf">init_clf</a></code></li>
 <li><code><a title="biobench.fishnet.predict" href="#biobench.fishnet.predict">predict</a></code></li>
-<li><code><a title="biobench.fishnet.score" href="#biobench.fishnet.score">score</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>

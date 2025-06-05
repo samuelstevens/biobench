@@ -18,10 +18,11 @@ import logging
 
 import beartype
 import numpy as np
+import sklearn.metrics
 import tyro
 
-from .. import config, helpers, reporting
-from . import ImageDataset, score
+from .. import config, helpers
+from . import ImageDataset
 
 
 @beartype.beartype
@@ -51,15 +52,11 @@ def main(cfg: str, n: int = 1_000, seed: int = 42):
     scores = []
     for _ in helpers.progress(range(n), every=n // 100, desc="bootstrapping"):
         y_pred = (rng.random((len(test_ds), 9)) < 0.5).astype(int)
-        preds = [
-            reporting.Prediction(
-                "deadbeef",
-                (p == t).mean().item(),
-                {"y_pred": p.tolist(), "y_true": t.tolist()},
-            )
-            for p, t in zip(y_pred, test_ds.labels)
-        ]
-        scores.append(score(preds) * 100)
+        y_true = test_ds.labels
+        score = sklearn.metrics.f1_score(
+            test_ds.labels, y_pred, average="macro", labels=np.unique(y_true)
+        )
+        scores.append(score * 100)
 
     print(f"Mean score: {np.mean(scores):.3f} ({np.std(scores):.3f})")
 

@@ -96,7 +96,7 @@ def already_ran(db: sqlite3.Connection, cfg: config.Experiment, task_name: str) 
 </dl></div>
 </dd>
 <dt id="biobench.reporting.bootstrap_scores_macro_f1"><code class="name flex">
-<span>def <span class="ident">bootstrap_scores_macro_f1</span></span>(<span>df: polars.dataframe.frame.DataFrame,<br>*,<br>b: int = 0,<br>rng: numpy.random._generator.Generator | None = None) ‑> dict[str, jaxtyping.Float[ndarray, 'b']]</span>
+<span>def <span class="ident">bootstrap_scores_macro_f1</span></span>(<span>df: polars.dataframe.frame.DataFrame,<br>*,<br>b: int = 0,<br>rng: numpy.random._generator.Generator | None = None,<br>batch_size: int = 32) ‑> dict[str, jaxtyping.Float[ndarray, 'b']]</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -105,7 +105,11 @@ def already_ran(db: sqlite3.Connection, cfg: config.Experiment, task_name: str) 
 </summary>
 <pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
 def bootstrap_scores_macro_f1(
-    df: pl.DataFrame, *, b: int = 0, rng: np.random.Generator | None = None
+    df: pl.DataFrame,
+    *,
+    b: int = 0,
+    rng: np.random.Generator | None = None,
+    batch_size: int = 32,
 ) -&gt; dict[str, Float[np.ndarray, &#34; b&#34;]]:
     &#34;&#34;&#34;
     Polars dataframe with schema
@@ -120,6 +124,8 @@ def bootstrap_scores_macro_f1(
     if b &gt; 0:
         assert rng is not None, &#34;must provide rng argument&#34;
         i_bs = rng.integers(0, n, size=(b, n), dtype=np.int32)
+        if batch_size is None or batch_size &gt; b:
+            batch_size = b
 
     scores = {}
 
@@ -158,13 +164,28 @@ def bootstrap_scores_macro_f1(
         )
         assert y_true.size == y_pred.size
 
-        if b &gt; 0:
-            # bootstrap resample into pre-allocated buffers
-            np.take(y_pred, i_bs, axis=0, out=y_pred_buf)
-            np.take(y_true, i_bs, axis=0, out=y_true_buf)
-            scores[model_ckpt] = macro_f1_batch(y_true_buf, y_pred_buf)
-        else:
+        if b == 0:
             scores[model_ckpt] = np.array([macro_f1_batch(y_true, y_pred)])
+            continue
+
+        # bootstrap resample into pre-allocated buffers in small slices
+        out = np.empty(b, dtype=float)  # final result
+        for start, stop in helpers.batched_idx(b, batch_size):
+            m = stop - start  # slice size
+
+            # make fresh indices only for this slice
+            i_bs = rng.integers(0, n, size=(m, 9, n), dtype=np.int32)
+
+            # allocate slice-sized buffers
+            y_pred_buf = np.empty((m, 9, n), dtype=np.int32)
+            y_true_buf = np.empty((m, 9, n), dtype=np.int32)
+
+            # gather, score, store
+            np.take(y_pred, i_bs, axis=None, out=y_pred_buf)
+            np.take(y_true, i_bs, axis=None, out=y_true_buf)
+            out[start:stop] = macro_f1_batch(y_true_buf, y_pred_buf).mean(axis=-1)
+
+        scores[model_ckpt] = out
 
     return scores</code></pre>
 </details>
@@ -708,7 +729,7 @@ class Prediction:
 </dd>
 <dt id="biobench.reporting.Report"><code class="flex name class">
 <span>class <span class="ident">Report</span></span>
-<span>(</span><span>task_name: str,<br>predictions: list[<a title="biobench.reporting.Prediction" href="#biobench.reporting.Prediction">Prediction</a>],<br>cfg: <a title="biobench.config.Experiment" href="config.html#biobench.config.Experiment">Experiment</a>,<br>*,<br>splits: dict[str, float] = &lt;factory&gt;,<br>argv: list[str] = &lt;factory&gt;,<br>git_commit: str = '6b5672c8f90c2313592bca6c0be5dc561432b716',<br>posix: float = &lt;factory&gt;,<br>gpu_name: str = &lt;factory&gt;,<br>hostname: str = &lt;factory&gt;)</span>
+<span>(</span><span>task_name: str,<br>predictions: list[<a title="biobench.reporting.Prediction" href="#biobench.reporting.Prediction">Prediction</a>],<br>cfg: <a title="biobench.config.Experiment" href="config.html#biobench.config.Experiment">Experiment</a>,<br>*,<br>splits: dict[str, float] = &lt;factory&gt;,<br>argv: list[str] = &lt;factory&gt;,<br>git_commit: str = '764837dc1f626fddeeecaf468913c48f3ebb3b0e',<br>posix: float = &lt;factory&gt;,<br>gpu_name: str = &lt;factory&gt;,<br>hostname: str = &lt;factory&gt;)</span>
 </code></dt>
 <dd>
 <details class="source">

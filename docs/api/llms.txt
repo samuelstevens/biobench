@@ -71,7 +71,7 @@ Inside a task folder:
 @beartype.beartype
 def benchmark(cfg: config.Experiment) -> reporting.Report:
     ...
-    
+
 
 @jaxtyped(typechecker=beartype.beartype)
 def bootstrap_scores(
@@ -268,13 +268,12 @@ Match the style:
 
 If the task is simply another RGB species classification challenge, it probably fits better in iNat. Counting fish in noisy sonar frames or predicting tree-ring widths from microscopy slides—those are the kinds of additions we welcome.
 
-
 >>>> REGRESSIONS.md
 # Regressions
 
-Last checked: 2025-05-31
+Last checked: 2025-06-04
 
-# 6 failing test(s)
+# 7 failing test(s)
 
 - biobench/jobkit/test_hooks.py::test_discarded_claims_on_one_hook_do_not_affect_others
 - biobench/jobkit/test_hooks.py::test_lock_prevents_set_mutation_during_discards
@@ -282,9 +281,10 @@ Last checked: 2025-05-31
 - biobench/jobkit/test_hooks.py::test_sigterm_handler_releases_only_current_claims
 - biobench/test_openset.py::test_min_mahalanobis_sq_batched_equal
 - biobench/test_openset.py::test_min_mahalanobis_sq_batched_no_error
+- biobench/test_reporting.py::test_reclaim_after_failure
 # Coverage
 
-Coverage: 3210/5326 lines (60.3%)
+Coverage: 3197/5327 lines (60.0%)
 
 >>>> __init__.py
 """ """
@@ -1294,7 +1294,6 @@ import os.path
 import beartype
 import numpy as np
 import polars as pl
-import sklearn.metrics
 import torch
 from jaxtyping import Float, Int, jaxtyped
 from PIL import Image
@@ -1358,8 +1357,10 @@ def init_clf(input_dim: int) -> torch.nn.Module:
     )
 
 
-@beartype.beartype
-def score(preds: list[reporting.Prediction]) -> float:
+@jaxtyped(typechecker=beartype.beartype)
+def bootstrap_scores(
+    df: pl.DataFrame, *, b: int = 0, rng: np.random.Generator | None = None
+) -> dict[str, Float[np.ndarray, " b"]]:
     """
     Calculate the macro-averaged F1 score across all fish trait predictions.
 
@@ -1381,26 +1382,7 @@ def score(preds: list[reporting.Prediction]) -> float:
     2. Takes the unweighted mean of these 9 F1 scores
 
     This ensures each trait contributes equally to the final score, regardless of class imbalance in the dataset (e.g., if there are many more tropical fish than brackish water fish).
-
-    Args:
-        preds: List of predictions, each containing:
-            - info["y_pred"]: List of 9 binary predictions
-            - info["y_true"]: List of 9 binary ground truth values
-
-    Returns:
-        The macro-averaged F1 score across all 9 traits
     """
-    y_pred = np.array([pred.info["y_pred"] for pred in preds])
-    y_true = np.array([pred.info["y_true"] for pred in preds])
-    return sklearn.metrics.f1_score(
-        y_true, y_pred, average="macro", labels=np.unique(y_true)
-    )
-
-
-@jaxtyped(typechecker=beartype.beartype)
-def bootstrap_scores(
-    df: pl.DataFrame, *, b: int = 0, rng: np.random.Generator | None = None
-) -> dict[str, Float[np.ndarray, " b"]]:
     assert df.get_column("task_name").unique().to_list() == ["fishnet"]
 
     n, *rest = df.group_by("model_ckpt").agg(n=pl.len()).get_column("n").to_list()
@@ -1489,7 +1471,7 @@ def benchmark(cfg: config.Experiment) -> reporting.Report:
 
     # 5. Fit the classifier.
     it = helpers.infinite(train_loader)
-    for step in range(n_steps):
+    for step in helpers.progress(range(n_steps), every=n_steps // 300, desc="sgd"):
         features, labels, _ = next(it)
         features = features.to(cfg.device)
         labels = labels.to(cfg.device, dtype=torch.float)
@@ -1501,18 +1483,7 @@ def benchmark(cfg: config.Experiment) -> reporting.Report:
         optimizer.step()
         scheduler.step()
 
-        # Evaluate the classifier.
-        if (step + 1) % 1_000 == 0:
-            preds = predict(cfg, classifier, test_loader)
-            logger.info(
-                "Step %d/%d (%.1f%%): %.3f (macro F1)",
-                step + 1,
-                n_steps,
-                (step + 1) / n_steps * 100,
-                score(preds),
-            )
     preds = predict(cfg, classifier, test_loader)
-
     return reporting.Report("fishnet", preds, cfg)
 
 
@@ -1526,11 +1497,9 @@ def predict(
     Returns:
         List of `reporting.Prediction`s
     """
-    total = 2 if cfg.debug else len(dataloader)
-    it = iter(dataloader)
     preds = []
-    for b in range(total):
-        features, labels, ids = next(it)
+    for batch in dataloader:
+        features, labels, ids = batch
         features = features.to(cfg.device)
         labels = labels.numpy()
         with torch.no_grad():
@@ -1584,7 +1553,7 @@ def get_features(
 
     all_features, all_labels, all_ids = [], [], []
 
-    with helpers.auto_batch_size(dataloader, probe=probe, upper=2048):
+    with helpers.auto_batch_size(dataloader, probe=probe):
         total = len(dataloader) if not cfg.debug else 2
         it = iter(dataloader)
         for b in helpers.progress(range(total), every=10, desc=f"fishnet/{file}"):
@@ -1706,10 +1675,11 @@ import logging
 
 import beartype
 import numpy as np
+import sklearn.metrics
 import tyro
 
-from .. import config, helpers, reporting
-from . import ImageDataset, score
+from .. import config, helpers
+from . import ImageDataset
 
 
 @beartype.beartype
@@ -1739,15 +1709,11 @@ def main(cfg: str, n: int = 1_000, seed: int = 42):
     scores = []
     for _ in helpers.progress(range(n), every=n // 100, desc="bootstrapping"):
         y_pred = (rng.random((len(test_ds), 9)) < 0.5).astype(int)
-        preds = [
-            reporting.Prediction(
-                "deadbeef",
-                (p == t).mean().item(),
-                {"y_pred": p.tolist(), "y_true": t.tolist()},
-            )
-            for p, t in zip(y_pred, test_ds.labels)
-        ]
-        scores.append(score(preds) * 100)
+        y_true = test_ds.labels
+        score = sklearn.metrics.f1_score(
+            test_ds.labels, y_pred, average="macro", labels=np.unique(y_true)
+        )
+        scores.append(score * 100)
 
     print(f"Mean score: {np.mean(scores):.3f} ({np.std(scores):.3f})")
 
@@ -7828,17 +7794,13 @@ import typing
 import beartype
 import numpy as np
 import polars as pl
-import sklearn.experimental.enable_halving_search_cv
-import sklearn.linear_model
-import sklearn.model_selection
-import sklearn.pipeline
 import sklearn.preprocessing
 import torch
 from jaxtyping import Float, Shaped, jaxtyped
 from PIL import Image
 from torch import Tensor
 
-from .. import config, helpers, registry, reporting
+from .. import config, helpers, linear_probing, registry, reporting
 
 logger = logging.getLogger("plantnet")
 
@@ -7943,7 +7905,7 @@ def get_features(
     imgs_dir_path = os.path.join(cfg.data.plantnet, "images", split)
 
     img_transform = backbone.make_img_transform()
-    backbone = torch.compile(backbone.to(cfg.device))
+    backbone = backbone.to(cfg.device)
 
     dataset = Dataset(imgs_dir_path, img_transform)
     dataloader = torch.utils.data.DataLoader(
@@ -7967,6 +7929,7 @@ def get_features(
     with helpers.auto_batch_size(dataloader, probe=probe):
         total = len(dataloader) if not cfg.debug else 2
         it = iter(dataloader)
+        backbone = torch.compile(backbone)
         for b in helpers.progress(range(total), every=10, desc=f"plnt/{split}"):
             ids, imgs, labels = next(it)
             imgs = imgs.to(cfg.device)
@@ -7992,22 +7955,8 @@ def get_features(
 
 @beartype.beartype
 def init_clf(cfg: config.Experiment):
-    alpha = np.pow(2.0, np.arange(-15, 11))
-    if cfg.debug:
-        alpha = np.pow(2.0, np.arange(-2, 2))
-
-    return sklearn.model_selection.HalvingGridSearchCV(
-        sklearn.pipeline.make_pipeline(
-            sklearn.preprocessing.StandardScaler(),
-            sklearn.linear_model.RidgeClassifier(1.0, class_weight="balanced"),
-        ),
-        {"ridgeclassifier__alpha": alpha},
-        n_jobs=16,
-        verbose=2,
-        # This uses sklearn.metrics.f1_score with average="macro"
-        scoring="f1_macro",
-        factor=3,
-    )
+    clf = linear_probing.LinearProbeClassifier(device=cfg.device)
+    return clf
 
 >>>> plantnet/download.py
 import dataclasses
@@ -9533,7 +9482,11 @@ def macro_f1_batch(
 
 @jaxtyped(typechecker=beartype.beartype)
 def bootstrap_scores_macro_f1(
-    df: pl.DataFrame, *, b: int = 0, rng: np.random.Generator | None = None
+    df: pl.DataFrame,
+    *,
+    b: int = 0,
+    rng: np.random.Generator | None = None,
+    batch_size: int = 32,
 ) -> dict[str, Float[np.ndarray, " b"]]:
     """
     Polars dataframe with schema
@@ -9548,6 +9501,8 @@ def bootstrap_scores_macro_f1(
     if b > 0:
         assert rng is not None, "must provide rng argument"
         i_bs = rng.integers(0, n, size=(b, n), dtype=np.int32)
+        if batch_size is None or batch_size > b:
+            batch_size = b
 
     scores = {}
 
@@ -9586,13 +9541,28 @@ def bootstrap_scores_macro_f1(
         )
         assert y_true.size == y_pred.size
 
-        if b > 0:
-            # bootstrap resample into pre-allocated buffers
-            np.take(y_pred, i_bs, axis=0, out=y_pred_buf)
-            np.take(y_true, i_bs, axis=0, out=y_true_buf)
-            scores[model_ckpt] = macro_f1_batch(y_true_buf, y_pred_buf)
-        else:
+        if b == 0:
             scores[model_ckpt] = np.array([macro_f1_batch(y_true, y_pred)])
+            continue
+
+        # bootstrap resample into pre-allocated buffers in small slices
+        out = np.empty(b, dtype=float)  # final result
+        for start, stop in helpers.batched_idx(b, batch_size):
+            m = stop - start  # slice size
+
+            # make fresh indices only for this slice
+            i_bs = rng.integers(0, n, size=(m, 9, n), dtype=np.int32)
+
+            # allocate slice-sized buffers
+            y_pred_buf = np.empty((m, 9, n), dtype=np.int32)
+            y_true_buf = np.empty((m, 9, n), dtype=np.int32)
+
+            # gather, score, store
+            np.take(y_pred, i_bs, axis=None, out=y_pred_buf)
+            np.take(y_true, i_bs, axis=None, out=y_true_buf)
+            out[start:stop] = macro_f1_batch(y_true_buf, y_pred_buf).mean(axis=-1)
+
+        scores[model_ckpt] = out
 
     return scores
 
