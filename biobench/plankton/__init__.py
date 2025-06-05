@@ -65,7 +65,7 @@ from jaxtyping import Float, Int, Shaped, jaxtyped
 from PIL import Image
 from torch import Tensor
 
-from .. import config, helpers, registry, reporting
+from .. import config, helpers, linear_probing, registry, reporting
 
 logger = logging.getLogger("plankton")
 
@@ -95,7 +95,7 @@ def benchmark(cfg: config.Experiment) -> reporting.Report:
     torch.cuda.empty_cache()  # Be nice to others on the machine.
 
     # 2. Fit model.
-    clf = helpers.init_logreg_clf(cfg)
+    clf = init_clf(cfg)
     clf.fit(train_features.x, train_features.y)
 
     # 3. Predict.
@@ -237,3 +237,9 @@ def get_features(
     logger.info("Got features for %d images.", len(all_ids))
 
     return Features(all_features, all_labels, all_ids)
+
+
+@beartype.beartype
+def init_clf(cfg: config.Experiment):
+    clf = linear_probing.LinearProbeClassifier(device=cfg.device)
+    return clf

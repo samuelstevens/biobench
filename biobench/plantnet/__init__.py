@@ -26,17 +26,13 @@ import typing
 import beartype
 import numpy as np
 import polars as pl
-import sklearn.experimental.enable_halving_search_cv
-import sklearn.linear_model
-import sklearn.model_selection
-import sklearn.pipeline
 import sklearn.preprocessing
 import torch
 from jaxtyping import Float, Shaped, jaxtyped
 from PIL import Image
 from torch import Tensor
 
-from .. import config, helpers, registry, reporting
+from .. import config, helpers, linear_probing, registry, reporting
 
 logger = logging.getLogger("plantnet")
 
@@ -65,6 +61,7 @@ def benchmark(cfg: config.Experiment) -> reporting.Report:
     # 1. Get features
     val_features = get_features(cfg, backbone, split="val")
     train_features = get_features(cfg, backbone, split="train")
+    torch.cuda.empty_cache()
 
     encoder = sklearn.preprocessing.OrdinalEncoder()
     all_labels = np.concatenate((val_features.labels, train_features.labels))
@@ -73,10 +70,6 @@ def benchmark(cfg: config.Experiment) -> reporting.Report:
     # 2. Fit model.
     clf = init_clf(cfg)
     clf.fit(train_features.x, train_features.y(encoder))
-
-    helpers.write_hparam_sweep_plot("plantnet", cfg.model.ckpt, clf)
-    alpha = clf.best_params_["ridgeclassifier__alpha"].item()
-    logger.info("alpha=%.2g scored %.3f.", alpha, clf.best_score_.item())
 
     true_labels = val_features.y(encoder)
     pred_labels = clf.predict(val_features.x)
@@ -141,7 +134,7 @@ def get_features(
     imgs_dir_path = os.path.join(cfg.data.plantnet, "images", split)
 
     img_transform = backbone.make_img_transform()
-    backbone = torch.compile(backbone.to(cfg.device))
+    backbone = backbone.to(cfg.device)
 
     dataset = Dataset(imgs_dir_path, img_transform)
     dataloader = torch.utils.data.DataLoader(
@@ -165,6 +158,7 @@ def get_features(
     with helpers.auto_batch_size(dataloader, probe=probe):
         total = len(dataloader) if not cfg.debug else 2
         it = iter(dataloader)
+        backbone = torch.compile(backbone)
         for b in helpers.progress(range(total), every=10, desc=f"plnt/{split}"):
             ids, imgs, labels = next(it)
             imgs = imgs.to(cfg.device)
@@ -190,19 +184,5 @@ def get_features(
 
 @beartype.beartype
 def init_clf(cfg: config.Experiment):
-    alpha = np.pow(2.0, np.arange(-15, 11))
-    if cfg.debug:
-        alpha = np.pow(2.0, np.arange(-2, 2))
-
-    return sklearn.model_selection.HalvingGridSearchCV(
-        sklearn.pipeline.make_pipeline(
-            sklearn.preprocessing.StandardScaler(),
-            sklearn.linear_model.RidgeClassifier(1.0, class_weight="balanced"),
-        ),
-        {"ridgeclassifier__alpha": alpha},
-        n_jobs=16,
-        verbose=2,
-        # This uses sklearn.metrics.f1_score with average="macro"
-        scoring="f1_macro",
-        factor=3,
-    )
+    clf = linear_probing.LinearProbeClassifier(device=cfg.device)
+    return clf

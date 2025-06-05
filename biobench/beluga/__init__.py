@@ -121,7 +121,7 @@ def get_features(cfg: config.Experiment, backbone: registry.VisionBackbone) -> F
         backbone: visual backbone.
     """
     img_transform = backbone.make_img_transform()
-    backbone = torch.compile(backbone.to(cfg.device))
+    backbone = backbone.to(cfg.device)
 
     if not os.path.isdir(cfg.data.beluga):
         msg = f"Path '{cfg.data.beluga}' doesn't exist. Did you download the Beluga dataset?"
@@ -154,10 +154,9 @@ def get_features(cfg: config.Experiment, backbone: registry.VisionBackbone) -> F
             backbone.img_encode(imgs).img_features
 
     with helpers.auto_batch_size(dataloader, probe=probe):
-        total = len(dataloader) if not cfg.debug else 2
-        it = iter(dataloader)
-        for b in helpers.progress(range(total), desc="beluga"):
-            imgs, metadata = next(it)
+        backbone = torch.compile(backbone)
+        for batch in helpers.progress(dataloader, desc="beluga"):
+            imgs, metadata = batch
             imgs = imgs.to(cfg.device, non_blocking=True)
 
             with torch.amp.autocast("cuda"):
