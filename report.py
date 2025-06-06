@@ -43,6 +43,7 @@ class Task:
 prior_work_tasks = [
     Task("imagenet1k", "ImageNet-1K"),
     Task("newt", "NeWT"),
+    Task("inat21", "iNat21"),
 ]
 
 benchmark_tasks = [
@@ -595,6 +596,7 @@ def calc_scores(
         )
 
         if sub.height == 0:
+            logger.warning("No results for %s.", task.name)
             continue
 
         scores = bootstrap_scores(sub, b=n_bootstraps, rng=rng)
