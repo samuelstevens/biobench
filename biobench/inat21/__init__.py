@@ -25,14 +25,12 @@ import os
 
 import beartype
 import numpy as np
-import sklearn.model_selection
-import sklearn.pipeline
-import sklearn.preprocessing
+import polars as pl
 import torch
 import torchvision.datasets
-from jaxtyping import Float16, Int, Shaped, jaxtyped
+from jaxtyping import Float, Float16, Int, Shaped, jaxtyped
 
-from biobench import config, helpers, registry, reporting
+from .. import config, helpers, linear_probing, registry, reporting
 
 logger = logging.getLogger("inat21")
 
@@ -65,11 +63,6 @@ def benchmark(cfg: config.Experiment) -> reporting.Report:
     clf = init_clf(cfg)
     clf.fit(train_features.x, train_features.y)
 
-    if hasattr(clf, "best_params_"):
-        helpers.write_hparam_sweep_plot("imagenet1k", cfg.model.ckpt, clf)
-        alpha = clf.best_params_["ridgeclassifier__alpha"].item()
-        logger.info("alpha=%.2g scored %.3f.", alpha, clf.best_score_.item())
-
     true_labels = val_features.y
     pred_labels = clf.predict(val_features.x)
 
@@ -85,9 +78,57 @@ def benchmark(cfg: config.Experiment) -> reporting.Report:
     return reporting.Report("inat21", preds, cfg)
 
 
-@beartype.beartype
-def score(preds: list[reporting.Prediction]) -> float:
-    return reporting.micro_acc(preds)
+@jaxtyped(typechecker=beartype.beartype)
+def bootstrap_scores(
+    df: pl.DataFrame, *, b: int = 0, rng: np.random.Generator | None = None
+) -> dict[str, Float[np.ndarray, " b"]]:
+    assert df.get_column("task_name").unique().to_list() == ["inat21"]
+
+    # For some reason, one of my models only has 49.3K predictions, so I only use that many. Compared to 50K it's probably fine.
+    n = 100_000
+
+    if b > 0:
+        assert rng is not None, "must provide rng argument"
+        i_bs = rng.integers(0, n, size=(b, n), dtype=np.int32)
+
+    scores = {}
+
+    correct_buf = np.zeros((b, n), dtype=bool)
+
+    for model_ckpt in df.get_column("model_ckpt").unique().sort().to_list():
+        # pull y_true and y_pred for *one* model
+        y_pred = (
+            df.filter(pl.col("model_ckpt") == model_ckpt)
+            .select("img_id", "y_pred")
+            .unique()
+            .sort("img_id")
+            .get_column("y_pred")
+            .cast(pl.Int32)
+            .to_numpy()
+        )
+
+        if len(y_pred) == 0:
+            continue
+
+        y_true = (
+            df.filter(pl.col("model_ckpt") == model_ckpt)
+            .select("img_id", "y_true")
+            .unique()
+            .sort("img_id")
+            .get_column("y_true")
+            .cast(pl.Int32)
+            .to_numpy()
+        )
+        assert y_true.size == y_pred.size
+
+        if b > 0:
+            # bootstrap resample into pre-allocated buffers
+            np.take(y_pred == y_true, i_bs, axis=0, out=correct_buf)
+            scores[model_ckpt] = correct_buf.mean(axis=1)
+        else:
+            scores[model_ckpt] = np.array([(y_pred == y_true).mean()])
+
+    return scores
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -124,7 +165,7 @@ def get_features(
     cfg: config.Experiment, backbone: registry.VisionBackbone, *, is_train: bool
 ) -> Features:
     img_transform = backbone.make_img_transform()
-    backbone = torch.compile(backbone.to(cfg.device))
+    backbone = backbone.to(cfg.device)
     split = "train_mini" if is_train else "val"
 
     root = os.path.join(cfg.data.inat21, split)
@@ -157,10 +198,8 @@ def get_features(
             backbone.img_encode(imgs).img_features
 
     with helpers.auto_batch_size(dataloader, probe=probe):
-        total = len(dataloader) if not cfg.debug else 2
-        it = iter(dataloader)
-        for b in helpers.progress(range(total), desc=f"inat21/{split}"):
-            ids, images, labels = next(it)
+        backbone = torch.compile(backbone)
+        for ids, images, labels in helpers.progress(dataloader, desc=f"inat21/{split}"):
             images = images.to(cfg.device, non_blocking=True)
 
             with torch.amp.autocast(cfg.device):
@@ -181,21 +220,5 @@ def get_features(
 
 @beartype.beartype
 def init_clf(cfg: config.Experiment):
-    alpha = np.pow(2.0, np.arange(-15, 5))
-    if cfg.debug:
-        alpha = np.pow(2.0, np.arange(-2, 2))
-
-    clf = sklearn.pipeline.make_pipeline(
-        sklearn.preprocessing.StandardScaler(),
-        sklearn.linear_model.RidgeClassifier(),
-    )
-    if 0 < cfg.n_train < 20_000:
-        clf
-
-    return sklearn.model_selection.HalvingGridSearchCV(
-        clf,
-        {"ridgeclassifier__alpha": alpha},
-        n_jobs=8,
-        verbose=3,
-        factor=3,
-    )
+    clf = linear_probing.LinearProbeClassifier(device=cfg.device)
+    return clf

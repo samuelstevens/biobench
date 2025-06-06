@@ -16,7 +16,7 @@ plantnet = "/research/nfs_su_809/workspace/stevens.994/datasets/plantnet"
 # Prior work
 imagenet1k = "huggingface"
 newt = "/research/nfs_su_809/workspace/stevens.994/datasets/newt"
-# inat21 = "/research/nfs_su_809/workspace/stevens.994/datasets/inat21"
+inat21 = "/research/nfs_su_809/workspace/stevens.994/datasets/inat21"
 
 [[models]]
 org = "open-clip"
