@@ -733,9 +733,11 @@ viewCharts hoveredKey hoveredBars hoveredDots columnsSelected familiesSelected p
 
         scatterCharts =
             [ viewImagenetCorrelationChart hoveredKey hoveredDots ( "newt", "NeWT" ) scatterData
+            , viewImagenetCorrelationChart hoveredKey hoveredDots ( "inat21", "iNat21" ) scatterData
             , viewImagenetCorrelationChart hoveredKey hoveredDots ( "mean", "Mean" ) scatterData
             , viewParamsCorrelationChart hoveredKey hoveredDots ( "imagenet1k", "ImageNet-1K" ) scatterData
             , viewParamsCorrelationChart hoveredKey hoveredDots ( "newt", "NeWT" ) scatterData
+            , viewParamsCorrelationChart hoveredKey hoveredDots ( "inat21", "iNat21" ) scatterData
             , viewParamsCorrelationChart hoveredKey hoveredDots ( "mean", "Mean" ) scatterData
             ]
     in
@@ -1588,6 +1590,7 @@ pivotPayload payload =
             , { key = "resolution", display = "Res." ++ nonbreakingSpace ++ "(px)", format = viewCheckpointResolution, sortType = SortNumeric getCheckpointResolution, barchart = False, immediatelyVisible = False }
             , { key = "release", display = "Released", format = viewCheckpointRelease, sortType = SortNumeric getCheckpointRelease, barchart = False, immediatelyVisible = False }
             , { key = "imagenet1k", display = "ImageNet" ++ nonbreakingDash ++ "1K", format = viewBenchmarkScore "imagenet1k", sortType = SortNumeric (getBenchmarkScore "imagenet1k"), barchart = True, immediatelyVisible = False }
+            , { key = "inat21", display = "iNat21", format = viewBenchmarkScore "inat21", sortType = SortNumeric (getBenchmarkScore "inat21"), barchart = True, immediatelyVisible = False }
             , { key = "newt", display = "NeWT", format = viewBenchmarkScore "newt", sortType = SortNumeric (getBenchmarkScore "newt"), barchart = True, immediatelyVisible = False }
             , { key = "mean", display = "Mean", format = viewMeanScore tasks, sortType = SortNumeric (getMeanScore tasks), barchart = True, immediatelyVisible = True }
             ]

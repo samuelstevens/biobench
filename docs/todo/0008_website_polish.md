@@ -1,8 +1,8 @@
 # 0008. Website Polish
 
 ## Branding & Metadata
-- [ ] Favicon: 16x16, 32x32, 48x48, 180x180; `<link rel="icon">`
-- [ ] Apple touch icon
+- [x] Favicon: 16x16, 32x32, 48x48, 180x180; `<link rel="icon">`
+- [x] Apple touch icon
 - [x] Open Graph / Twitter / iMessage tags: `og:title`, `og:description`, `og:image`, `twitter:card`
 - [x] `<title>` <= 60 chars, meta description ≤ 155 chars
 
@@ -45,6 +45,7 @@
 - [ ] `X-Frame-Options: SAMEORIGIN`
 
 ## Build & Deploy
+
 - [ ] CI/CD pipeline green
 - [ ] Version/tag bumped
 - [ ] Rollback procedure documented
@@ -52,12 +53,13 @@
 - [ ] Service-worker cache versioned
 
 ## Documentation
+
 - [ ] CHANGELOG updated
 - [ ] README quick-start accurate
 - [ ] LICENSE present
 
 ## Post-Launch Smoke Test
-- [ ] Share link in iMessage/Slack/Twitter; preview card correct
-- [ ] Core pages load without console errors
+- [x] Share link in iMessage/Slack/Twitter; preview card correct
+- [x] Core pages load without console errors
 - [ ] No 404/500 in server logs
 

@@ -6205,7 +6205,7 @@ var $author$project$Leaderboard$bestDecoder = A3(
 			$elm$json$Json$Decode$list($elm$json$Json$Decode$string))));
 var $author$project$Leaderboard$Checkpoint = F6(
 	function (name, display, family, params, resolution, release) {
-		return {f: display, A: family, X: name, aM: params, bz: release, as: resolution};
+		return {e: display, A: family, X: name, aM: params, bz: release, as: resolution};
 	});
 var $elm$json$Json$Decode$int = _Json_decodeInt;
 var $elm$json$Json$Decode$map6 = _Json_map6;
@@ -6267,7 +6267,7 @@ var $author$project$Leaderboard$metadataDecoder = A7(
 	A2($elm$json$Json$Decode$field, 'n_bootstraps', $elm$json$Json$Decode$int));
 var $author$project$Leaderboard$Score = F6(
 	function (task, checkpoint, mean, bootstrapMean, low, high) {
-		return {c_: bootstrapMean, e: checkpoint, dh: high, dr: low, br: mean, aR: task};
+		return {c_: bootstrapMean, f: checkpoint, dh: high, dr: low, br: mean, aR: task};
 	});
 var $author$project$Leaderboard$scoreDecoder = A7(
 	$elm$json$Json$Decode$map6,
@@ -6280,7 +6280,7 @@ var $author$project$Leaderboard$scoreDecoder = A7(
 	A2($elm$json$Json$Decode$field, 'ci_high', $elm$json$Json$Decode$float));
 var $author$project$Leaderboard$Task = F2(
 	function (name, display) {
-		return {f: display, X: name};
+		return {e: display, X: name};
 	});
 var $author$project$Leaderboard$taskDecoder = A3(
 	$elm$json$Json$Decode$map2,
@@ -6323,11 +6323,11 @@ var $author$project$Leaderboard$getBenchmarkScore = F3(
 	});
 var $author$project$Leaderboard$getCheckpoint = F2(
 	function (cols, row) {
-		return $elm$core$Maybe$Just(row.e.f);
+		return $elm$core$Maybe$Just(row.f.e);
 	});
 var $author$project$Leaderboard$getCheckpointParams = F2(
 	function (_v0, row) {
-		return $elm$core$Maybe$Just(row.e.aM);
+		return $elm$core$Maybe$Just(row.f.aM);
 	});
 var $elm$core$Maybe$map = F2(
 	function (f, maybe) {
@@ -6348,11 +6348,11 @@ var $author$project$Leaderboard$getCheckpointRelease = F2(
 		return A2(
 			$elm$core$Maybe$map,
 			A2($elm$core$Basics$composeR, $elm$time$Time$posixToMillis, $elm$core$Basics$toFloat),
-			row.e.bz);
+			row.f.bz);
 	});
 var $author$project$Leaderboard$getCheckpointResolution = F2(
 	function (_v0, row) {
-		return $elm$core$Maybe$Just(row.e.as);
+		return $elm$core$Maybe$Just(row.f.as);
 	});
 var $elm$core$Dict$foldl = F3(
 	function (func, acc, dict) {
@@ -6498,7 +6498,7 @@ var $author$project$Leaderboard$getScores = F2(
 				A2(
 					$elm$core$List$filter,
 					function (score) {
-						return _Utils_eq(score.e, checkpoint.X);
+						return _Utils_eq(score.f, checkpoint.X);
 					},
 					scores)));
 	});
@@ -6526,7 +6526,7 @@ var $author$project$Leaderboard$makeRow = F2(
 	function (payload, checkpoint) {
 		var scores = A2($author$project$Leaderboard$getScores, checkpoint, payload.ay);
 		return {
-			e: checkpoint,
+			f: checkpoint,
 			ay: scores,
 			bO: A2($author$project$Leaderboard$getWinners, checkpoint, payload.bT)
 		};
@@ -6808,7 +6808,7 @@ var $author$project$Leaderboard$viewBenchmarkScore = F3(
 	});
 var $author$project$Leaderboard$viewCheckpoint = F2(
 	function (cols, row) {
-		return _Utils_Tuple2('text-left', row.e.f);
+		return _Utils_Tuple2('text-left', row.f.e);
 	});
 var $author$project$Leaderboard$viewCheckpointParams = F2(
 	function (columnsSelected, row) {
@@ -6817,7 +6817,7 @@ var $author$project$Leaderboard$viewCheckpointParams = F2(
 			A2(
 				$myrho$elm_round$Round$round,
 				0,
-				row.e.aM / A2($elm$core$Basics$pow, 10, 6)));
+				row.f.aM / A2($elm$core$Basics$pow, 10, 6)));
 	});
 var $author$project$Leaderboard$formatMonth = function (month) {
 	switch (month) {
@@ -6975,13 +6975,13 @@ var $author$project$Leaderboard$viewCheckpointRelease = F2(
 				A2(
 					$elm$core$Maybe$map,
 					$author$project$Leaderboard$formatTime($elm$time$Time$utc),
-					row.e.bz)));
+					row.f.bz)));
 	});
 var $author$project$Leaderboard$viewCheckpointResolution = F2(
 	function (_v0, row) {
 		return _Utils_Tuple2(
 			'text-right',
-			$elm$core$String$fromInt(row.e.as));
+			$elm$core$String$fromInt(row.f.as));
 	});
 var $author$project$Leaderboard$viewMeanScore = F3(
 	function (tasks, columnsSelected, row) {
@@ -7005,62 +7005,71 @@ var $author$project$Leaderboard$pivotPayload = function (payload) {
 	var fixedCols = _List_fromArray(
 		[
 			{
-			R: false,
-			f: 'Checkpoint',
-			T: $author$project$Leaderboard$viewCheckpoint,
-			V: true,
-			m: 'checkpoint',
-			L: $author$project$Leaderboard$SortString($author$project$Leaderboard$getCheckpoint)
+			M: false,
+			e: 'Checkpoint',
+			N: $author$project$Leaderboard$viewCheckpoint,
+			P: true,
+			k: 'checkpoint',
+			E: $author$project$Leaderboard$SortString($author$project$Leaderboard$getCheckpoint)
 		},
 			{
-			R: false,
-			f: 'Params' + ($author$project$Leaderboard$nonbreakingSpace + '(M)'),
-			T: $author$project$Leaderboard$viewCheckpointParams,
-			V: false,
-			m: 'params',
-			L: $author$project$Leaderboard$SortNumeric($author$project$Leaderboard$getCheckpointParams)
+			M: false,
+			e: 'Params' + ($author$project$Leaderboard$nonbreakingSpace + '(M)'),
+			N: $author$project$Leaderboard$viewCheckpointParams,
+			P: false,
+			k: 'params',
+			E: $author$project$Leaderboard$SortNumeric($author$project$Leaderboard$getCheckpointParams)
 		},
 			{
-			R: false,
-			f: 'Res.' + ($author$project$Leaderboard$nonbreakingSpace + '(px)'),
-			T: $author$project$Leaderboard$viewCheckpointResolution,
-			V: false,
-			m: 'resolution',
-			L: $author$project$Leaderboard$SortNumeric($author$project$Leaderboard$getCheckpointResolution)
+			M: false,
+			e: 'Res.' + ($author$project$Leaderboard$nonbreakingSpace + '(px)'),
+			N: $author$project$Leaderboard$viewCheckpointResolution,
+			P: false,
+			k: 'resolution',
+			E: $author$project$Leaderboard$SortNumeric($author$project$Leaderboard$getCheckpointResolution)
 		},
 			{
-			R: false,
-			f: 'Released',
-			T: $author$project$Leaderboard$viewCheckpointRelease,
-			V: false,
-			m: 'release',
-			L: $author$project$Leaderboard$SortNumeric($author$project$Leaderboard$getCheckpointRelease)
+			M: false,
+			e: 'Released',
+			N: $author$project$Leaderboard$viewCheckpointRelease,
+			P: false,
+			k: 'release',
+			E: $author$project$Leaderboard$SortNumeric($author$project$Leaderboard$getCheckpointRelease)
 		},
 			{
-			R: true,
-			f: 'ImageNet' + ($author$project$Leaderboard$nonbreakingDash + '1K'),
-			T: $author$project$Leaderboard$viewBenchmarkScore('imagenet1k'),
-			V: false,
-			m: 'imagenet1k',
-			L: $author$project$Leaderboard$SortNumeric(
+			M: true,
+			e: 'ImageNet' + ($author$project$Leaderboard$nonbreakingDash + '1K'),
+			N: $author$project$Leaderboard$viewBenchmarkScore('imagenet1k'),
+			P: false,
+			k: 'imagenet1k',
+			E: $author$project$Leaderboard$SortNumeric(
 				$author$project$Leaderboard$getBenchmarkScore('imagenet1k'))
 		},
 			{
-			R: true,
-			f: 'NeWT',
-			T: $author$project$Leaderboard$viewBenchmarkScore('newt'),
-			V: false,
-			m: 'newt',
-			L: $author$project$Leaderboard$SortNumeric(
+			M: true,
+			e: 'iNat21',
+			N: $author$project$Leaderboard$viewBenchmarkScore('inat21'),
+			P: false,
+			k: 'inat21',
+			E: $author$project$Leaderboard$SortNumeric(
+				$author$project$Leaderboard$getBenchmarkScore('inat21'))
+		},
+			{
+			M: true,
+			e: 'NeWT',
+			N: $author$project$Leaderboard$viewBenchmarkScore('newt'),
+			P: false,
+			k: 'newt',
+			E: $author$project$Leaderboard$SortNumeric(
 				$author$project$Leaderboard$getBenchmarkScore('newt'))
 		},
 			{
-			R: true,
-			f: 'Mean',
-			T: $author$project$Leaderboard$viewMeanScore(tasks),
-			V: true,
-			m: 'mean',
-			L: $author$project$Leaderboard$SortNumeric(
+			M: true,
+			e: 'Mean',
+			N: $author$project$Leaderboard$viewMeanScore(tasks),
+			P: true,
+			k: 'mean',
+			E: $author$project$Leaderboard$SortNumeric(
 				$author$project$Leaderboard$getMeanScore(tasks))
 		}
 		]);
@@ -7068,12 +7077,12 @@ var $author$project$Leaderboard$pivotPayload = function (payload) {
 		$elm$core$List$map,
 		function (task) {
 			return {
-				R: true,
-				f: task.f,
-				T: $author$project$Leaderboard$viewBenchmarkScore(task.X),
-				V: true,
-				m: task.X,
-				L: $author$project$Leaderboard$SortNumeric(
+				M: true,
+				e: task.e,
+				N: $author$project$Leaderboard$viewBenchmarkScore(task.X),
+				P: true,
+				k: task.X,
+				E: $author$project$Leaderboard$SortNumeric(
 					$author$project$Leaderboard$getBenchmarkScore(task.X))
 			};
 		},
@@ -7086,19 +7095,19 @@ var $author$project$Leaderboard$init = function (_v0) {
 	return _Utils_Tuple2(
 		{
 			aG: true,
-			G: $elm$core$Set$empty,
-			S: $elm$core$Maybe$Nothing,
+			H: $elm$core$Set$empty,
+			U: $elm$core$Maybe$Nothing,
 			aI: true,
-			J: $elm$core$Set$empty,
+			K: $elm$core$Set$empty,
 			a2: _List_Nil,
 			a3: _List_Nil,
 			aJ: $elm$core$Maybe$Nothing,
 			ao: $author$project$Leaderboard$TableOnly,
 			aL: false,
-			N: $elm$core$Set$fromList($author$project$Leaderboard$allParamRanges),
+			Q: $elm$core$Set$fromList($author$project$Leaderboard$allParamRanges),
 			aN: $author$project$Leaderboard$Loading,
 			aO: false,
-			K: $elm$core$Set$empty,
+			L: $elm$core$Set$empty,
 			aP: 'mean',
 			aB: 1
 		},
@@ -7205,7 +7214,7 @@ var $elm$core$Dict$merge = F6(
 	});
 var $elm$browser$Browser$Events$Event = F2(
 	function (key, event) {
-		return {b0: event, m: key};
+		return {b0: event, k: key};
 	});
 var $elm$browser$Browser$Events$spawn = F3(
 	function (router, key, _v0) {
@@ -7307,7 +7316,7 @@ var $elm$browser$Browser$Events$onEffects = F3(
 	});
 var $elm$browser$Browser$Events$onSelfMsg = F3(
 	function (router, _v0, state) {
-		var key = _v0.m;
+		var key = _v0.k;
 		var event = _v0.b0;
 		var toMessage = function (_v2) {
 			var subKey = _v2.a;
@@ -7350,7 +7359,7 @@ var $elm$browser$Browser$Events$on = F3(
 var $elm$browser$Browser$Events$onMouseMove = A2($elm$browser$Browser$Events$on, 0, 'mousemove');
 var $elm$browser$Browser$Events$onMouseUp = A2($elm$browser$Browser$Events$on, 0, 'mouseup');
 var $author$project$Leaderboard$subscriptions = function (model) {
-	var _v0 = model.S;
+	var _v0 = model.U;
 	if (_v0.$ === 1) {
 		return $elm$core$Platform$Sub$none;
 	} else {
@@ -7430,38 +7439,38 @@ var $author$project$Leaderboard$update = F2(
 						_Utils_update(
 							model,
 							{
-								G: $elm$core$Set$fromList(
+								H: $elm$core$Set$fromList(
 									A2(
 										$elm$core$List$map,
 										function ($) {
-											return $.m;
+											return $.k;
 										},
 										A2(
 											$elm$core$List$filter,
 											function ($) {
-												return $.V;
+												return $.P;
 											},
 											table.ah))),
-								J: $elm$core$Set$fromList(
-									A2(
-										$elm$core$List$map,
-										A2(
-											$elm$core$Basics$composeR,
-											function ($) {
-												return $.e;
-											},
-											function ($) {
-												return $.A;
-											}),
-										table.aj)),
-								aN: $author$project$Leaderboard$Loaded(table),
 								K: $elm$core$Set$fromList(
 									A2(
 										$elm$core$List$map,
 										A2(
 											$elm$core$Basics$composeR,
 											function ($) {
-												return $.e;
+												return $.f;
+											},
+											function ($) {
+												return $.A;
+											}),
+										table.aj)),
+								aN: $author$project$Leaderboard$Loaded(table),
+								L: $elm$core$Set$fromList(
+									A2(
+										$elm$core$List$map,
+										A2(
+											$elm$core$Basics$composeR,
+											function ($) {
+												return $.f;
 											},
 											function ($) {
 												return $.as;
@@ -7522,62 +7531,62 @@ var $author$project$Leaderboard$update = F2(
 				}
 			case 4:
 				var key = msg.a;
-				return A2($elm$core$Set$member, key, model.G) ? _Utils_Tuple2(
+				return A2($elm$core$Set$member, key, model.H) ? _Utils_Tuple2(
 					_Utils_update(
 						model,
 						{
-							G: A2($elm$core$Set$remove, key, model.G)
+							H: A2($elm$core$Set$remove, key, model.H)
 						}),
 					$elm$core$Platform$Cmd$none) : _Utils_Tuple2(
 					_Utils_update(
 						model,
 						{
-							G: A2($elm$core$Set$insert, key, model.G)
+							H: A2($elm$core$Set$insert, key, model.H)
 						}),
 					$elm$core$Platform$Cmd$none);
 			case 5:
 				var key = msg.a;
-				return A2($elm$core$Set$member, key, model.J) ? _Utils_Tuple2(
+				return A2($elm$core$Set$member, key, model.K) ? _Utils_Tuple2(
 					_Utils_update(
 						model,
 						{
-							J: A2($elm$core$Set$remove, key, model.J)
+							K: A2($elm$core$Set$remove, key, model.K)
 						}),
 					$elm$core$Platform$Cmd$none) : _Utils_Tuple2(
 					_Utils_update(
 						model,
 						{
-							J: A2($elm$core$Set$insert, key, model.J)
+							K: A2($elm$core$Set$insert, key, model.K)
 						}),
 					$elm$core$Platform$Cmd$none);
 			case 6:
 				var range = msg.a;
-				return A2($elm$core$Set$member, range, model.N) ? _Utils_Tuple2(
+				return A2($elm$core$Set$member, range, model.Q) ? _Utils_Tuple2(
 					_Utils_update(
 						model,
 						{
-							N: A2($elm$core$Set$remove, range, model.N)
+							Q: A2($elm$core$Set$remove, range, model.Q)
 						}),
 					$elm$core$Platform$Cmd$none) : _Utils_Tuple2(
 					_Utils_update(
 						model,
 						{
-							N: A2($elm$core$Set$insert, range, model.N)
+							Q: A2($elm$core$Set$insert, range, model.Q)
 						}),
 					$elm$core$Platform$Cmd$none);
 			case 7:
 				var range = msg.a;
-				return A2($elm$core$Set$member, range, model.K) ? _Utils_Tuple2(
+				return A2($elm$core$Set$member, range, model.L) ? _Utils_Tuple2(
 					_Utils_update(
 						model,
 						{
-							K: A2($elm$core$Set$remove, range, model.K)
+							L: A2($elm$core$Set$remove, range, model.L)
 						}),
 					$elm$core$Platform$Cmd$none) : _Utils_Tuple2(
 					_Utils_update(
 						model,
 						{
-							K: A2($elm$core$Set$insert, range, model.K)
+							L: A2($elm$core$Set$insert, range, model.L)
 						}),
 					$elm$core$Platform$Cmd$none);
 			case 8:
@@ -7612,13 +7621,13 @@ var $author$project$Leaderboard$update = F2(
 					_Utils_update(
 						model,
 						{
-							S: $elm$core$Maybe$Just(info),
+							U: $elm$core$Maybe$Just(info),
 							ao: layout
 						}),
 					$elm$core$Platform$Cmd$none);
 			case 11:
 				var x = msg.a;
-				var _v4 = model.S;
+				var _v4 = model.U;
 				if (!_v4.$) {
 					var info = _v4.a;
 					var pct = (info.y - info.ab.ab.y) / info.ab.ab.cP;
@@ -7627,7 +7636,7 @@ var $author$project$Leaderboard$update = F2(
 						_Utils_update(
 							model,
 							{
-								S: $elm$core$Maybe$Just(
+								U: $elm$core$Maybe$Just(
 									_Utils_update(
 										info,
 										{y: x})),
@@ -7641,7 +7650,7 @@ var $author$project$Leaderboard$update = F2(
 				return _Utils_Tuple2(
 					_Utils_update(
 						model,
-						{S: $elm$core$Maybe$Nothing}),
+						{U: $elm$core$Maybe$Nothing}),
 					$elm$core$Platform$Cmd$none);
 			case 13:
 				var key = msg.a;
@@ -7730,7 +7739,7 @@ var $author$project$Leaderboard$paramRangesMatch = F2(
 			$elm$core$Set$toList(ranges));
 	});
 var $author$project$Leaderboard$rowToPointMetadata = function (row) {
-	return {f: row.e.f, A: row.e.A};
+	return {e: row.f.e, A: row.f.A};
 };
 var $author$project$Leaderboard$OnHoverDot = F2(
 	function (a, b) {
@@ -7810,7 +7819,7 @@ var $terezka$elm_charts$Chart$Attributes$amount = function (value) {
 	return function (config) {
 		return _Utils_update(
 			config,
-			{P: value});
+			{S: value});
 	};
 };
 var $terezka$elm_charts$Internal$Many$Remodel = F2(
@@ -7843,7 +7852,7 @@ var $terezka$elm_charts$Chart$Attributes$borderWidth = function (v) {
 	return function (config) {
 		return _Utils_update(
 			config,
-			{F: v});
+			{G: v});
 	};
 };
 var $terezka$elm_charts$Internal$Svg$Event = F2(
@@ -8437,7 +8446,7 @@ var $terezka$elm_charts$Chart$getLegends = function (elements) {
 };
 var $terezka$elm_charts$Chart$TickValues = F4(
 	function (xAxis, yAxis, xs, ys) {
-		return {aX: xAxis, E: xs, aY: yAxis, O: ys};
+		return {aX: xAxis, F: xs, aY: yAxis, R: ys};
 	});
 var $terezka$elm_charts$Chart$getTickValues = F3(
 	function (plane, items, elements) {
@@ -8535,7 +8544,7 @@ var $terezka$elm_charts$Chart$Attributes$dashed = function (value) {
 	};
 };
 var $terezka$elm_charts$Internal$Helpers$pink = '#ea60df';
-var $terezka$elm_charts$Internal$Svg$defaultDot = {C: '', F: 0, b: $terezka$elm_charts$Internal$Helpers$pink, q: false, di: 0, dj: '', dk: 5, Z: 1, az: $elm$core$Maybe$Nothing, cD: 6};
+var $terezka$elm_charts$Internal$Svg$defaultDot = {C: '', G: 0, b: $terezka$elm_charts$Internal$Helpers$pink, q: false, di: 0, dj: '', dk: 5, Z: 1, az: $elm$core$Maybe$Nothing, cD: 6};
 var $elm$svg$Svg$circle = $elm$svg$Svg$trustedNode('circle');
 var $elm$svg$Svg$Attributes$cx = _VirtualDom_attribute('cx');
 var $elm$svg$Svg$Attributes$cy = _VirtualDom_attribute('cy');
@@ -8643,7 +8652,7 @@ var $terezka$elm_charts$Internal$Svg$dot = F5(
 				$elm$svg$Svg$Attributes$stroke(
 				(config.C === '') ? config.b : config.C),
 				$elm$svg$Svg$Attributes$strokeWidth(
-				$elm$core$String$fromFloat(config.F)),
+				$elm$core$String$fromFloat(config.G)),
 				$elm$svg$Svg$Attributes$fillOpacity(
 				$elm$core$String$fromFloat(config.Z)),
 				$elm$svg$Svg$Attributes$fill(config.b),
@@ -8817,7 +8826,7 @@ var $terezka$elm_charts$Chart$Svg$dot = F4(
 			A2($terezka$elm_charts$Internal$Helpers$apply, edits, $terezka$elm_charts$Internal$Svg$defaultDot));
 	});
 var $terezka$elm_charts$Internal$Helpers$gray = '#EFF2FA';
-var $terezka$elm_charts$Internal$Svg$defaultLine = {h: _List_Nil, c$: false, b: 'rgb(210, 210, 210)', aZ: _List_Nil, i: false, q: false, Z: 1, dP: -90, dQ: 0, cP: 1, aE: $elm$core$Maybe$Nothing, aW: $elm$core$Maybe$Nothing, d7: $elm$core$Maybe$Nothing, k: 0, d8: $elm$core$Maybe$Nothing, bP: $elm$core$Maybe$Nothing, d9: $elm$core$Maybe$Nothing, l: 0};
+var $terezka$elm_charts$Internal$Svg$defaultLine = {h: _List_Nil, c$: false, b: 'rgb(210, 210, 210)', aZ: _List_Nil, i: false, q: false, Z: 1, dP: -90, dQ: 0, cP: 1, aE: $elm$core$Maybe$Nothing, aW: $elm$core$Maybe$Nothing, d7: $elm$core$Maybe$Nothing, l: 0, d8: $elm$core$Maybe$Nothing, bP: $elm$core$Maybe$Nothing, d9: $elm$core$Maybe$Nothing, m: 0};
 var $terezka$elm_charts$Internal$Commands$Line = F2(
 	function (a, b) {
 		return {$: 1, a: a, b: b};
@@ -9476,10 +9485,10 @@ var $terezka$elm_charts$Internal$Svg$line = F2(
 		var _v2 = _v0.b;
 		var y1 = _v2.a;
 		var y2 = _v2.b;
-		var x1_ = x1 + A2($terezka$elm_charts$Internal$Svg$lengthInCartesianX, plane, config.k);
-		var x2_ = x2 + A2($terezka$elm_charts$Internal$Svg$lengthInCartesianX, plane, config.k);
-		var y1_ = y1 - A2($terezka$elm_charts$Internal$Svg$lengthInCartesianY, plane, config.l);
-		var y2_ = y2 - A2($terezka$elm_charts$Internal$Svg$lengthInCartesianY, plane, config.l);
+		var x1_ = x1 + A2($terezka$elm_charts$Internal$Svg$lengthInCartesianX, plane, config.l);
+		var x2_ = x2 + A2($terezka$elm_charts$Internal$Svg$lengthInCartesianX, plane, config.l);
+		var y1_ = y1 - A2($terezka$elm_charts$Internal$Svg$lengthInCartesianY, plane, config.m);
+		var y2_ = y2 - A2($terezka$elm_charts$Internal$Svg$lengthInCartesianY, plane, config.m);
 		var _v146 = (config.dQ > 0) ? _Utils_Tuple2(
 			A2(
 				$terezka$elm_charts$Internal$Svg$lengthInCartesianX,
@@ -9676,9 +9685,9 @@ var $terezka$elm_charts$Chart$grid = function (edits) {
 							return A2(
 								$elm$core$List$filterMap,
 								A3(toDot, vs, p, x),
-								vs.O);
+								vs.R);
 						},
-						vs.E) : _List_fromArray(
+						vs.F) : _List_fromArray(
 						[
 							A2(
 							$elm$svg$Svg$g,
@@ -9689,7 +9698,7 @@ var $terezka$elm_charts$Chart$grid = function (edits) {
 							A2(
 								$elm$core$List$filterMap,
 								A2(toXGrid, vs, p),
-								vs.E)),
+								vs.F)),
 							A2(
 							$elm$svg$Svg$g,
 							_List_fromArray(
@@ -9699,7 +9708,7 @@ var $terezka$elm_charts$Chart$grid = function (edits) {
 							A2(
 								$elm$core$List$filterMap,
 								A2(toYGrid, vs, p),
-								vs.O))
+								vs.R))
 						]));
 			}));
 };
@@ -10364,7 +10373,7 @@ var $terezka$elm_charts$Chart$interpolated = F2(
 var $terezka$elm_charts$Chart$SvgElement = function (a) {
 	return {$: 12, a: a};
 };
-var $terezka$elm_charts$Internal$Svg$defaultLabel = {n: $elm$core$Maybe$Nothing, h: _List_Nil, C: 'white', F: 0, b: '#808BAB', o: $elm$core$Maybe$Nothing, p: $elm$core$Maybe$Nothing, q: false, t: 0, v: false, k: 0, l: 0};
+var $terezka$elm_charts$Internal$Svg$defaultLabel = {n: $elm$core$Maybe$Nothing, h: _List_Nil, C: 'white', G: 0, b: '#808BAB', o: $elm$core$Maybe$Nothing, p: $elm$core$Maybe$Nothing, q: false, t: 0, v: false, l: 0, m: 0};
 var $elm$virtual_dom$VirtualDom$attribute = F2(
 	function (key, value) {
 		return A2(
@@ -10435,9 +10444,9 @@ var $terezka$elm_charts$Internal$Svg$label = F4(
 							$elm$svg$Svg$Attributes$class('elm-charts__label'),
 							$elm$svg$Svg$Attributes$stroke(config.C),
 							$elm$svg$Svg$Attributes$strokeWidth(
-							$elm$core$String$fromFloat(config.F)),
+							$elm$core$String$fromFloat(config.G)),
 							$elm$svg$Svg$Attributes$fill(config.b),
-							A6($terezka$elm_charts$Internal$Svg$position, plane, -config.t, point.y, point.af, config.k, config.l),
+							A6($terezka$elm_charts$Internal$Svg$position, plane, -config.t, point.y, point.af, config.l, config.m),
 							$elm$svg$Svg$Attributes$style(
 							A2(
 								$elm$core$String$join,
@@ -10454,18 +10463,18 @@ var $terezka$elm_charts$Internal$Svg$label = F4(
 			var xOffWithAnchor = function () {
 				var _v11 = config.n;
 				if (_v11.$ === 1) {
-					return config.k - (ellipsis.cP / 2);
+					return config.l - (ellipsis.cP / 2);
 				} else {
 					switch (_v11.a) {
 						case 0:
 							var _v12 = _v11.a;
-							return config.k - ellipsis.cP;
+							return config.l - ellipsis.cP;
 						case 1:
 							var _v13 = _v11.a;
-							return config.k;
+							return config.l;
 						default:
 							var _v14 = _v11.a;
-							return config.k - (ellipsis.cP / 2);
+							return config.l - (ellipsis.cP / 2);
 					}
 				}
 			}();
@@ -10523,7 +10532,7 @@ var $terezka$elm_charts$Internal$Svg$label = F4(
 							$elm$core$String$fromFloat(ellipsis.cP)),
 							$elm$svg$Svg$Attributes$height(
 							$elm$core$String$fromFloat(ellipsis.b6)),
-							A6($terezka$elm_charts$Internal$Svg$position, plane, -config.t, point.y, point.af, xOffWithAnchor, config.l - 10)
+							A6($terezka$elm_charts$Internal$Svg$position, plane, -config.t, point.y, point.af, xOffWithAnchor, config.m - 10)
 						]),
 					_List_fromArray(
 						[
@@ -10613,14 +10622,14 @@ var $terezka$elm_charts$Chart$Attributes$moveDown = function (v) {
 	return function (config) {
 		return _Utils_update(
 			config,
-			{l: config.l + v});
+			{m: config.m + v});
 	};
 };
 var $terezka$elm_charts$Chart$Attributes$moveLeft = function (v) {
 	return function (config) {
 		return _Utils_update(
 			config,
-			{k: config.k - v});
+			{l: config.l - v});
 	};
 };
 var $terezka$elm_charts$Internal$Property$name = F2(
@@ -12212,20 +12221,20 @@ var $terezka$elm_charts$Internal$Svg$tooltipPointerStyle = F4(
 		var config = function () {
 			switch (direction) {
 				case 0:
-					return {al: 'right', Q: 'top', ac: 'left'};
+					return {al: 'right', T: 'top', ac: 'left'};
 				case 3:
-					return {al: 'right', Q: 'bottom', ac: 'left'};
+					return {al: 'right', T: 'bottom', ac: 'left'};
 				case 1:
-					return {al: 'bottom', Q: 'left', ac: 'top'};
+					return {al: 'bottom', T: 'left', ac: 'top'};
 				case 2:
-					return {al: 'bottom', Q: 'right', ac: 'top'};
+					return {al: 'bottom', T: 'right', ac: 'top'};
 				case 4:
-					return {al: 'bottom', Q: 'left', ac: 'top'};
+					return {al: 'bottom', T: 'left', ac: 'top'};
 				default:
-					return {al: 'right', Q: 'top', ac: 'left'};
+					return {al: 'right', T: 'top', ac: 'left'};
 			}
 		}();
-		return '\n  .' + (className + (':before, .' + (className + (':after {\n    content: "";\n    position: absolute;\n    border-' + (config.ac + (': 5px solid transparent;\n    border-' + (config.al + (': 5px solid transparent;\n    ' + (config.Q + (': 100%;\n    ' + (config.ac + (': 50%;\n    margin-' + (config.ac + (': -5px;\n  }\n\n  .' + (className + (':after {\n    border-' + (config.Q + (': 5px solid ' + (background + (';\n    margin-' + (config.Q + (': -1px;\n    z-index: 1;\n    height: 0px;\n  }\n\n  .' + (className + (':before {\n    border-' + (config.Q + (': 5px solid ' + (borderColor + ';\n    height: 0px;\n  }\n  ')))))))))))))))))))))))))));
+		return '\n  .' + (className + (':before, .' + (className + (':after {\n    content: "";\n    position: absolute;\n    border-' + (config.ac + (': 5px solid transparent;\n    border-' + (config.al + (': 5px solid transparent;\n    ' + (config.T + (': 100%;\n    ' + (config.ac + (': 50%;\n    margin-' + (config.ac + (': -5px;\n  }\n\n  .' + (className + (':after {\n    border-' + (config.T + (': 5px solid ' + (background + (';\n    margin-' + (config.T + (': -1px;\n    z-index: 1;\n    height: 0px;\n  }\n\n  .' + (className + (':before {\n    border-' + (config.T + (': 5px solid ' + (borderColor + ';\n    height: 0px;\n  }\n  ')))))))))))))))))))))))))));
 	});
 var $terezka$elm_charts$Internal$Coordinates$top = function (pos) {
 	return {y: pos.aE + ((pos.aW - pos.aE) / 2), af: pos.bP};
@@ -12317,21 +12326,21 @@ var $terezka$elm_charts$Internal$Svg$tooltip = F5(
 		var _v0 = function () {
 			switch (direction) {
 				case 0:
-					return {am: 'elm-charts__tooltip-top', at: 'translate(-50%, -100%)', k: 0, l: config.c + arrowWidth};
+					return {am: 'elm-charts__tooltip-top', at: 'translate(-50%, -100%)', l: 0, m: config.c + arrowWidth};
 				case 3:
-					return {am: 'elm-charts__tooltip-bottom', at: 'translate(-50%, 0%)', k: 0, l: (-config.c) - arrowWidth};
+					return {am: 'elm-charts__tooltip-bottom', at: 'translate(-50%, 0%)', l: 0, m: (-config.c) - arrowWidth};
 				case 1:
-					return {am: 'elm-charts__tooltip-left', at: 'translate(-100%, -50%)', k: (-config.c) - arrowWidth, l: 0};
+					return {am: 'elm-charts__tooltip-left', at: 'translate(-100%, -50%)', l: (-config.c) - arrowWidth, m: 0};
 				case 2:
-					return {am: 'elm-charts__tooltip-right', at: 'translate(0, -50%)', k: config.c + arrowWidth, l: 0};
+					return {am: 'elm-charts__tooltip-right', at: 'translate(0, -50%)', l: config.c + arrowWidth, m: 0};
 				case 4:
-					return {am: 'elm-charts__tooltip-leftOrRight', at: 'translate(0, -50%)', k: (-config.c) - arrowWidth, l: 0};
+					return {am: 'elm-charts__tooltip-leftOrRight', at: 'translate(0, -50%)', l: (-config.c) - arrowWidth, m: 0};
 				default:
-					return {am: 'elm-charts__tooltip-topOrBottom', at: 'translate(-50%, -100%)', k: 0, l: config.c + arrowWidth};
+					return {am: 'elm-charts__tooltip-topOrBottom', at: 'translate(-50%, -100%)', l: 0, m: config.c + arrowWidth};
 			}
 		}();
-		var xOff = _v0.k;
-		var yOff = _v0.l;
+		var xOff = _v0.l;
+		var yOff = _v0.m;
 		var transformation = _v0.at;
 		var className = _v0.am;
 		var children = config.aw ? A2(
@@ -14504,9 +14513,9 @@ var $terezka$elm_charts$Chart$xLabels = function (edits) {
 		function (p, config) {
 			return A4(
 				$terezka$elm_charts$Chart$generateValues,
-				config.P,
-				config.U,
-				config.T,
+				config.S,
+				config.V,
+				config.N,
 				A2($terezka$elm_charts$Internal$Helpers$apply, config.z, p.y));
 		});
 	var toTickValues = F3(
@@ -14514,8 +14523,8 @@ var $terezka$elm_charts$Chart$xLabels = function (edits) {
 			return (!config.j) ? ts : _Utils_update(
 				ts,
 				{
-					E: _Utils_ap(
-						ts.E,
+					F: _Utils_ap(
+						ts.F,
 						A2(
 							$elm$core$List$map,
 							function ($) {
@@ -14528,7 +14537,7 @@ var $terezka$elm_charts$Chart$xLabels = function (edits) {
 		return A2(
 			$terezka$elm_charts$Internal$Helpers$apply,
 			edits,
-			{P: 5, n: $elm$core$Maybe$Nothing, h: _List_Nil, b: '#808BAB', o: $elm$core$Maybe$Nothing, i: false, p: $elm$core$Maybe$Nothing, T: $elm$core$Maybe$Nothing, U: $terezka$elm_charts$Internal$Svg$Floats, j: false, q: false, z: _List_Nil, s: $terezka$elm_charts$Chart$Attributes$zero, t: 0, v: false, k: 0, l: 18});
+			{S: 5, n: $elm$core$Maybe$Nothing, h: _List_Nil, b: '#808BAB', o: $elm$core$Maybe$Nothing, i: false, p: $elm$core$Maybe$Nothing, N: $elm$core$Maybe$Nothing, V: $terezka$elm_charts$Internal$Svg$Floats, j: false, q: false, z: _List_Nil, s: $terezka$elm_charts$Chart$Attributes$zero, t: 0, v: false, l: 0, m: 18});
 	};
 	return A3(
 		$terezka$elm_charts$Chart$LabelsElement,
@@ -14552,8 +14561,8 @@ var $terezka$elm_charts$Chart$xLabels = function (edits) {
 								q: config.q,
 								t: config.t,
 								v: config.v,
-								k: config.k,
-								l: config.i ? ((-config.l) + 10) : config.l
+								l: config.l,
+								m: config.i ? ((-config.m) + 10) : config.m
 							}),
 						_List_fromArray(
 							[
@@ -14583,9 +14592,9 @@ var $terezka$elm_charts$Chart$yLabels = function (edits) {
 		function (p, config) {
 			return A4(
 				$terezka$elm_charts$Chart$generateValues,
-				config.P,
-				config.U,
-				config.T,
+				config.S,
+				config.V,
+				config.N,
 				A2($terezka$elm_charts$Internal$Helpers$apply, config.z, p.af));
 		});
 	var toTickValues = F3(
@@ -14593,8 +14602,8 @@ var $terezka$elm_charts$Chart$yLabels = function (edits) {
 			return (!config.j) ? ts : _Utils_update(
 				ts,
 				{
-					O: _Utils_ap(
-						ts.O,
+					R: _Utils_ap(
+						ts.R,
 						A2(
 							$elm$core$List$map,
 							function ($) {
@@ -14607,7 +14616,7 @@ var $terezka$elm_charts$Chart$yLabels = function (edits) {
 		return A2(
 			$terezka$elm_charts$Internal$Helpers$apply,
 			edits,
-			{P: 5, n: $elm$core$Maybe$Nothing, h: _List_Nil, b: '#808BAB', o: $elm$core$Maybe$Nothing, i: false, p: $elm$core$Maybe$Nothing, T: $elm$core$Maybe$Nothing, U: $terezka$elm_charts$Internal$Svg$Floats, j: false, q: false, z: _List_Nil, s: $terezka$elm_charts$Chart$Attributes$zero, t: 0, v: false, k: -10, l: 3});
+			{S: 5, n: $elm$core$Maybe$Nothing, h: _List_Nil, b: '#808BAB', o: $elm$core$Maybe$Nothing, i: false, p: $elm$core$Maybe$Nothing, N: $elm$core$Maybe$Nothing, V: $terezka$elm_charts$Internal$Svg$Floats, j: false, q: false, z: _List_Nil, s: $terezka$elm_charts$Chart$Attributes$zero, t: 0, v: false, l: -10, m: 3});
 	};
 	return A3(
 		$terezka$elm_charts$Chart$LabelsElement,
@@ -14640,8 +14649,8 @@ var $terezka$elm_charts$Chart$yLabels = function (edits) {
 								q: config.q,
 								t: config.t,
 								v: config.v,
-								k: config.i ? (-config.k) : config.k,
-								l: config.l
+								l: config.i ? (-config.l) : config.l,
+								m: config.m
 							}),
 						_List_fromArray(
 							[
@@ -14703,7 +14712,7 @@ var $author$project$Leaderboard$viewImagenetCorrelationChart = F4(
 				$elm$core$List$map,
 				function (p) {
 					return _Utils_Tuple2(
-						{f: '', A: ''},
+						{e: '', A: ''},
 						p);
 				},
 				A2(
@@ -14880,7 +14889,7 @@ var $author$project$Leaderboard$viewImagenetCorrelationChart = F4(
 						hovered,
 						F2(
 							function (p, dot) {
-								var name = $terezka$elm_charts$Chart$Item$getData(dot).a.f;
+								var name = $terezka$elm_charts$Chart$Item$getData(dot).a.e;
 								return _List_fromArray(
 									[
 										A4(
@@ -14958,7 +14967,7 @@ var $author$project$Leaderboard$toBarDatum = F2(
 			var score = _v0.a;
 			return $elm$core$Maybe$Just(
 				_Utils_Tuple2(
-					{f: row.e.f, A: row.e.A},
+					{e: row.f.e, A: row.f.A},
 					{cA: score}));
 		}
 	});
@@ -15140,7 +15149,7 @@ var $terezka$elm_charts$Internal$Legend$BarLegend = F2(
 	function (a, b) {
 		return {$: 0, a: a, b: b};
 	});
-var $terezka$elm_charts$Internal$Svg$defaultBar = {h: _List_Nil, C: 'white', F: 0, b: $terezka$elm_charts$Internal$Helpers$pink, be: $elm$core$Maybe$Nothing, di: 0, dj: '', dk: 10, Z: 1, dE: 0, dF: 0};
+var $terezka$elm_charts$Internal$Svg$defaultBar = {h: _List_Nil, C: 'white', G: 0, b: $terezka$elm_charts$Internal$Helpers$pink, be: $elm$core$Maybe$Nothing, di: 0, dj: '', dk: 10, Z: 1, dE: 0, dF: 0};
 var $terezka$elm_charts$Chart$Attributes$roundBottom = function (v) {
 	return function (config) {
 		return _Utils_update(
@@ -15222,9 +15231,9 @@ var $terezka$elm_charts$Internal$Svg$bar = F3(
 					_List_Nil);
 			});
 		var highlightColor = (config.dj === '') ? config.b : config.dj;
-		var borderWidthCarY = A2($terezka$elm_charts$Internal$Coordinates$scaleCartesianY, plane, config.F / 2);
+		var borderWidthCarY = A2($terezka$elm_charts$Internal$Coordinates$scaleCartesianY, plane, config.G / 2);
 		var highlightWidthCarY = borderWidthCarY + A2($terezka$elm_charts$Internal$Coordinates$scaleCartesianY, plane, config.dk / 2);
-		var borderWidthCarX = A2($terezka$elm_charts$Internal$Coordinates$scaleCartesianX, plane, config.F / 2);
+		var borderWidthCarX = A2($terezka$elm_charts$Internal$Coordinates$scaleCartesianX, plane, config.G / 2);
 		var highlightWidthCarX = borderWidthCarX + A2($terezka$elm_charts$Internal$Coordinates$scaleCartesianX, plane, config.dk / 2);
 		var pos = {
 			aE: A2($elm$core$Basics$min, point.aE, point.aW) + borderWidthCarX,
@@ -15369,7 +15378,7 @@ var $terezka$elm_charts$Internal$Svg$bar = F3(
 		var commands = _v1.a;
 		var highlightCommands = _v1.b;
 		var viewAuraBar = function (fill) {
-			return (!config.di) ? A6(viewBar, fill, config.Z, config.C, config.F, 1, commands) : A2(
+			return (!config.di) ? A6(viewBar, fill, config.Z, config.C, config.G, 1, commands) : A2(
 				$elm$svg$Svg$g,
 				_List_fromArray(
 					[
@@ -15378,7 +15387,7 @@ var $terezka$elm_charts$Internal$Svg$bar = F3(
 				_List_fromArray(
 					[
 						A6(viewBar, highlightColor, config.di, 'transparent', 0, 0, highlightCommands),
-						A6(viewBar, fill, config.Z, config.C, config.F, 1, commands)
+						A6(viewBar, fill, config.Z, config.C, config.G, 1, commands)
 					]));
 		};
 		var _v3 = config.be;
@@ -15753,8 +15762,8 @@ var $terezka$elm_charts$Chart$barsMap = F4(
 						return _Utils_update(
 							acc,
 							{
-								E: _Utils_ap(
-									acc.E,
+								F: _Utils_ap(
+									acc.F,
 									barsConfig.j ? A2(
 										$elm$core$List$concatMap,
 										A2(
@@ -15959,7 +15968,7 @@ var $terezka$elm_charts$Chart$yTicks = function (edits) {
 	var config = A2(
 		$terezka$elm_charts$Internal$Helpers$apply,
 		edits,
-		{P: 5, b: '', i: false, U: $terezka$elm_charts$Internal$Svg$Floats, j: true, b6: 5, z: _List_Nil, s: $terezka$elm_charts$Chart$Attributes$zero, cP: 1});
+		{S: 5, b: '', i: false, V: $terezka$elm_charts$Internal$Svg$Floats, j: true, b6: 5, z: _List_Nil, s: $terezka$elm_charts$Chart$Attributes$zero, cP: 1});
 	var toTicks = function (p) {
 		return A2(
 			$elm$core$List$map,
@@ -15968,8 +15977,8 @@ var $terezka$elm_charts$Chart$yTicks = function (edits) {
 			},
 			A4(
 				$terezka$elm_charts$Chart$generateValues,
-				config.P,
-				config.U,
+				config.S,
+				config.V,
 				$elm$core$Maybe$Nothing,
 				A2($terezka$elm_charts$Internal$Helpers$apply, config.z, p.af)));
 	};
@@ -15978,8 +15987,8 @@ var $terezka$elm_charts$Chart$yTicks = function (edits) {
 			return _Utils_update(
 				ts,
 				{
-					O: _Utils_ap(
-						ts.O,
+					R: _Utils_ap(
+						ts.R,
 						toTicks(p))
 				});
 		});
@@ -16109,7 +16118,7 @@ var $author$project$Leaderboard$viewBarChart = F3(
 							F2(
 								function (p, bar) {
 									var score = $terezka$elm_charts$Chart$Item$getY(bar);
-									var name = $terezka$elm_charts$Chart$Item$getData(bar).a.f;
+									var name = $terezka$elm_charts$Chart$Item$getData(bar).a.e;
 									var color = $terezka$elm_charts$Chart$Item$getColor(bar);
 									return _List_fromArray(
 										[
@@ -16155,7 +16164,7 @@ var $author$project$Leaderboard$viewBarChart = F3(
 	});
 var $author$project$Leaderboard$viewMaybeBarChart = F5(
 	function (hoveredKey, hoveredBars, columnsSelected, rows, col) {
-		var _v0 = col.L;
+		var _v0 = col.E;
 		if (!_v0.$) {
 			var fn = _v0.a;
 			var _v1 = A2(
@@ -16170,8 +16179,8 @@ var $author$project$Leaderboard$viewMaybeBarChart = F5(
 				return $elm$core$Maybe$Just(
 					A3(
 						$author$project$Leaderboard$viewBarChart,
-						A3($author$project$Leaderboard$filterHovered, col.f, hoveredKey, hoveredBars),
-						col.f,
+						A3($author$project$Leaderboard$filterHovered, col.e, hoveredKey, hoveredBars),
+						col.e,
 						data));
 			}
 		} else {
@@ -16183,7 +16192,7 @@ var $terezka$elm_charts$Chart$Attributes$format = function (v) {
 		return _Utils_update(
 			config,
 			{
-				T: $elm$core$Maybe$Just(v)
+				N: $elm$core$Maybe$Just(v)
 			});
 	};
 };
@@ -16286,7 +16295,7 @@ var $author$project$Leaderboard$viewParamsCorrelationChart = F4(
 				$elm$core$List$map,
 				function (p) {
 					return _Utils_Tuple2(
-						{f: '', A: ''},
+						{e: '', A: ''},
 						p);
 				},
 				A2(
@@ -16459,7 +16468,7 @@ var $author$project$Leaderboard$viewParamsCorrelationChart = F4(
 									$elm$core$Basics$pow,
 									10,
 									$terezka$elm_charts$Chart$Item$getX(dot) - 6);
-								var name = $terezka$elm_charts$Chart$Item$getData(dot).a.f;
+								var name = $terezka$elm_charts$Chart$Item$getData(dot).a.e;
 								var color = $terezka$elm_charts$Chart$Item$getColor(dot);
 								return _List_fromArray(
 									[
@@ -16528,14 +16537,14 @@ var $author$project$Leaderboard$viewCharts = F8(
 		var rows = A2(
 			$elm$core$List$filter,
 			function (row) {
-				return A2($elm$core$Set$member, row.e.as, resolutionsSelected);
+				return A2($elm$core$Set$member, row.f.as, resolutionsSelected);
 			},
 			A2(
 				$elm$core$List$filter,
 				A2(
 					$elm$core$Basics$composeR,
 					function ($) {
-						return $.e;
+						return $.f;
 					},
 					A2(
 						$elm$core$Basics$composeR,
@@ -16546,13 +16555,13 @@ var $author$project$Leaderboard$viewCharts = F8(
 				A2(
 					$elm$core$List$filter,
 					function (r) {
-						return A2($elm$core$Set$member, r.e.A, familiesSelected);
+						return A2($elm$core$Set$member, r.f.A, familiesSelected);
 					},
 					table.aj)));
 		var filteredCols = A2(
 			$elm$core$List$filter,
 			function (c) {
-				return A2($elm$core$Set$member, c.m, columnsSelected);
+				return A2($elm$core$Set$member, c.k, columnsSelected);
 			},
 			table.ah);
 		var scatterData = A2(
@@ -16564,13 +16573,13 @@ var $author$project$Leaderboard$viewCharts = F8(
 						$elm$core$List$foldl,
 						F2(
 							function (col, acc) {
-								var _v0 = col.L;
+								var _v0 = col.E;
 								if (!_v0.$) {
 									var fn = _v0.a;
 									var _v1 = A2(fn, columnsSelected, row);
 									if (!_v1.$) {
 										var value = _v1.a;
-										return A3($elm$core$Dict$insert, col.m, value, acc);
+										return A3($elm$core$Dict$insert, col.k, value, acc);
 									} else {
 										return acc;
 									}
@@ -16594,6 +16603,12 @@ var $author$project$Leaderboard$viewCharts = F8(
 				$author$project$Leaderboard$viewImagenetCorrelationChart,
 				hoveredKey,
 				hoveredDots,
+				_Utils_Tuple2('inat21', 'iNat21'),
+				scatterData),
+				A4(
+				$author$project$Leaderboard$viewImagenetCorrelationChart,
+				hoveredKey,
+				hoveredDots,
 				_Utils_Tuple2('mean', 'Mean'),
 				scatterData),
 				A4(
@@ -16612,6 +16627,12 @@ var $author$project$Leaderboard$viewCharts = F8(
 				$author$project$Leaderboard$viewParamsCorrelationChart,
 				hoveredKey,
 				hoveredDots,
+				_Utils_Tuple2('inat21', 'iNat21'),
+				scatterData),
+				A4(
+				$author$project$Leaderboard$viewParamsCorrelationChart,
+				hoveredKey,
+				hoveredDots,
 				_Utils_Tuple2('mean', 'Mean'),
 				scatterData)
 			]);
@@ -16621,7 +16642,7 @@ var $author$project$Leaderboard$viewCharts = F8(
 			A2(
 				$elm$core$List$filter,
 				function ($) {
-					return $.R;
+					return $.M;
 				},
 				filteredCols));
 		return A2(
@@ -16946,8 +16967,8 @@ var $elm$virtual_dom$VirtualDom$keyedNode = function (tag) {
 var $elm$html$Html$Keyed$node = $elm$virtual_dom$VirtualDom$keyedNode;
 var $author$project$Leaderboard$viewTd = F3(
 	function (columnsSelected, row, col) {
-		var winner = A2($elm$core$Set$member, col.m, row.bO) ? ' font-bold' : '';
-		var _v0 = A2(col.T, columnsSelected, row);
+		var winner = A2($elm$core$Set$member, col.k, row.bO) ? ' font-bold' : '';
+		var _v0 = A2(col.N, columnsSelected, row);
 		var cls = _v0.a;
 		var text = _v0.b;
 		return A2(
@@ -16966,7 +16987,7 @@ var $author$project$Leaderboard$viewTr = F3(
 		var cols = A2(
 			$elm$core$List$filter,
 			function (col) {
-				return A2($elm$core$Set$member, col.m, columnsSelected);
+				return A2($elm$core$Set$member, col.k, columnsSelected);
 			},
 			allCols);
 		return A2(
@@ -16988,26 +17009,26 @@ var $author$project$Leaderboard$viewTbody = F7(
 			A2(
 				$elm$core$Maybe$map,
 				function ($) {
-					return $.L;
+					return $.E;
 				},
 				$elm$core$List$head(
 					A2(
 						$elm$core$List$filter,
 						function (col) {
-							return _Utils_eq(col.m, sortKey);
+							return _Utils_eq(col.k, sortKey);
 						},
 						table.ah))));
 		var filtered = A2(
 			$elm$core$List$filter,
 			function (row) {
-				return A2($elm$core$Set$member, row.e.as, resolutionsSelected);
+				return A2($elm$core$Set$member, row.f.as, resolutionsSelected);
 			},
 			A2(
 				$elm$core$List$filter,
 				A2(
 					$elm$core$Basics$composeR,
 					function ($) {
-						return $.e;
+						return $.f;
 					},
 					A2(
 						$elm$core$Basics$composeR,
@@ -17018,7 +17039,7 @@ var $author$project$Leaderboard$viewTbody = F7(
 				A2(
 					$elm$core$List$filter,
 					function (row) {
-						return A2($elm$core$Set$member, row.e.A, familiesSelected);
+						return A2($elm$core$Set$member, row.f.A, familiesSelected);
 					},
 					table.aj)));
 		var sorted = function () {
@@ -17063,7 +17084,7 @@ var $author$project$Leaderboard$viewTbody = F7(
 				$elm$core$List$map,
 				function (row) {
 					return _Utils_Tuple2(
-						row.e.X,
+						row.f.X,
 						A3($author$project$Leaderboard$viewTr, columnsSelected, table.ah, row));
 				},
 				ordered));
@@ -17078,7 +17099,7 @@ var $author$project$Leaderboard$upArrow = $elm$core$String$fromChar(
 var $author$project$Leaderboard$viewTh = F3(
 	function (sortKey, sortOrder, col) {
 		var _v0 = function () {
-			if (_Utils_eq(sortKey, col.m)) {
+			if (_Utils_eq(sortKey, col.k)) {
 				if (sortOrder === 1) {
 					return _Utils_Tuple2(
 						_Utils_ap($author$project$Leaderboard$nonbreakingSpace, $author$project$Leaderboard$downArrow),
@@ -17101,12 +17122,12 @@ var $author$project$Leaderboard$viewTh = F3(
 					$elm$html$Html$Attributes$class('px-2'),
 					$elm$html$Html$Attributes$class(extra),
 					$elm$html$Html$Events$onClick(
-					$author$project$Leaderboard$Sort(col.m))
+					$author$project$Leaderboard$Sort(col.k))
 				]),
 			_List_fromArray(
 				[
 					$elm$html$Html$text(
-					_Utils_ap(col.f, suffix))
+					_Utils_ap(col.e, suffix))
 				]));
 	});
 var $author$project$Leaderboard$viewThead = F4(
@@ -17123,7 +17144,7 @@ var $author$project$Leaderboard$viewThead = F4(
 				A2(
 					$elm$core$List$filter,
 					function (col) {
-						return A2($elm$core$Set$member, col.m, columnsSelected);
+						return A2($elm$core$Set$member, col.k, columnsSelected);
 					},
 					table.ah)));
 	});
@@ -17362,8 +17383,8 @@ var $author$project$Leaderboard$view = function (model) {
 					]));
 		default:
 			var table = _v0.a;
-			var tableContent = A7($author$project$Leaderboard$viewTable, model.G, model.J, model.N, model.K, model.aP, model.aB, table);
-			var chartContent = A8($author$project$Leaderboard$viewCharts, model.aJ, model.a2, model.a3, model.G, model.J, model.N, model.K, table);
+			var tableContent = A7($author$project$Leaderboard$viewTable, model.H, model.K, model.Q, model.L, model.aP, model.aB, table);
+			var chartContent = A8($author$project$Leaderboard$viewCharts, model.aJ, model.a2, model.a3, model.H, model.K, model.Q, model.L, table);
 			var allResolutions = $elm$core$List$sort(
 				$elm$core$Set$toList(
 					$elm$core$Set$fromList(
@@ -17372,7 +17393,7 @@ var $author$project$Leaderboard$view = function (model) {
 							A2(
 								$elm$core$Basics$composeR,
 								function ($) {
-									return $.e;
+									return $.f;
 								},
 								function ($) {
 									return $.as;
@@ -17386,7 +17407,7 @@ var $author$project$Leaderboard$view = function (model) {
 							A2(
 								$elm$core$Basics$composeR,
 								function ($) {
-									return $.e;
+									return $.f;
 								},
 								function ($) {
 									return $.A;
@@ -17410,37 +17431,37 @@ var $author$project$Leaderboard$view = function (model) {
 								$author$project$Leaderboard$viewCheckboxFieldset,
 								0,
 								model.aG,
-								model.G,
+								model.H,
 								table.ah,
 								function (col) {
 									return A3(
 										$author$project$Leaderboard$viewCheckbox,
-										A2($elm$core$Set$member, col.m, model.G),
-										$author$project$Leaderboard$ToggleCol(col.m),
-										col.f);
+										A2($elm$core$Set$member, col.k, model.H),
+										$author$project$Leaderboard$ToggleCol(col.k),
+										col.e);
 								}),
 								A5(
 								$author$project$Leaderboard$viewCheckboxFieldset,
 								1,
 								model.aI,
-								model.J,
+								model.K,
 								allFamilies,
 								function (family) {
 									return A2(
 										$author$project$Leaderboard$viewFamilyCheckbox,
-										A2($elm$core$Set$member, family, model.J),
+										A2($elm$core$Set$member, family, model.K),
 										family);
 								}),
 								A5(
 								$author$project$Leaderboard$viewCheckboxFieldset,
 								2,
 								model.aL,
-								model.N,
+								model.Q,
 								$author$project$Leaderboard$allParamRanges,
 								function (range) {
 									return A3(
 										$author$project$Leaderboard$viewCheckbox,
-										A2($elm$core$Set$member, range, model.N),
+										A2($elm$core$Set$member, range, model.Q),
 										$author$project$Leaderboard$ToggleParamRange(range),
 										$author$project$Leaderboard$formatRange(range));
 								}),
@@ -17448,12 +17469,12 @@ var $author$project$Leaderboard$view = function (model) {
 								$author$project$Leaderboard$viewCheckboxFieldset,
 								3,
 								model.aO,
-								model.K,
+								model.L,
 								allResolutions,
 								function (res) {
 									return A3(
 										$author$project$Leaderboard$viewCheckbox,
-										A2($elm$core$Set$member, res, model.K),
+										A2($elm$core$Set$member, res, model.L),
 										$author$project$Leaderboard$ToggleResolution(res),
 										$elm$core$String$fromInt(res) + 'px');
 								})
@@ -17472,12 +17493,12 @@ var $author$project$Leaderboard$view = function (model) {
 									return _List_fromArray(
 										[
 											A2($author$project$Leaderboard$viewTablePane, tableContent, 100),
-											$author$project$Leaderboard$viewDragHandle(model.S)
+											$author$project$Leaderboard$viewDragHandle(model.U)
 										]);
 								case 1:
 									return _List_fromArray(
 										[
-											$author$project$Leaderboard$viewDragHandle(model.S),
+											$author$project$Leaderboard$viewDragHandle(model.U),
 											A2($author$project$Leaderboard$viewChartsPane, chartContent, 100)
 										]);
 								default:
@@ -17485,7 +17506,7 @@ var $author$project$Leaderboard$view = function (model) {
 									return _List_fromArray(
 										[
 											A2($author$project$Leaderboard$viewTablePane, tableContent, (pct - 0.01) * 100),
-											$author$project$Leaderboard$viewDragHandle(model.S),
+											$author$project$Leaderboard$viewDragHandle(model.U),
 											A2($author$project$Leaderboard$viewChartsPane, chartContent, 100 - ((pct + 0.01) * 100))
 										]);
 							}
