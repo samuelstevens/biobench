@@ -1,8 +1,8 @@
 {
     "meta": {
         "schema": 1,
-        "generated": 1749412221814,
-        "git_commit": "f3cbab5acf7dceb5731a15f24d0467d0d752d74d",
+        "generated": 1749416800202,
+        "git_commit": "8652ac2e4e3dfde9154fdead3a1867717ea8c8da",
         "seed": 17,
         "alpha": 0.05,
         "n_bootstraps": 500
@@ -856,6 +856,14 @@
         },
         {
             "task": "imagenet1k",
+            "model": "apple/aimv2-3B-patch14-448",
+            "mean": 0.867140568682419,
+            "bootstrap_mean": 0.8671887281714681,
+            "ci_low": 0.864207284956039,
+            "ci_high": 0.870133402212228
+        },
+        {
+            "task": "imagenet1k",
             "model": "apple/aimv2-huge-patch14-224",
             "mean": 0.8444210355724819,
             "bootstrap_mean": 0.8443965398484663,
@@ -1101,6 +1109,14 @@
             "bootstrap_mean": 0.756792715043961,
             "ci_low": 0.7528154248207123,
             "ci_high": 0.760608362708156
+        },
+        {
+            "task": "imagenet1k",
+            "model": "sam2_hiera_tiny.fb_r896_2pt1",
+            "mean": 0.38008406725380306,
+            "bootstrap_mean": 0.3798008589603339,
+            "ci_low": 0.37590302256796726,
+            "ci_high": 0.38383017300757666
         },
         {
             "task": "imagenet1k",
@@ -4272,2531 +4288,2547 @@
         },
         {
             "task": "herbarium19",
+            "model": "sam2_hiera_tiny.fb_r896_2pt1",
+            "mean": 0.18248728319131302,
+            "bootstrap_mean": 0.16018293578906184,
+            "ci_low": 0.1564410727102917,
+            "ci_high": 0.16460686228713226
+        },
+        {
+            "task": "herbarium19",
             "model": "vit_base_patch16_224.augreg2_in21k_ft_in1k",
             "mean": 0.45446385388820215,
-            "bootstrap_mean": 0.39664442225099555,
-            "ci_low": 0.3906397447580044,
-            "ci_high": 0.40293661261659747
+            "bootstrap_mean": 0.3966038434587373,
+            "ci_low": 0.3909095007900265,
+            "ci_high": 0.402991081930322
         },
         {
             "task": "iwildcam",
             "model": "ViT-B-16-SigLIP-256/webli",
             "mean": 0.1914321761025932,
-            "bootstrap_mean": 0.18720923326633607,
-            "ci_low": 0.18399855715849478,
-            "ci_high": 0.1906876511894273
+            "bootstrap_mean": 0.187165229177544,
+            "ci_low": 0.18396438203876278,
+            "ci_high": 0.19056184834464782
         },
         {
             "task": "iwildcam",
             "model": "ViT-B-16-SigLIP-384/webli",
             "mean": 0.21571190642753796,
-            "bootstrap_mean": 0.21266621646480735,
-            "ci_low": 0.20936137439941888,
-            "ci_high": 0.21602680421646972
+            "bootstrap_mean": 0.21271043121743383,
+            "ci_low": 0.20973700509203377,
+            "ci_high": 0.21566125243446302
         },
         {
             "task": "iwildcam",
             "model": "ViT-B-16-SigLIP-512/webli",
             "mean": 0.2212834830052042,
-            "bootstrap_mean": 0.21874862522230265,
-            "ci_low": 0.21575260390052795,
-            "ci_high": 0.22188581772740246
+            "bootstrap_mean": 0.21874509254019867,
+            "ci_low": 0.2158200220996571,
+            "ci_high": 0.2218801511007156
         },
         {
             "task": "iwildcam",
             "model": "ViT-B-16-SigLIP/webli",
             "mean": 0.181252901958043,
-            "bootstrap_mean": 0.17707156751626893,
-            "ci_low": 0.17383785344624722,
-            "ci_high": 0.18065178070704646
+            "bootstrap_mean": 0.17701402579337372,
+            "ci_low": 0.17378527822461884,
+            "ci_high": 0.18019537615030903
         },
         {
             "task": "iwildcam",
             "model": "ViT-B-16-SigLIP2-256/webli",
             "mean": 0.19559232218068023,
-            "bootstrap_mean": 0.1915740997534005,
-            "ci_low": 0.18867244817191,
-            "ci_high": 0.19450939484666355
+            "bootstrap_mean": 0.19162818488049235,
+            "ci_low": 0.18850117361225094,
+            "ci_high": 0.1946171533657577
         },
         {
             "task": "iwildcam",
             "model": "ViT-B-16-SigLIP2-384/webli",
             "mean": 0.221790419974511,
-            "bootstrap_mean": 0.21833070302277405,
-            "ci_low": 0.21506129302306415,
-            "ci_high": 0.2216318309101693
+            "bootstrap_mean": 0.21828147362146275,
+            "ci_low": 0.21497384013023982,
+            "ci_high": 0.22156697624932623
         },
         {
             "task": "iwildcam",
             "model": "ViT-B-16-SigLIP2-512/webli",
             "mean": 0.23764569746989145,
-            "bootstrap_mean": 0.23393815075612182,
-            "ci_low": 0.23049105305229978,
-            "ci_high": 0.23708302290225866
+            "bootstrap_mean": 0.2340318615681947,
+            "ci_low": 0.23041293463135737,
+            "ci_high": 0.23741984572134078
         },
         {
             "task": "iwildcam",
             "model": "ViT-B-16-SigLIP2/webli",
             "mean": 0.18546163334140353,
-            "bootstrap_mean": 0.18216989293059474,
-            "ci_low": 0.17867471109623945,
-            "ci_high": 0.1856106389349489
+            "bootstrap_mean": 0.18217435964569864,
+            "ci_low": 0.17899960423265224,
+            "ci_high": 0.18558456290502567
         },
         {
             "task": "iwildcam",
             "model": "ViT-B-16/openai",
             "mean": 0.1706348524862104,
-            "bootstrap_mean": 0.16782871403104788,
-            "ci_low": 0.16465776257663184,
-            "ci_high": 0.17070470453517045
+            "bootstrap_mean": 0.16786253207371266,
+            "ci_low": 0.16446654602015293,
+            "ci_high": 0.1707232500858832
         },
         {
             "task": "iwildcam",
             "model": "ViT-B-32-SigLIP2-256/webli",
             "mean": 0.14504133587198056,
-            "bootstrap_mean": 0.1414754235176118,
-            "ci_low": 0.13871301301156796,
-            "ci_high": 0.14427607722661373
+            "bootstrap_mean": 0.14149665998879998,
+            "ci_low": 0.1386252342305784,
+            "ci_high": 0.14422248700092855
         },
         {
             "task": "iwildcam",
             "model": "ViT-B-32/openai",
             "mean": 0.13455516737024165,
-            "bootstrap_mean": 0.1310903806147085,
-            "ci_low": 0.12798739578092796,
-            "ci_high": 0.1338656225846755
+            "bootstrap_mean": 0.13111586513294127,
+            "ci_low": 0.12834900116812364,
+            "ci_high": 0.1340280532462452
         },
         {
             "task": "iwildcam",
             "model": "ViT-L-14-336/openai",
             "mean": 0.23169657219750484,
-            "bootstrap_mean": 0.2270287739188789,
-            "ci_low": 0.22361555412728118,
-            "ci_high": 0.23041634027664223
+            "bootstrap_mean": 0.2271381077877026,
+            "ci_low": 0.22372045680793617,
+            "ci_high": 0.23017642909267233
         },
         {
             "task": "iwildcam",
             "model": "ViT-L-14/openai",
             "mean": 0.192333432767066,
-            "bootstrap_mean": 0.18990103493231522,
-            "ci_low": 0.1871067191902901,
-            "ci_high": 0.19265142283481868
+            "bootstrap_mean": 0.1898761228088429,
+            "ci_low": 0.18707861592995295,
+            "ci_high": 0.19284128797268166
         },
         {
             "task": "iwildcam",
             "model": "ViT-L-16-SigLIP-256/webli",
             "mean": 0.20614334588423644,
-            "bootstrap_mean": 0.20032215087985475,
-            "ci_low": 0.19705444898149818,
-            "ci_high": 0.20395130950737647
+            "bootstrap_mean": 0.20029947574352683,
+            "ci_low": 0.19687267432344516,
+            "ci_high": 0.20396455720111523
         },
         {
             "task": "iwildcam",
             "model": "ViT-L-16-SigLIP-384/webli",
             "mean": 0.22883724752287754,
-            "bootstrap_mean": 0.22446869542687178,
-            "ci_low": 0.22111900551865593,
-            "ci_high": 0.22769716858553357
+            "bootstrap_mean": 0.22452679584036547,
+            "ci_low": 0.22138574140219022,
+            "ci_high": 0.22783710803218643
         },
         {
             "task": "iwildcam",
             "model": "ViT-L-16-SigLIP2-256/webli",
             "mean": 0.23778796506952052,
-            "bootstrap_mean": 0.23274636910747976,
-            "ci_low": 0.22910760234963887,
-            "ci_high": 0.23639083046415504
+            "bootstrap_mean": 0.23281612253389006,
+            "ci_low": 0.22896189240495557,
+            "ci_high": 0.2361553102281115
         },
         {
             "task": "iwildcam",
             "model": "ViT-L-16-SigLIP2-384/webli",
             "mean": 0.26515470659793855,
-            "bootstrap_mean": 0.2591648948904581,
-            "ci_low": 0.2550947657310807,
-            "ci_high": 0.2633143377721277
+            "bootstrap_mean": 0.2591680246127819,
+            "ci_low": 0.2549227144090341,
+            "ci_high": 0.2633097296399669
         },
         {
             "task": "iwildcam",
             "model": "ViT-L-16-SigLIP2-512/webli",
             "mean": 0.2729249361781376,
-            "bootstrap_mean": 0.2691447057664305,
-            "ci_low": 0.265728292058797,
-            "ci_high": 0.27225100162113747
+            "bootstrap_mean": 0.2691132468818365,
+            "ci_low": 0.26608092382836745,
+            "ci_high": 0.27275211421141915
         },
         {
             "task": "iwildcam",
             "model": "ViT-SO400M-14-SigLIP-384/webli",
             "mean": 0.2572935777366912,
-            "bootstrap_mean": 0.2517503808678062,
-            "ci_low": 0.24786920575197177,
-            "ci_high": 0.2551695869300377
+            "bootstrap_mean": 0.2518196553993743,
+            "ci_low": 0.2480273864054546,
+            "ci_high": 0.25507779287524585
         },
         {
             "task": "iwildcam",
             "model": "ViT-SO400M-14-SigLIP/webli",
             "mean": 0.2234789403126843,
-            "bootstrap_mean": 0.21911205819744187,
-            "ci_low": 0.21555617878416614,
-            "ci_high": 0.22266109250795446
+            "bootstrap_mean": 0.21902989426582758,
+            "ci_low": 0.21512811825292175,
+            "ci_high": 0.2225227669209974
         },
         {
             "task": "iwildcam",
             "model": "ViT-SO400M-16-SigLIP2-256/webli",
             "mean": 0.2418590998354569,
-            "bootstrap_mean": 0.23817210577352252,
-            "ci_low": 0.2349993709494325,
-            "ci_high": 0.24142153493968635
+            "bootstrap_mean": 0.23817521889404356,
+            "ci_low": 0.23494470966236305,
+            "ci_high": 0.24147582434558093
         },
         {
             "task": "iwildcam",
             "model": "ViT-SO400M-16-SigLIP2-384/webli",
             "mean": 0.2854101710617194,
-            "bootstrap_mean": 0.27724435186496293,
-            "ci_low": 0.2728690119409453,
-            "ci_high": 0.28170614367422314
+            "bootstrap_mean": 0.2771608557437164,
+            "ci_low": 0.27295612214838527,
+            "ci_high": 0.2814356251725395
         },
         {
             "task": "iwildcam",
             "model": "ViT-SO400M-16-SigLIP2-512/webli",
             "mean": 0.2863436823104666,
-            "bootstrap_mean": 0.2804140273338857,
-            "ci_low": 0.2764027368161339,
-            "ci_high": 0.284151783368154
+            "bootstrap_mean": 0.28034831912581504,
+            "ci_low": 0.2761599419345819,
+            "ci_high": 0.2841772150373448
         },
         {
             "task": "iwildcam",
             "model": "ViT-gopt-16-SigLIP2-256/webli",
             "mean": 0.25849613771473184,
-            "bootstrap_mean": 0.2511678686236102,
-            "ci_low": 0.2472853228282556,
-            "ci_high": 0.25531027756053526
+            "bootstrap_mean": 0.2511809113180473,
+            "ci_low": 0.24710269087492248,
+            "ci_high": 0.25513310117171967
         },
         {
             "task": "iwildcam",
             "model": "ViT-gopt-16-SigLIP2-384/webli",
             "mean": 0.29287785462767446,
-            "bootstrap_mean": 0.28593176885626603,
-            "ci_low": 0.281274984175735,
-            "ci_high": 0.2895975318924379
+            "bootstrap_mean": 0.2856882785383283,
+            "ci_low": 0.2813733518381515,
+            "ci_high": 0.2896535396079657
         },
         {
             "task": "iwildcam",
             "model": "apple/aimv2-1B-patch14-224",
             "mean": 0.16371442163476893,
-            "bootstrap_mean": 0.16033286917189926,
-            "ci_low": 0.15763832594678356,
-            "ci_high": 0.16302571873040334
+            "bootstrap_mean": 0.16026805082865672,
+            "ci_low": 0.15744431367611267,
+            "ci_high": 0.16273176971940795
         },
         {
             "task": "iwildcam",
             "model": "apple/aimv2-1B-patch14-336",
             "mean": 0.19790615622451863,
-            "bootstrap_mean": 0.1932432898714212,
-            "ci_low": 0.1899604990577038,
-            "ci_high": 0.19681728099503237
+            "bootstrap_mean": 0.1932410300804228,
+            "ci_low": 0.18962577845711345,
+            "ci_high": 0.19654364185687492
         },
         {
             "task": "iwildcam",
             "model": "apple/aimv2-1B-patch14-448",
             "mean": 0.21200519626100964,
-            "bootstrap_mean": 0.20604287778356709,
-            "ci_low": 0.2019734827242351,
-            "ci_high": 0.20954064018555568
+            "bootstrap_mean": 0.20610313388258145,
+            "ci_low": 0.20223161645842386,
+            "ci_high": 0.20967913653746506
         },
         {
             "task": "iwildcam",
             "model": "apple/aimv2-3B-patch14-224",
             "mean": 0.18313603711917661,
-            "bootstrap_mean": 0.1772195650525544,
-            "ci_low": 0.1735042203024891,
-            "ci_high": 0.1809206883513843
+            "bootstrap_mean": 0.17727305576007904,
+            "ci_low": 0.17321808645145387,
+            "ci_high": 0.18074332996582376
         },
         {
             "task": "iwildcam",
             "model": "apple/aimv2-3B-patch14-336",
             "mean": 0.2030127855963053,
-            "bootstrap_mean": 0.19794114466020898,
-            "ci_low": 0.19434315231813376,
-            "ci_high": 0.20157957189685105
+            "bootstrap_mean": 0.1979740952262997,
+            "ci_low": 0.19432401026484072,
+            "ci_high": 0.20144942044346786
         },
         {
             "task": "iwildcam",
             "model": "apple/aimv2-3B-patch14-448",
             "mean": 0.20525413017551453,
-            "bootstrap_mean": 0.20159024511352172,
-            "ci_low": 0.1982758862395409,
-            "ci_high": 0.20483840259329852
+            "bootstrap_mean": 0.20161100301074564,
+            "ci_low": 0.19831106150359065,
+            "ci_high": 0.2048840658969492
         },
         {
             "task": "iwildcam",
             "model": "apple/aimv2-huge-patch14-224",
             "mean": 0.15915117594219644,
-            "bootstrap_mean": 0.1557472488176737,
-            "ci_low": 0.15266693054473646,
-            "ci_high": 0.15843529567817097
+            "bootstrap_mean": 0.15571021933010445,
+            "ci_low": 0.1529367883539401,
+            "ci_high": 0.15849234769082704
         },
         {
             "task": "iwildcam",
             "model": "apple/aimv2-huge-patch14-336",
             "mean": 0.17149514286072445,
-            "bootstrap_mean": 0.1687647983535362,
-            "ci_low": 0.1659754086306478,
-            "ci_high": 0.17164936164171563
+            "bootstrap_mean": 0.16884846783820112,
+            "ci_low": 0.1663418388273534,
+            "ci_high": 0.17163506628800504
         },
         {
             "task": "iwildcam",
             "model": "apple/aimv2-huge-patch14-448",
             "mean": 0.1872671612392096,
-            "bootstrap_mean": 0.18273569012412752,
-            "ci_low": 0.17959584676821985,
-            "ci_high": 0.18599652126456925
+            "bootstrap_mean": 0.18269837921103174,
+            "ci_low": 0.1792916509514502,
+            "ci_high": 0.18576289877369853
         },
         {
             "task": "iwildcam",
             "model": "apple/aimv2-large-patch14-224",
             "mean": 0.14797584200140515,
-            "bootstrap_mean": 0.1459142605599277,
-            "ci_low": 0.1433337592720816,
-            "ci_high": 0.14849450594920902
+            "bootstrap_mean": 0.14597585361277765,
+            "ci_low": 0.14303009380003373,
+            "ci_high": 0.14847907965976306
         },
         {
             "task": "iwildcam",
             "model": "apple/aimv2-large-patch14-336",
             "mean": 0.15248119465216625,
-            "bootstrap_mean": 0.15107799573317154,
-            "ci_low": 0.14872195309001618,
-            "ci_high": 0.15321418793856773
+            "bootstrap_mean": 0.1511233012004035,
+            "ci_low": 0.14903308467306917,
+            "ci_high": 0.15332034105322936
         },
         {
             "task": "iwildcam",
             "model": "apple/aimv2-large-patch14-448",
             "mean": 0.16955875735717213,
-            "bootstrap_mean": 0.16728610252302759,
-            "ci_low": 0.16453587758058022,
-            "ci_high": 0.1699999946500084
+            "bootstrap_mean": 0.167255905434798,
+            "ci_low": 0.16421548822679236,
+            "ci_high": 0.1698971067431235
         },
         {
             "task": "iwildcam",
             "model": "convnext_tiny.in12k",
             "mean": 0.17492228467186455,
-            "bootstrap_mean": 0.17134184974735617,
-            "ci_low": 0.1679704349693074,
-            "ci_high": 0.1747202617539327
+            "bootstrap_mean": 0.17131088830222713,
+            "ci_low": 0.16787811797777624,
+            "ci_high": 0.1750837154024613
         },
         {
             "task": "iwildcam",
             "model": "convnext_tiny.in12k_ft_in1k",
             "mean": 0.16752135057566267,
-            "bootstrap_mean": 0.16358841368862936,
-            "ci_low": 0.16022045633750787,
-            "ci_high": 0.16659294788423598
+            "bootstrap_mean": 0.1636188947534036,
+            "ci_low": 0.16036697272272996,
+            "ci_high": 0.16679953083888696
         },
         {
             "task": "iwildcam",
             "model": "dinov2_vitb14_reg",
             "mean": 0.24597827799477262,
-            "bootstrap_mean": 0.2413538044688213,
-            "ci_low": 0.23800882631628695,
-            "ci_high": 0.24510723683041652
+            "bootstrap_mean": 0.2414056051850532,
+            "ci_low": 0.23795655090362258,
+            "ci_high": 0.24478078008993437
         },
         {
             "task": "iwildcam",
             "model": "dinov2_vitg14_reg",
             "mean": 0.30540471914158046,
-            "bootstrap_mean": 0.2984446761985787,
-            "ci_low": 0.29434558938137456,
-            "ci_high": 0.30248475276380565
+            "bootstrap_mean": 0.2983660088758078,
+            "ci_low": 0.29425597447739943,
+            "ci_high": 0.3022135796780359
         },
         {
             "task": "iwildcam",
             "model": "dinov2_vitl14_reg",
             "mean": 0.29548864553862403,
-            "bootstrap_mean": 0.28724358131951316,
-            "ci_low": 0.28288799261451875,
-            "ci_high": 0.2917182595070592
+            "bootstrap_mean": 0.28731744516221625,
+            "ci_low": 0.2826284464042782,
+            "ci_high": 0.29167860428494563
         },
         {
             "task": "iwildcam",
             "model": "dinov2_vits14_reg",
             "mean": 0.20806881039992828,
-            "bootstrap_mean": 0.20270484108580242,
-            "ci_low": 0.19902667485079395,
-            "ci_high": 0.20644040041108466
+            "bootstrap_mean": 0.20278652617727125,
+            "ci_low": 0.19941974956539238,
+            "ci_high": 0.2066661266186405
         },
         {
             "task": "iwildcam",
             "model": "efficientnet_b0.ra_in1k",
             "mean": 0.025849430140358502,
-            "bootstrap_mean": 0.025574591944411685,
-            "ci_low": 0.024592916094067364,
-            "ci_high": 0.026596594850991938
+            "bootstrap_mean": 0.025559974307838063,
+            "ci_low": 0.02454607186315377,
+            "ci_high": 0.026493138138076085
         },
         {
             "task": "iwildcam",
             "model": "efficientnet_b3.ra2_in1k",
             "mean": 0.027654461001523214,
-            "bootstrap_mean": 0.027312159575331518,
-            "ci_low": 0.026157089712158025,
-            "ci_high": 0.028379469114532537
+            "bootstrap_mean": 0.027323658570935487,
+            "ci_low": 0.026223478977480275,
+            "ci_high": 0.028442115304404856
         },
         {
             "task": "iwildcam",
             "model": "hf-hub:BGLab/BioTrove-CLIP",
             "mean": 0.111093450125372,
-            "bootstrap_mean": 0.1083394931524158,
-            "ci_low": 0.1054403334763441,
-            "ci_high": 0.1116787170436283
+            "bootstrap_mean": 0.10833157156812331,
+            "ci_low": 0.10565553865079587,
+            "ci_high": 0.11111832940727005
         },
         {
             "task": "iwildcam",
             "model": "hf-hub:BVRA/MegaDescriptor-L-384",
             "mean": 0.06886077581120388,
-            "bootstrap_mean": 0.06778240636083172,
-            "ci_low": 0.06607588005064881,
-            "ci_high": 0.06969214967387823
+            "bootstrap_mean": 0.06777269875648341,
+            "ci_low": 0.06605790333230804,
+            "ci_high": 0.06956964969859264
         },
         {
             "task": "iwildcam",
             "model": "hf-hub:UCSC-VLAA/openvision-vit-base-patch16-224",
             "mean": 0.17583585011630537,
-            "bootstrap_mean": 0.17409746080400332,
-            "ci_low": 0.1718119829578213,
-            "ci_high": 0.17640299761433184
+            "bootstrap_mean": 0.17412378483570817,
+            "ci_low": 0.17179331993656646,
+            "ci_high": 0.1765330637212411
         },
         {
             "task": "iwildcam",
             "model": "hf-hub:UCSC-VLAA/openvision-vit-huge-patch14-224",
             "mean": 0.21924007703564893,
-            "bootstrap_mean": 0.21588782646054938,
-            "ci_low": 0.2122174722840342,
-            "ci_high": 0.2192004070922034
+            "bootstrap_mean": 0.21591147512527725,
+            "ci_low": 0.21213358657660408,
+            "ci_high": 0.21923508451101728
         },
         {
             "task": "iwildcam",
             "model": "hf-hub:UCSC-VLAA/openvision-vit-large-patch14-224",
             "mean": 0.2280865195481059,
-            "bootstrap_mean": 0.2245593537686001,
-            "ci_low": 0.22098507476893453,
-            "ci_high": 0.22814136259587864
+            "bootstrap_mean": 0.22451685556853346,
+            "ci_low": 0.22116436901231984,
+            "ci_high": 0.22829578877234674
         },
         {
             "task": "iwildcam",
             "model": "hf-hub:UCSC-VLAA/openvision-vit-small-patch16-224",
             "mean": 0.16027308367462867,
-            "bootstrap_mean": 0.15816624008339977,
-            "ci_low": 0.1554815522202058,
-            "ci_high": 0.1610250676044162
+            "bootstrap_mean": 0.15826793380129736,
+            "ci_low": 0.15540621697756984,
+            "ci_high": 0.1611195970205327
         },
         {
             "task": "iwildcam",
             "model": "hf-hub:UCSC-VLAA/openvision-vit-so400m-patch14-224",
             "mean": 0.22324715755364732,
-            "bootstrap_mean": 0.2194812015983651,
-            "ci_low": 0.21564047647402348,
-            "ci_high": 0.22304080007328844
+            "bootstrap_mean": 0.21947054573882108,
+            "ci_low": 0.2157129781627302,
+            "ci_high": 0.2232038602618383
         },
         {
             "task": "iwildcam",
             "model": "hf-hub:UCSC-VLAA/openvision-vit-so400m-patch14-384",
             "mean": 0.23094885195378678,
-            "bootstrap_mean": 0.22791851850853853,
-            "ci_low": 0.22453330798440588,
-            "ci_high": 0.23101184148098797
+            "bootstrap_mean": 0.22787609186425603,
+            "ci_low": 0.22492593048306392,
+            "ci_high": 0.23092310433142968
         },
         {
             "task": "iwildcam",
             "model": "hf-hub:UCSC-VLAA/openvision-vit-tiny-patch16-224",
             "mean": 0.12210913836005724,
-            "bootstrap_mean": 0.12081006959159937,
-            "ci_low": 0.11863670788826329,
-            "ci_high": 0.12313696329754666
+            "bootstrap_mean": 0.12080241624838854,
+            "ci_low": 0.1186631791115546,
+            "ci_high": 0.12325649462763469
         },
         {
             "task": "iwildcam",
             "model": "hf-hub:imageomics/bioclip",
             "mean": 0.17216958256370218,
-            "bootstrap_mean": 0.16919153795985578,
-            "ci_low": 0.1660014975200491,
-            "ci_high": 0.1722288591711053
+            "bootstrap_mean": 0.16918694363089368,
+            "ci_low": 0.16579667550976057,
+            "ci_high": 0.1720331634413499
         },
         {
             "task": "iwildcam",
             "model": "hf-hub:imageomics/bioclip-2",
             "mean": 0.2466737097074035,
-            "bootstrap_mean": 0.24088368864407023,
-            "ci_low": 0.2370929136772697,
-            "ci_high": 0.24434352179422697
+            "bootstrap_mean": 0.2409425415292316,
+            "ci_low": 0.2371469659191188,
+            "ci_high": 0.24442839805521097
         },
         {
             "task": "iwildcam",
             "model": "mobilenetv2_100.ra_in1k",
             "mean": 0.021351073546588394,
-            "bootstrap_mean": 0.02131284643225126,
-            "ci_low": 0.020815869672248445,
-            "ci_high": 0.021771444583539242
+            "bootstrap_mean": 0.021315072860132483,
+            "ci_low": 0.020820392634087154,
+            "ci_high": 0.021794865990191786
         },
         {
             "task": "iwildcam",
             "model": "mobilenetv3_large_100.ra_in1k",
             "mean": 0.0275992733249845,
-            "bootstrap_mean": 0.027129623899422525,
-            "ci_low": 0.025873662759912187,
-            "ci_high": 0.028446595542131647
+            "bootstrap_mean": 0.027128404434463797,
+            "ci_low": 0.025847540127315837,
+            "ci_high": 0.02843093173463762
         },
         {
             "task": "iwildcam",
             "model": "resnet18.a1_in1k",
             "mean": 0.028506546309601664,
-            "bootstrap_mean": 0.028313528843478798,
-            "ci_low": 0.027368580736161444,
-            "ci_high": 0.02933667678692165
+            "bootstrap_mean": 0.028319688618553385,
+            "ci_low": 0.02742784799322561,
+            "ci_high": 0.029297458038726014
         },
         {
             "task": "iwildcam",
             "model": "resnet18d.ra2_in1k",
             "mean": 0.030969114512773274,
-            "bootstrap_mean": 0.0307616564287169,
-            "ci_low": 0.029755795473713854,
-            "ci_high": 0.03171599812511311
+            "bootstrap_mean": 0.030771786425322405,
+            "ci_low": 0.0298316522701965,
+            "ci_high": 0.031674939923192126
         },
         {
             "task": "iwildcam",
             "model": "resnet50.a1_in1k",
             "mean": 0.03256342361331245,
-            "bootstrap_mean": 0.03211354534536856,
-            "ci_low": 0.030811871428503702,
-            "ci_high": 0.03330588237002231
+            "bootstrap_mean": 0.032122562298482676,
+            "ci_low": 0.030827576339142203,
+            "ci_high": 0.03334552555518541
         },
         {
             "task": "iwildcam",
             "model": "resnet50d.a1_in1k",
             "mean": 0.03583057791648027,
-            "bootstrap_mean": 0.03519251132823892,
-            "ci_low": 0.03344423678509986,
-            "ci_high": 0.03689987206586323
+            "bootstrap_mean": 0.03517033732254725,
+            "ci_low": 0.03345612734253171,
+            "ci_high": 0.036886791713635896
         },
         {
             "task": "iwildcam",
             "model": "vit_base_patch16_224.augreg2_in21k_ft_in1k",
             "mean": 0.19431545019120494,
-            "bootstrap_mean": 0.18921819440153292,
-            "ci_low": 0.1856607039182428,
-            "ci_high": 0.19294546300850704
+            "bootstrap_mean": 0.18916769414568335,
+            "ci_low": 0.18531694605504934,
+            "ci_high": 0.19317420970459165
         },
         {
             "task": "kabr",
             "model": "ViT-B-16-SigLIP-256/webli",
             "mean": 0.5084479912033852,
-            "bootstrap_mean": 0.5074689180450208,
-            "ci_low": 0.4984123347945031,
-            "ci_high": 0.5169158396256487
+            "bootstrap_mean": 0.5072983306968296,
+            "ci_low": 0.4978688141076901,
+            "ci_high": 0.5170008359468763
         },
         {
             "task": "kabr",
             "model": "ViT-B-16-SigLIP-384/webli",
             "mean": 0.4559235280179936,
-            "bootstrap_mean": 0.45554160328717475,
-            "ci_low": 0.4478012359210643,
-            "ci_high": 0.4630867092487806
+            "bootstrap_mean": 0.45546375045538023,
+            "ci_low": 0.44789468934457144,
+            "ci_high": 0.46332516632788684
         },
         {
             "task": "kabr",
             "model": "ViT-B-16-SigLIP-512/webli",
             "mean": 0.509818636182989,
-            "bootstrap_mean": 0.5092542866958077,
-            "ci_low": 0.5003546824128147,
-            "ci_high": 0.5176738004098014
+            "bootstrap_mean": 0.5087757146830431,
+            "ci_low": 0.500137020412605,
+            "ci_high": 0.5180581801122405
         },
         {
             "task": "kabr",
             "model": "ViT-B-16-SigLIP/webli",
             "mean": 0.4753604797127156,
-            "bootstrap_mean": 0.47426159098040616,
-            "ci_low": 0.4647910713652839,
-            "ci_high": 0.48300486831569256
+            "bootstrap_mean": 0.47440240995099875,
+            "ci_low": 0.46533267106869697,
+            "ci_high": 0.48351388459345973
         },
         {
             "task": "kabr",
             "model": "ViT-B-16-SigLIP2-256/webli",
             "mean": 0.4733586353325163,
-            "bootstrap_mean": 0.4724315962631355,
-            "ci_low": 0.46529407955934227,
-            "ci_high": 0.4799259202217278
+            "bootstrap_mean": 0.47263748093465047,
+            "ci_low": 0.4646952310652501,
+            "ci_high": 0.48130278237012436
         },
         {
             "task": "kabr",
             "model": "ViT-B-16-SigLIP2-384/webli",
             "mean": 0.5364277382850966,
-            "bootstrap_mean": 0.5353119089798241,
-            "ci_low": 0.5267288710369913,
-            "ci_high": 0.5440874631213303
+            "bootstrap_mean": 0.5354387189980235,
+            "ci_low": 0.5262135543329179,
+            "ci_high": 0.5457549371820974
         },
         {
             "task": "kabr",
             "model": "ViT-B-16-SigLIP2-512/webli",
             "mean": 0.5682932165415369,
-            "bootstrap_mean": 0.5670776247628565,
-            "ci_low": 0.5571237075269482,
-            "ci_high": 0.5776498418207042
+            "bootstrap_mean": 0.5672392796523623,
+            "ci_low": 0.5578320392432434,
+            "ci_high": 0.5769597364393695
         },
         {
             "task": "kabr",
             "model": "ViT-B-16-SigLIP2/webli",
             "mean": 0.4979497216507742,
-            "bootstrap_mean": 0.4967234828258441,
-            "ci_low": 0.48618416430506733,
-            "ci_high": 0.5062208239579237
+            "bootstrap_mean": 0.49713603244418086,
+            "ci_low": 0.4871822650979876,
+            "ci_high": 0.5067905523171641
         },
         {
             "task": "kabr",
             "model": "ViT-B-16/openai",
             "mean": 0.4580700153742781,
-            "bootstrap_mean": 0.45729742561779047,
-            "ci_low": 0.44838989727598,
-            "ci_high": 0.4659822282595148
+            "bootstrap_mean": 0.45724649800320233,
+            "ci_low": 0.4485448798749119,
+            "ci_high": 0.4669894954586584
         },
         {
             "task": "kabr",
             "model": "ViT-B-32-SigLIP2-256/webli",
             "mean": 0.4484453874710973,
-            "bootstrap_mean": 0.4475630705854679,
-            "ci_low": 0.43925236694606984,
-            "ci_high": 0.45582837693501915
+            "bootstrap_mean": 0.4476733304070476,
+            "ci_low": 0.4393130839191904,
+            "ci_high": 0.4563929410800028
         },
         {
             "task": "kabr",
             "model": "ViT-B-32/openai",
             "mean": 0.4589376285218515,
-            "bootstrap_mean": 0.45773112653109765,
-            "ci_low": 0.44757603239250365,
-            "ci_high": 0.4682861011294797
+            "bootstrap_mean": 0.45802800411673594,
+            "ci_low": 0.4484870463461279,
+            "ci_high": 0.4674877769370525
         },
         {
             "task": "kabr",
             "model": "ViT-L-14-336/openai",
             "mean": 0.5223517984916172,
-            "bootstrap_mean": 0.5209095980435605,
-            "ci_low": 0.5108358487804062,
-            "ci_high": 0.5304772024567797
+            "bootstrap_mean": 0.5212927946474415,
+            "ci_low": 0.5098313619136493,
+            "ci_high": 0.5324023071287518
         },
         {
             "task": "kabr",
             "model": "ViT-L-14/openai",
             "mean": 0.5298145306029374,
-            "bootstrap_mean": 0.5287673941235329,
-            "ci_low": 0.5192467508783526,
-            "ci_high": 0.5386278855471754
+            "bootstrap_mean": 0.5285748746654599,
+            "ci_low": 0.5188917551950846,
+            "ci_high": 0.5386132259165278
         },
         {
             "task": "kabr",
             "model": "ViT-L-16-SigLIP-256/webli",
             "mean": 0.4866345021698418,
-            "bootstrap_mean": 0.48594394813339636,
-            "ci_low": 0.4772570826148538,
-            "ci_high": 0.4942781270141942
+            "bootstrap_mean": 0.48614222869531043,
+            "ci_low": 0.47814878868972155,
+            "ci_high": 0.4948609305432572
         },
         {
             "task": "kabr",
             "model": "ViT-L-16-SigLIP-384/webli",
             "mean": 0.5570707759514218,
-            "bootstrap_mean": 0.5560048931520118,
-            "ci_low": 0.5460680779201071,
-            "ci_high": 0.5659637096560196
+            "bootstrap_mean": 0.5557661257092146,
+            "ci_low": 0.5453650453017647,
+            "ci_high": 0.5659297150563474
         },
         {
             "task": "kabr",
             "model": "ViT-L-16-SigLIP2-256/webli",
             "mean": 0.5452450227156511,
-            "bootstrap_mean": 0.5439145148414362,
-            "ci_low": 0.5343877149059052,
-            "ci_high": 0.5523827653923044
+            "bootstrap_mean": 0.5445526700876091,
+            "ci_low": 0.5357558284082321,
+            "ci_high": 0.5535105951585493
         },
         {
             "task": "kabr",
             "model": "ViT-L-16-SigLIP2-384/webli",
             "mean": 0.49714846350546915,
-            "bootstrap_mean": 0.4963686949959903,
-            "ci_low": 0.4889735491582933,
-            "ci_high": 0.5035102422441631
+            "bootstrap_mean": 0.49638497456385106,
+            "ci_low": 0.48823300124953356,
+            "ci_high": 0.5038157440779613
         },
         {
             "task": "kabr",
             "model": "ViT-L-16-SigLIP2-512/webli",
             "mean": 0.45093181502607704,
-            "bootstrap_mean": 0.45010638816089965,
-            "ci_low": 0.4425683684984916,
-            "ci_high": 0.45826113904639104
+            "bootstrap_mean": 0.45001086698632103,
+            "ci_low": 0.4416312117249241,
+            "ci_high": 0.45725396817097597
         },
         {
             "task": "kabr",
             "model": "ViT-SO400M-14-SigLIP-384/webli",
             "mean": 0.5926242698768309,
-            "bootstrap_mean": 0.5913636120403164,
-            "ci_low": 0.5820003384981033,
-            "ci_high": 0.6011377808032972
+            "bootstrap_mean": 0.5911007182440933,
+            "ci_low": 0.5813264152249638,
+            "ci_high": 0.5996851172164227
         },
         {
             "task": "kabr",
             "model": "ViT-SO400M-14-SigLIP/webli",
             "mean": 0.5141246374312463,
-            "bootstrap_mean": 0.5133085984323088,
-            "ci_low": 0.5054520763202142,
-            "ci_high": 0.5211674993061629
+            "bootstrap_mean": 0.5133697532916222,
+            "ci_low": 0.504618070046265,
+            "ci_high": 0.5222135651167648
         },
         {
             "task": "kabr",
             "model": "ViT-SO400M-16-SigLIP2-256/webli",
             "mean": 0.5508389103843838,
-            "bootstrap_mean": 0.5496874291669072,
-            "ci_low": 0.5406755231525882,
-            "ci_high": 0.5586341280459364
+            "bootstrap_mean": 0.5497969530113537,
+            "ci_low": 0.5397876608714177,
+            "ci_high": 0.560281727646822
         },
         {
             "task": "kabr",
             "model": "ViT-SO400M-16-SigLIP2-384/webli",
             "mean": 0.5247962700344937,
-            "bootstrap_mean": 0.523627402333394,
-            "ci_low": 0.5143646926994226,
-            "ci_high": 0.53370555820455
+            "bootstrap_mean": 0.5234610291492581,
+            "ci_low": 0.5140112435437189,
+            "ci_high": 0.532788024036856
         },
         {
             "task": "kabr",
             "model": "ViT-SO400M-16-SigLIP2-512/webli",
             "mean": 0.5573391275235737,
-            "bootstrap_mean": 0.5564936351300903,
-            "ci_low": 0.5471388158911671,
-            "ci_high": 0.5655580437589419
+            "bootstrap_mean": 0.5565052152366188,
+            "ci_low": 0.5473919216338604,
+            "ci_high": 0.5652572445108408
         },
         {
             "task": "kabr",
             "model": "ViT-gopt-16-SigLIP2-256/webli",
             "mean": 0.5798323510232684,
-            "bootstrap_mean": 0.5784201035714543,
-            "ci_low": 0.5690022041371376,
-            "ci_high": 0.5888312575546157
+            "bootstrap_mean": 0.5788010643658219,
+            "ci_low": 0.5688991661461306,
+            "ci_high": 0.588558705170962
         },
         {
             "task": "kabr",
             "model": "ViT-gopt-16-SigLIP2-384/webli",
             "mean": 0.5844379610806979,
-            "bootstrap_mean": 0.583802159802287,
-            "ci_low": 0.5739183997709776,
-            "ci_high": 0.5937850423813024
+            "bootstrap_mean": 0.583649077086418,
+            "ci_low": 0.5742995039975793,
+            "ci_high": 0.593256526037975
         },
         {
             "task": "kabr",
             "model": "apple/aimv2-1B-patch14-224",
             "mean": 0.540149877639226,
-            "bootstrap_mean": 0.5387603077783235,
-            "ci_low": 0.528145877715027,
-            "ci_high": 0.5492279967120491
+            "bootstrap_mean": 0.5386923231614528,
+            "ci_low": 0.5294728054841743,
+            "ci_high": 0.5489847806420832
         },
         {
             "task": "kabr",
             "model": "apple/aimv2-1B-patch14-336",
             "mean": 0.5143841216253445,
-            "bootstrap_mean": 0.5134542908873886,
-            "ci_low": 0.5041342664951985,
-            "ci_high": 0.52245104573545
+            "bootstrap_mean": 0.5134730831389743,
+            "ci_low": 0.5045969451247339,
+            "ci_high": 0.5224402360929389
         },
         {
             "task": "kabr",
             "model": "apple/aimv2-1B-patch14-448",
             "mean": 0.5387872477776372,
-            "bootstrap_mean": 0.5375888924979083,
-            "ci_low": 0.5259089818331125,
-            "ci_high": 0.5476090741238853
+            "bootstrap_mean": 0.5375236398285388,
+            "ci_low": 0.52579551611786,
+            "ci_high": 0.5482885523566314
         },
         {
             "task": "kabr",
             "model": "apple/aimv2-3B-patch14-224",
             "mean": 0.5474705303643586,
-            "bootstrap_mean": 0.5461992996672336,
-            "ci_low": 0.5360220773865685,
-            "ci_high": 0.5567882996551334
+            "bootstrap_mean": 0.5466605096166678,
+            "ci_low": 0.5346203588140999,
+            "ci_high": 0.5577628144689626
         },
         {
             "task": "kabr",
             "model": "apple/aimv2-3B-patch14-336",
             "mean": 0.5551088449615387,
-            "bootstrap_mean": 0.5538518996409503,
-            "ci_low": 0.5440072615103086,
-            "ci_high": 0.5639263113756965
+            "bootstrap_mean": 0.5537268065602282,
+            "ci_low": 0.5429058892651085,
+            "ci_high": 0.5640564424788674
         },
         {
             "task": "kabr",
             "model": "apple/aimv2-3B-patch14-448",
             "mean": 0.5885951075818338,
-            "bootstrap_mean": 0.5871070822061404,
-            "ci_low": 0.5752868223962829,
-            "ci_high": 0.5971391192445381
+            "bootstrap_mean": 0.5869806230874767,
+            "ci_low": 0.575589745673467,
+            "ci_high": 0.5977685432415234
         },
         {
             "task": "kabr",
             "model": "apple/aimv2-huge-patch14-224",
             "mean": 0.5188779936311463,
-            "bootstrap_mean": 0.5166617388504106,
-            "ci_low": 0.5042141755469659,
-            "ci_high": 0.5305187725879559
+            "bootstrap_mean": 0.5169239278883923,
+            "ci_low": 0.5035550123332424,
+            "ci_high": 0.5314136143247176
         },
         {
             "task": "kabr",
             "model": "apple/aimv2-huge-patch14-336",
             "mean": 0.5291859796552971,
-            "bootstrap_mean": 0.5280956034900252,
-            "ci_low": 0.5181403000189682,
-            "ci_high": 0.5383614139249052
+            "bootstrap_mean": 0.5280381650396759,
+            "ci_low": 0.5179901580762329,
+            "ci_high": 0.5376994042624882
         },
         {
             "task": "kabr",
             "model": "apple/aimv2-huge-patch14-448",
             "mean": 0.5364334804032891,
-            "bootstrap_mean": 0.5354980232827218,
-            "ci_low": 0.5255425723789775,
-            "ci_high": 0.54474458563461
+            "bootstrap_mean": 0.5352437128050729,
+            "ci_low": 0.5242963069993595,
+            "ci_high": 0.5447378971450807
         },
         {
             "task": "kabr",
             "model": "apple/aimv2-large-patch14-224",
             "mean": 0.4806903428994179,
-            "bootstrap_mean": 0.47994214964544496,
-            "ci_low": 0.47251031823153433,
-            "ci_high": 0.48763323336811093
+            "bootstrap_mean": 0.47972805801576307,
+            "ci_low": 0.47085199970354286,
+            "ci_high": 0.4875181834444651
         },
         {
             "task": "kabr",
             "model": "apple/aimv2-large-patch14-336",
             "mean": 0.4803111264263745,
-            "bootstrap_mean": 0.4793025945654888,
-            "ci_low": 0.4685458582566582,
-            "ci_high": 0.4878932512947078
+            "bootstrap_mean": 0.4794551674225483,
+            "ci_low": 0.4702251562854751,
+            "ci_high": 0.48920125237168127
         },
         {
             "task": "kabr",
             "model": "apple/aimv2-large-patch14-448",
             "mean": 0.46012913133293537,
-            "bootstrap_mean": 0.4590183153215159,
-            "ci_low": 0.45040357820668947,
-            "ci_high": 0.4680929391952561
+            "bootstrap_mean": 0.4590128563086848,
+            "ci_low": 0.45030212809858716,
+            "ci_high": 0.4677503595541986
         },
         {
             "task": "kabr",
             "model": "convnext_tiny.in12k",
             "mean": 0.43788808841145144,
-            "bootstrap_mean": 0.4370253075718113,
-            "ci_low": 0.4280064363637779,
-            "ci_high": 0.44462348498379023
+            "bootstrap_mean": 0.43722451621558095,
+            "ci_low": 0.4292489258262549,
+            "ci_high": 0.44514645526370056
         },
         {
             "task": "kabr",
             "model": "convnext_tiny.in12k_ft_in1k",
             "mean": 0.37406172309704167,
-            "bootstrap_mean": 0.37364745627851664,
-            "ci_low": 0.3656007367091247,
-            "ci_high": 0.38161103519635636
+            "bootstrap_mean": 0.37358223466897017,
+            "ci_low": 0.36636123508763796,
+            "ci_high": 0.3810275130207288
         },
         {
             "task": "kabr",
             "model": "dinov2_vitb14_reg",
             "mean": 0.46258134331549683,
-            "bootstrap_mean": 0.4619377253494478,
-            "ci_low": 0.45433247653488384,
-            "ci_high": 0.46961361612789476
+            "bootstrap_mean": 0.4619196079306571,
+            "ci_low": 0.4548149738810513,
+            "ci_high": 0.46947450603665875
         },
         {
             "task": "kabr",
             "model": "dinov2_vitg14_reg",
             "mean": 0.5369285181868113,
-            "bootstrap_mean": 0.5357154727442488,
-            "ci_low": 0.524990744723229,
-            "ci_high": 0.5462256403632242
+            "bootstrap_mean": 0.5360099526135248,
+            "ci_low": 0.5255756927271404,
+            "ci_high": 0.5461426568721536
         },
         {
             "task": "kabr",
             "model": "dinov2_vitl14_reg",
             "mean": 0.5290550754774495,
-            "bootstrap_mean": 0.5280691725962253,
-            "ci_low": 0.518734818987453,
-            "ci_high": 0.5375369728425067
+            "bootstrap_mean": 0.5277299809405797,
+            "ci_low": 0.5181705913055312,
+            "ci_high": 0.5381553123573308
         },
         {
             "task": "kabr",
             "model": "dinov2_vits14_reg",
             "mean": 0.47006649447238436,
-            "bootstrap_mean": 0.4688943230536628,
-            "ci_low": 0.4598453534548065,
-            "ci_high": 0.47741043744948664
+            "bootstrap_mean": 0.4691532513109846,
+            "ci_low": 0.46026604079297906,
+            "ci_high": 0.47769405045161967
         },
         {
             "task": "kabr",
             "model": "efficientnet_b0.ra_in1k",
             "mean": 0.22832651284648658,
-            "bootstrap_mean": 0.2282352092152738,
-            "ci_low": 0.22324135317322802,
-            "ci_high": 0.23322950608717544
+            "bootstrap_mean": 0.22783558882601346,
+            "ci_low": 0.22248186660316374,
+            "ci_high": 0.23294984383143053
         },
         {
             "task": "kabr",
             "model": "efficientnet_b3.ra2_in1k",
             "mean": 0.2503741118847455,
-            "bootstrap_mean": 0.2500172056319917,
-            "ci_low": 0.24404335422945259,
-            "ci_high": 0.2558690031411784
+            "bootstrap_mean": 0.250077775723093,
+            "ci_low": 0.2446030572336696,
+            "ci_high": 0.25656057684672307
         },
         {
             "task": "kabr",
             "model": "hf-hub:BGLab/BioTrove-CLIP",
             "mean": 0.3732906888281807,
-            "bootstrap_mean": 0.3726852396313977,
-            "ci_low": 0.36513136225853626,
-            "ci_high": 0.38038845375937347
+            "bootstrap_mean": 0.37292606884051166,
+            "ci_low": 0.36543477549189274,
+            "ci_high": 0.3804916943902783
         },
         {
             "task": "kabr",
             "model": "hf-hub:BVRA/MegaDescriptor-L-384",
             "mean": 0.3230865304526074,
-            "bootstrap_mean": 0.32249753760817906,
-            "ci_low": 0.3147755410103342,
-            "ci_high": 0.33082784963611184
+            "bootstrap_mean": 0.32277459136746456,
+            "ci_low": 0.31529596360462164,
+            "ci_high": 0.33091213853137813
         },
         {
             "task": "kabr",
             "model": "hf-hub:UCSC-VLAA/openvision-vit-base-patch16-224",
             "mean": 0.5051200127471874,
-            "bootstrap_mean": 0.5043140138573972,
-            "ci_low": 0.49520601214850624,
-            "ci_high": 0.5131361296869228
+            "bootstrap_mean": 0.5041126180974852,
+            "ci_low": 0.49521186514147447,
+            "ci_high": 0.5134935613386088
         },
         {
             "task": "kabr",
             "model": "hf-hub:UCSC-VLAA/openvision-vit-huge-patch14-224",
             "mean": 0.5185537909063374,
-            "bootstrap_mean": 0.517657321779689,
-            "ci_low": 0.5089496114157298,
-            "ci_high": 0.5262574498472832
+            "bootstrap_mean": 0.5178996906602283,
+            "ci_low": 0.5090484292366217,
+            "ci_high": 0.5269268059783452
         },
         {
             "task": "kabr",
             "model": "hf-hub:UCSC-VLAA/openvision-vit-large-patch14-224",
             "mean": 0.5559537591936472,
-            "bootstrap_mean": 0.5546078639311608,
-            "ci_low": 0.5452544838407499,
-            "ci_high": 0.5658974148694099
+            "bootstrap_mean": 0.5549752764328985,
+            "ci_low": 0.5443732380531023,
+            "ci_high": 0.5648078194446621
         },
         {
             "task": "kabr",
             "model": "hf-hub:UCSC-VLAA/openvision-vit-small-patch16-224",
             "mean": 0.44908667584796036,
-            "bootstrap_mean": 0.4485078121986637,
-            "ci_low": 0.4398847001551082,
-            "ci_high": 0.4573416993391355
+            "bootstrap_mean": 0.4483359189496143,
+            "ci_low": 0.4401334307017261,
+            "ci_high": 0.4558197433348107
         },
         {
             "task": "kabr",
             "model": "hf-hub:UCSC-VLAA/openvision-vit-so400m-patch14-224",
             "mean": 0.5316692825408302,
-            "bootstrap_mean": 0.5308495187816661,
-            "ci_low": 0.5208182451651051,
-            "ci_high": 0.5407426652236642
+            "bootstrap_mean": 0.5302736902772387,
+            "ci_low": 0.5209527809927862,
+            "ci_high": 0.5400509647351751
         },
         {
             "task": "kabr",
             "model": "hf-hub:UCSC-VLAA/openvision-vit-so400m-patch14-384",
             "mean": 0.5369074296334547,
-            "bootstrap_mean": 0.5356463867543967,
-            "ci_low": 0.5260273451738398,
-            "ci_high": 0.5447072593418887
+            "bootstrap_mean": 0.5357670823839109,
+            "ci_low": 0.5265292865653407,
+            "ci_high": 0.5456799504057741
         },
         {
             "task": "kabr",
             "model": "hf-hub:UCSC-VLAA/openvision-vit-tiny-patch16-224",
             "mean": 0.440351583387172,
-            "bootstrap_mean": 0.4395489664395099,
-            "ci_low": 0.4321246058027853,
-            "ci_high": 0.4472872959864096
+            "bootstrap_mean": 0.43979378904836547,
+            "ci_low": 0.4330719310498531,
+            "ci_high": 0.44682153651905326
         },
         {
             "task": "kabr",
             "model": "hf-hub:imageomics/bioclip",
             "mean": 0.46082521772838825,
-            "bootstrap_mean": 0.4599452900321306,
-            "ci_low": 0.4521051721086462,
-            "ci_high": 0.4677311821510653
+            "bootstrap_mean": 0.4600117406493025,
+            "ci_low": 0.45271093343445534,
+            "ci_high": 0.468336317029795
         },
         {
             "task": "kabr",
             "model": "hf-hub:imageomics/bioclip-2",
             "mean": 0.47986171360980423,
-            "bootstrap_mean": 0.47851731289949395,
-            "ci_low": 0.46875834939961025,
-            "ci_high": 0.48802745891285904
+            "bootstrap_mean": 0.47892866353497904,
+            "ci_low": 0.4693808684595281,
+            "ci_high": 0.4886639633520261
         },
         {
             "task": "kabr",
             "model": "mobilenetv2_100.ra_in1k",
             "mean": 0.221674364303581,
-            "bootstrap_mean": 0.22133009932446113,
-            "ci_low": 0.217013369486117,
-            "ci_high": 0.2261120381993911
+            "bootstrap_mean": 0.22158191492087664,
+            "ci_low": 0.2175188082244653,
+            "ci_high": 0.2265576121296522
         },
         {
             "task": "kabr",
             "model": "mobilenetv3_large_100.ra_in1k",
             "mean": 0.29873398694464715,
-            "bootstrap_mean": 0.29828397763421477,
-            "ci_low": 0.2922297789524353,
-            "ci_high": 0.3046538311901302
+            "bootstrap_mean": 0.2985247687249778,
+            "ci_low": 0.29149914669537336,
+            "ci_high": 0.3048314063016047
         },
         {
             "task": "kabr",
             "model": "resnet18.a1_in1k",
             "mean": 0.30561292796697864,
-            "bootstrap_mean": 0.30545726391156613,
-            "ci_low": 0.29904858372397985,
-            "ci_high": 0.31237819778112774
+            "bootstrap_mean": 0.30515407609570866,
+            "ci_low": 0.29826598025608764,
+            "ci_high": 0.31150637960457844
         },
         {
             "task": "kabr",
             "model": "resnet18d.ra2_in1k",
             "mean": 0.30924554633859797,
-            "bootstrap_mean": 0.3088008600661867,
-            "ci_low": 0.3022633737708814,
-            "ci_high": 0.31504675853895076
+            "bootstrap_mean": 0.30880777084002314,
+            "ci_low": 0.3029397669226846,
+            "ci_high": 0.31437439218361873
         },
         {
             "task": "kabr",
             "model": "resnet50.a1_in1k",
             "mean": 0.31072480741753444,
-            "bootstrap_mean": 0.3103207057611473,
-            "ci_low": 0.3026022836667911,
-            "ci_high": 0.3184466138289542
+            "bootstrap_mean": 0.3099904571026403,
+            "ci_low": 0.3022696414151981,
+            "ci_high": 0.31773095508308546
         },
         {
             "task": "kabr",
             "model": "resnet50d.a1_in1k",
             "mean": 0.33297536093527264,
-            "bootstrap_mean": 0.33245010074957465,
-            "ci_low": 0.32496534038618796,
-            "ci_high": 0.3391896726068666
+            "bootstrap_mean": 0.33236976594109874,
+            "ci_low": 0.324541855259972,
+            "ci_high": 0.3394778493594876
+        },
+        {
+            "task": "kabr",
+            "model": "sam2_hiera_tiny.fb_r896_2pt1",
+            "mean": 0.40884015186268935,
+            "bootstrap_mean": 0.40801051833046054,
+            "ci_low": 0.3993112588082258,
+            "ci_high": 0.4161159455924458
         },
         {
             "task": "kabr",
             "model": "vit_base_patch16_224.augreg2_in21k_ft_in1k",
             "mean": 0.5027338459799287,
-            "bootstrap_mean": 0.5024032084162745,
-            "ci_low": 0.49342404221819064,
-            "ci_high": 0.5124956869891668
+            "bootstrap_mean": 0.5020137196309845,
+            "ci_low": 0.49303070724916975,
+            "ci_high": 0.5107864326964392
         },
         {
             "task": "mammalnet",
             "model": "ViT-B-16-SigLIP-256/webli",
             "mean": 0.539871741349661,
-            "bootstrap_mean": 0.5390678843081066,
-            "ci_low": 0.5327377426674255,
-            "ci_high": 0.5453529871617395
+            "bootstrap_mean": 0.5393815471373299,
+            "ci_low": 0.5332364121022284,
+            "ci_high": 0.5461984860739107
         },
         {
             "task": "mammalnet",
             "model": "ViT-B-16-SigLIP-384/webli",
             "mean": 0.5743978404740646,
-            "bootstrap_mean": 0.5738706031999924,
-            "ci_low": 0.5677005217206086,
-            "ci_high": 0.5802937138070171
+            "bootstrap_mean": 0.5739992885677898,
+            "ci_low": 0.5680305724703569,
+            "ci_high": 0.5800481429291798
         },
         {
             "task": "mammalnet",
             "model": "ViT-B-16-SigLIP-512/webli",
             "mean": 0.5842363552898342,
-            "bootstrap_mean": 0.5836129319167775,
-            "ci_low": 0.5756145437350484,
-            "ci_high": 0.5911994594529074
+            "bootstrap_mean": 0.5834556018884964,
+            "ci_low": 0.576529944306642,
+            "ci_high": 0.5905224178561628
         },
         {
             "task": "mammalnet",
             "model": "ViT-B-16-SigLIP/webli",
             "mean": 0.5313962541533639,
-            "bootstrap_mean": 0.5311098995449699,
-            "ci_low": 0.5258151137140744,
-            "ci_high": 0.5367738328322001
+            "bootstrap_mean": 0.5308712179715019,
+            "ci_low": 0.5249986586464683,
+            "ci_high": 0.5371230436075078
         },
         {
             "task": "mammalnet",
             "model": "ViT-B-16-SigLIP2-256/webli",
             "mean": 0.5791991118474843,
-            "bootstrap_mean": 0.578494839098535,
-            "ci_low": 0.5722806498688975,
-            "ci_high": 0.5849771404841422
+            "bootstrap_mean": 0.5785010477372012,
+            "ci_low": 0.5721646790415494,
+            "ci_high": 0.5853687774295051
         },
         {
             "task": "mammalnet",
             "model": "ViT-B-16-SigLIP2-384/webli",
             "mean": 0.5947230206411426,
-            "bootstrap_mean": 0.5942605873421332,
-            "ci_low": 0.5871554827382732,
-            "ci_high": 0.6012360209981958
+            "bootstrap_mean": 0.5935343110216426,
+            "ci_low": 0.5865104753454221,
+            "ci_high": 0.6008168865929532
         },
         {
             "task": "mammalnet",
             "model": "ViT-B-16-SigLIP2-512/webli",
             "mean": 0.6161751215329696,
-            "bootstrap_mean": 0.6154633226642087,
-            "ci_low": 0.6093179460644028,
-            "ci_high": 0.6217842633889048
+            "bootstrap_mean": 0.6154407758637981,
+            "ci_low": 0.6090230405996834,
+            "ci_high": 0.6221094422799855
         },
         {
             "task": "mammalnet",
             "model": "ViT-B-16-SigLIP2/webli",
             "mean": 0.5659186863117814,
-            "bootstrap_mean": 0.5649165751113233,
-            "ci_low": 0.5584176313041824,
-            "ci_high": 0.5716979112262249
+            "bootstrap_mean": 0.5653019615829026,
+            "ci_low": 0.5585060475821273,
+            "ci_high": 0.571940651445935
         },
         {
             "task": "mammalnet",
             "model": "ViT-B-16/openai",
             "mean": 0.5100010534036639,
-            "bootstrap_mean": 0.5094347312787705,
-            "ci_low": 0.5033649728056294,
-            "ci_high": 0.5153557744564952
+            "bootstrap_mean": 0.5094459502941052,
+            "ci_low": 0.503732362533012,
+            "ci_high": 0.5154521866802505
         },
         {
             "task": "mammalnet",
             "model": "ViT-B-32-SigLIP2-256/webli",
             "mean": 0.5315574776378983,
-            "bootstrap_mean": 0.530925642211036,
-            "ci_low": 0.5244052589607104,
-            "ci_high": 0.5373884444313515
+            "bootstrap_mean": 0.5311705007480129,
+            "ci_low": 0.5242545459907483,
+            "ci_high": 0.5375874430169025
         },
         {
             "task": "mammalnet",
             "model": "ViT-B-32/openai",
             "mean": 0.48965779556029165,
-            "bootstrap_mean": 0.48904917882903864,
-            "ci_low": 0.4830576238524272,
-            "ci_high": 0.49464934423757567
+            "bootstrap_mean": 0.48907251821874936,
+            "ci_low": 0.48323694014222923,
+            "ci_high": 0.49528298515474817
         },
         {
             "task": "mammalnet",
             "model": "ViT-L-14-336/openai",
             "mean": 0.6279326505056143,
-            "bootstrap_mean": 0.6275308229781862,
-            "ci_low": 0.6210942153017285,
-            "ci_high": 0.6343910026620221
+            "bootstrap_mean": 0.6270803587878092,
+            "ci_low": 0.6207101663590872,
+            "ci_high": 0.6338096511521861
         },
         {
             "task": "mammalnet",
             "model": "ViT-L-14/openai",
             "mean": 0.6231671107478404,
-            "bootstrap_mean": 0.6221256362922571,
-            "ci_low": 0.6153462038926619,
-            "ci_high": 0.6285811112677475
+            "bootstrap_mean": 0.6222745270695396,
+            "ci_low": 0.6146117608177195,
+            "ci_high": 0.6288453581116297
         },
         {
             "task": "mammalnet",
             "model": "ViT-L-16-SigLIP-256/webli",
             "mean": 0.6076866779031701,
-            "bootstrap_mean": 0.606914077989134,
-            "ci_low": 0.6005593924322967,
-            "ci_high": 0.6134139502726236
+            "bootstrap_mean": 0.60678186549497,
+            "ci_low": 0.5999551265953809,
+            "ci_high": 0.6133409977128024
         },
         {
             "task": "mammalnet",
             "model": "ViT-L-16-SigLIP-384/webli",
             "mean": 0.6364700840628353,
-            "bootstrap_mean": 0.6356575750745864,
-            "ci_low": 0.6290631274155369,
-            "ci_high": 0.6421510112819623
+            "bootstrap_mean": 0.6356888339019305,
+            "ci_low": 0.6294487063948607,
+            "ci_high": 0.6416297981136997
         },
         {
             "task": "mammalnet",
             "model": "ViT-L-16-SigLIP2-256/webli",
             "mean": 0.6553356064536123,
-            "bootstrap_mean": 0.6545989766572142,
-            "ci_low": 0.6470659523688858,
-            "ci_high": 0.6615068055987746
+            "bootstrap_mean": 0.6543898052696249,
+            "ci_low": 0.6469079082770306,
+            "ci_high": 0.6621977770517778
         },
         {
             "task": "mammalnet",
             "model": "ViT-L-16-SigLIP2-384/webli",
             "mean": 0.673740643736271,
-            "bootstrap_mean": 0.6729644260242981,
-            "ci_low": 0.6659853240308474,
-            "ci_high": 0.6792771897509019
+            "bootstrap_mean": 0.6727146858677925,
+            "ci_low": 0.6657963494209326,
+            "ci_high": 0.6802728438962534
         },
         {
             "task": "mammalnet",
             "model": "ViT-L-16-SigLIP2-512/webli",
             "mean": 0.6803264470576198,
-            "bootstrap_mean": 0.6793587860566143,
-            "ci_low": 0.6715475364021978,
-            "ci_high": 0.6865426092390924
+            "bootstrap_mean": 0.679453122582992,
+            "ci_low": 0.6721532221912692,
+            "ci_high": 0.6862075233331049
         },
         {
             "task": "mammalnet",
             "model": "ViT-SO400M-14-SigLIP-384/webli",
             "mean": 0.6628371828547462,
-            "bootstrap_mean": 0.6619572302867162,
-            "ci_low": 0.6553679599728044,
-            "ci_high": 0.6682522431634836
+            "bootstrap_mean": 0.6620462233899351,
+            "ci_low": 0.6548841958411223,
+            "ci_high": 0.6689680552673565
         },
         {
             "task": "mammalnet",
             "model": "ViT-SO400M-14-SigLIP/webli",
             "mean": 0.6279065043339229,
-            "bootstrap_mean": 0.6271316952301784,
-            "ci_low": 0.6194074199942551,
-            "ci_high": 0.634046945066201
+            "bootstrap_mean": 0.6271535863608558,
+            "ci_low": 0.6205368190014071,
+            "ci_high": 0.6343833010995299
         },
         {
             "task": "mammalnet",
             "model": "ViT-SO400M-16-SigLIP2-256/webli",
             "mean": 0.6790741422379573,
-            "bootstrap_mean": 0.6779226713645504,
-            "ci_low": 0.6697376419292423,
-            "ci_high": 0.6856889056179056
+            "bootstrap_mean": 0.6781922736313664,
+            "ci_low": 0.6711733551448743,
+            "ci_high": 0.6853643623130932
         },
         {
             "task": "mammalnet",
             "model": "ViT-SO400M-16-SigLIP2-384/webli",
             "mean": 0.7081575979230764,
-            "bootstrap_mean": 0.7074269596767988,
-            "ci_low": 0.7004865806980132,
-            "ci_high": 0.7142330340792207
+            "bootstrap_mean": 0.7072935081252976,
+            "ci_low": 0.7002496337774137,
+            "ci_high": 0.7143060687529941
         },
         {
             "task": "mammalnet",
             "model": "ViT-SO400M-16-SigLIP2-512/webli",
             "mean": 0.7054787849085447,
-            "bootstrap_mean": 0.7047211436432851,
-            "ci_low": 0.6974769852020682,
-            "ci_high": 0.7116873749936151
+            "bootstrap_mean": 0.7047921653187568,
+            "ci_low": 0.6984303573712668,
+            "ci_high": 0.7113593561066645
         },
         {
             "task": "mammalnet",
             "model": "ViT-gopt-16-SigLIP2-256/webli",
             "mean": 0.7260338393111301,
-            "bootstrap_mean": 0.7251172950068204,
-            "ci_low": 0.7175507612075392,
-            "ci_high": 0.7330713960834061
+            "bootstrap_mean": 0.7249764903382682,
+            "ci_low": 0.7175331316075293,
+            "ci_high": 0.732381576426216
         },
         {
             "task": "mammalnet",
             "model": "ViT-gopt-16-SigLIP2-384/webli",
             "mean": 0.7388046726973889,
-            "bootstrap_mean": 0.7379364716452198,
-            "ci_low": 0.7311379167617043,
-            "ci_high": 0.7448278894151629
+            "bootstrap_mean": 0.7378789262868171,
+            "ci_low": 0.7306628244475089,
+            "ci_high": 0.744451734865489
         },
         {
             "task": "mammalnet",
             "model": "apple/aimv2-1B-patch14-224",
             "mean": 0.6522818881756193,
-            "bootstrap_mean": 0.6516019974232087,
-            "ci_low": 0.6440033483447059,
-            "ci_high": 0.6588933042350819
+            "bootstrap_mean": 0.6515956582835788,
+            "ci_low": 0.6437866683511576,
+            "ci_high": 0.6591549079023146
         },
         {
             "task": "mammalnet",
             "model": "apple/aimv2-1B-patch14-336",
             "mean": 0.6458095384008965,
-            "bootstrap_mean": 0.6452003540932142,
-            "ci_low": 0.6379992622963421,
-            "ci_high": 0.652598451599087
+            "bootstrap_mean": 0.6447807050561833,
+            "ci_low": 0.6374387081801537,
+            "ci_high": 0.6518597324357971
         },
         {
             "task": "mammalnet",
             "model": "apple/aimv2-1B-patch14-448",
             "mean": 0.6584704589115583,
-            "bootstrap_mean": 0.6578054631274713,
-            "ci_low": 0.6503167308634096,
-            "ci_high": 0.6653255002099664
+            "bootstrap_mean": 0.6577658378290568,
+            "ci_low": 0.6511068417249907,
+            "ci_high": 0.6642230727242016
         },
         {
             "task": "mammalnet",
             "model": "apple/aimv2-3B-patch14-224",
             "mean": 0.6712388369516922,
-            "bootstrap_mean": 0.6704179380487433,
-            "ci_low": 0.6634184865481998,
-            "ci_high": 0.677647695250933
+            "bootstrap_mean": 0.6705705705269028,
+            "ci_low": 0.6628142795685419,
+            "ci_high": 0.6782527485868057
         },
         {
             "task": "mammalnet",
             "model": "apple/aimv2-3B-patch14-336",
             "mean": 0.6783642142352103,
-            "bootstrap_mean": 0.6774999610369736,
-            "ci_low": 0.6701743795709416,
-            "ci_high": 0.6852986315412222
+            "bootstrap_mean": 0.6776539743861938,
+            "ci_low": 0.6702041385682523,
+            "ci_high": 0.6849381511483453
         },
         {
             "task": "mammalnet",
             "model": "apple/aimv2-3B-patch14-448",
             "mean": 0.6881271621093786,
-            "bootstrap_mean": 0.6869978890909937,
-            "ci_low": 0.6789593760692139,
-            "ci_high": 0.6949902509663539
+            "bootstrap_mean": 0.6871638082926791,
+            "ci_low": 0.6800051946557588,
+            "ci_high": 0.6949618475955462
         },
         {
             "task": "mammalnet",
             "model": "apple/aimv2-huge-patch14-224",
             "mean": 0.6049114438232794,
-            "bootstrap_mean": 0.6042601027945098,
-            "ci_low": 0.5970844553180038,
-            "ci_high": 0.6120352224639009
+            "bootstrap_mean": 0.6042994695877493,
+            "ci_low": 0.5975750842715988,
+            "ci_high": 0.6111321751217925
         },
         {
             "task": "mammalnet",
             "model": "apple/aimv2-huge-patch14-336",
             "mean": 0.605516452315745,
-            "bootstrap_mean": 0.6047922213286796,
-            "ci_low": 0.5969989330107415,
-            "ci_high": 0.6117816750760952
+            "bootstrap_mean": 0.6050225910753981,
+            "ci_low": 0.5977430845609651,
+            "ci_high": 0.6118200510592747
         },
         {
             "task": "mammalnet",
             "model": "apple/aimv2-huge-patch14-448",
             "mean": 0.6020211755123974,
-            "bootstrap_mean": 0.6015735953288458,
-            "ci_low": 0.5947812352682188,
-            "ci_high": 0.608324810283407
+            "bootstrap_mean": 0.6012255453355823,
+            "ci_low": 0.5950581406054741,
+            "ci_high": 0.6078128721330892
         },
         {
             "task": "mammalnet",
             "model": "apple/aimv2-large-patch14-224",
             "mean": 0.5479475357848939,
-            "bootstrap_mean": 0.5473008310203229,
-            "ci_low": 0.5410865571387685,
-            "ci_high": 0.5546392287894187
+            "bootstrap_mean": 0.5473299303552326,
+            "ci_low": 0.5401883322115213,
+            "ci_high": 0.554344676895674
         },
         {
             "task": "mammalnet",
             "model": "apple/aimv2-large-patch14-336",
             "mean": 0.5450638476642111,
-            "bootstrap_mean": 0.5444727879751288,
-            "ci_low": 0.5381189769231446,
-            "ci_high": 0.550720098038801
+            "bootstrap_mean": 0.5441673208040295,
+            "ci_low": 0.5373322227006153,
+            "ci_high": 0.5508173653065265
         },
         {
             "task": "mammalnet",
             "model": "apple/aimv2-large-patch14-448",
             "mean": 0.5210711982830489,
-            "bootstrap_mean": 0.5202985069825964,
-            "ci_low": 0.5132789555280137,
-            "ci_high": 0.5265724049862642
+            "bootstrap_mean": 0.5207080103859544,
+            "ci_low": 0.5141876363247687,
+            "ci_high": 0.5269185201766234
         },
         {
             "task": "mammalnet",
             "model": "convnext_tiny.in12k",
             "mean": 0.3755727810771385,
-            "bootstrap_mean": 0.3749395645073173,
-            "ci_low": 0.36905102888291264,
-            "ci_high": 0.38081620291446483
+            "bootstrap_mean": 0.3748879772741494,
+            "ci_low": 0.36891403496392033,
+            "ci_high": 0.38085392598776624
         },
         {
             "task": "mammalnet",
             "model": "convnext_tiny.in12k_ft_in1k",
             "mean": 0.3052193583914594,
-            "bootstrap_mean": 0.30494598010667184,
-            "ci_low": 0.29938752866726337,
-            "ci_high": 0.31010786734529827
+            "bootstrap_mean": 0.30484017214670417,
+            "ci_low": 0.29922448313300365,
+            "ci_high": 0.310288603945505
         },
         {
             "task": "mammalnet",
             "model": "dinov2_vitb14_reg",
             "mean": 0.4995225525529096,
-            "bootstrap_mean": 0.4984610212357492,
-            "ci_low": 0.49116742362201105,
-            "ci_high": 0.5057198917341638
+            "bootstrap_mean": 0.49871503360164476,
+            "ci_low": 0.4919312057295933,
+            "ci_high": 0.5059155740058805
         },
         {
             "task": "mammalnet",
             "model": "dinov2_vitg14_reg",
             "mean": 0.5705903125108848,
-            "bootstrap_mean": 0.5701509319899944,
-            "ci_low": 0.5638270966587042,
-            "ci_high": 0.5760929705890936
+            "bootstrap_mean": 0.5697846908920423,
+            "ci_low": 0.5630405669420578,
+            "ci_high": 0.5757315638224425
         },
         {
             "task": "mammalnet",
             "model": "dinov2_vitl14_reg",
             "mean": 0.4990327215449088,
-            "bootstrap_mean": 0.4982167809814839,
-            "ci_low": 0.4909643614148874,
-            "ci_high": 0.5056440869452606
+            "bootstrap_mean": 0.49812731247477104,
+            "ci_low": 0.49063373516204517,
+            "ci_high": 0.5047914222464197
         },
         {
             "task": "mammalnet",
             "model": "dinov2_vits14_reg",
             "mean": 0.4618133396924266,
-            "bootstrap_mean": 0.46108247151614784,
-            "ci_low": 0.45430150192627916,
-            "ci_high": 0.4665773722697764
+            "bootstrap_mean": 0.4613658690124963,
+            "ci_low": 0.4545899290393893,
+            "ci_high": 0.46791761747117633
         },
         {
             "task": "mammalnet",
             "model": "efficientnet_b0.ra_in1k",
             "mean": 0.3126073982424205,
-            "bootstrap_mean": 0.31214054283626125,
-            "ci_low": 0.3072789153805641,
-            "ci_high": 0.31776893966807973
+            "bootstrap_mean": 0.31222240640381504,
+            "ci_low": 0.3068482992712692,
+            "ci_high": 0.31780612323280605
         },
         {
             "task": "mammalnet",
             "model": "efficientnet_b3.ra2_in1k",
             "mean": 0.3199407553301202,
-            "bootstrap_mean": 0.31949310412265686,
-            "ci_low": 0.3145001983176135,
-            "ci_high": 0.3250912425988477
+            "bootstrap_mean": 0.31951165051211083,
+            "ci_low": 0.3138648295403492,
+            "ci_high": 0.32509306425166795
         },
         {
             "task": "mammalnet",
             "model": "hf-hub:BGLab/BioTrove-CLIP",
             "mean": 0.3002981975281234,
-            "bootstrap_mean": 0.2999241726428584,
-            "ci_low": 0.2949052553807175,
-            "ci_high": 0.30519215124691623
+            "bootstrap_mean": 0.29989104179049697,
+            "ci_low": 0.29521187090585743,
+            "ci_high": 0.30494966820518943
         },
         {
             "task": "mammalnet",
             "model": "hf-hub:BVRA/MegaDescriptor-L-384",
             "mean": 0.31116477336863524,
-            "bootstrap_mean": 0.31050237689355104,
-            "ci_low": 0.30372560595269615,
-            "ci_high": 0.3177285698726625
+            "bootstrap_mean": 0.31058294440422196,
+            "ci_low": 0.30324757305036204,
+            "ci_high": 0.31773362160685403
         },
         {
             "task": "mammalnet",
             "model": "hf-hub:UCSC-VLAA/openvision-vit-base-patch16-224",
             "mean": 0.5060815781459546,
-            "bootstrap_mean": 0.5057429858189052,
-            "ci_low": 0.4998446861193161,
-            "ci_high": 0.5116232226348575
+            "bootstrap_mean": 0.505585988191063,
+            "ci_low": 0.49996374097653107,
+            "ci_high": 0.5115453408354613
         },
         {
             "task": "mammalnet",
             "model": "hf-hub:UCSC-VLAA/openvision-vit-huge-patch14-224",
             "mean": 0.6133885811569315,
-            "bootstrap_mean": 0.6128730289993971,
-            "ci_low": 0.606239777066117,
-            "ci_high": 0.6200085894725393
+            "bootstrap_mean": 0.612485039396126,
+            "ci_low": 0.605161385415043,
+            "ci_high": 0.6198029052997328
         },
         {
             "task": "mammalnet",
             "model": "hf-hub:UCSC-VLAA/openvision-vit-large-patch14-224",
             "mean": 0.5776514782952099,
-            "bootstrap_mean": 0.5769024793847125,
-            "ci_low": 0.5693307480497031,
-            "ci_high": 0.5842934104005499
+            "bootstrap_mean": 0.5769484485212817,
+            "ci_low": 0.5697555401630446,
+            "ci_high": 0.584797541793161
         },
         {
             "task": "mammalnet",
             "model": "hf-hub:UCSC-VLAA/openvision-vit-small-patch16-224",
             "mean": 0.45120783306401413,
-            "bootstrap_mean": 0.45073308707771764,
-            "ci_low": 0.44503118852800655,
-            "ci_high": 0.4561275241863928
+            "bootstrap_mean": 0.4505321766143309,
+            "ci_low": 0.4449223719691254,
+            "ci_high": 0.4558175300446382
         },
         {
             "task": "mammalnet",
             "model": "hf-hub:UCSC-VLAA/openvision-vit-so400m-patch14-224",
             "mean": 0.6094491971899025,
-            "bootstrap_mean": 0.6090095401394071,
-            "ci_low": 0.6021480615891246,
-            "ci_high": 0.6158455531547579
+            "bootstrap_mean": 0.6085955702449053,
+            "ci_low": 0.6020755869840955,
+            "ci_high": 0.6144876425394125
         },
         {
             "task": "mammalnet",
             "model": "hf-hub:UCSC-VLAA/openvision-vit-so400m-patch14-384",
             "mean": 0.618507037766892,
-            "bootstrap_mean": 0.6177768328202178,
-            "ci_low": 0.6113005508501527,
-            "ci_high": 0.6243373073816263
+            "bootstrap_mean": 0.6179214044809422,
+            "ci_low": 0.6105960061622708,
+            "ci_high": 0.6249268245125315
         },
         {
             "task": "mammalnet",
             "model": "hf-hub:UCSC-VLAA/openvision-vit-tiny-patch16-224",
             "mean": 0.36378392390043207,
-            "bootstrap_mean": 0.3634576406224678,
-            "ci_low": 0.358573351323569,
-            "ci_high": 0.3684740424512522
+            "bootstrap_mean": 0.36323122660296225,
+            "ci_low": 0.3579257578147427,
+            "ci_high": 0.36890954198485115
         },
         {
             "task": "mammalnet",
             "model": "hf-hub:imageomics/bioclip",
             "mean": 0.35668035211807175,
-            "bootstrap_mean": 0.35619554204268117,
-            "ci_low": 0.3511117821967087,
-            "ci_high": 0.36201753628115113
+            "bootstrap_mean": 0.35650540168407363,
+            "ci_low": 0.3514431976755716,
+            "ci_high": 0.36230602397937983
         },
         {
             "task": "mammalnet",
             "model": "hf-hub:imageomics/bioclip-2",
             "mean": 0.46407160388163327,
-            "bootstrap_mean": 0.46375904080746055,
-            "ci_low": 0.45788630274418735,
-            "ci_high": 0.46991305903222996
+            "bootstrap_mean": 0.46357102997185834,
+            "ci_low": 0.4576023866082693,
+            "ci_high": 0.46949484514032397
         },
         {
             "task": "mammalnet",
             "model": "mobilenetv2_100.ra_in1k",
             "mean": 0.32568021984056256,
-            "bootstrap_mean": 0.3253026091233569,
-            "ci_low": 0.31997483236878527,
-            "ci_high": 0.33094224913205317
+            "bootstrap_mean": 0.32529858466471206,
+            "ci_low": 0.31959051711288416,
+            "ci_high": 0.33044722261801707
         },
         {
             "task": "mammalnet",
             "model": "mobilenetv3_large_100.ra_in1k",
             "mean": 0.3682537940184702,
-            "bootstrap_mean": 0.36774416458682163,
-            "ci_low": 0.3625760858678821,
-            "ci_high": 0.37366292116661715
+            "bootstrap_mean": 0.3678145136207864,
+            "ci_low": 0.3621351822669086,
+            "ci_high": 0.3737541919166096
         },
         {
             "task": "mammalnet",
             "model": "resnet18.a1_in1k",
             "mean": 0.3250299224679902,
-            "bootstrap_mean": 0.32472856104443876,
-            "ci_low": 0.3194357685559573,
-            "ci_high": 0.3299250585227043
+            "bootstrap_mean": 0.32477582808320815,
+            "ci_low": 0.31947458824489333,
+            "ci_high": 0.32929094110959334
         },
         {
             "task": "mammalnet",
             "model": "resnet18d.ra2_in1k",
             "mean": 0.3285941933475966,
-            "bootstrap_mean": 0.32844030379349043,
-            "ci_low": 0.3232222512306738,
-            "ci_high": 0.3340232621238963
+            "bootstrap_mean": 0.3280354167446301,
+            "ci_low": 0.3230088183560659,
+            "ci_high": 0.3326528515685486
         },
         {
             "task": "mammalnet",
             "model": "resnet50.a1_in1k",
             "mean": 0.3806823767281768,
-            "bootstrap_mean": 0.3798758408983221,
-            "ci_low": 0.373131237432926,
-            "ci_high": 0.38690388212044935
+            "bootstrap_mean": 0.37978744860211716,
+            "ci_low": 0.3733705769768952,
+            "ci_high": 0.3864010627536517
         },
         {
             "task": "mammalnet",
             "model": "resnet50d.a1_in1k",
             "mean": 0.39441095224999606,
-            "bootstrap_mean": 0.39373777345719624,
-            "ci_low": 0.3868228435953836,
-            "ci_high": 0.40160278298067575
+            "bootstrap_mean": 0.3937922344173372,
+            "ci_low": 0.3865419943810614,
+            "ci_high": 0.40074975145918407
         },
         {
             "task": "mammalnet",
             "model": "vit_base_patch16_224.augreg2_in21k_ft_in1k",
             "mean": 0.4462832216437353,
-            "bootstrap_mean": 0.4461018639383782,
-            "ci_low": 0.44042995335626506,
-            "ci_high": 0.4517643305701179
+            "bootstrap_mean": 0.4456562097461427,
+            "ci_low": 0.4398167984429627,
+            "ci_high": 0.4516698928380217
         },
         {
             "task": "plankton",
             "model": "ViT-B-16-SigLIP-256/webli",
             "mean": 0.03962542645404667,
-            "bootstrap_mean": 0.039220993695503165,
-            "ci_low": 0.03691840207338443,
-            "ci_high": 0.041514141534320134
+            "bootstrap_mean": 0.03921703964603911,
+            "ci_low": 0.03666986607422272,
+            "ci_high": 0.0415471659182005
         },
         {
             "task": "plankton",
             "model": "ViT-B-16-SigLIP-384/webli",
             "mean": 0.03736820464083015,
-            "bootstrap_mean": 0.03693633621497335,
-            "ci_low": 0.03457582028078839,
-            "ci_high": 0.03906219686291089
+            "bootstrap_mean": 0.0369426459425452,
+            "ci_low": 0.03445820265700662,
+            "ci_high": 0.03913290054854988
         },
         {
             "task": "plankton",
             "model": "ViT-B-16-SigLIP-512/webli",
             "mean": 0.03627939963879292,
-            "bootstrap_mean": 0.03589327739723644,
-            "ci_low": 0.03375472498846377,
-            "ci_high": 0.03815399951565965
+            "bootstrap_mean": 0.03587731002778016,
+            "ci_low": 0.03373246163878647,
+            "ci_high": 0.03794309566463796
         },
         {
             "task": "plankton",
             "model": "ViT-B-16-SigLIP/webli",
             "mean": 0.03683512646717509,
-            "bootstrap_mean": 0.03647159737719015,
-            "ci_low": 0.03441735672099368,
-            "ci_high": 0.03857502201654841
+            "bootstrap_mean": 0.03648895460288014,
+            "ci_low": 0.03452788357899529,
+            "ci_high": 0.03861162300125129
         },
         {
             "task": "plankton",
             "model": "ViT-B-16-SigLIP2-256/webli",
             "mean": 0.036996682420170825,
-            "bootstrap_mean": 0.03674367659432799,
-            "ci_low": 0.034668241936979025,
-            "ci_high": 0.038921501850016346
+            "bootstrap_mean": 0.036725552530144936,
+            "ci_low": 0.034640236853116964,
+            "ci_high": 0.0388958573003166
         },
         {
             "task": "plankton",
             "model": "ViT-B-16-SigLIP2-384/webli",
             "mean": 0.03712337755560856,
-            "bootstrap_mean": 0.03672611126612561,
-            "ci_low": 0.034240141444509695,
-            "ci_high": 0.03893008906259274
+            "bootstrap_mean": 0.03671173226881544,
+            "ci_low": 0.03438291372567483,
+            "ci_high": 0.03879971913030512
         },
         {
             "task": "plankton",
             "model": "ViT-B-16-SigLIP2-512/webli",
             "mean": 0.03514088858347102,
-            "bootstrap_mean": 0.03501940130762367,
-            "ci_low": 0.033404848092710326,
-            "ci_high": 0.036940062683184935
+            "bootstrap_mean": 0.03500681236242938,
+            "ci_low": 0.033300164916440174,
+            "ci_high": 0.03661788822526682
         },
         {
             "task": "plankton",
             "model": "ViT-B-16-SigLIP2/webli",
             "mean": 0.040302897995603465,
-            "bootstrap_mean": 0.039957123411067524,
-            "ci_low": 0.037361351866501046,
-            "ci_high": 0.04250656047714315
+            "bootstrap_mean": 0.03991942859162043,
+            "ci_low": 0.037289941392768734,
+            "ci_high": 0.04244318869864653
         },
         {
             "task": "plankton",
             "model": "ViT-B-16/openai",
             "mean": 0.028842010744075646,
-            "bootstrap_mean": 0.028602042098161213,
-            "ci_low": 0.02642091073158506,
-            "ci_high": 0.031111780525740866
+            "bootstrap_mean": 0.028622139646299297,
+            "ci_low": 0.026597496763260276,
+            "ci_high": 0.03097149455444535
         },
         {
             "task": "plankton",
             "model": "ViT-B-32-SigLIP2-256/webli",
             "mean": 0.037549311752917876,
-            "bootstrap_mean": 0.03726924515686813,
-            "ci_low": 0.03546775222033681,
-            "ci_high": 0.039232040490166764
+            "bootstrap_mean": 0.03727610194299148,
+            "ci_low": 0.0354536985900114,
+            "ci_high": 0.038949921421506155
         },
         {
             "task": "plankton",
             "model": "ViT-B-32/openai",
             "mean": 0.032896977518600684,
-            "bootstrap_mean": 0.032035837975194895,
-            "ci_low": 0.028540713778475734,
-            "ci_high": 0.03545706064997071
+            "bootstrap_mean": 0.03199366934786491,
+            "ci_low": 0.028826157676049576,
+            "ci_high": 0.03560774339097841
         },
         {
             "task": "plankton",
             "model": "ViT-L-14-336/openai",
             "mean": 0.036951859840063724,
-            "bootstrap_mean": 0.035952158148137556,
-            "ci_low": 0.03286496130009074,
-            "ci_high": 0.03906695975117488
+            "bootstrap_mean": 0.03604048303790844,
+            "ci_low": 0.0328702389827446,
+            "ci_high": 0.03909160139178893
         },
         {
             "task": "plankton",
             "model": "ViT-L-14/openai",
             "mean": 0.04264403537332472,
-            "bootstrap_mean": 0.041873118278615624,
-            "ci_low": 0.03834152613928274,
-            "ci_high": 0.04460651070338849
+            "bootstrap_mean": 0.04180464635396299,
+            "ci_low": 0.03780372389199211,
+            "ci_high": 0.04495615245160231
         },
         {
             "task": "plankton",
             "model": "ViT-L-16-SigLIP-256/webli",
             "mean": 0.03811043119433648,
-            "bootstrap_mean": 0.03773504200812927,
-            "ci_low": 0.03523667664387392,
-            "ci_high": 0.03991472236424359
+            "bootstrap_mean": 0.0377473669561367,
+            "ci_low": 0.03506449063186428,
+            "ci_high": 0.03992485642100261
         },
         {
             "task": "plankton",
             "model": "ViT-L-16-SigLIP-384/webli",
             "mean": 0.034974012953064244,
-            "bootstrap_mean": 0.034701956673486106,
-            "ci_low": 0.0328810960052077,
-            "ci_high": 0.036699624016477375
+            "bootstrap_mean": 0.03470411110425537,
+            "ci_low": 0.032768097900922256,
+            "ci_high": 0.03653188443636366
         },
         {
             "task": "plankton",
             "model": "ViT-L-16-SigLIP2-256/webli",
             "mean": 0.03840124649413932,
-            "bootstrap_mean": 0.03783251326795447,
-            "ci_low": 0.03554319207044428,
-            "ci_high": 0.04023858460893595
+            "bootstrap_mean": 0.03781252854638127,
+            "ci_low": 0.0354371268585507,
+            "ci_high": 0.04023262798239923
         },
         {
             "task": "plankton",
             "model": "ViT-L-16-SigLIP2-384/webli",
             "mean": 0.037111024247147205,
-            "bootstrap_mean": 0.036786947486158454,
-            "ci_low": 0.03479732239009506,
-            "ci_high": 0.03878310366233563
+            "bootstrap_mean": 0.036793369011419205,
+            "ci_low": 0.034695534872493494,
+            "ci_high": 0.03877053750508744
         },
         {
             "task": "plankton",
             "model": "ViT-L-16-SigLIP2-512/webli",
             "mean": 0.03352475516047466,
-            "bootstrap_mean": 0.033282957119067445,
-            "ci_low": 0.0317468724370398,
-            "ci_high": 0.03498082252384458
+            "bootstrap_mean": 0.03330563367788157,
+            "ci_low": 0.031604762187495195,
+            "ci_high": 0.03486445356443541
         },
         {
             "task": "plankton",
             "model": "ViT-SO400M-14-SigLIP-384/webli",
             "mean": 0.03977675194111648,
-            "bootstrap_mean": 0.038844200525784855,
-            "ci_low": 0.03517590699621828,
-            "ci_high": 0.04208028735939111
+            "bootstrap_mean": 0.03885758036638928,
+            "ci_low": 0.035087138773055825,
+            "ci_high": 0.04210251373310766
         },
         {
             "task": "plankton",
             "model": "ViT-SO400M-14-SigLIP/webli",
             "mean": 0.032147030849686314,
-            "bootstrap_mean": 0.03186866929836968,
-            "ci_low": 0.030154863735067556,
-            "ci_high": 0.03387909546197593
+            "bootstrap_mean": 0.03187793321951785,
+            "ci_low": 0.030215927472545225,
+            "ci_high": 0.0338403737772843
         },
         {
             "task": "plankton",
             "model": "ViT-SO400M-16-SigLIP2-256/webli",
             "mean": 0.040682949380044436,
-            "bootstrap_mean": 0.04002220440464118,
-            "ci_low": 0.03677879938143695,
-            "ci_high": 0.04299068460509381
+            "bootstrap_mean": 0.03999566350436643,
+            "ci_low": 0.03701521828709617,
+            "ci_high": 0.04280708835736858
         },
         {
             "task": "plankton",
             "model": "ViT-SO400M-16-SigLIP2-384/webli",
             "mean": 0.037690726181626076,
-            "bootstrap_mean": 0.037219375229405,
-            "ci_low": 0.0343223620106352,
-            "ci_high": 0.03999627896463435
+            "bootstrap_mean": 0.037201336330007405,
+            "ci_low": 0.03448532224263737,
+            "ci_high": 0.04004415086044663
         },
         {
             "task": "plankton",
             "model": "ViT-SO400M-16-SigLIP2-512/webli",
             "mean": 0.038516439317576416,
-            "bootstrap_mean": 0.03798812393649794,
-            "ci_low": 0.03536284497614926,
-            "ci_high": 0.04071446206771975
+            "bootstrap_mean": 0.03797146777197713,
+            "ci_low": 0.03521920636536474,
+            "ci_high": 0.04064345101777595
         },
         {
             "task": "plankton",
             "model": "ViT-gopt-16-SigLIP2-256/webli",
             "mean": 0.044995586499747976,
-            "bootstrap_mean": 0.04451798199573695,
-            "ci_low": 0.04189679291794599,
-            "ci_high": 0.04700840783165934
+            "bootstrap_mean": 0.04451421479658924,
+            "ci_low": 0.04138827112385015,
+            "ci_high": 0.046910237922813944
         },
         {
             "task": "plankton",
             "model": "ViT-gopt-16-SigLIP2-384/webli",
             "mean": 0.039617068962048745,
-            "bootstrap_mean": 0.03935967510470323,
-            "ci_low": 0.03729694703283744,
-            "ci_high": 0.041388564029136383
+            "bootstrap_mean": 0.0393527085012756,
+            "ci_low": 0.03737406069672128,
+            "ci_high": 0.04157520283900505
         },
         {
             "task": "plankton",
             "model": "apple/aimv2-1B-patch14-224",
             "mean": 0.03217596732765172,
-            "bootstrap_mean": 0.031211142103241888,
-            "ci_low": 0.028029905866512113,
-            "ci_high": 0.03450730219422619
+            "bootstrap_mean": 0.031205096747923333,
+            "ci_low": 0.02804980261923939,
+            "ci_high": 0.03455189727827283
         },
         {
             "task": "plankton",
             "model": "apple/aimv2-1B-patch14-336",
             "mean": 0.035699840844177454,
-            "bootstrap_mean": 0.03375436441345482,
-            "ci_low": 0.029646424568579677,
-            "ci_high": 0.03816429393565335
+            "bootstrap_mean": 0.03370985429536215,
+            "ci_low": 0.029299312637890436,
+            "ci_high": 0.03834410342593835
         },
         {
             "task": "plankton",
             "model": "apple/aimv2-1B-patch14-448",
             "mean": 0.03495110389309459,
-            "bootstrap_mean": 0.03416145903467548,
-            "ci_low": 0.030750283977140854,
-            "ci_high": 0.0375784841996778
+            "bootstrap_mean": 0.03415388864858217,
+            "ci_low": 0.03072666013023779,
+            "ci_high": 0.03750122564543786
         },
         {
             "task": "plankton",
             "model": "apple/aimv2-3B-patch14-224",
             "mean": 0.031112725608385853,
-            "bootstrap_mean": 0.030827580975632155,
-            "ci_low": 0.028909264914667443,
-            "ci_high": 0.0328066844651048
+            "bootstrap_mean": 0.03083118552416412,
+            "ci_low": 0.028911599547637258,
+            "ci_high": 0.0328865315050446
         },
         {
             "task": "plankton",
             "model": "apple/aimv2-3B-patch14-336",
             "mean": 0.031618209862575644,
-            "bootstrap_mean": 0.030878849403285898,
-            "ci_low": 0.027694108120939528,
-            "ci_high": 0.03402652374075009
+            "bootstrap_mean": 0.03088030597520051,
+            "ci_low": 0.028003714054641516,
+            "ci_high": 0.03378347686859118
         },
         {
             "task": "plankton",
             "model": "apple/aimv2-3B-patch14-448",
             "mean": 0.039697201597175644,
-            "bootstrap_mean": 0.038959400790987316,
-            "ci_low": 0.03595127931493319,
-            "ci_high": 0.041594396086540655
+            "bootstrap_mean": 0.038992171302967234,
+            "ci_low": 0.035580355941763946,
+            "ci_high": 0.041931929753000884
         },
         {
             "task": "plankton",
             "model": "apple/aimv2-huge-patch14-224",
             "mean": 0.028765162823249462,
-            "bootstrap_mean": 0.02817908686268074,
-            "ci_low": 0.025614660454930382,
-            "ci_high": 0.030762207162195524
+            "bootstrap_mean": 0.028190234054832824,
+            "ci_low": 0.02546611658252802,
+            "ci_high": 0.030894075382660154
         },
         {
             "task": "plankton",
             "model": "apple/aimv2-huge-patch14-336",
             "mean": 0.029049088251541514,
-            "bootstrap_mean": 0.028382866339864556,
-            "ci_low": 0.02576409830346389,
-            "ci_high": 0.031408604588492976
+            "bootstrap_mean": 0.028350215599940568,
+            "ci_low": 0.0258233620556899,
+            "ci_high": 0.031278475187081926
         },
         {
             "task": "plankton",
             "model": "apple/aimv2-huge-patch14-448",
             "mean": 0.030972970812383722,
-            "bootstrap_mean": 0.030179675447612575,
-            "ci_low": 0.027264873577918795,
-            "ci_high": 0.03326473836949522
+            "bootstrap_mean": 0.030146360471694045,
+            "ci_low": 0.027010725273316986,
+            "ci_high": 0.033203601463287005
         },
         {
             "task": "plankton",
             "model": "apple/aimv2-large-patch14-224",
             "mean": 0.035719324569183454,
-            "bootstrap_mean": 0.03359171104340134,
-            "ci_low": 0.0293606096192927,
-            "ci_high": 0.038036126551849625
+            "bootstrap_mean": 0.0336356570804455,
+            "ci_low": 0.029044541272318307,
+            "ci_high": 0.03828343804026386
         },
         {
             "task": "plankton",
             "model": "apple/aimv2-large-patch14-336",
             "mean": 0.031698279093238434,
-            "bootstrap_mean": 0.03103488947568971,
-            "ci_low": 0.02815766542962667,
-            "ci_high": 0.034468823816964055
+            "bootstrap_mean": 0.031069958978103822,
+            "ci_low": 0.027764319014624523,
+            "ci_high": 0.034207640260783705
         },
         {
             "task": "plankton",
             "model": "apple/aimv2-large-patch14-448",
             "mean": 0.03401247428732459,
-            "bootstrap_mean": 0.0320750471879624,
-            "ci_low": 0.02764517271229134,
-            "ci_high": 0.036423623098143273
+            "bootstrap_mean": 0.03213776401405103,
+            "ci_low": 0.02745477398471864,
+            "ci_high": 0.036900210302588936
         },
         {
             "task": "plankton",
             "model": "convnext_tiny.in12k",
             "mean": 0.03743830304526735,
-            "bootstrap_mean": 0.03691854130644054,
-            "ci_low": 0.03418127281364872,
-            "ci_high": 0.03936278800103449
+            "bootstrap_mean": 0.036914305800611856,
+            "ci_low": 0.03414136571298407,
+            "ci_high": 0.03932907321517256
         },
         {
             "task": "plankton",
             "model": "convnext_tiny.in12k_ft_in1k",
             "mean": 0.03422884406673174,
-            "bootstrap_mean": 0.03292454610559004,
-            "ci_low": 0.029149194745001945,
-            "ci_high": 0.03647978076979865
+            "bootstrap_mean": 0.03283813623104184,
+            "ci_low": 0.029134900685196356,
+            "ci_high": 0.03661469495141215
         },
         {
             "task": "plankton",
             "model": "dinov2_vitb14_reg",
             "mean": 0.03891555627703541,
-            "bootstrap_mean": 0.03835747821406284,
-            "ci_low": 0.03499931837400373,
-            "ci_high": 0.041414120638909376
+            "bootstrap_mean": 0.03831180301289823,
+            "ci_low": 0.03543138473102387,
+            "ci_high": 0.041325882026191425
         },
         {
             "task": "plankton",
             "model": "dinov2_vitg14_reg",
             "mean": 0.04211092485260403,
-            "bootstrap_mean": 0.04133351261302635,
-            "ci_low": 0.03811225728411338,
-            "ci_high": 0.04458032957293034
+            "bootstrap_mean": 0.04137447207904754,
+            "ci_low": 0.03782447168331001,
+            "ci_high": 0.044512985884393695
         },
         {
             "task": "plankton",
             "model": "dinov2_vitl14_reg",
             "mean": 0.04090612182314998,
-            "bootstrap_mean": 0.04042543616994482,
-            "ci_low": 0.037832930360434905,
-            "ci_high": 0.04295855310676225
+            "bootstrap_mean": 0.040456709575978723,
+            "ci_low": 0.03777707221808056,
+            "ci_high": 0.042950126603322834
         },
         {
             "task": "plankton",
             "model": "dinov2_vits14_reg",
             "mean": 0.03502127820437172,
-            "bootstrap_mean": 0.034725212263768394,
-            "ci_low": 0.0324891242504802,
-            "ci_high": 0.036937139608543126
+            "bootstrap_mean": 0.034693581057061704,
+            "ci_low": 0.032570312332750505,
+            "ci_high": 0.036770945337992134
         },
         {
             "task": "plankton",
             "model": "efficientnet_b0.ra_in1k",
             "mean": 0.01900198257981843,
-            "bootstrap_mean": 0.017677178133771055,
-            "ci_low": 0.01403645113072178,
-            "ci_high": 0.021727313498137238
+            "bootstrap_mean": 0.017749431135517885,
+            "ci_low": 0.013929057111052617,
+            "ci_high": 0.021580043685018174
         },
         {
             "task": "plankton",
             "model": "efficientnet_b3.ra2_in1k",
             "mean": 0.009547154633446986,
-            "bootstrap_mean": 0.009539760716668393,
-            "ci_low": 0.009335675558815487,
-            "ci_high": 0.00975112750649982
+            "bootstrap_mean": 0.009540329905489638,
+            "ci_low": 0.00932739620294421,
+            "ci_high": 0.009754540398603746
         },
         {
             "task": "plankton",
             "model": "hf-hub:BGLab/BioTrove-CLIP",
             "mean": 0.0382377997571567,
-            "bootstrap_mean": 0.03623696616140062,
-            "ci_low": 0.03130993785180349,
-            "ci_high": 0.04014148849373345
+            "bootstrap_mean": 0.03622433331797313,
+            "ci_low": 0.03158604544871456,
+            "ci_high": 0.040051033075792324
         },
         {
             "task": "plankton",
             "model": "hf-hub:BVRA/MegaDescriptor-L-384",
             "mean": 0.020991923419392065,
-            "bootstrap_mean": 0.02099857498299032,
-            "ci_low": 0.02058953818624975,
-            "ci_high": 0.021431634101741072
+            "bootstrap_mean": 0.02099934032520388,
+            "ci_low": 0.020595760276821688,
+            "ci_high": 0.021478029861554126
         },
         {
             "task": "plankton",
             "model": "hf-hub:UCSC-VLAA/openvision-vit-base-patch16-224",
             "mean": 0.042171249180445916,
-            "bootstrap_mean": 0.041777134882838414,
-            "ci_low": 0.03950290500159692,
-            "ci_high": 0.04389762106099521
+            "bootstrap_mean": 0.04174807528231218,
+            "ci_low": 0.0395037429203422,
+            "ci_high": 0.04389513999751725
         },
         {
             "task": "plankton",
             "model": "hf-hub:UCSC-VLAA/openvision-vit-huge-patch14-224",
             "mean": 0.042024632487187664,
-            "bootstrap_mean": 0.04166966891184279,
-            "ci_low": 0.0392301560332304,
-            "ci_high": 0.0440208489167524
+            "bootstrap_mean": 0.041622715314007,
+            "ci_low": 0.03904812449548094,
+            "ci_high": 0.04405583615347458
         },
         {
             "task": "plankton",
             "model": "hf-hub:UCSC-VLAA/openvision-vit-large-patch14-224",
             "mean": 0.03923451977073565,
-            "bootstrap_mean": 0.039047523727527546,
-            "ci_low": 0.03710645860065188,
-            "ci_high": 0.0408963230333826
+            "bootstrap_mean": 0.039059139807366854,
+            "ci_low": 0.03724920843748461,
+            "ci_high": 0.040986827047128416
         },
         {
             "task": "plankton",
             "model": "hf-hub:UCSC-VLAA/openvision-vit-small-patch16-224",
             "mean": 0.042789140777826494,
-            "bootstrap_mean": 0.0422295673822741,
-            "ci_low": 0.03968617333999601,
-            "ci_high": 0.04484287667351305
+            "bootstrap_mean": 0.04223624418171802,
+            "ci_low": 0.03939876100812091,
+            "ci_high": 0.0448750022441235
         },
         {
             "task": "plankton",
             "model": "hf-hub:UCSC-VLAA/openvision-vit-so400m-patch14-224",
             "mean": 0.043187806395014,
-            "bootstrap_mean": 0.04273119046651942,
-            "ci_low": 0.04005409752533538,
-            "ci_high": 0.04533449206738605
+            "bootstrap_mean": 0.042747158913902,
+            "ci_low": 0.040248075250796295,
+            "ci_high": 0.04515120635508316
         },
         {
             "task": "plankton",
             "model": "hf-hub:UCSC-VLAA/openvision-vit-so400m-patch14-384",
             "mean": 0.043174890698553556,
-            "bootstrap_mean": 0.042625878129885254,
-            "ci_low": 0.040028650736788386,
-            "ci_high": 0.04509300194701902
+            "bootstrap_mean": 0.04265222840636055,
+            "ci_low": 0.039789622542081376,
+            "ci_high": 0.04499441286374823
         },
         {
             "task": "plankton",
             "model": "hf-hub:UCSC-VLAA/openvision-vit-tiny-patch16-224",
             "mean": 0.04068183574044799,
-            "bootstrap_mean": 0.03979447087479586,
-            "ci_low": 0.03642032498627561,
-            "ci_high": 0.04287285966588587
+            "bootstrap_mean": 0.039814795392389614,
+            "ci_low": 0.036630061518562025,
+            "ci_high": 0.042736172770945116
         },
         {
             "task": "plankton",
             "model": "hf-hub:imageomics/bioclip",
             "mean": 0.03837502916741343,
-            "bootstrap_mean": 0.03703826127575651,
-            "ci_low": 0.03307632810956749,
-            "ci_high": 0.040894698313743254
+            "bootstrap_mean": 0.037103885463914764,
+            "ci_low": 0.032759190920923054,
+            "ci_high": 0.040850673537837376
         },
         {
             "task": "plankton",
             "model": "hf-hub:imageomics/bioclip-2",
             "mean": 0.03858571692036465,
-            "bootstrap_mean": 0.037333698515788126,
-            "ci_low": 0.03349413953241399,
-            "ci_high": 0.04093262287239607
+            "bootstrap_mean": 0.03731125549559481,
+            "ci_low": 0.03340749599604315,
+            "ci_high": 0.040587783998153874
         },
         {
             "task": "plankton",
             "model": "mobilenetv2_100.ra_in1k",
             "mean": 0.013330290356062743,
-            "bootstrap_mean": 0.012868219446399497,
-            "ci_low": 0.010604388904943012,
-            "ci_high": 0.015341358104890922
+            "bootstrap_mean": 0.01289449795999931,
+            "ci_low": 0.010330190269406526,
+            "ci_high": 0.015673999043660163
         },
         {
             "task": "plankton",
             "model": "mobilenetv3_large_100.ra_in1k",
             "mean": 0.02606927366392045,
-            "bootstrap_mean": 0.025302489910677173,
-            "ci_low": 0.021835784831914336,
-            "ci_high": 0.02917129531626455
+            "bootstrap_mean": 0.025320704806636656,
+            "ci_low": 0.02176507666992604,
+            "ci_high": 0.02904294227304658
         },
         {
             "task": "plankton",
             "model": "resnet18.a1_in1k",
             "mean": 0.01655925124094144,
-            "bootstrap_mean": 0.016187108794422412,
-            "ci_low": 0.014290796068787113,
-            "ci_high": 0.018307274431630015
+            "bootstrap_mean": 0.016219934037746006,
+            "ci_low": 0.014234378097863104,
+            "ci_high": 0.0182276529335465
         },
         {
             "task": "plankton",
             "model": "resnet18d.ra2_in1k",
             "mean": 0.011217227092882087,
-            "bootstrap_mean": 0.011222466112763414,
-            "ci_low": 0.011032054256978023,
-            "ci_high": 0.011406768777229926
+            "bootstrap_mean": 0.011223942166905865,
+            "ci_low": 0.01104001243127019,
+            "ci_high": 0.01141255711775662
         },
         {
             "task": "plankton",
             "model": "resnet50.a1_in1k",
             "mean": 0.016383485190671,
-            "bootstrap_mean": 0.015930167912451998,
-            "ci_low": 0.013632496556969822,
-            "ci_high": 0.018338639238710073
+            "bootstrap_mean": 0.015967095904343167,
+            "ci_low": 0.013706717700426186,
+            "ci_high": 0.018304482944787606
         },
         {
             "task": "plankton",
             "model": "resnet50d.a1_in1k",
             "mean": 0.011115259107613146,
-            "bootstrap_mean": 0.011108062145507837,
-            "ci_low": 0.010625550569456195,
-            "ci_high": 0.01164497759542951
+            "bootstrap_mean": 0.011113527654910459,
+            "ci_low": 0.010614392914553768,
+            "ci_high": 0.011563950936579054
         },
         {
             "task": "plankton",
             "model": "vit_base_patch16_224.augreg2_in21k_ft_in1k",
             "mean": 0.0353431041350439,
-            "bootstrap_mean": 0.03498821170927904,
-            "ci_low": 0.032617886457381375,
-            "ci_high": 0.037370015255807264
+            "bootstrap_mean": 0.03498764889142666,
+            "ci_low": 0.03254261838959201,
+            "ci_high": 0.03704917611926529
         },
         {
             "task": "plantnet",
             "model": "ViT-B-16-SigLIP-256/webli",
             "mean": 0.41626155253345776,
-            "bootstrap_mean": 0.38174822953571524,
-            "ci_low": 0.37841627262999267,
-            "ci_high": 0.3852485553340841
+            "bootstrap_mean": 0.38176221463877696,
+            "ci_low": 0.3782565405590504,
+            "ci_high": 0.3855800396476855
         },
         {
             "task": "plantnet",
             "model": "ViT-B-16-SigLIP-384/webli",
             "mean": 0.43227490345208314,
-            "bootstrap_mean": 0.39645594715186633,
-            "ci_low": 0.3931839676947759,
-            "ci_high": 0.3996493581862765
+            "bootstrap_mean": 0.39634026876405143,
+            "ci_low": 0.3929265855613031,
+            "ci_high": 0.3997475795609499
         },
         {
             "task": "plantnet",
             "model": "ViT-B-16-SigLIP-512/webli",
             "mean": 0.4386141402033799,
-            "bootstrap_mean": 0.40193398353476517,
-            "ci_low": 0.3983688635867991,
-            "ci_high": 0.40587555191701025
+            "bootstrap_mean": 0.4019946461004273,
+            "ci_low": 0.39818460048928483,
+            "ci_high": 0.4056814428059994
         },
         {
             "task": "plantnet",
             "model": "ViT-B-16-SigLIP/webli",
             "mean": 0.4106012931107765,
-            "bootstrap_mean": 0.37717408738884456,
-            "ci_low": 0.37354404259962337,
-            "ci_high": 0.38049703015288155
+            "bootstrap_mean": 0.37714209116835223,
+            "ci_low": 0.37365666494088584,
+            "ci_high": 0.3804207211391938
         },
         {
             "task": "plantnet",
             "model": "ViT-B-16-SigLIP2-256/webli",
             "mean": 0.41483239725598314,
-            "bootstrap_mean": 0.38211235635133833,
-            "ci_low": 0.3786856130794728,
-            "ci_high": 0.3855921661913635
+            "bootstrap_mean": 0.38219063207084264,
+            "ci_low": 0.3784301489847061,
+            "ci_high": 0.3856238152814394
         },
         {
             "task": "plantnet",
             "model": "ViT-B-16-SigLIP2-384/webli",
             "mean": 0.4367294112536386,
-            "bootstrap_mean": 0.4003050076683781,
-            "ci_low": 0.39663992161169637,
-            "ci_high": 0.4037438841300685
+            "bootstrap_mean": 0.4003493111777556,
+            "ci_low": 0.3965339527425654,
+            "ci_high": 0.4038188260827644
         },
         {
             "task": "plantnet",
             "model": "ViT-B-16-SigLIP2-512/webli",
             "mean": 0.4415243630321599,
-            "bootstrap_mean": 0.40458410097706177,
-            "ci_low": 0.4008040120306104,
-            "ci_high": 0.40829380894531425
+            "bootstrap_mean": 0.40462873518826076,
+            "ci_low": 0.40106825847581673,
+            "ci_high": 0.40795609693114493
         },
         {
             "task": "plantnet",
             "model": "ViT-B-16-SigLIP2/webli",
             "mean": 0.4060802524220804,
-            "bootstrap_mean": 0.3752867351802497,
-            "ci_low": 0.3718891025560936,
-            "ci_high": 0.3789502826043327
+            "bootstrap_mean": 0.37527902226697446,
+            "ci_low": 0.37184635926904486,
+            "ci_high": 0.3787322677365051
         },
         {
             "task": "plantnet",
             "model": "ViT-B-16/openai",
             "mean": 0.34075629498726634,
-            "bootstrap_mean": 0.31769976280731393,
-            "ci_low": 0.3147123157746381,
-            "ci_high": 0.3208641839141031
+            "bootstrap_mean": 0.3177855408105233,
+            "ci_low": 0.31488059543773217,
+            "ci_high": 0.3208615772656495
         },
         {
             "task": "plantnet",
             "model": "ViT-B-32-SigLIP2-256/webli",
             "mean": 0.34561858358119824,
-            "bootstrap_mean": 0.3212266476341911,
-            "ci_low": 0.3181918048739058,
-            "ci_high": 0.32419244992625296
+            "bootstrap_mean": 0.3211972594044229,
+            "ci_low": 0.318132657433777,
+            "ci_high": 0.32402860868134603
         },
         {
             "task": "plantnet",
             "model": "ViT-B-32/openai",
             "mean": 0.3049911869630142,
-            "bootstrap_mean": 0.2838897696490805,
-            "ci_low": 0.28089928259459174,
-            "ci_high": 0.2866701405043019
+            "bootstrap_mean": 0.28385062609851386,
+            "ci_low": 0.2806893253159212,
+            "ci_high": 0.2867369790339101
         },
         {
             "task": "plantnet",
             "model": "ViT-L-14-336/openai",
             "mean": 0.4042625297554953,
-            "bootstrap_mean": 0.3731013909961537,
-            "ci_low": 0.3695969403171452,
-            "ci_high": 0.3760808350012475
+            "bootstrap_mean": 0.3730804882002664,
+            "ci_low": 0.36999155289239083,
+            "ci_high": 0.37628800708275323
         },
         {
             "task": "plantnet",
             "model": "ViT-L-14/openai",
             "mean": 0.3876666427632234,
-            "bootstrap_mean": 0.35810234251562323,
-            "ci_low": 0.35480469518781704,
-            "ci_high": 0.3615681790708137
+            "bootstrap_mean": 0.35816294668999044,
+            "ci_low": 0.3548178377047335,
+            "ci_high": 0.361691565697655
         },
         {
             "task": "plantnet",
             "model": "ViT-L-16-SigLIP-256/webli",
             "mean": 0.4276216171682382,
-            "bootstrap_mean": 0.39212206906479535,
-            "ci_low": 0.38869798356140006,
-            "ci_high": 0.3956598768198091
+            "bootstrap_mean": 0.39210295142234003,
+            "ci_low": 0.38841261596852855,
+            "ci_high": 0.39584683255329783
         },
         {
             "task": "plantnet",
             "model": "ViT-L-16-SigLIP-384/webli",
             "mean": 0.46427875240785144,
-            "bootstrap_mean": 0.4227433445531949,
-            "ci_low": 0.4189302802241284,
-            "ci_high": 0.4267118617756956
+            "bootstrap_mean": 0.4227174241079792,
+            "ci_low": 0.4188536749739761,
+            "ci_high": 0.42630174287867456
         },
         {
             "task": "plantnet",
             "model": "ViT-L-16-SigLIP2-256/webli",
             "mean": 0.430231695758809,
-            "bootstrap_mean": 0.3944042450120089,
-            "ci_low": 0.3912299188672978,
-            "ci_high": 0.3977949722416861
+            "bootstrap_mean": 0.3944171652390478,
+            "ci_low": 0.3910802081200133,
+            "ci_high": 0.39772544986989483
         },
         {
             "task": "plantnet",
             "model": "ViT-L-16-SigLIP2-384/webli",
             "mean": 0.44829691816075506,
-            "bootstrap_mean": 0.41008874940510637,
-            "ci_low": 0.40621781903506654,
-            "ci_high": 0.4138695017053367
+            "bootstrap_mean": 0.41011287768479154,
+            "ci_low": 0.4062389836854825,
+            "ci_high": 0.41394481537281064
         },
         {
             "task": "plantnet",
             "model": "ViT-L-16-SigLIP2-512/webli",
             "mean": 0.45978369154057797,
-            "bootstrap_mean": 0.4197174306124692,
-            "ci_low": 0.41623850455533684,
-            "ci_high": 0.42348485245950374
+            "bootstrap_mean": 0.41976862401248516,
+            "ci_low": 0.41611355897356994,
+            "ci_high": 0.42349411896248124
         },
         {
             "task": "plantnet",
             "model": "ViT-SO400M-14-SigLIP-384/webli",
             "mean": 0.4740958439153205,
-            "bootstrap_mean": 0.43214947619817246,
-            "ci_low": 0.42856036514546353,
-            "ci_high": 0.43576718108366175
+            "bootstrap_mean": 0.43212979905542387,
+            "ci_low": 0.42816447534027097,
+            "ci_high": 0.43579321285715517
         },
         {
             "task": "plantnet",
             "model": "ViT-SO400M-14-SigLIP/webli",
             "mean": 0.4472623809571151,
-            "bootstrap_mean": 0.4095867371897149,
-            "ci_low": 0.40592395734770376,
-            "ci_high": 0.4130740715670006
+            "bootstrap_mean": 0.40950063884987004,
+            "ci_low": 0.4059756666298311,
+            "ci_high": 0.4130998735377558
         },
         {
             "task": "plantnet",
             "model": "ViT-SO400M-16-SigLIP2-256/webli",
             "mean": 0.4531953358415735,
-            "bootstrap_mean": 0.41248802283920066,
-            "ci_low": 0.4088462360176792,
-            "ci_high": 0.4161278929319519
+            "bootstrap_mean": 0.4125299278083465,
+            "ci_low": 0.40857990722405624,
+            "ci_high": 0.4164689497783254
         },
         {
             "task": "plantnet",
             "model": "ViT-SO400M-16-SigLIP2-384/webli",
             "mean": 0.4711078557453348,
-            "bootstrap_mean": 0.4288540974201285,
-            "ci_low": 0.42491181148541807,
-            "ci_high": 0.43237662267486143
+            "bootstrap_mean": 0.4288169612875037,
+            "ci_low": 0.4251384503867829,
+            "ci_high": 0.43213266939879996
         },
         {
             "task": "plantnet",
             "model": "ViT-SO400M-16-SigLIP2-512/webli",
             "mean": 0.47121440163941775,
-            "bootstrap_mean": 0.42802606388027786,
-            "ci_low": 0.4245775505254383,
-            "ci_high": 0.4316845831248741
+            "bootstrap_mean": 0.42806524585907585,
+            "ci_low": 0.4247022719980063,
+            "ci_high": 0.4315224964055257
         },
         {
             "task": "plantnet",
             "model": "ViT-gopt-16-SigLIP2-256/webli",
             "mean": 0.45572960365751347,
-            "bootstrap_mean": 0.41647513942760495,
-            "ci_low": 0.41298437862998166,
-            "ci_high": 0.41999228031357705
+            "bootstrap_mean": 0.4164439399634111,
+            "ci_low": 0.41285362710982854,
+            "ci_high": 0.41981750955315666
         },
         {
             "task": "plantnet",
             "model": "ViT-gopt-16-SigLIP2-384/webli",
             "mean": 0.47941310192614156,
-            "bootstrap_mean": 0.4351117758108193,
-            "ci_low": 0.4313895535268174,
-            "ci_high": 0.43895140672982497
+            "bootstrap_mean": 0.4351769185504262,
+            "ci_low": 0.4315800520882458,
+            "ci_high": 0.43886033886726794
         },
         {
             "task": "plantnet",
             "model": "apple/aimv2-1B-patch14-224",
             "mean": 0.3596110157419008,
-            "bootstrap_mean": 0.33946327055962294,
-            "ci_low": 0.3367353723965319,
-            "ci_high": 0.34193402132282297
+            "bootstrap_mean": 0.3394531658065382,
+            "ci_low": 0.33669043868986903,
+            "ci_high": 0.34209544729119584
         },
         {
             "task": "plantnet",
             "model": "apple/aimv2-1B-patch14-336",
             "mean": 0.363130394072984,
-            "bootstrap_mean": 0.343018204156013,
-            "ci_low": 0.3403078788922349,
-            "ci_high": 0.34556042839017015
+            "bootstrap_mean": 0.34298954288243794,
+            "ci_low": 0.34016004220204454,
+            "ci_high": 0.3457967422395574
         },
         {
             "task": "plantnet",
             "model": "apple/aimv2-1B-patch14-448",
             "mean": 0.36626098936722856,
-            "bootstrap_mean": 0.34638695927383245,
-            "ci_low": 0.34353449209668707,
-            "ci_high": 0.3490400840735866
+            "bootstrap_mean": 0.3464598832958293,
+            "ci_low": 0.34359569749726415,
+            "ci_high": 0.34905683086120537
         },
         {
             "task": "plantnet",
             "model": "apple/aimv2-3B-patch14-224",
             "mean": 0.3561284165238185,
-            "bootstrap_mean": 0.33745204494187747,
-            "ci_low": 0.33461565164695434,
-            "ci_high": 0.3404814193546955
+            "bootstrap_mean": 0.3374257908748743,
+            "ci_low": 0.3347131862701899,
+            "ci_high": 0.3404478666260032
         },
         {
             "task": "plantnet",
             "model": "apple/aimv2-3B-patch14-336",
             "mean": 0.36601857040260466,
-            "bootstrap_mean": 0.3457590952426407,
-            "ci_low": 0.34275688743399635,
-            "ci_high": 0.34872019538592963
+            "bootstrap_mean": 0.34583509008323676,
+            "ci_low": 0.3430120934721008,
+            "ci_high": 0.3485561354097279
         },
         {
             "task": "plantnet",
             "model": "apple/aimv2-3B-patch14-448",
             "mean": 0.3670694111670633,
-            "bootstrap_mean": 0.34728153812861073,
-            "ci_low": 0.3442718602767724,
-            "ci_high": 0.3501133555916989
+            "bootstrap_mean": 0.3473273859557545,
+            "ci_low": 0.3445030388148551,
+            "ci_high": 0.3499462203208762
         },
         {
             "task": "plantnet",
             "model": "apple/aimv2-huge-patch14-224",
             "mean": 0.33859759379459897,
-            "bootstrap_mean": 0.32022297336447214,
-            "ci_low": 0.31737581080858984,
-            "ci_high": 0.32302322486393914
+            "bootstrap_mean": 0.3202521026287039,
+            "ci_low": 0.3173598368423417,
+            "ci_high": 0.3231158830121907
         },
         {
             "task": "plantnet",
             "model": "apple/aimv2-huge-patch14-336",
             "mean": 0.3457165605207671,
-            "bootstrap_mean": 0.32604093865768186,
-            "ci_low": 0.32339604567988783,
-            "ci_high": 0.32867322129210674
+            "bootstrap_mean": 0.3260377501505962,
+            "ci_low": 0.32324038105381686,
+            "ci_high": 0.3287372554325158
         },
         {
             "task": "plantnet",
             "model": "apple/aimv2-huge-patch14-448",
             "mean": 0.3442756034748314,
-            "bootstrap_mean": 0.32733029326949736,
-            "ci_low": 0.324304739678901,
-            "ci_high": 0.3301735354942425
+            "bootstrap_mean": 0.3273455689300705,
+            "ci_low": 0.32461753396691434,
+            "ci_high": 0.33004303772986987
         },
         {
             "task": "plantnet",
             "model": "apple/aimv2-large-patch14-224",
             "mean": 0.31707041801234853,
-            "bootstrap_mean": 0.301485837557237,
-            "ci_low": 0.29895658384796225,
-            "ci_high": 0.30392686031955424
+            "bootstrap_mean": 0.3014872838829739,
+            "ci_low": 0.299016706335095,
+            "ci_high": 0.3040813981361626
         },
         {
             "task": "plantnet",
             "model": "apple/aimv2-large-patch14-336",
             "mean": 0.33482851192410695,
-            "bootstrap_mean": 0.316882073091484,
-            "ci_low": 0.31434266799545757,
-            "ci_high": 0.3193191300883312
+            "bootstrap_mean": 0.31689672884951603,
+            "ci_low": 0.31419121183857324,
+            "ci_high": 0.31968876704198934
         },
         {
             "task": "plantnet",
             "model": "apple/aimv2-large-patch14-448",
             "mean": 0.33045311807304295,
-            "bootstrap_mean": 0.31382043438442375,
-            "ci_low": 0.31113514312112267,
-            "ci_high": 0.3164795582984103
+            "bootstrap_mean": 0.31384415034194285,
+            "ci_low": 0.3110442182769207,
+            "ci_high": 0.31631601895613115
         },
         {
             "task": "plantnet",
             "model": "convnext_tiny.in12k",
             "mean": 0.34911399218415945,
-            "bootstrap_mean": 0.32554909628216594,
-            "ci_low": 0.32250823892140423,
-            "ci_high": 0.3286342051282108
+            "bootstrap_mean": 0.3255376352473752,
+            "ci_low": 0.3227182734656872,
+            "ci_high": 0.32865308895609374
         },
         {
             "task": "plantnet",
             "model": "convnext_tiny.in12k_ft_in1k",
             "mean": 0.2700101936583135,
-            "bootstrap_mean": 0.25501614679511203,
-            "ci_low": 0.25268025053040294,
-            "ci_high": 0.257507655818827
+            "bootstrap_mean": 0.2549775910351311,
+            "ci_low": 0.25254324103748305,
+            "ci_high": 0.2576108286213643
         },
         {
             "task": "plantnet",
             "model": "dinov2_vitb14_reg",
             "mean": 0.475313714554702,
-            "bootstrap_mean": 0.4330435842553635,
-            "ci_low": 0.4291789671935228,
-            "ci_high": 0.43667410343944885
+            "bootstrap_mean": 0.4330833682546332,
+            "ci_low": 0.4290314669091871,
+            "ci_high": 0.43668249061274445
         },
         {
             "task": "plantnet",
             "model": "dinov2_vitg14_reg",
             "mean": 0.514918902464183,
-            "bootstrap_mean": 0.4647805107637059,
-            "ci_low": 0.46036593461785835,
-            "ci_high": 0.46888156742473625
+            "bootstrap_mean": 0.4646750500926528,
+            "ci_low": 0.4605225510212889,
+            "ci_high": 0.46876824167133846
         },
         {
             "task": "plantnet",
             "model": "dinov2_vitl14_reg",
             "mean": 0.4923380059265054,
-            "bootstrap_mean": 0.4471080016181305,
-            "ci_low": 0.44266881043445927,
-            "ci_high": 0.4506972624426576
+            "bootstrap_mean": 0.4471835699246557,
+            "ci_low": 0.4428761084265243,
+            "ci_high": 0.45080988307621084
         },
         {
             "task": "plantnet",
             "model": "dinov2_vits14_reg",
             "mean": 0.434452429720218,
-            "bootstrap_mean": 0.39769976014048597,
-            "ci_low": 0.3941844353839502,
-            "ci_high": 0.40153416697678157
+            "bootstrap_mean": 0.3978018757851351,
+            "ci_low": 0.39412785229393754,
+            "ci_high": 0.4015326603832044
         },
         {
             "task": "plantnet",
             "model": "efficientnet_b0.ra_in1k",
             "mean": 0.08623221135129666,
-            "bootstrap_mean": 0.08098493782305369,
-            "ci_low": 0.07952583720251662,
-            "ci_high": 0.08246752007225969
+            "bootstrap_mean": 0.08099851621712935,
+            "ci_low": 0.07938118558709005,
+            "ci_high": 0.0825541276076857
         },
         {
             "task": "plantnet",
             "model": "efficientnet_b3.ra2_in1k",
             "mean": 0.08064726143987411,
-            "bootstrap_mean": 0.07587476112518829,
-            "ci_low": 0.07434734888656531,
-            "ci_high": 0.07740441850741904
+            "bootstrap_mean": 0.07587814758920196,
+            "ci_low": 0.07431313159173071,
+            "ci_high": 0.07756662004231948
         },
         {
             "task": "plantnet",
             "model": "hf-hub:BGLab/BioTrove-CLIP",
             "mean": 0.4811207878117942,
-            "bootstrap_mean": 0.43608306312310047,
-            "ci_low": 0.4323510272333084,
-            "ci_high": 0.4400687256037946
+            "bootstrap_mean": 0.4360830709151569,
+            "ci_low": 0.4324999484979459,
+            "ci_high": 0.4398816588127282
         },
         {
             "task": "plantnet",
             "model": "hf-hub:BVRA/MegaDescriptor-L-384",
             "mean": 0.17645116463379984,
-            "bootstrap_mean": 0.17152323040240924,
-            "ci_low": 0.16999647596349549,
-            "ci_high": 0.173212750710126
+            "bootstrap_mean": 0.17152635242336026,
+            "ci_low": 0.1699306873783725,
+            "ci_high": 0.17318155258705026
         },
         {
             "task": "plantnet",
             "model": "hf-hub:UCSC-VLAA/openvision-vit-base-patch16-224",
             "mean": 0.37722710180138086,
-            "bootstrap_mean": 0.3478210191215262,
-            "ci_low": 0.34437142687740324,
-            "ci_high": 0.35134956696387787
+            "bootstrap_mean": 0.3478669494418617,
+            "ci_low": 0.3444998070709704,
+            "ci_high": 0.3512150303231471
         },
         {
             "task": "plantnet",
             "model": "hf-hub:UCSC-VLAA/openvision-vit-huge-patch14-224",
             "mean": 0.42043205784266613,
-            "bootstrap_mean": 0.38564337521538006,
-            "ci_low": 0.38201515848254003,
-            "ci_high": 0.3890408579839672
+            "bootstrap_mean": 0.38558761419058585,
+            "ci_low": 0.38220115420921574,
+            "ci_high": 0.38877893388315377
         },
         {
             "task": "plantnet",
             "model": "hf-hub:UCSC-VLAA/openvision-vit-large-patch14-224",
             "mean": 0.41441309584224273,
-            "bootstrap_mean": 0.38035881935448856,
-            "ci_low": 0.3769685846025854,
-            "ci_high": 0.3837360045060548
+            "bootstrap_mean": 0.38037724617003366,
+            "ci_low": 0.376796822648214,
+            "ci_high": 0.3836191049116096
         },
         {
             "task": "plantnet",
             "model": "hf-hub:UCSC-VLAA/openvision-vit-small-patch16-224",
             "mean": 0.3304413347549033,
-            "bootstrap_mean": 0.30592231738826164,
-            "ci_low": 0.30289625487083255,
-            "ci_high": 0.309195493358434
+            "bootstrap_mean": 0.3059975780744852,
+            "ci_low": 0.30305858811180303,
+            "ci_high": 0.3095070703655489
         },
         {
             "task": "plantnet",
             "model": "hf-hub:UCSC-VLAA/openvision-vit-so400m-patch14-224",
             "mean": 0.4157086335610189,
-            "bootstrap_mean": 0.3823990195428884,
-            "ci_low": 0.37859024619664566,
-            "ci_high": 0.3859615404172983
+            "bootstrap_mean": 0.38237189655875187,
+            "ci_low": 0.3785215941732341,
+            "ci_high": 0.3859306112754099
         },
         {
             "task": "plantnet",
             "model": "hf-hub:UCSC-VLAA/openvision-vit-so400m-patch14-384",
             "mean": 0.42507761507289393,
-            "bootstrap_mean": 0.39116762730052296,
-            "ci_low": 0.3877371189609369,
-            "ci_high": 0.394693016722015
+            "bootstrap_mean": 0.3911335018681533,
+            "ci_low": 0.38759334847414895,
+            "ci_high": 0.3945591191179795
         },
         {
             "task": "plantnet",
             "model": "hf-hub:UCSC-VLAA/openvision-vit-tiny-patch16-224",
             "mean": 0.22879298404092677,
-            "bootstrap_mean": 0.2162760263575507,
-            "ci_low": 0.21406890385628286,
-            "ci_high": 0.2184069048258849
+            "bootstrap_mean": 0.21630133912449787,
+            "ci_low": 0.2142762741594699,
+            "ci_high": 0.21868727478552308
         },
         {
             "task": "plantnet",
             "model": "hf-hub:imageomics/bioclip",
             "mean": 0.4538601217298083,
-            "bootstrap_mean": 0.4139539610038003,
-            "ci_low": 0.4101212301690661,
-            "ci_high": 0.41753208658164104
+            "bootstrap_mean": 0.41404257588656707,
+            "ci_low": 0.410455168630063,
+            "ci_high": 0.4174341459573689
         },
         {
             "task": "plantnet",
             "model": "hf-hub:imageomics/bioclip-2",
             "mean": 0.5382930783955922,
-            "bootstrap_mean": 0.4824127223132388,
-            "ci_low": 0.47814646739505473,
-            "ci_high": 0.4866715199420831
+            "bootstrap_mean": 0.48230565709713913,
+            "ci_low": 0.478158585940276,
+            "ci_high": 0.4864005668649174
         },
         {
             "task": "plantnet",
             "model": "mobilenetv2_100.ra_in1k",
             "mean": 0.0878898702032258,
-            "bootstrap_mean": 0.08323977186212363,
-            "ci_low": 0.08173187588645277,
-            "ci_high": 0.08458640041653022
+            "bootstrap_mean": 0.0832581029895228,
+            "ci_low": 0.0817430374467098,
+            "ci_high": 0.08477805277087568
         },
         {
             "task": "plantnet",
             "model": "mobilenetv3_large_100.ra_in1k",
             "mean": 0.11655721202136875,
-            "bootstrap_mean": 0.11033253961444407,
-            "ci_low": 0.10875878495799064,
-            "ci_high": 0.1121307491779695
+            "bootstrap_mean": 0.11036486811820709,
+            "ci_low": 0.10875448140269604,
+            "ci_high": 0.11220319644568558
         },
         {
             "task": "plantnet",
             "model": "resnet18.a1_in1k",
             "mean": 0.10076890064246702,
-            "bootstrap_mean": 0.0961661554968779,
-            "ci_low": 0.09470859751197293,
-            "ci_high": 0.09750589499159804
+            "bootstrap_mean": 0.09615341328701034,
+            "ci_low": 0.09466454847945298,
+            "ci_high": 0.09753521406332337
         },
         {
             "task": "plantnet",
             "model": "resnet18d.ra2_in1k",
             "mean": 0.10384022160997576,
-            "bootstrap_mean": 0.09860244466880862,
-            "ci_low": 0.09712376656451543,
-            "ci_high": 0.1002682004179242
+            "bootstrap_mean": 0.09860898503582798,
+            "ci_low": 0.09707734631464646,
+            "ci_high": 0.10017834177801198
         },
         {
             "task": "plantnet",
             "model": "resnet50.a1_in1k",
             "mean": 0.111327013245933,
-            "bootstrap_mean": 0.1072340917583953,
-            "ci_low": 0.10581596138930542,
-            "ci_high": 0.10864887017347596
+            "bootstrap_mean": 0.10726415697887977,
+            "ci_low": 0.10588993496043834,
+            "ci_high": 0.10858724256803866
         },
         {
             "task": "plantnet",
             "model": "resnet50d.a1_in1k",
             "mean": 0.1213145108778541,
-            "bootstrap_mean": 0.11607675170582607,
-            "ci_low": 0.11450115133225269,
-            "ci_high": 0.11764901805384767
+            "bootstrap_mean": 0.11604497812536187,
+            "ci_low": 0.11448775078079892,
+            "ci_high": 0.11758875477474721
         },
         {
             "task": "plantnet",
             "model": "vit_base_patch16_224.augreg2_in21k_ft_in1k",
             "mean": 0.40620265337597844,
-            "bootstrap_mean": 0.37399786518347283,
-            "ci_low": 0.3704968419922983,
-            "ci_high": 0.3772771327446305
+            "bootstrap_mean": 0.3740021323115278,
+            "ci_low": 0.37043518552459714,
+            "ci_high": 0.37739800969581777
         }
     ],
     "bests": [
@@ -6877,13 +6909,12 @@
             "task": "plankton",
             "best": "ViT-gopt-16-SigLIP2-256/webli",
             "ties": [
-                "ViT-B-16-SigLIP-256/webli",
                 "ViT-B-16-SigLIP2/webli",
                 "ViT-L-14/openai",
                 "ViT-SO400M-14-SigLIP-384/webli",
                 "ViT-SO400M-16-SigLIP2-256/webli",
                 "ViT-gopt-16-SigLIP2-256/webli",
-                "ViT-gopt-16-SigLIP2-384/webli",
+                "apple/aimv2-3B-patch14-448",
                 "dinov2_vitg14_reg",
                 "dinov2_vitl14_reg",
                 "hf-hub:UCSC-VLAA/openvision-vit-base-patch16-224",
