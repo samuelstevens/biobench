@@ -7,7 +7,7 @@ import pytest
 import torch
 import torch.utils.data
 
-from . import helpers
+from biobench import helpers
 
 
 def make_dataloader(size: int):

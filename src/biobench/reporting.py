@@ -128,7 +128,16 @@ def claim_run(db: sqlite3.Connection, cfg: config.Experiment, task_name: str) ->
     try:
         cur = db.execute(stmt, values)
         db.commit()
-        return cur.rowcount == 1  # 1 row inserted -> we won
+        claimed = cur.rowcount == 1  # 1 row inserted -> we won
+        if claimed:
+            logger.info(
+                "Claimed (%s, %s, %s, %d).",
+                task_name,
+                cfg.model.org,
+                cfg.model.ckpt,
+                cfg.n_train,
+            )
+        return claimed
     except Exception:
         db.rollback()
         raise
@@ -148,12 +157,12 @@ def release_run(db: sqlite3.Connection, cfg: config.Experiment, task_name: str) 
     WHERE task_name=? AND model_org=? AND model_ckpt=? AND n_train=?
     """
     values = (task_name, cfg.model.org, cfg.model.ckpt, cfg.n_train)
-    logger.info("Releasing claim on (%s, %s, %s, %d)", *values)
+    logger.info("Releasing claim on (%s, %s, %s, %d).", *values)
 
     try:
         db.execute(stmt, values)
         db.commit()
-        logger.info("Released claim on (%s, %s, %s, %d)", *values)
+        logger.info("Released claim on (%s, %s, %s, %d).", *values)
     except Exception:
         db.rollback()
         raise
@@ -425,7 +434,11 @@ def macro_f1_batch(
 
 @jaxtyped(typechecker=beartype.beartype)
 def bootstrap_scores_macro_f1(
-    df: pl.DataFrame, *, b: int = 0, rng: np.random.Generator | None = None
+    df: pl.DataFrame,
+    *,
+    b: int = 0,
+    rng: np.random.Generator | None = None,
+    batch_size: int = 16,
 ) -> dict[str, Float[np.ndarray, " b"]]:
     """
     Polars dataframe with schema
@@ -440,6 +453,8 @@ def bootstrap_scores_macro_f1(
     if b > 0:
         assert rng is not None, "must provide rng argument"
         i_bs = rng.integers(0, n, size=(b, n), dtype=np.int32)
+        if batch_size is None or batch_size > b:
+            batch_size = b
 
     scores = {}
 
@@ -478,13 +493,29 @@ def bootstrap_scores_macro_f1(
         )
         assert y_true.size == y_pred.size
 
-        if b > 0:
-            # bootstrap resample into pre-allocated buffers
-            np.take(y_pred, i_bs, axis=0, out=y_pred_buf)
-            np.take(y_true, i_bs, axis=0, out=y_true_buf)
-            scores[model_ckpt] = macro_f1_batch(y_true_buf, y_pred_buf)
-        else:
+        if b == 0:
             scores[model_ckpt] = np.array([macro_f1_batch(y_true, y_pred)])
+            continue
+
+        # bootstrap resample into pre-allocated buffers in small slices
+        # allocate slice-sized buffers
+        y_pred_buf = np.empty((batch_size, 9, n), dtype=np.int32)
+        y_true_buf = np.empty((batch_size, 9, n), dtype=np.int32)
+        out = np.empty(b, dtype=float)  # final result
+        for start, stop in helpers.batched_idx(b, batch_size):
+            m = stop - start  # slice size
+
+            # make fresh indices only for this slice
+            i_bs = rng.integers(0, n, size=(batch_size, 9, n), dtype=np.int32)
+
+            # gather, score, store
+            np.take(y_pred, i_bs, axis=None, out=y_pred_buf)
+            np.take(y_true, i_bs, axis=None, out=y_true_buf)
+            out[start:stop] = macro_f1_batch(y_true_buf[:m], y_pred_buf[:m]).mean(
+                axis=-1
+            )
+
+        scores[model_ckpt] = out
 
     return scores
 

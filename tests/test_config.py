@@ -2,7 +2,7 @@ import itertools
 import pathlib
 import textwrap
 
-from . import config
+from biobench import config
 
 
 def _write_toml(tmp_path: pathlib.Path) -> pathlib.Path:

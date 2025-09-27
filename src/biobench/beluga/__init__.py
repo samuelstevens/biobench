@@ -55,6 +55,8 @@ def benchmark(cfg: config.Experiment) -> reporting.Report:
 
     # Embed all images.
     features = get_features(cfg, backbone)
+    torch.cuda.empty_cache()
+
     # Convert string names into integer labels.
     encoder = sklearn.preprocessing.OrdinalEncoder(dtype=int)
     y = encoder.fit_transform(features.labels.reshape(-1, 1)).reshape(-1)

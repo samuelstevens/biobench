@@ -11,7 +11,7 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-from . import config, reporting
+from biobench import config, reporting
 
 multiprocessing.set_start_method("spawn", force=True)
 

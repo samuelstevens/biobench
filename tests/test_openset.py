@@ -6,7 +6,7 @@ import sklearn.linear_model
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-from . import openset
+from biobench import openset
 
 # --------#
 # Helpers #

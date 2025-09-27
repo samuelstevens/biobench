@@ -7,7 +7,7 @@ from hypothesis import assume, given
 from hypothesis import strategies as st
 from jaxtyping import Int, jaxtyped
 
-from . import helpers
+from biobench import helpers
 
 
 @st.composite

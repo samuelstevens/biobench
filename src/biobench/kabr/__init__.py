@@ -152,22 +152,20 @@ class Dataset(torch.utils.data.Dataset):
 @beartype.beartype
 def benchmark(cfg: config.Experiment) -> reporting.Report:
     """Runs KABR benchmark."""
-    # 1. Load model
     backbone = registry.load_vision_backbone(cfg.model)
     backbone = backbone.to(cfg.device)
 
-    # 2. Load data.
     train_features = get_features(cfg, backbone, is_train=True)
     test_features = get_features(cfg, backbone, is_train=False)
 
-    # 4. Do simpleshot.
+    torch.cuda.empty_cache()
+
     clf = helpers.init_logreg_clf(cfg)
     clf.fit(train_features.x, train_features.y)
 
     true_labels = test_features.y
     pred_labels = clf.predict(test_features.x)
 
-    # Return benchmark report.
     preds = [
         reporting.Prediction(
             str(video_id),
@@ -193,7 +191,6 @@ def get_features(
     cfg: config.Experiment, backbone: registry.VisionBackbone, *, is_train: bool
 ) -> Features:
     img_transform = backbone.make_img_transform()
-    backbone = torch.compile(backbone)
     split = "train" if is_train else "val"
 
     dataset = Dataset(cfg.data.kabr, split, transform=img_transform)
@@ -227,10 +224,9 @@ def get_features(
             features = aggregate_frames(features)
 
     with helpers.auto_batch_size(dataloader, probe=probe, backoff=1):
-        total = len(dataloader) if not cfg.debug else 2
-        it = iter(dataloader)
-        for b in helpers.progress(range(total), desc=f"kabr/{split}"):
-            frames, labels, ids = next(it)
+        backbone = torch.compile(backbone)
+        for batch in helpers.progress(dataloader, desc=f"kabr/{split}"):
+            frames, labels, ids = batch
             frames = torch.stack(frames, dim=0)
             labels = torch.stack(labels, dim=0)
             frames = frames.to(cfg.device, non_blocking=True)
@@ -248,7 +244,6 @@ def get_features(
             labels = aggregate_labels(labels)
             all_labels.append(labels.cpu())
 
-            logger.debug("Embedded batch %d/%d", b + 1, total)
             all_ids.extend(ids)
 
     all_feats = torch.cat(all_feats, dim=0).cpu().numpy()

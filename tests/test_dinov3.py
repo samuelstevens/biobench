@@ -1,14 +1,21 @@
+# biobench/test_dinov3.py
+"""
+Compares the inference results from:
+
+* Official DINOv3 repo
+* This repo's implementation
+
+The goal is to make sure they are identical on your particular hardware.
+"""
+
 import pytest
 import torch
 import transformers
 
-from . import config, helpers, registry
+from biobench import config, helpers, registry
 
 CKPTS = [
-    "apple/aimv2-large-patch14-224",
-    "apple/aimv2-large-patch14-224-distilled",
-    "apple/aimv2-1B-patch14-224",
-    "apple/aimv2-large-patch14-448",
+    "dinov3_vits16_pretrain_lvd1689m-08c60483.pth",
 ]
 DTYPE = torch.float32
 ATOL, RTOL = 1e-5, 1e-4
@@ -20,13 +27,13 @@ def models(request):
     hf = transformers.AutoModel.from_pretrained(
         ckpt, trust_remote_code=True, cache_dir=helpers.get_cache_dir()
     ).eval()
-    bio = registry.load_vision_backbone(config.Model("aimv2", ckpt)).eval().to(DTYPE)
+    bio = registry.load_vision_backbone(config.Model("dinov3", ckpt)).eval().to(DTYPE)
     return hf, bio
 
 
-def _rand(batch: int = 1):
+def _rand(batch: int = 1, shape: tuple[int, int] = (224, 224)):
     torch.manual_seed(0)
-    return torch.rand(batch, 3, 224, 224, dtype=DTYPE)
+    return torch.rand(batch, 3, *shape, dtype=DTYPE)
 
 
 def test_same_shape_single(models):

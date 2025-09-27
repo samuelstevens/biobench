@@ -190,6 +190,8 @@ def benchmark(cfg: config.Experiment) -> reporting.Report:
     train_dataset = get_features(cfg, backbone, is_train=True)
     test_dataset = get_features(cfg, backbone, is_train=False)
 
+    torch.cuda.empty_cache()
+
     # 3. Set up classifier.
     classifier = init_clf(train_dataset.dim).to(cfg.device)
 
@@ -258,7 +260,7 @@ def get_features(
         raise ValueError(msg)
 
     img_transform = backbone.make_img_transform()
-    backbone = torch.compile(backbone.to(cfg.device))
+    backbone = backbone.to(cfg.device)
 
     file = "train.csv" if is_train else "test.csv"
     dataset = ImageDataset(cfg.data.fishnet, file, transform=img_transform)
@@ -289,12 +291,11 @@ def get_features(
     all_features, all_labels, all_ids = [], [], []
 
     with helpers.auto_batch_size(dataloader, probe=probe):
-        total = len(dataloader) if not cfg.debug else 2
-        it = iter(dataloader)
-        for b in helpers.progress(range(total), every=10, desc=f"fishnet/{file}"):
+        backbone = torch.compile(backbone)
+        for images, labels, ids in helpers.progress(
+            dataloader, every=10, desc=f"fishnet/{file}"
+        ):
             debug_cuda_mem("loop start")
-            images, labels, ids = next(it)
-            debug_cuda_mem("after batch")
             images = images.to(cfg.device)
             debug_cuda_mem("imgs.to(device)")
 

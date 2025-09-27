@@ -1,9 +1,12 @@
+import logging
 import time
 import typing
 
 import beartype
 
 T = typing.TypeVar("T")
+
+logger = logging.getLogger(__name__)
 
 
 @beartype.beartype
@@ -39,54 +42,52 @@ class FutureQueue(typing.Generic[T]):
 
         return None
 
+    def _is_obj_done(self, obj) -> bool:
+        # Direct check for objects with done() method
+        if hasattr(obj, "done") and callable(obj.done):
+            try:
+                # done() may raise when the job failed. Swallow it.
+                return obj.done()  # True => finished (success or failed)
+            except Exception:
+                # Treat "raises inside done()" as "finished but failed".
+                logger.exception("obj.done() failed")
+                return True
+
+        return False
+
     def _is_done(self, obj) -> bool:
         """Check if an object or any of its nested items is done."""
-        # Direct check for objects with done() method
-        if hasattr(obj, "done") and callable(obj.done) and obj.done():
+        if self._is_obj_done(obj):
             return True
 
         # Check first level of nesting (tuples, lists, dicts)
         if isinstance(obj, (tuple, list)):
             for item in obj:
-                if hasattr(item, "done") and callable(item.done) and item.done():
+                if self._is_obj_done(item):
                     return True
+
                 # Check second level of nesting
                 if isinstance(item, (tuple, list)):
                     for subitem in item:
-                        if (
-                            hasattr(subitem, "done")
-                            and callable(subitem.done)
-                            and subitem.done()
-                        ):
+                        if self._is_obj_done(subitem):
                             return True
                 elif isinstance(item, dict):
                     for subitem in item.values():
-                        if (
-                            hasattr(subitem, "done")
-                            and callable(subitem.done)
-                            and subitem.done()
-                        ):
+                        if self._is_obj_done(subitem):
                             return True
         elif isinstance(obj, dict):
             for item in obj.values():
-                if hasattr(item, "done") and callable(item.done) and item.done():
+                if self._is_obj_done(item):
                     return True
+
                 # Check second level of nesting
                 if isinstance(item, (tuple, list)):
                     for subitem in item:
-                        if (
-                            hasattr(subitem, "done")
-                            and callable(subitem.done)
-                            and subitem.done()
-                        ):
+                        if self._is_obj_done(subitem):
                             return True
                 elif isinstance(item, dict):
                     for subitem in item.values():
-                        if (
-                            hasattr(subitem, "done")
-                            and callable(subitem.done)
-                            and subitem.done()
-                        ):
+                        if self._is_obj_done(subitem):
                             return True
 
         return False

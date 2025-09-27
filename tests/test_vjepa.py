@@ -1,7 +1,7 @@
 import pytest
 import torch
 
-from . import config, registry
+from biobench import config, registry
 
 DTYPE = torch.float32
 ATOL, RTOL = 1e-5, 1e-4

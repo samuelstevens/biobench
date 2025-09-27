@@ -293,3 +293,15 @@ ckpt = "vitl16"
 [[models]]
 org = "vjepa"
 ckpt = "vith16"
+
+[[models]]
+org = "dinov3"
+ckpt = "/research/nfs_su_809/workspace/stevens.994/models/dinov3/dinov3_vits16_pretrain_lvd1689m-08c60483.pth"
+
+[[models]]
+org = "dinov3"
+ckpt = "/research/nfs_su_809/workspace/stevens.994/models/dinov3/dinov3_vitb16_pretrain_lvd1689m-73cec8be.pth"
+
+[[models]]
+org = "dinov3"
+ckpt = "/research/nfs_su_809/workspace/stevens.994/models/dinov3/dinov3_vitl16_pretrain_lvd1689m-8aa4cbdd.pth"

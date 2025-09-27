@@ -2,6 +2,7 @@ import dataclasses
 import json
 import os
 import re
+import typing as tp
 
 import beartype
 import requests
@@ -16,39 +17,24 @@ from . import helpers, registry
 @beartype.beartype
 @dataclasses.dataclass(frozen=True)
 class Config:
-    """This is the configuration class to store the configuration of an `AIMv2Model`.
-
-    Instantiating a configuration with the defaults will yield a similar configuration to that of the [apple/aimv2-large-patch14-224](https://huggingface.co/apple/aimv2-large-patch14-224).
-
-    Args:
-        hidden_size: Dimension of the hidden representations.
-        intermediate_size: Dimension of the SwiGLU representations.
-        num_hidden_layers: Number of hidden layers in the Transformer.
-        num_attention_heads: Number of attention heads for each attention layer in the Transformer.
-        num_channels: Number of input channels.
-        image_size: Image size.
-        patch_size: Patch size.
-        rms_norm_eps: Epsilon value used for the RMS normalization layer.
-        attention_dropout: Dropout ratio for attention probabilities.
-        projection_dropout: Dropout ratio for the projection layer after the attention.
-        torch_dtype: Data type.
-        qkv_bias: Whether to add a bias to the queries, keys and values.
-        use_bias: Whether to add a bias in the feed-forward and projection layers.
-    """
-
+    attention_dropout: float
+    hidden_act: str
     hidden_size: int
+    image_size: int
+    initializer_range: float
     intermediate_size: int
-    num_hidden_layers: int
+    is_native: bool
+    mlp_bias: bool
     num_attention_heads: int
     num_channels: int
-    image_size: int
+    num_hidden_layers: int
     patch_size: int
-    rms_norm_eps: float
-    attention_dropout: float
     projection_dropout: float
-    torch_dtype: str
     qkv_bias: bool
+    rms_norm_eps: float
+    torch_dtype: str
     use_bias: bool
+    use_head: bool
 
 
 @beartype.beartype
@@ -70,41 +56,54 @@ class RMSNorm(torch.nn.Module):
 
 
 @jaxtyped(typechecker=beartype.beartype)
-class SwiGLUFFN(torch.nn.Module):
+class Mlp(torch.nn.Module):
     def __init__(self, cfg: Config):
         super().__init__()
+        self.cfg = cfg
+        self.hidden_size = cfg.hidden_size
+        self.intermediate_size = cfg.intermediate_size
 
-        self.fc1 = torch.nn.Linear(
-            cfg.hidden_size, cfg.intermediate_size, bias=cfg.use_bias
+        self.gate_proj = torch.nn.Linear(
+            self.hidden_size, self.intermediate_size, bias=cfg.mlp_bias
         )
-        self.fc2 = torch.nn.Linear(
-            cfg.intermediate_size, cfg.hidden_size, bias=cfg.use_bias
+        self.up_proj = torch.nn.Linear(
+            self.hidden_size, self.intermediate_size, bias=cfg.mlp_bias
         )
-        self.fc3 = torch.nn.Linear(
-            cfg.hidden_size, cfg.intermediate_size, bias=cfg.use_bias
+        self.down_proj = torch.nn.Linear(
+            self.intermediate_size, self.hidden_size, bias=cfg.mlp_bias
         )
+        if cfg.hidden_act == "silu":
+            self.act_fn = torch.nn.SiLU()
+        else:
+            tp.assert_never(cfg.hidden_act)
 
-    def forward(self, x: Float[Tensor, "*batch d"]) -> Float[Tensor, "*batch d"]:
-        x = torch.nn.functional.silu(self.fc1(x)) * self.fc3(x)
-        x = self.fc2(x)
-        return x
+    def forward(self, x):
+        down_proj = self.down_proj(self.act_fn(self.gate_proj(x)) * self.up_proj(x))
+        return down_proj
 
 
 @jaxtyped(typechecker=beartype.beartype)
-class PatchEmbed(torch.nn.Module):
+class Embeddings(torch.nn.Module):
     def __init__(self, cfg: Config):
         super().__init__()
-        self.proj = torch.nn.Conv2d(
+        self.patch_embed = torch.nn.Conv2d(
             cfg.num_channels,
             cfg.hidden_size,
             kernel_size=(cfg.patch_size, cfg.patch_size),
             stride=(cfg.patch_size, cfg.patch_size),
         )
-        self.norm = RMSNorm(cfg.hidden_size, eps=cfg.rms_norm_eps)
+        self.rms_norm = RMSNorm(cfg.hidden_size, eps=cfg.rms_norm_eps)
+        n_patches = (cfg.image_size // cfg.patch_size) ** 2
+        self.position_embedding = torch.nn.Embedding(n_patches, cfg.hidden_size)
+        self.register_buffer(
+            "position_ids", torch.arange(n_patches).expand((1, -1)), persistent=False
+        )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x = self.proj(x).flatten(2).transpose(1, 2)
-        x = self.norm(x)
+        breakpoint()
+        x = self.patch_embed(x).flatten(2).transpose(1, 2)
+        pos_embed = self.position_embedding(self.position_ids)
+        x = self.rms_norm(x) + pos_embed
         return x
 
 
@@ -112,12 +111,8 @@ class PatchEmbed(torch.nn.Module):
 class ViTPreprocessor(torch.nn.Module):
     def __init__(self, cfg: Config):
         super().__init__()
-        num_patches = (cfg.image_size // cfg.patch_size) ** 2
 
-        self.patchifier = PatchEmbed(cfg)
-        self.pos_embed = torch.nn.Parameter(
-            torch.zeros((1, num_patches, cfg.hidden_size))
-        )
+        self.embeddings = Embeddings(cfg)
 
     def forward(
         self, x: Float[Tensor, "batch 3 width height"]
@@ -131,46 +126,94 @@ class ViTPreprocessor(torch.nn.Module):
 
 @jaxtyped(typechecker=beartype.beartype)
 class Attention(torch.nn.Module):
-    def __init__(self, cfg: Config):
+    """Multi-headed attention from 'Attention Is All You Need' paper"""
+
+    def __init__(self, config):
         super().__init__()
-        dim = cfg.hidden_size
-
-        self.num_heads = cfg.num_attention_heads
-        self.qkv = torch.nn.Linear(dim, dim * 3, bias=cfg.qkv_bias)
-        self.attn_drop = torch.nn.Dropout(cfg.attention_dropout)
-        self.proj = torch.nn.Linear(dim, dim, bias=cfg.use_bias)
-        self.proj_drop = torch.nn.Dropout(cfg.projection_dropout)
-
-    def forward(self, x: torch.Tensor, mask: torch.Tensor = None) -> torch.Tensor:
-        B, N, C = x.shape
-        qkv = (
-            self.qkv(x)
-            .reshape(B, N, 3, self.num_heads, C // self.num_heads)
-            .permute(2, 0, 3, 1, 4)
+        self.config = config
+        self.embed_dim = config.hidden_size
+        self.num_heads = config.num_attention_heads
+        self.head_dim = self.embed_dim // self.num_heads
+        if self.head_dim * self.num_heads != self.embed_dim:
+            raise ValueError(
+                f"embed_dim must be divisible by num_heads (got `embed_dim`: {self.embed_dim} and `num_heads`:"
+                f" {self.num_heads})."
+            )
+        self.scale = self.head_dim**-0.5
+        self.dropout = config.attention_dropout
+        self.is_causal = False
+        self.k_proj = torch.nn.Linear(
+            self.embed_dim, self.embed_dim, bias=config.qkv_bias
         )
-        q, k, v = qkv.unbind(0)
+        self.v_proj = torch.nn.Linear(
+            self.embed_dim, self.embed_dim, bias=config.qkv_bias
+        )
+        self.q_proj = torch.nn.Linear(
+            self.embed_dim, self.embed_dim, bias=config.qkv_bias
+        )
+        self.out_proj = torch.nn.Linear(
+            self.embed_dim, self.embed_dim, bias=config.qkv_bias
+        )
 
-        x = torch.nn.functional.scaled_dot_product_attention(q, k, v, attn_mask=mask)
-        x = x.transpose(1, 2).contiguous().reshape(B, N, C)
-        x = self.proj(x)
-        x = self.proj_drop(x)
-        return x
+    def forward(
+        self,
+        hidden_states: Tensor,
+        attention_mask: Tensor | None = None,
+        **kwargs,
+    ) -> Tensor:
+        """Input shape: Batch x Time x Channel"""
+
+        batch_size, seq_length, embed_dim = hidden_states.shape
+
+        queries = self.q_proj(hidden_states)
+        keys = self.k_proj(hidden_states)
+        values = self.v_proj(hidden_states)
+
+        queries = queries.view(
+            batch_size, seq_length, self.num_heads, self.head_dim
+        ).transpose(1, 2)
+        keys = keys.view(
+            batch_size, seq_length, self.num_heads, self.head_dim
+        ).transpose(1, 2)
+        values = values.view(
+            batch_size, seq_length, self.num_heads, self.head_dim
+        ).transpose(1, 2)
+
+        attn_weights = torch.matmul(queries, keys.transpose(-1, -2)) * self.scale
+        if attention_mask is not None:
+            attn_weights = attn_weights + attention_mask
+
+        attn_weights = torch.nn.functional.softmax(
+            attn_weights, dim=-1, dtype=torch.float32
+        ).to(queries.dtype)
+        attn_weights = torch.nn.functional.dropout(
+            attn_weights, p=self.dropout, training=self.training
+        )
+
+        attn_output = torch.matmul(attn_weights, values)
+        attn_output = attn_output.transpose(1, 2).contiguous()
+        attn_output = attn_output.reshape(
+            batch_size, seq_length, embed_dim
+        ).contiguous()
+        attn_output = self.out_proj(attn_output)
+
+        return attn_output
 
 
 @jaxtyped(typechecker=beartype.beartype)
-class Block(torch.nn.Module):
+class Layer(torch.nn.Module):
     def __init__(self, cfg: Config):
         super().__init__()
-        self.attn = Attention(cfg)
-        self.norm_1 = RMSNorm(cfg.hidden_size, eps=cfg.rms_norm_eps)
-        self.mlp = SwiGLUFFN(cfg)
-        self.norm_2 = RMSNorm(cfg.hidden_size, eps=cfg.rms_norm_eps)
+        self.attention = Attention(cfg)
+        self.ffn = Mlp(cfg)
+        self.rms_norm1 = RMSNorm(cfg.hidden_size, eps=cfg.rms_norm_eps)
+        self.rms_norm2 = RMSNorm(cfg.hidden_size, eps=cfg.rms_norm_eps)
 
     def forward(
         self, x: torch.Tensor, mask: torch.Tensor | None = None
     ) -> torch.Tensor:
-        x = x + self.attn(self.norm_1(x), mask)
-        x = x + self.mlp(self.norm_2(x))
+        x = x + self.attention(self.rms_norm1(x), mask)
+        x = x + self.ffn(self.rms_norm2(x))
         return x
 
 
@@ -178,15 +221,13 @@ class Block(torch.nn.Module):
 class Transformer(torch.nn.Module):
     def __init__(self, cfg: Config):
         super().__init__()
-        self.blocks = torch.nn.ModuleList([
-            Block(cfg) for _ in range(cfg.num_hidden_layers)
+        self.layers = torch.nn.ModuleList([
+            Layer(cfg) for _ in range(cfg.num_hidden_layers)
         ])
-        self.post_trunk_norm = RMSNorm(cfg.hidden_size, eps=cfg.rms_norm_eps)
 
     def forward(self, tokens: Float[Tensor, "..."]) -> Float[Tensor, "..."]:
-        for block in self.blocks:
-            tokens = block(tokens)
-        tokens = self.post_trunk_norm(tokens)
+        for layer in self.layers:
+            tokens = layer(tokens)
         return tokens
 
 
@@ -200,12 +241,13 @@ class AIMv2(registry.VisionBackbone):
             cfg_dct = json.load(fd)
         for key in ("architectures", "auto_map", "transformers_version"):
             cfg_dct.pop(key)
-        assert cfg_dct.pop("model_type") == "aimv2"
+        assert cfg_dct.pop("model_type") == "aimv2_vision_model"
         cfg = Config(**cfg_dct)
 
         # Model
-        self.preprocessor = ViTPreprocessor(cfg)
-        self.trunk = Transformer(cfg)
+        self.embeddings = Embeddings(cfg)
+        self.encoder = Transformer(cfg)
+        self.rms_norm = RMSNorm(cfg.hidden_size, eps=cfg.rms_norm_eps)
 
         # Pre-trained weights
         ckpt_fpath = download_hf_file(ckpt, "model.safetensors")
@@ -218,8 +260,9 @@ class AIMv2(registry.VisionBackbone):
         self.size = int(match.group(1)) if match else 224  # Default to 224 if not found
 
     def forward(self, x: Float[Tensor, "..."]) -> Float[Tensor, "..."]:
-        x = self.preprocessor(x)
-        x = self.trunk(x)
+        x = self.embeddings(x)
+        x = self.encoder(x)
+        x = self.rms_norm(x)
         return x
 
     def img_encode(

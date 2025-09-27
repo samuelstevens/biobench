@@ -77,6 +77,7 @@ class ExitHook(typing.Generic[HashableT]):
     def discard(self, claim: HashableT) -> None:
         """Remove a claim from tracking."""
         with self._lock:
+            self.release_run(claim)
             self._claims.discard(claim)
 
     def release_run(self, claim: HashableT) -> None:
