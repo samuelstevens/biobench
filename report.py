@@ -282,6 +282,22 @@ models = [
         date_to_ms(2025, 2, 20),
     ),
     Model(
+        "ViT-H-14-worldwide-378/metaclip2_worldwide",
+        "MetaCLIP 2 ViT-H/14",
+        "MetaCLIP 2",
+        378,
+        632_682_240,
+        date_to_ms(2025, 8, 4),
+    ),
+    Model(
+        "ViT-H-14-worldwide/metaclip2_worldwide",
+        "MetaCLIP 2 ViT-H/14",
+        "MetaCLIP 2",
+        224,
+        632_076_800,
+        date_to_ms(2025, 8, 4),
+    ),
+    Model(
         "hf-hub:UCSC-VLAA/openvision-vit-tiny-patch16-224",
         "OpenVision ViT-T/16",
         "OpenVision",

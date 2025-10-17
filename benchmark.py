@@ -21,14 +21,14 @@ from biobench import config, helpers, jobkit, reporting
 
 
 @beartype.beartype
-def main(cfgs: list[str], dry_run: bool = True, max_pending: int = 8):
+def main(cfgs: list[str], dry_run: bool = True, n_parallel: int = 1):
     """
     Launch all jobs, using either a local GPU or a Slurm cluster. Then report results and save to disk.
 
     Args:
         cfgs: List of paths to TOML config files.
         dry_run: If --no-dry-run, actually run experiment.
-        max_pending: Number of jobs that can be claimed by any one launcher process.
+        n_parallel: Number of jobs that can be claimed by any one launcher process.
     """
 
     # Load all configs from the provided paths.
@@ -54,9 +54,10 @@ def main(cfgs: list[str], dry_run: bool = True, max_pending: int = 8):
     # Setup logging.
     # --------------
     log_format = "[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s"
-    level = logging.DEBUG if cfg.debug else logging.INFO
+    level = logging.DEBUG if first.debug else logging.INFO
     logging.basicConfig(level=level, format=log_format)
     logger = logging.getLogger("benchmark.py")
+    logging.getLogger("PIL.TiffImagePlugin").setLevel(logging.INFO)
 
     # ---------------
     # Setup executor.
@@ -93,7 +94,7 @@ def main(cfgs: list[str], dry_run: bool = True, max_pending: int = 8):
 
     job_stats = collections.defaultdict(int)
     model_stats = collections.defaultdict(int)
-    fq = jobkit.FutureQueue(max_size=max_pending)
+    fq = jobkit.FutureQueue(max_size=n_parallel)
     exit_hook = jobkit.ExitHook(
         lambda args: reporting.release_run(db, *args)
     ).register()
@@ -102,15 +103,14 @@ def main(cfgs: list[str], dry_run: bool = True, max_pending: int = 8):
         """
         Get the next finished job from queue, blocking if necessary, write the report and relinquish the claim.
         """
-        # HELP: fq.pop() calls done(), which calls results(), which throws an exception. But I cannot move this line into the try, because if it fails, then cfg doesn't exist in the except and finally.
         job, cfg, task = fq.pop()
 
         try:
             report: reporting.Report = job.result()
             report.write()
             logger.info("%s+%s/%s done", task, cfg.model.org, cfg.model.ckpt)
-        except Exception as err:
-            logger.info("%s+%s/%s failed: %s", task, cfg.model.org, cfg.model.ckpt, err)
+        except Exception:
+            logger.exception("%s+%s/%s failed", task, cfg.model.org, cfg.model.ckpt)
         finally:
             exit_hook.discard((cfg, task))
 
@@ -136,7 +136,6 @@ def main(cfgs: list[str], dry_run: bool = True, max_pending: int = 8):
             job_stats["submitted"] += 1
 
             while fq.full():
-                print(cfg)
                 flush_one()
 
     if dry_run:
@@ -148,11 +147,11 @@ def main(cfgs: list[str], dry_run: bool = True, max_pending: int = 8):
         logger.info("-" * 31)
 
         logger.info("Model Summary:")
-        logger.info("%-50s | %-5s", "Model", "Count")
-        logger.info("-" * 61)
+        logger.info("%-70s | %-5s", "Model", "Count")
+        logger.info("-" * 79)
         for model, count in sorted(model_stats.items()):
-            logger.info("%-50s | %5d", model, count)
-        logger.info("-" * 61)
+            logger.info("%-70s | %5d", model, count)
+        logger.info("-" * 79)
         return
 
     while fq:

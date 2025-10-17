@@ -12,12 +12,12 @@ leaderboard: fmt
     bunx --bun uglify-js docs/assets/dist/leaderboard.js --compress 'pure_funcs=[F2,F3,F4,F5,F6,F7,F8,F9,A2,A3,A4,A5,A6,A7,A8,A9],pure_getters,keep_fargs=false,unsafe_comps,unsafe' | bunx --bun uglify-js --mangle --output docs/assets/dist/leaderboard.min.js
 
 test: fmt
-    uv run pytest --cov biobench --cov-report term --cov-report json --json-report --json-report-file pytest.json --cov-report html -n 32 biobench || true
+    uv run pytest --cov src/biobench --cov-report term --cov-report json --json-report --json-report-file pytest.json --cov-report html -n 32 tests || true
     uv run coverage-badge -o docs/assets/coverage.svg -f
     uv run scripts/regressions.py
 
 lint: fmt
-    uv run ruff check --fix biobench benchmark.py report.py
+    uv run ruff check --fix src benchmark.py report.py
     uv run scripts/ascii_only.py --in-paths benchmark.py report.py biobench/ scripts/ --fix
     lychee .
 

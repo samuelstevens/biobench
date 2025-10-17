@@ -517,7 +517,7 @@ Things I want to change after NeurIPS submission:
 5. Use [`wildlife_datasets`](https://github.com/WildlifeDatasets/wildlife-datasets) for Beluga data loading.
 6. Plot progress on ImageNet and BioBench over time (normalized to each leaderboard).
 
-Some of these can be worked on before the NeurIPS reviews come out in prep fo rebuttal.
+Some of these can be worked on before the NeurIPS reviews come out in prep for rebuttal.
 
 Additional models:
 
@@ -526,3 +526,12 @@ Additional models:
 3. [WebSSL](https://huggingface.co/collections/facebook/web-ssl-68094132c15fbd7808d1e9bb)
 4. [CATALOG](https://arxiv.org/pdf/2412.10624)
 5. [WildCLIP](https://github.com/amathislab/wildclip) (see [here](https://zenodo.org/records/11102888) for the checkpoints)
+
+
+# 09/27/2025
+
+- AIMv2 got an update on the hub, breaking my inference code :(
+- DINOv3 needs some testing.
+- OpenVision 2 could be good. But their models are not compatible with open_clip; `create_vision_encoder_and_transforms` does not exist.
+- Meta CLIP 2 should be evaluated. These are `ViT-H-14-worldwide` and `ViT-H-14-worldwide-378` on open_clip.
+
