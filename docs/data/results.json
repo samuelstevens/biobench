@@ -1,8 +1,8 @@
 {
     "meta": {
         "schema": 1,
-        "generated": 1760726835176,
-        "git_commit": "d3c8e1ff5eec463149d4c177c1a0ddfd31b2f3a9",
+        "generated": 1760733843376,
+        "git_commit": "4feebd605b9f80ff84959a811a2c8fd9bb4517a5",
         "seed": 17,
         "alpha": 0.05,
         "n_bootstraps": 500
@@ -1269,6 +1269,14 @@
             "bootstrap_mean": 0.7803760170936584,
             "ci_low": 0.7746893167495728,
             "ci_high": 0.785952091217041
+        },
+        {
+            "task": "newt",
+            "model": "ViT-H-14-worldwide-378/metaclip2_worldwide",
+            "mean": 0.8484243154525757,
+            "bootstrap_mean": 0.8483895659446716,
+            "ci_low": 0.8426542282104492,
+            "ci_high": 0.8534731268882751
         },
         {
             "task": "newt",
@@ -3493,6 +3501,14 @@
             "bootstrap_mean": 0.25189084238096965,
             "ci_low": 0.23156304557183904,
             "ci_high": 0.27227411558398373
+        },
+        {
+            "task": "fungiclef",
+            "model": "ViT-H-14-worldwide-378/metaclip2_worldwide",
+            "mean": 0.34026688360010904,
+            "bootstrap_mean": 0.34010278955136436,
+            "ci_low": 0.32095887141255264,
+            "ci_high": 0.35935598672881963
         },
         {
             "task": "fungiclef",
