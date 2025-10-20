@@ -2,6 +2,7 @@ import dataclasses
 import math
 import pathlib
 import typing as tp
+from collections.abc import Callable
 
 import beartype
 import einops
@@ -430,23 +431,17 @@ class VisionTransformer(nn.Module):
         return x, (H, W)
 
     def forward(self, x: Float[Tensor, "b c h w"]) -> dict[str, Tensor]:
-        x, (h, w) = self.prepare_tokens_with_masks(x)
+        x_bnd, (h, w) = self.prepare_tokens_with_masks(x)
         rope_sincos = self.rope_embed(h=h, w=w)
         for blk in self.blocks:
-            x = blk(x, rope_sincos)
+            x_bnd = blk(x_bnd, rope_sincos)
 
-        if self.cfg.untie_global_and_local_cls_norm:
-            x_norm_cls_reg = self.norm(x[:, : self.cfg.n_storage_tokens + 1])
-            x_norm_patch = self.norm(x[:, self.cfg.n_storage_tokens + 1 :])
-        else:
-            x_norm = self.norm(x)
-            x_norm_cls_reg = x_norm[:, : self.cfg.n_storage_tokens + 1]
-            x_norm_patch = x_norm[:, self.cfg.n_storage_tokens + 1 :]
-        output = {
-            "x_norm_clstoken": x_norm_cls_reg[:, 0],
-            "x_norm_patchtokens": x_norm_patch,
-        }
-        return output["x_norm_clstoken"]
+        x_norm_bnd = self.norm(x_bnd)
+        x_norm_cls_bd = x_norm_bnd[:, 0]
+        x_norm_patch_bnd = x_norm_bnd[:, self.cfg.n_storage_tokens + 1 :]
+
+        output = {"cls": x_norm_cls_bd, "patches": x_norm_patch_bnd}
+        return output
 
 
 _PRETRAINED_CFGS = {
@@ -597,4 +592,38 @@ def load(name: str, fpath: str | pathlib.Path, device="cpu") -> VisionTransforme
 
 @jaxtyped(typechecker=beartype.beartype)
 class DinoV3(registry.VisionBackbone):
-    pass
+    def __init__(self, ckpt: str, size_px: int = 256, **kwargs):
+        super().__init__()
+        self.size_px = size_px
+
+        name = self._parse_name(ckpt)
+        self.model = load(name, ckpt)
+
+        self._ckpt = name
+
+    @staticmethod
+    def _parse_name(dinov3_ckpt: str) -> str:
+        name_ds, sha = pathlib.Path(dinov3_ckpt).stem.split("-")
+        *name, pretrain, ds = name_ds.split("_")
+        assert pretrain == "pretrain"
+        return "_".join(name)
+
+    def img_encode(
+        self, batch: Float[Tensor, "batch 3 width height"]
+    ) -> registry.EncodedImgBatch:
+        x = self.model(batch)
+        return registry.EncodedImgBatch(x["cls"], x["patches"])
+
+    def make_img_transform(self) -> Callable:
+        from torchvision.transforms import v2
+
+        return v2.Compose([
+            v2.Resize(size=self.size_px),
+            v2.CenterCrop(size=(self.size_px, self.size_px)),
+            v2.ToImage(),
+            v2.ToDtype(torch.float32, scale=True),
+            v2.Normalize(
+                mean=[0.48145466, 0.4578275, 0.40821073],
+                std=[0.26862954, 0.26130258, 0.27577711],
+            ),
+        ])
