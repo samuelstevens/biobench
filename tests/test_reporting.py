@@ -175,7 +175,7 @@ HOUR = 3600
 def make_cfg(tmp_path: pathlib.Path) -> config.Experiment:
     """Return a minimal Experiment that points its report DB inside tmp_path."""
     return config.Experiment(
-        model=config.Model(org="openai", ckpt="ViT-B/16"),
+        model=config.Model(org="open-clip", ckpt="ViT-B-16/openai"),
         n_train=-1,
         report_to=str(tmp_path),
         log_to=str(tmp_path / "logs"),

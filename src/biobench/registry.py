@@ -52,6 +52,12 @@ class VisionBackbone(torch.nn.Module):
         err_msg = f"{self.__class__.__name__} must implemented make_img_transform()."
         raise NotImplementedError(err_msg)
 
+    @classmethod
+    @beartype.beartype
+    def normalize_model_ckpt(cls, ckpt: str) -> str:
+        """Normalize a checkpoint identifier to a canonical form. By default, returns the checkpoint unchanged. Models with machine-specific paths can override this to extract a canonical identifier."""
+        return ckpt
+
 
 _global_backbone_registry: dict[str, type[VisionBackbone]] = {}
 
@@ -83,3 +89,15 @@ def list_vision_backbones() -> list[str]:
     List all vision backbone model orgs.
     """
     return list(_global_backbone_registry.keys())
+
+
+@beartype.beartype
+def normalize_model_ckpt(model_org: str, ckpt: str) -> str:
+    """
+    Normalize a checkpoint identifier to its canonical form using the backbone class's normalization method.
+    """
+    if model_org not in _global_backbone_registry:
+        raise ValueError(f"Org '{model_org}' not found.")
+
+    cls = _global_backbone_registry[model_org]
+    return cls.normalize_model_ckpt(ckpt)

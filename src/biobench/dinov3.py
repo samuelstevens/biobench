@@ -608,6 +608,12 @@ class DinoV3(registry.VisionBackbone):
         assert pretrain == "pretrain"
         return "_".join(name)
 
+    @classmethod
+    @beartype.beartype
+    def normalize_model_ckpt(cls, ckpt: str) -> str:
+        """Normalize DINOv3 checkpoint path to canonical name."""
+        return cls._parse_name(ckpt)
+
     def img_encode(
         self, batch: Float[Tensor, "batch 3 width height"]
     ) -> registry.EncodedImgBatch:

@@ -15,7 +15,7 @@ import polars as pl
 import sklearn.metrics
 from jaxtyping import Float, Int, jaxtyped
 
-from . import config, helpers
+from . import config, helpers, registry
 
 logger = logging.getLogger(__name__)
 
@@ -65,7 +65,8 @@ def already_ran(db: sqlite3.Connection, cfg: config.Experiment, task_name: str) 
     AND model_ckpt = ?
     AND n_train = ?
     """
-    values = (task_name, cfg.model.org, cfg.model.ckpt, cfg.n_train)
+    normalized_ckpt = registry.normalize_model_ckpt(cfg.model.org, cfg.model.ckpt)
+    values = (task_name, cfg.model.org, normalized_ckpt, cfg.n_train)
 
     (count,) = db.execute(query, values).fetchone()
     return count > 0
@@ -91,7 +92,8 @@ def is_claimed(db: sqlite3.Connection, cfg: config.Experiment, task_name: str) -
     AND model_ckpt = ?
     AND n_train = ?
     """
-    values = (task_name, cfg.model.org, cfg.model.ckpt, cfg.n_train)
+    normalized_ckpt = registry.normalize_model_ckpt(cfg.model.org, cfg.model.ckpt)
+    values = (task_name, cfg.model.org, normalized_ckpt, cfg.n_train)
 
     (count,) = db.execute(query, values).fetchone()
     return count > 0
@@ -116,10 +118,11 @@ def claim_run(db: sqlite3.Connection, cfg: config.Experiment, task_name: str) ->
     (task_name, model_org, model_ckpt, n_train, pid, posix)
     VALUES (?,?,?,?,?,?)
     """
+    normalized_ckpt = registry.normalize_model_ckpt(cfg.model.org, cfg.model.ckpt)
     values = (
         task_name,
         cfg.model.org,
-        cfg.model.ckpt,
+        normalized_ckpt,
         cfg.n_train,
         os.getpid(),
         time.time(),
@@ -134,7 +137,7 @@ def claim_run(db: sqlite3.Connection, cfg: config.Experiment, task_name: str) ->
                 "Claimed (%s, %s, %s, %d).",
                 task_name,
                 cfg.model.org,
-                cfg.model.ckpt,
+                normalized_ckpt,
                 cfg.n_train,
             )
         return claimed
@@ -156,7 +159,8 @@ def release_run(db: sqlite3.Connection, cfg: config.Experiment, task_name: str) 
     DELETE FROM runs
     WHERE task_name=? AND model_org=? AND model_ckpt=? AND n_train=?
     """
-    values = (task_name, cfg.model.org, cfg.model.ckpt, cfg.n_train)
+    normalized_ckpt = registry.normalize_model_ckpt(cfg.model.org, cfg.model.ckpt)
+    values = (task_name, cfg.model.org, normalized_ckpt, cfg.n_train)
     logger.info("Releasing claim on (%s, %s, %s, %d).", *values)
 
     try:
@@ -269,10 +273,13 @@ class Report:
         try:
             cursor = db.cursor()
 
+            normalized_ckpt = registry.normalize_model_ckpt(
+                self.cfg.model.org, self.cfg.model.ckpt
+            )
             exp_values = (
                 self.task_name.lower(),
                 self.cfg.model.org,
-                self.cfg.model.ckpt,
+                normalized_ckpt,
                 self.cfg.n_train,
                 json.dumps(self.cfg.to_dict()),
                 json.dumps(self.argv),
