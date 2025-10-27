@@ -544,6 +544,14 @@ models = [
         date_to_ms(2025, 5, 29),
     ),
     Model(
+        "hf-hub:imageomics/biocap",
+        "BioCAP ViT-B/16",
+        "cv4ecology",
+        224,
+        86_192_640,
+        date_to_ms(2025, 10, 23),
+    ),
+    Model(
         "hf-hub:BGLab/BioTrove-CLIP",
         "BioTrove ViT-B/16",
         "cv4ecology",

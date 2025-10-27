@@ -535,3 +535,8 @@ Additional models:
 - OpenVision 2 could be good. But their models are not compatible with open_clip; `create_vision_encoder_and_transforms` does not exist.
 - Meta CLIP 2 should be evaluated. These are `ViT-H-14-worldwide` and `ViT-H-14-worldwide-378` on open_clip.
 
+# 10/22/2025
+
+- DINOv3 done.
+- Meta CLIP 2 done.
+- Evaluate BioCAP once the checkpoints are public.
