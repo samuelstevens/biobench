@@ -11,8 +11,8 @@ A script to download the SYKE-plankton_IFCB_2022 dataset.
 
 Run with:
 
-1. `python biobench/plankton/download.py --help` if `biobench/` is in your $PWD.
-2. `python -m biobench.plankton.download --help` if you have installed `biobench` as a package.
+1. `uv run biobench/plankton/download.py --help` if `biobench/` is in your $PWD.
+2. `uv run python -m biobench.plankton.download --help` if you have installed `biobench` as a package.
 """
 
 import dataclasses
@@ -24,8 +24,10 @@ import requests
 import tqdm
 import tyro
 
-train_url = "https://b2share.eudat.eu/api/files/63a79aff-4194-48c8-8055-0a73ecfcf183/phytoplankton_labeled.zip"
-val_url = "https://b2share.eudat.eu/api/files/4a62bb1b-9bd0-4005-9217-7472ee6ed92c/phytoplankton_Ut%C3%B6_2021_labeled.zip"
+train_url = (
+    "https://b2share.eudat.eu/records/xvnrp-7ga56/files/phytoplankton_labeled.zip"
+)
+val_url = "https://b2share.eudat.eu/records/w7y96-6jd66/files/phytoplankton_Ut%C3%B6_2021_labeled.zip"
 
 
 @dataclasses.dataclass(frozen=True)
@@ -49,12 +51,9 @@ def main(args: Args):
         r = requests.get(url, stream=True)
         r.raise_for_status()
 
-        n_bytes = int(r.headers["content-length"])
-
         with open(filepath, "wb") as fd:
             # Need to specify a manual progress bar in order to get units and such working.
             t = tqdm.tqdm(
-                total=n_bytes,
                 unit="B",
                 unit_scale=1,
                 unit_divisor=1024,
