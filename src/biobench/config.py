@@ -37,6 +37,8 @@ class Model:
 class Data:
     beluga: str = ""
     """Data pathfor the Beluga whale re-ID benchmark."""
+    ecdysis: str = ""
+    """Data pathfor the Ecdysis Foundation insect species ID benchmark."""
     fishnet: str = ""
     """Data path for the FishNet benchmark."""
     fungiclef: str = ""

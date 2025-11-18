@@ -48,6 +48,7 @@ prior_work_tasks = [
 
 benchmark_tasks = [
     Task("beluga", "Beluga"),
+    Task("ecdysis", "Ecdysis"),
     Task("fishnet", "FishNet"),
     Task("fungiclef", "FungiCLEF"),
     Task("herbarium19", "Herbarium19"),

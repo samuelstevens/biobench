@@ -4,6 +4,7 @@ report_to = "/local/scratch/$USER/experiments/biobench"
 [data]
 # Benchmark
 beluga = "/research/nfs_su_809/workspace/stevens.994/datasets/beluga"
+ecdysis = "/research/nfs_su_809/workspace/stevens.994/datasets/ecdysis"
 fishnet = "/research/nfs_su_809/workspace/stevens.994/datasets/fishnet"
 fungiclef = "/research/nfs_su_809/workspace/stevens.994/datasets/fungiclef"
 herbarium19 = "/research/nfs_su_809/workspace/stevens.994/datasets/herbarium19"

@@ -539,4 +539,4 @@ Additional models:
 
 - DINOv3 done.
 - Meta CLIP 2 done.
-- Evaluate BioCAP once the checkpoints are public.
+- [done] Evaluate BioCAP once the checkpoints are public.
