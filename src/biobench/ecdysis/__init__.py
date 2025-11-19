@@ -115,8 +115,8 @@ class Dataset(torch.utils.data.Dataset):
             raise FileNotFoundError(msg)
 
         # Read metadata and create samples
-        all_samples = []
         label_to_id = {}
+        samples_by_label = {}  # Group samples by label for per-species splitting
 
         with open(metadata_fpath) as fd:
             reader = csv.DictReader(fd)
@@ -148,28 +148,32 @@ class Dataset(torch.utils.data.Dataset):
                 # Store visit_date for temporal splitting
                 visit_date = row["visit_date"]
 
-                all_samples.append((
-                    img_fpath,
-                    label_to_id[label_str],
-                    sample_id,
-                    visit_date,
-                ))
+                label_id = label_to_id[label_str]
 
-        # Create temporal train/validation split based on visit_date
-        # Sort by visit_date (earliest to latest)
-        all_samples.sort(key=lambda x: x[3])
+                # Group by label
+                if label_id not in samples_by_label:
+                    samples_by_label[label_id] = []
+                samples_by_label[label_id].append((img_fpath, label_id, sample_id, visit_date))
 
-        # Split: earliest 80% for train, latest 20% for validation
-        split_idx = int(0.8 * len(all_samples))
+        # Create temporal train/validation split per species
+        # For each label, sort by date and split 80/20
+        train_samples = []
+        val_samples = []
+
+        for label_id, label_samples in samples_by_label.items():
+            # Sort by visit_date (earliest to latest)
+            label_samples.sort(key=lambda x: x[3])
+
+            # Split: earliest 80% for train, latest 20% for validation
+            split_idx = int(0.8 * len(label_samples))
+
+            train_samples.extend([(fpath, label, sid) for fpath, label, sid, _ in label_samples[:split_idx]])
+            val_samples.extend([(fpath, label, sid) for fpath, label, sid, _ in label_samples[split_idx:]])
 
         if self.split == "train":
-            self.samples = [
-                (fpath, label, sid) for fpath, label, sid, _ in all_samples[:split_idx]
-            ]
+            self.samples = train_samples
         else:  # validation
-            self.samples = [
-                (fpath, label, sid) for fpath, label, sid, _ in all_samples[split_idx:]
-            ]
+            self.samples = val_samples
         logger.info(
             "Loaded %d samples for %s split from %s",
             len(self.samples),
