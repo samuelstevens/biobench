@@ -53,7 +53,7 @@ def benchmark(cfg: config.Experiment) -> reporting.Report:
     test_features = get_features(cfg, backbone, is_train=False)
     torch.cuda.empty_cache()
 
-    # 4. Do simpleshot.
+    # 3. Do classification.
     clf = helpers.init_logreg_clf(cfg)
     clf.fit(train_features.x, train_features.y)
 
