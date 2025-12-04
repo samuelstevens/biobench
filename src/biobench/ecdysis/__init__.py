@@ -6,10 +6,8 @@ Trains a simple logistic regression classifier on species classification for the
 This task is a true, real-world task.
 """
 
-import collections.abc
 import csv
 import dataclasses
-import functools
 import logging
 import os
 import os.path
@@ -19,11 +17,11 @@ import beartype
 import numpy as np
 import polars as pl
 import torch
-from jaxtyping import Float, Float16, Int, Shaped, jaxtyped
+from jaxtyping import Float, Int, Shaped, jaxtyped
 from PIL import Image
 from torch import Tensor
 
-from .. import config, helpers, registry, reporting, linear_probing
+from .. import config, helpers, linear_probing, registry, reporting
 
 logger = logging.getLogger(__name__)
 
@@ -153,7 +151,12 @@ class Dataset(torch.utils.data.Dataset):
                 # Group by label
                 if label_id not in samples_by_label:
                     samples_by_label[label_id] = []
-                samples_by_label[label_id].append((img_fpath, label_id, sample_id, visit_date))
+                samples_by_label[label_id].append((
+                    img_fpath,
+                    label_id,
+                    sample_id,
+                    visit_date,
+                ))
 
         # Create temporal train/validation split per species
         # For each label, sort by date and split 80/20
@@ -167,8 +170,14 @@ class Dataset(torch.utils.data.Dataset):
             # Split: earliest 80% for train, latest 20% for validation
             split_idx = int(0.8 * len(label_samples))
 
-            train_samples.extend([(fpath, label, sid) for fpath, label, sid, _ in label_samples[:split_idx]])
-            val_samples.extend([(fpath, label, sid) for fpath, label, sid, _ in label_samples[split_idx:]])
+            train_samples.extend([
+                (fpath, label, sid)
+                for fpath, label, sid, _ in label_samples[:split_idx]
+            ])
+            val_samples.extend([
+                (fpath, label, sid)
+                for fpath, label, sid, _ in label_samples[split_idx:]
+            ])
 
         if self.split == "train":
             self.samples = train_samples
@@ -245,7 +254,7 @@ def get_features(
 
     all_ids, all_features, all_labels = [], [], []
     # Set an upper limit. Otherwise we spend a lot of time picking an optimal batch size when we could just rip through the dataset.
-    with helpers.auto_batch_size(dataloader, probe=probe, upper=512):
+    with helpers.auto_batch_size(dataloader, probe=probe, upper=2048):
         backbone = torch.compile(backbone)
 
         for batch in helpers.progress(dataloader, every=10, desc=f"ecdysis/{split}"):

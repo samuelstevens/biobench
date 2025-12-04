@@ -113,8 +113,7 @@ class Timm(registry.VisionBackbone):
     """
     Wrapper for models from the Timm (PyTorch Image Models) library.
 
-    This class provides an interface to use any model from the Timm library
-    as a vision backbone in the biobench framework.
+    This class provides an interface to use any model from the Timm library as a vision backbone in the biobench framework.
     """
 
     # TODO: docs + describe the ckpt format.

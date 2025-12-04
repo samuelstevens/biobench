@@ -156,6 +156,22 @@ org = "open-clip"
 ckpt = "ViT-H-14-worldwide/metaclip2_worldwide"
 
 [[models]]
+org = "open-clip"
+ckpt = "PE-Core-S-16-384/meta"
+
+[[models]]
+org = "open-clip"
+ckpt = "PE-Core-B-16/meta"
+
+[[models]]
+org = "open-clip"
+ckpt = "PE-Core-L-14-336/meta"
+
+[[models]]
+org = "open-clip"
+ckpt = "PE-Core-bigG-14-448/meta"
+
+[[models]]
 org = "timm"
 ckpt = "hf-hub:BVRA/MegaDescriptor-L-384"
 
