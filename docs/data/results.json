@@ -1,8 +1,8 @@
 {
     "meta": {
         "schema": 1,
-        "generated": 1764955170139,
-        "git_commit": "8eaaf2776952652d6c47e9c82dfd6b09a5fb7452",
+        "generated": 1765023611784,
+        "git_commit": "24ddfccd252b5bd09fafb45eaa4b627a09af7dbf",
         "seed": 17,
         "alpha": 0.05,
         "n_bootstraps": 500
@@ -721,6 +721,14 @@
             "bootstrap_mean": 0.8052433045662656,
             "ci_low": 0.8016480288481017,
             "ci_high": 0.8089653984846643
+        },
+        {
+            "task": "imagenet1k",
+            "model": "PE-Core-bigG-14-448/meta",
+            "mean": 0.8917218008713894,
+            "bootstrap_mean": 0.8919234228758964,
+            "ci_low": 0.8891627162594709,
+            "ci_high": 0.8945448928325432
         },
         {
             "task": "imagenet1k",
@@ -1977,6 +1985,14 @@
             "bootstrap_mean": 0.58543066,
             "ci_low": 0.58245875,
             "ci_high": 0.58852625
+        },
+        {
+            "task": "inat21",
+            "model": "PE-Core-bigG-14-448/meta",
+            "mean": 0.82043,
+            "bootstrap_mean": 0.82050154,
+            "ci_low": 0.81795125,
+            "ci_high": 0.82279525
         },
         {
             "task": "inat21",
@@ -8838,8 +8854,9 @@
     "bests": [
         {
             "task": "imagenet1k",
-            "best": "ViT-gopt-16-SigLIP2-384/webli",
+            "best": "PE-Core-bigG-14-448/meta",
             "ties": [
+                "PE-Core-bigG-14-448/meta",
                 "ViT-gopt-16-SigLIP2-384/webli"
             ]
         },
