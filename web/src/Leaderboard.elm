@@ -1464,6 +1464,26 @@ familyColor fam =
             -- focus-visible:outline-biobench-scarlet
             "biobench-scarlet"
 
+        "MetaCLIP 2" ->
+            -- accent-biobench-purple
+            -- focus-visible:outline-biobench-purple
+            "biobench-purple"
+
+        "Perception Encoder" ->
+            -- accent-biobench-magenta
+            -- focus-visible:outline-biobench-magenta
+            "biobench-magenta"
+
+        "DINOv3" ->
+            -- accent-biobench-forest
+            -- focus-visible:outline-biobench-forest
+            "biobench-forest"
+
+        "ViT" ->
+            -- accent-biobench-slate
+            -- focus-visible:outline-biobench-slate
+            "biobench-slate"
+
         _ ->
             -- accent-biobench-black
             -- focus-visible:outline-biobench-black

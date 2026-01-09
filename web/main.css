@@ -11,6 +11,10 @@
   --color-biobench-rust: #bb3e03;
   --color-biobench-scarlet: #ae2012;
   --color-biobench-red: #9b2226;
+  --color-biobench-purple: #7b2cbf;
+  --color-biobench-magenta: #c9184a;
+  --color-biobench-forest: #2d6a4f;
+  --color-biobench-slate: #475569;
 }
 
 * {
