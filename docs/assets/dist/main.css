@@ -1,4 +1,4 @@
-/*! tailwindcss v4.1.7 | MIT License | https://tailwindcss.com */
+/*! tailwindcss v4.1.18 | MIT License | https://tailwindcss.com */
 @layer properties;
 @layer theme, base, components, utilities;
 @layer theme {
@@ -47,6 +47,10 @@
     --color-biobench-orange: #ca6702;
     --color-biobench-rust: #bb3e03;
     --color-biobench-scarlet: #ae2012;
+    --color-biobench-purple: #7b2cbf;
+    --color-biobench-magenta: #c9184a;
+    --color-biobench-forest: #2d6a4f;
+    --color-biobench-slate: #475569;
   }
 }
 @layer base {
@@ -180,6 +184,9 @@
   }
   ::-webkit-datetime-edit, ::-webkit-datetime-edit-year-field, ::-webkit-datetime-edit-month-field, ::-webkit-datetime-edit-day-field, ::-webkit-datetime-edit-hour-field, ::-webkit-datetime-edit-minute-field, ::-webkit-datetime-edit-second-field, ::-webkit-datetime-edit-millisecond-field, ::-webkit-datetime-edit-meridiem-field {
     padding-block: 0;
+  }
+  ::-webkit-calendar-picker-indicator {
+    line-height: 1;
   }
   :-moz-ui-invalid {
     box-shadow: none;
@@ -499,11 +506,20 @@
   .accent-biobench-cyan {
     accent-color: var(--color-biobench-cyan);
   }
+  .accent-biobench-forest {
+    accent-color: var(--color-biobench-forest);
+  }
   .accent-biobench-gold {
     accent-color: var(--color-biobench-gold);
   }
+  .accent-biobench-magenta {
+    accent-color: var(--color-biobench-magenta);
+  }
   .accent-biobench-orange {
     accent-color: var(--color-biobench-orange);
+  }
+  .accent-biobench-purple {
+    accent-color: var(--color-biobench-purple);
   }
   .accent-biobench-rust {
     accent-color: var(--color-biobench-rust);
@@ -513,6 +529,9 @@
   }
   .accent-biobench-sea {
     accent-color: var(--color-biobench-sea);
+  }
+  .accent-biobench-slate {
+    accent-color: var(--color-biobench-slate);
   }
   .accent-blue-500 {
     accent-color: var(--color-blue-500);
@@ -627,14 +646,29 @@
       outline-color: var(--color-biobench-cyan);
     }
   }
+  .focus-visible\:outline-biobench-forest {
+    &:focus-visible {
+      outline-color: var(--color-biobench-forest);
+    }
+  }
   .focus-visible\:outline-biobench-gold {
     &:focus-visible {
       outline-color: var(--color-biobench-gold);
     }
   }
+  .focus-visible\:outline-biobench-magenta {
+    &:focus-visible {
+      outline-color: var(--color-biobench-magenta);
+    }
+  }
   .focus-visible\:outline-biobench-orange {
     &:focus-visible {
       outline-color: var(--color-biobench-orange);
+    }
+  }
+  .focus-visible\:outline-biobench-purple {
+    &:focus-visible {
+      outline-color: var(--color-biobench-purple);
     }
   }
   .focus-visible\:outline-biobench-rust {
@@ -650,6 +684,11 @@
   .focus-visible\:outline-biobench-sea {
     &:focus-visible {
       outline-color: var(--color-biobench-sea);
+    }
+  }
+  .focus-visible\:outline-biobench-slate {
+    &:focus-visible {
+      outline-color: var(--color-biobench-slate);
     }
   }
   .focus-visible\:outline-blue-500 {

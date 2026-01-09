@@ -10043,6 +10043,14 @@ var $author$project$Leaderboard$familyColor = function (fam) {
 			return 'biobench-rust';
 		case 'SAM2':
 			return 'biobench-scarlet';
+		case 'MetaCLIP 2':
+			return 'biobench-purple';
+		case 'Perception Encoder':
+			return 'biobench-magenta';
+		case 'DINOv3':
+			return 'biobench-forest';
+		case 'ViT':
+			return 'biobench-slate';
 		default:
 			return 'biobench-black';
 	}
