@@ -177,6 +177,26 @@ ckpt = "hf-hub:BVRA/MegaDescriptor-L-384"
 
 [[models]]
 org = "timm"
+ckpt = "vit_pe_spatial_tiny_patch16_512"
+
+[[models]]
+org = "timm"
+ckpt = "vit_pe_spatial_small_patch16_512"
+
+[[models]]
+org = "timm"
+ckpt = "vit_pe_spatial_base_patch16_512"
+
+[[models]]
+org = "timm"
+ckpt = "vit_pe_spatial_large_patch14_448"
+
+[[models]]
+org = "timm"
+ckpt = "vit_pe_spatial_gigantic_patch14_448"
+
+[[models]]
+org = "timm"
 ckpt = "efficientnet_b0.ra_in1k"
 
 [[models]]
