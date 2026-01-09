@@ -1,8 +1,8 @@
 {
     "meta": {
         "schema": 1,
-        "generated": 1767979466802,
-        "git_commit": "aae4285ea1f9432b0c053932c1831e61674bf259",
+        "generated": 1767983425178,
+        "git_commit": "9b0cb268502394f48c82518f2fda785f1b8b2c2e",
         "seed": 17,
         "alpha": 0.05,
         "n_bootstraps": 500
@@ -1985,6 +1985,14 @@
             "bootstrap_mean": 0.8173090815544128,
             "ci_low": 0.8113071322441101,
             "ci_high": 0.822931931912899
+        },
+        {
+            "task": "newt",
+            "model": "vit_pe_spatial_tiny_patch16_512",
+            "mean": 0.6400355100631714,
+            "bootstrap_mean": 0.6400172114372253,
+            "ci_low": 0.6326509058475495,
+            "ci_high": 0.6472536668181419
         },
         {
             "task": "newt",
@@ -4508,6 +4516,14 @@
         },
         {
             "task": "fishnet",
+            "model": "vit_pe_spatial_tiny_patch16_512",
+            "mean": 0.4775791677923055,
+            "bootstrap_mean": 0.4241009838098952,
+            "ci_low": 0.4233734848575976,
+            "ci_high": 0.4248204211563149
+        },
+        {
+            "task": "fishnet",
             "model": "vith16",
             "mean": 0.5073326416659965,
             "bootstrap_mean": 0.42468097403363,
@@ -5137,6 +5153,14 @@
             "bootstrap_mean": 0.33832986779992935,
             "ci_low": 0.32040635108646753,
             "ci_high": 0.35562916417982915
+        },
+        {
+            "task": "fungiclef",
+            "model": "vit_pe_spatial_tiny_patch16_512",
+            "mean": 0.16251057319423712,
+            "bootstrap_mean": 0.16264225310041258,
+            "ci_low": 0.13908353927069061,
+            "ci_high": 0.18478296340167083
         },
         {
             "task": "fungiclef",
