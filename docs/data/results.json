@@ -1,8 +1,8 @@
 {
     "meta": {
         "schema": 1,
-        "generated": 1768399389309,
-        "git_commit": "c7885b9c3067ffadd0a9f9eeaa1bdca3f98b2526",
+        "generated": 1768486087047,
+        "git_commit": "ebc3394c8602998b3c78d7c72d535e3241090834",
         "seed": 17,
         "alpha": 0.05,
         "n_bootstraps": 500
@@ -4641,6 +4641,14 @@
             "bootstrap_mean": 0.435647052609564,
             "ci_low": 0.4344499774095407,
             "ci_high": 0.43690137344165275
+        },
+        {
+            "task": "fishnet",
+            "model": "vit_pe_spatial_gigantic_patch14_448",
+            "mean": 0.5590933916048483,
+            "bootstrap_mean": 0.4577905195253213,
+            "ci_low": 0.4558554717787615,
+            "ci_high": 0.45968703232333963
         },
         {
             "task": "fishnet",
