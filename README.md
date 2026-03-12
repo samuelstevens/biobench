@@ -10,7 +10,7 @@ It aims to make it easy to:
 2. Add new tasks.
 3. Understand meaningful (or not) differences in model performance.
 
-Check out the [docs](https://samuelstevens.me/biobench/) for an introduction.
+Check out the [docs](https://samuelstevens.me/biobench/) for an introduction and the [preprint](https://arxiv.org/abs/2511.16315) for details on our methodology and results.
 
 ## Getting Started
 

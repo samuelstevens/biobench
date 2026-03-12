@@ -1,8 +1,8 @@
 docs: fmt
     rm -rf docs/api
     mkdir -p docs/api
-    yek biobench *.py *.md > docs/api/llms.txt
-    uv run pdoc3 --force --html --output-dir docs/api --config latex_math=True biobench benchmark report scripts
+    -yek src/biobench README.md AGENTS.md > docs/api/llms.txt
+    uv run mkdocs build --config-file docs/mkdocs.yml
     lychee .
 
 leaderboard: fmt

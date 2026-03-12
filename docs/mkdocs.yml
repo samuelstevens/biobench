@@ -1,0 +1,65 @@
+site_name: biobench
+docs_dir: src
+site_dir: api
+site_url: https://samuelstevens.me/biobench/api
+
+theme:
+  name: material
+  palette:
+    primary: custom
+  font: false
+  features:
+    - navigation.tabs
+    - navigation.path
+    - navigation.indexes
+    - navigation.expand
+    - toc.follow
+    - toc.integrate
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.tabs.link
+    - content.code.annotation
+    - content.code.copy
+    - navigation.footer
+    - content.action.edit
+
+extra_css:
+  - stylesheets/extra.css
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/samuelstevens/biobench
+
+nav:
+  - Home: index.md
+  - API: api/
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [src]
+          options:
+            docstring_style: google
+            merge_init_into_class: true
+            show_root_heading: false
+  - gen-files:
+        scripts:
+          - ../scripts/docs.py
+  - literate-nav:
+      nav_file: summary.md
+
+markdown_extensions:
+  - admonition
+  - footnotes
+  - toc:
+      permalink: true
+  - pymdownx.arithmatex:
+      generic: true
+
+extra_javascript:
+  - javascripts/mathjax.js
+  - https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js
