@@ -158,9 +158,9 @@ ckpt = "hf-hub:imageomics/bioclip-2.5-vith14"
 Perhaps you are developing a new version of BioCLIP. If it's published on HuggingFace already, you can use the `hf-hub` trick as before.
 If not, the `open_clip` org also accepts local paths like `local:ViT-L-14//models/vit-l-14-tol200m-laion2b-replay-ep30.pt` (see the snippet in third_party_models.py under `elif ckpt.startswith("local:"):`).
 
-See the [`OpenClip`](api/third_party_models/biobench.third_party_models.md) API docs for more details.
+See the [`biobench.third_party_models.OpenClip`][] API docs for more details.
 
-If your model is not compatible with `timm` or `open_clip`, you can also add a new model class by subclassing [`biobench.registry.VisionBackbone`](api/registry/biobench.registry.md). See the existing implementations in [`biobench.aimv2`](api/aimv2/biobench.aimv2.md), [`biobench.vjepa`](api/vjepa/biobench.vjepa.md), or [`biobench.third_party_models`](api/third_party_models/biobench.third_party_models.md) for examples.
+If your model is not compatible with `timm` or `open_clip`, you can also add a new model class by subclassing [`biobench.registry.VisionBackbone`][]. See the existing implementations in [`biobench.aimv2`][], [`biobench.vjepa`][], or [`biobench.third_party_models`][] for examples.
 
 ## Launch Runners
 

@@ -2059,16 +2059,16 @@
 <h2 id="download-benchmark-data">Download Benchmark Data<a class="headerlink" href="#download-benchmark-data" title="Permanent link">&para;</a></h2>
 <p>There are 10 tasks in BioBench:</p>
 <ul>
-<li><a href="../api/beluga/biobench.beluga/">Beluga</a></li>
-<li><a href="../api/ecdysis/biobench.ecdysis/">Ecdysis</a></li>
-<li><a href="../api/fishnet/biobench.fishnet/">FishNet</a></li>
-<li><a href="../api/fungiclef/biobench.fungiclef/">FungiCLEF</a></li>
-<li><a href="../api/herbarium19/biobench.herbarium19/">Herbarium19</a></li>
-<li><a href="../api/iwildcam/biobench.iwildcam/">iWildCam</a></li>
-<li><a href="../api/kabr/biobench.kabr/">KABR</a></li>
-<li><a href="../api/mammalnet/biobench.mammalnet/">MammalNet</a></li>
-<li><a href="../api/plankton/biobench.plankton/">Plankton</a></li>
-<li><a href="../api/plantnet/biobench.plantnet/">PlantNet</a></li>
+<li><a class="autorefs autorefs-internal" href="../api/beluga/biobench.beluga/#biobench.beluga"><code>biobench.beluga</code></a></li>
+<li><a class="autorefs autorefs-internal" href="../api/ecdysis/biobench.ecdysis/#biobench.ecdysis"><code>biobench.ecdysis</code></a></li>
+<li><a class="autorefs autorefs-internal" href="../api/fishnet/biobench.fishnet/#biobench.fishnet"><code>biobench.fishnet</code></a></li>
+<li><a class="autorefs autorefs-internal" href="../api/fungiclef/biobench.fungiclef/#biobench.fungiclef"><code>biobench.fungiclef</code></a></li>
+<li><a class="autorefs autorefs-internal" href="../api/herbarium19/biobench.herbarium19/#biobench.herbarium19"><code>biobench.herbarium19</code></a></li>
+<li><a class="autorefs autorefs-internal" href="../api/iwildcam/biobench.iwildcam/#biobench.iwildcam"><code>biobench.iwildcam</code></a></li>
+<li><a class="autorefs autorefs-internal" href="../api/kabr/biobench.kabr/#biobench.kabr"><code>biobench.kabr</code></a></li>
+<li><a class="autorefs autorefs-internal" href="../api/mammalnet/biobench.mammalnet/#biobench.mammalnet"><code>biobench.mammalnet</code></a></li>
+<li><a class="autorefs autorefs-internal" href="../api/plankton/biobench.plankton/#biobench.plankton"><code>biobench.plankton</code></a></li>
+<li><a class="autorefs autorefs-internal" href="../api/plantnet/biobench.plantnet/#biobench.plantnet"><code>biobench.plantnet</code></a></li>
 </ul>
 <p>Each of them is described in their respective docs, linked above. You can download them using the src/biobench/BENCHMARK/download.py script. If you plan to use NeWT (prior work):</p>
 <pre><code class="language-sh"># Remind yourself of the options
@@ -2171,8 +2171,8 @@ ckpt = &quot;hf-hub:imageomics/bioclip-2.5-vith14&quot;
 </code></pre>
 <p>Perhaps you are developing a new version of BioCLIP. If it's published on HuggingFace already, you can use the <code>hf-hub</code> trick as before.
 If not, the <code>open_clip</code> org also accepts local paths like <code>local:ViT-L-14//models/vit-l-14-tol200m-laion2b-replay-ep30.pt</code> (see the snippet in third_party_models.py under <code>elif ckpt.startswith("local:"):</code>).</p>
-<p>See the <a href="api/third_party_models/biobench.third_party_models.md"><code>OpenClip</code></a> API docs for more details.</p>
-<p>If your model is not compatible with <code>timm</code> or <code>open_clip</code>, you can also add a new model class by subclassing <a href="api/registry/biobench.registry.md"><code>biobench.registry.VisionBackbone</code></a>. See the existing implementations in <a href="api/aimv2/biobench.aimv2.md"><code>biobench.aimv2</code></a>, <a href="api/vjepa/biobench.vjepa.md"><code>biobench.vjepa</code></a>, or <a href="api/third_party_models/biobench.third_party_models.md"><code>biobench.third_party_models</code></a> for examples.</p>
+<p>See the <a class="autorefs autorefs-internal" title="OpenClip(ckpt, drop_keys=None, **_)" href="../api/third_party_models/#biobench.third_party_models.OpenClip"><code>biobench.third_party_models.OpenClip</code></a> API docs for more details.</p>
+<p>If your model is not compatible with <code>timm</code> or <code>open_clip</code>, you can also add a new model class by subclassing <a class="autorefs autorefs-internal" title="VisionBackbone" href="../api/registry/#biobench.registry.VisionBackbone"><code>biobench.registry.VisionBackbone</code></a>. See the existing implementations in <a class="autorefs autorefs-internal" href="../api/aimv2/#biobench.aimv2"><code>biobench.aimv2</code></a>, <a class="autorefs autorefs-internal" href="../api/vjepa/#biobench.vjepa"><code>biobench.vjepa</code></a>, or <a class="autorefs autorefs-internal" href="../api/third_party_models/#biobench.third_party_models"><code>biobench.third_party_models</code></a> for examples.</p>
 <h2 id="launch-runners">Launch Runners<a class="headerlink" href="#launch-runners" title="Permanent link">&para;</a></h2>
 <p>Once your config is set up, you can launch one or more benchmark runner processes that will parse your config and run a sequence of benchmark tasks.
 Runners are cooperative and use a SQLite database to coordinate jobs. </p>
