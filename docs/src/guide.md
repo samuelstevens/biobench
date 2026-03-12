@@ -17,18 +17,16 @@ Here are each of the steps in more detail.
 
 There are 10 tasks in BioBench:
 
-- beluga
-- ecdysis
-- fishnet
-- fungiclef
-- herbarium19
-- iwildcam
-- kabr
-- mammalnet
-- plankton
-- plantnet
-
-<!-- @Claude, can you correct the capitalization and link to the API docs for each task. -->
+- [`biobench.beluga`][]
+- [`biobench.ecdysis`][]
+- [`biobench.fishnet`][]
+- [`biobench.fungiclef`][]
+- [`biobench.herbarium19`][]
+- [`biobench.iwildcam`][]
+- [`biobench.kabr`][]
+- [`biobench.mammalnet`][]
+- [`biobench.plankton`][]
+- [`biobench.plantnet`][]
 
 Each of them is described in their respective docs, linked above. You can download them using the src/biobench/BENCHMARK/download.py script. If you plan to use NeWT (prior work):
 
@@ -96,9 +94,9 @@ report_to = "/$SCRATCH/$USER/biobench"
 
 All results will be written to `/$SCRATCH/$USER/biobench/reports.sqlite`
 
-WARNING: You cannot write results to a SQLite file on an NFS drive. If you truly have exactly one runner in parallel, this is okay, but multiple parallel runners can corrupt SQLite files when it's on an NFS drive.
+!!! warning
 
-<!-- @Claude: Can you make this into the correct markup for it to be a warning? -->
+    You cannot write results to a SQLite file on an NFS drive. If you truly have exactly one runner in parallel, this is okay, but multiple parallel runners can corrupt SQLite files when it's on an NFS drive.
 
 ```toml
 [data]
@@ -121,13 +119,53 @@ org = "open-clip"
 ckpt = "hf-hub:imageomics/bioclip-2"
 
 [[models]]
+org = "timm"
+ckpt = "convnext_tiny.in12k"
+
+[[models]]
 org = "dinov3"
 ckpt = "/PATH/TO/DINOv3/dinov3_vitl16_pretrain_lvd1689m-8aa4cbdd.pth"
 ```
 
-The majority
+These are your baseline models. Many of the strongest vision encoders are compatible with either [`timm`](https://github.com/huggingface/pytorch-image-models) or [`open_clip`](https://github.com/mlfoundations/open_clip) and can be trivially loaded via a `ckpt` slug.
+
+For instance, the BioCLIP 2 model references this snippet of code on the [HuggingFace model page](https://huggingface.co/imageomics/bioclip-2?library=open_clip):
+
+```python
+import open_clip
+
+model, preprocess_train, preprocess_val = open_clip.create_model_and_transforms('hf-hub:imageomics/bioclip-2')
+tokenizer = open_clip.get_tokenizer('hf-hub:imageomics/bioclip-2')
+```
+
+You can pass `"hf-hub:imageomics/bioclip-2"` as the `ckpt` field.
+
+
+!!! note
+
+    DINOv3 requires local checkpoints to be downloaded, because the weights are not publicly available without using a HF token of some kind.
+
+```toml
+##############
+# YOUR MODEL #
+##############
+
+[[models]]
+org = "open-clip"
+ckpt = "hf-hub:imageomics/bioclip-2.5-vith14"
+```
+
+Perhaps you are developing a new version of BioCLIP. If it's published on HuggingFace already, you can use the `hf-hub` trick as before.
+If not, the `open_clip` org also accepts local paths like `local:ViT-L-14//models/vit-l-14-tol200m-laion2b-replay-ep30.pt` (see the snippet in third_party_models.py under `elif ckpt.startswith("local:"):`).
+
+See the [`OpenClip`](api/third_party_models/biobench.third_party_models.md) API docs for more details.
+
+If your model is not compatible with `timm` or `open_clip`, you can also add a new model class by subclassing [`biobench.registry.VisionBackbone`](api/registry/biobench.registry.md). See the existing implementations in [`biobench.aimv2`](api/aimv2/biobench.aimv2.md), [`biobench.vjepa`](api/vjepa/biobench.vjepa.md), or [`biobench.third_party_models`](api/third_party_models/biobench.third_party_models.md) for examples.
 
 ## Launch Runners
+
+Once your config is set up, you can launch one or more benchmark runner processes that will parse your config and run a sequence of benchmark tasks.
+Runners are cooperative and use a SQLite database to coordinate jobs. 
 
 ## Report
 

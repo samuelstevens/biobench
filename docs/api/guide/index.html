@@ -2059,19 +2059,17 @@
 <h2 id="download-benchmark-data">Download Benchmark Data<a class="headerlink" href="#download-benchmark-data" title="Permanent link">&para;</a></h2>
 <p>There are 10 tasks in BioBench:</p>
 <ul>
-<li>beluga</li>
-<li>ecdysis</li>
-<li>fishnet</li>
-<li>fungiclef</li>
-<li>herbarium19</li>
-<li>iwildcam</li>
-<li>kabr</li>
-<li>mammalnet</li>
-<li>plankton</li>
-<li>plantnet</li>
+<li><a href="../api/beluga/biobench.beluga/">Beluga</a></li>
+<li><a href="../api/ecdysis/biobench.ecdysis/">Ecdysis</a></li>
+<li><a href="../api/fishnet/biobench.fishnet/">FishNet</a></li>
+<li><a href="../api/fungiclef/biobench.fungiclef/">FungiCLEF</a></li>
+<li><a href="../api/herbarium19/biobench.herbarium19/">Herbarium19</a></li>
+<li><a href="../api/iwildcam/biobench.iwildcam/">iWildCam</a></li>
+<li><a href="../api/kabr/biobench.kabr/">KABR</a></li>
+<li><a href="../api/mammalnet/biobench.mammalnet/">MammalNet</a></li>
+<li><a href="../api/plankton/biobench.plankton/">Plankton</a></li>
+<li><a href="../api/plantnet/biobench.plantnet/">PlantNet</a></li>
 </ul>
-<!-- @Claude, can you correct the capitalization and link to the API docs for each task. -->
-
 <p>Each of them is described in their respective docs, linked above. You can download them using the src/biobench/BENCHMARK/download.py script. If you plan to use NeWT (prior work):</p>
 <pre><code class="language-sh"># Remind yourself of the options
 uv run src/biobench/newt/download.py --help
@@ -2123,9 +2121,10 @@ ckpt = &quot;hf-hub:imageomics/bioclip-2.5-vith14&quot;
 <pre><code class="language-toml">report_to = &quot;/$SCRATCH/$USER/biobench&quot;
 </code></pre>
 <p>All results will be written to <code>/$SCRATCH/$USER/biobench/reports.sqlite</code></p>
-<p>WARNING: You cannot write results to a SQLite file on an NFS drive. If you truly have exactly one runner in parallel, this is okay, but multiple parallel runners can corrupt SQLite files when it's on an NFS drive.</p>
-<!-- @Claude: Can you make this into the correct markup for it to be a warning? -->
-
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>You cannot write results to a SQLite file on an NFS drive. If you truly have exactly one runner in parallel, this is okay, but multiple parallel runners can corrupt SQLite files when it's on an NFS drive.</p>
+</div>
 <pre><code class="language-toml">[data]
 newt = &quot;$NFS/datasets/newt&quot;
 </code></pre>
@@ -2143,11 +2142,40 @@ org = &quot;open-clip&quot;
 ckpt = &quot;hf-hub:imageomics/bioclip-2&quot;
 
 [[models]]
+org = &quot;timm&quot;
+ckpt = &quot;convnext_tiny.in12k&quot;
+
+[[models]]
 org = &quot;dinov3&quot;
 ckpt = &quot;/PATH/TO/DINOv3/dinov3_vitl16_pretrain_lvd1689m-8aa4cbdd.pth&quot;
 </code></pre>
-<p>The majority</p>
+<p>These are your baseline models. Many of the strongest vision encoders are compatible with either <a href="https://github.com/huggingface/pytorch-image-models"><code>timm</code></a> or <a href="https://github.com/mlfoundations/open_clip"><code>open_clip</code></a> and can be trivially loaded via a <code>ckpt</code> slug.</p>
+<p>For instance, the BioCLIP 2 model references this snippet of code on the <a href="https://huggingface.co/imageomics/bioclip-2?library=open_clip">HuggingFace model page</a>:</p>
+<pre><code class="language-python">import open_clip
+
+model, preprocess_train, preprocess_val = open_clip.create_model_and_transforms('hf-hub:imageomics/bioclip-2')
+tokenizer = open_clip.get_tokenizer('hf-hub:imageomics/bioclip-2')
+</code></pre>
+<p>You can pass <code>"hf-hub:imageomics/bioclip-2"</code> as the <code>ckpt</code> field.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>DINOv3 requires local checkpoints to be downloaded, because the weights are not publicly available without using a HF token of some kind.</p>
+</div>
+<pre><code class="language-toml">##############
+# YOUR MODEL #
+##############
+
+[[models]]
+org = &quot;open-clip&quot;
+ckpt = &quot;hf-hub:imageomics/bioclip-2.5-vith14&quot;
+</code></pre>
+<p>Perhaps you are developing a new version of BioCLIP. If it's published on HuggingFace already, you can use the <code>hf-hub</code> trick as before.
+If not, the <code>open_clip</code> org also accepts local paths like <code>local:ViT-L-14//models/vit-l-14-tol200m-laion2b-replay-ep30.pt</code> (see the snippet in third_party_models.py under <code>elif ckpt.startswith("local:"):</code>).</p>
+<p>See the <a href="api/third_party_models/biobench.third_party_models.md"><code>OpenClip</code></a> API docs for more details.</p>
+<p>If your model is not compatible with <code>timm</code> or <code>open_clip</code>, you can also add a new model class by subclassing <a href="api/registry/biobench.registry.md"><code>biobench.registry.VisionBackbone</code></a>. See the existing implementations in <a href="api/aimv2/biobench.aimv2.md"><code>biobench.aimv2</code></a>, <a href="api/vjepa/biobench.vjepa.md"><code>biobench.vjepa</code></a>, or <a href="api/third_party_models/biobench.third_party_models.md"><code>biobench.third_party_models</code></a> for examples.</p>
 <h2 id="launch-runners">Launch Runners<a class="headerlink" href="#launch-runners" title="Permanent link">&para;</a></h2>
+<p>Once your config is set up, you can launch one or more benchmark runner processes that will parse your config and run a sequence of benchmark tasks.
+Runners are cooperative and use a SQLite database to coordinate jobs. </p>
 <h2 id="report">Report<a class="headerlink" href="#report" title="Permanent link">&para;</a></h2>
 <h2 id="analyze-with-notebooks">Analyze with Notebooks<a class="headerlink" href="#analyze-with-notebooks" title="Permanent link">&para;</a></h2>
 
