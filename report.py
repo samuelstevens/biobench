@@ -617,7 +617,7 @@ models = [
         date_to_ms(2025, 5, 29),
     ),
     Model(
-        "hf-hub:imageomics/bioclip-2.5-vith",
+        "hf-hub:imageomics/bioclip-2.5-vith14",
         "BioCLIP-2.5 ViT-H/14",
         "cv4ecology",
         224,
