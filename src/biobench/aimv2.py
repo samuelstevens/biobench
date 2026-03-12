@@ -99,8 +99,9 @@ class Embeddings(torch.nn.Module):
             "position_ids", torch.arange(n_patches).expand((1, -1)), persistent=False
         )
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        breakpoint()
+    def forward(
+        self, x: Float[torch.Tensor, "batch channels width height"]
+    ) -> torch.Tensor:
         x = self.patch_embed(x).flatten(2).transpose(1, 2)
         pos_embed = self.position_embedding(self.position_ids)
         x = self.rms_norm(x) + pos_embed
