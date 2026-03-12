@@ -281,6 +281,10 @@ ckpt = "hf-hub:imageomics/bioclip-2"
 
 [[models]]
 org = "open-clip"
+ckpt = "hf-hub:imageomics/bioclip-2.5-vith14"
+
+[[models]]
+org = "open-clip"
 ckpt = "hf-hub:imageomics/biocap"
 
 [[models]]
