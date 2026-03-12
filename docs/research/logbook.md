@@ -337,11 +337,11 @@ A long description is available in this logbook.md and in the paper.
 
 Hi all,
 
-TL;DR: I'm comparing the sample efficiency of MLLMs and CV+ML methods using a suite of biology-related computer vision tasks (https://github.com/samuelstevens/biobench) and making recommendations to practioners in the field.
+TL;DR: I'm comparing the sample efficiency of MLLMs and CV+ML methods using a suite of biology-related computer vision tasks (https://github.com/Imageomics/biobench) and making recommendations to practioners in the field.
 
 Why you're receiving this email: I have talked about this project a bunch to many people and I wanted to provide an update. If you aren't interested, just reply saying you don't want to hear about this anymore.
 
-Details: I am evaluating the performance scaling of multimodal large language models (MLLMs) versus traditional vision encoders with machine learning classifiers across diverse ecological tasks, including species classification, domain adaptation, and functional trait prediction using BioBench (https://github.com/samuelstevens/biobench). I am comparing MLLMs (e.g., GPT-4o, Gemini, Qwen2-VL) and vision models (DINOv2, CLIP, SigLIP) under varying data regimes (1–10K samples), prompting strategies (single-turn, multi-turn, CoT), and sampling methods (uniform vs. class-balanced) to determine when additional labeled data improves performance, when MLLMs can compensate for data scarcity, and how prompting choices impact reliability. I expect to find that MLLM performance "saturates" with fewer samples compared to CV+ML methods, and will describe (hopefully) lasting insights based on these empirical findings.
+Details: I am evaluating the performance scaling of multimodal large language models (MLLMs) versus traditional vision encoders with machine learning classifiers across diverse ecological tasks, including species classification, domain adaptation, and functional trait prediction using BioBench (https://github.com/Imageomics/biobench). I am comparing MLLMs (e.g., GPT-4o, Gemini, Qwen2-VL) and vision models (DINOv2, CLIP, SigLIP) under varying data regimes (1–10K samples), prompting strategies (single-turn, multi-turn, CoT), and sampling methods (uniform vs. class-balanced) to determine when additional labeled data improves performance, when MLLMs can compensate for data scarcity, and how prompting choices impact reliability. I expect to find that MLLM performance "saturates" with fewer samples compared to CV+ML methods, and will describe (hopefully) lasting insights based on these empirical findings.
 
 Goals:
 

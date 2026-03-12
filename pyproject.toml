@@ -40,8 +40,8 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project.urls]
-Homepage = "https://samuelstevens.me/biobench/"
-Issues = "https://github.com/samuelstevens/biobench/issues"
+Homepage = "https://imageomics.github.io/biobench/"
+Issues = "https://github.com/Imageomics/biobench/issues"
 
 [tool.ruff.lint]
 select = ["E", "F", "I"]

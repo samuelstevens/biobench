@@ -10,9 +10,9 @@ Done when
 
 Start here
 Update `index.html`.
-* GitHub: `https://github.com/samuelstevens/biobench`.
+* GitHub: `https://github.com/Imageomics/biobench`.
 * ArXiv: placeholder `#`.
-* Docs: `https://samuelstevens.me/biobench/api`.
+* Docs: `https://imageomics.github.io/biobench/api`.
 
 Avoid
 

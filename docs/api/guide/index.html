@@ -8,31 +8,31 @@
       
       
       
-        <link rel="canonical" href="https://imageomics.github.io/biobench/api/api/jobkit/executors/">
+        <link rel="canonical" href="https://imageomics.github.io/biobench/api/guide/">
       
       
-        <link rel="prev" href="../biobench.jobkit/">
+        <link rel="prev" href="..">
       
       
-        <link rel="next" href="../futures/">
+        <link rel="next" href="../api/biobench/">
       
       
         
       
       
-      <link rel="icon" href="../../../assets/images/favicon.png">
+      <link rel="icon" href="../assets/images/favicon.png">
       <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.5">
     
     
       
-        <title>biobench.jobkit.executors - biobench</title>
+        <title>Guide - biobench</title>
       
     
     
-      <link rel="stylesheet" href="../../../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
       
         
-        <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
       
       
 
@@ -45,11 +45,11 @@
       
     
     
-      <link rel="stylesheet" href="../../../assets/_mkdocstrings.css">
+      <link rel="stylesheet" href="../assets/_mkdocstrings.css">
     
-      <link rel="stylesheet" href="../../../stylesheets/extra.css">
+      <link rel="stylesheet" href="../stylesheets/extra.css">
     
-    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
 
@@ -72,7 +72,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#biobench.jobkit.executors" class="md-skip">
+        <a href="#guide" class="md-skip">
           Skip to content
         </a>
       
@@ -86,7 +86,7 @@
 
 <header class="md-header" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href="../../.." title="biobench" class="md-header__button md-logo" aria-label="biobench" data-md-component="logo">
+    <a href=".." title="biobench" class="md-header__button md-logo" aria-label="biobench" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -106,7 +106,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              biobench.jobkit.executors
+              Guide
             
           </span>
         </div>
@@ -181,7 +181,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../../.." class="md-tabs__link">
+      <a href=".." class="md-tabs__link">
         
   
   
@@ -198,9 +198,11 @@
   
   
   
+    
   
-    <li class="md-tabs__item">
-      <a href="../../../guide/" class="md-tabs__link">
+  
+    <li class="md-tabs__item md-tabs__item--active">
+      <a href="./" class="md-tabs__link">
         
   
   
@@ -217,13 +219,11 @@
   
   
   
-    
-  
   
     
     
-      <li class="md-tabs__item md-tabs__item--active">
-        <a href="../../biobench/" class="md-tabs__link">
+      <li class="md-tabs__item">
+        <a href="../api/biobench/" class="md-tabs__link">
           
   
   
@@ -261,7 +261,7 @@
 
 <nav class="md-nav md-nav--primary md-nav--lifted md-nav--integrated" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href="../../.." title="biobench" class="md-nav__button md-logo" aria-label="biobench" data-md-component="logo">
+    <a href=".." title="biobench" class="md-nav__button md-logo" aria-label="biobench" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -279,7 +279,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../.." class="md-nav__link">
+      <a href=".." class="md-nav__link">
         
   
   
@@ -303,10 +303,37 @@
       
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../../../guide/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guide
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -322,6 +349,81 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#download-benchmark-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Download Benchmark Data
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#configure-models" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configure Models
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#launch-runners" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Launch Runners
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#report" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Report
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#analyze-with-notebooks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Analyze with Notebooks
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -330,10 +432,8 @@
       
   
   
-    
   
   
-  
     
     
       
@@ -443,20 +543,19 @@
     
     
       
-        
-        
-      
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
-        
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
         
           
-          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
             
   
   
@@ -474,7 +573,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_3">
             <span class="md-nav__icon md-icon"></span>
             
@@ -492,7 +591,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../biobench/" class="md-nav__link">
+      <a href="../api/biobench/" class="md-nav__link">
         
   
   
@@ -520,7 +619,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../aimv2/" class="md-nav__link">
+      <a href="../api/aimv2/" class="md-nav__link">
         
   
   
@@ -548,7 +647,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../beluga/biobench.beluga/" class="md-nav__link">
+      <a href="../api/beluga/biobench.beluga/" class="md-nav__link">
         
   
   
@@ -576,7 +675,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../beluga/download/" class="md-nav__link">
+      <a href="../api/beluga/download/" class="md-nav__link">
         
   
   
@@ -604,7 +703,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../config/" class="md-nav__link">
+      <a href="../api/config/" class="md-nav__link">
         
   
   
@@ -632,7 +731,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../dinov3/" class="md-nav__link">
+      <a href="../api/dinov3/" class="md-nav__link">
         
   
   
@@ -660,7 +759,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../ecdysis/biobench.ecdysis/" class="md-nav__link">
+      <a href="../api/ecdysis/biobench.ecdysis/" class="md-nav__link">
         
   
   
@@ -688,7 +787,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../ecdysis/download/" class="md-nav__link">
+      <a href="../api/ecdysis/download/" class="md-nav__link">
         
   
   
@@ -716,7 +815,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../fishcounting/biobench.fishcounting/" class="md-nav__link">
+      <a href="../api/fishcounting/biobench.fishcounting/" class="md-nav__link">
         
   
   
@@ -744,7 +843,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../fishnet/biobench.fishnet/" class="md-nav__link">
+      <a href="../api/fishnet/biobench.fishnet/" class="md-nav__link">
         
   
   
@@ -772,7 +871,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../fishnet/baseline/" class="md-nav__link">
+      <a href="../api/fishnet/baseline/" class="md-nav__link">
         
   
   
@@ -800,7 +899,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../fishnet/download/" class="md-nav__link">
+      <a href="../api/fishnet/download/" class="md-nav__link">
         
   
   
@@ -828,7 +927,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../fungiclef/biobench.fungiclef/" class="md-nav__link">
+      <a href="../api/fungiclef/biobench.fungiclef/" class="md-nav__link">
         
   
   
@@ -856,7 +955,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../fungiclef/baseline/" class="md-nav__link">
+      <a href="../api/fungiclef/baseline/" class="md-nav__link">
         
   
   
@@ -884,7 +983,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../fungiclef/download/" class="md-nav__link">
+      <a href="../api/fungiclef/download/" class="md-nav__link">
         
   
   
@@ -912,7 +1011,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../fungiclef/metrics/" class="md-nav__link">
+      <a href="../api/fungiclef/metrics/" class="md-nav__link">
         
   
   
@@ -940,7 +1039,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../fungiclef/test_metrics/" class="md-nav__link">
+      <a href="../api/fungiclef/test_metrics/" class="md-nav__link">
         
   
   
@@ -968,7 +1067,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../helpers/" class="md-nav__link">
+      <a href="../api/helpers/" class="md-nav__link">
         
   
   
@@ -996,7 +1095,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../herbarium19/biobench.herbarium19/" class="md-nav__link">
+      <a href="../api/herbarium19/biobench.herbarium19/" class="md-nav__link">
         
   
   
@@ -1024,7 +1123,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../herbarium19/download/" class="md-nav__link">
+      <a href="../api/herbarium19/download/" class="md-nav__link">
         
   
   
@@ -1052,7 +1151,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../imagenet1k/biobench.imagenet1k/" class="md-nav__link">
+      <a href="../api/imagenet1k/biobench.imagenet1k/" class="md-nav__link">
         
   
   
@@ -1080,7 +1179,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../inat21/biobench.inat21/" class="md-nav__link">
+      <a href="../api/inat21/biobench.inat21/" class="md-nav__link">
         
   
   
@@ -1108,7 +1207,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../inat21/download/" class="md-nav__link">
+      <a href="../api/inat21/download/" class="md-nav__link">
         
   
   
@@ -1136,7 +1235,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../iwildcam/biobench.iwildcam/" class="md-nav__link">
+      <a href="../api/iwildcam/biobench.iwildcam/" class="md-nav__link">
         
   
   
@@ -1164,7 +1263,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../iwildcam/download/" class="md-nav__link">
+      <a href="../api/iwildcam/download/" class="md-nav__link">
         
   
   
@@ -1192,7 +1291,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../biobench.jobkit/" class="md-nav__link">
+      <a href="../api/jobkit/biobench.jobkit/" class="md-nav__link">
         
   
   
@@ -1217,35 +1316,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    biobench.jobkit.executors
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../api/jobkit/executors/" class="md-nav__link">
         
   
   
@@ -1261,85 +1335,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#biobench.jobkit.executors" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        executors
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#biobench.jobkit.executors.SerialExecutor" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        SerialExecutor
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="SerialExecutor">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#biobench.jobkit.executors.SerialExecutor--usage" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Usage
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#biobench.jobkit.executors.SerialExecutor--notes" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Notes
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#biobench.jobkit.executors.SerialJob" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        SerialJob
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -1352,7 +1347,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../futures/" class="md-nav__link">
+      <a href="../api/jobkit/futures/" class="md-nav__link">
         
   
   
@@ -1380,7 +1375,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../hooks/" class="md-nav__link">
+      <a href="../api/jobkit/hooks/" class="md-nav__link">
         
   
   
@@ -1408,7 +1403,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../test_futures/" class="md-nav__link">
+      <a href="../api/jobkit/test_futures/" class="md-nav__link">
         
   
   
@@ -1436,7 +1431,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../test_hooks/" class="md-nav__link">
+      <a href="../api/jobkit/test_hooks/" class="md-nav__link">
         
   
   
@@ -1464,7 +1459,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../kabr/biobench.kabr/" class="md-nav__link">
+      <a href="../api/kabr/biobench.kabr/" class="md-nav__link">
         
   
   
@@ -1492,7 +1487,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../kabr/download/" class="md-nav__link">
+      <a href="../api/kabr/download/" class="md-nav__link">
         
   
   
@@ -1520,7 +1515,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../kabr/test_download/" class="md-nav__link">
+      <a href="../api/kabr/test_download/" class="md-nav__link">
         
   
   
@@ -1548,7 +1543,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../kabr/test_kabr/" class="md-nav__link">
+      <a href="../api/kabr/test_kabr/" class="md-nav__link">
         
   
   
@@ -1576,7 +1571,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../linear_probing/" class="md-nav__link">
+      <a href="../api/linear_probing/" class="md-nav__link">
         
   
   
@@ -1604,7 +1599,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../mammalnet/biobench.mammalnet/" class="md-nav__link">
+      <a href="../api/mammalnet/biobench.mammalnet/" class="md-nav__link">
         
   
   
@@ -1632,7 +1627,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../mammalnet/download/" class="md-nav__link">
+      <a href="../api/mammalnet/download/" class="md-nav__link">
         
   
   
@@ -1660,7 +1655,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../newt/biobench.newt/" class="md-nav__link">
+      <a href="../api/newt/biobench.newt/" class="md-nav__link">
         
   
   
@@ -1688,7 +1683,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../newt/download/" class="md-nav__link">
+      <a href="../api/newt/download/" class="md-nav__link">
         
   
   
@@ -1716,7 +1711,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../openset/" class="md-nav__link">
+      <a href="../api/openset/" class="md-nav__link">
         
   
   
@@ -1744,7 +1739,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../plankton/biobench.plankton/" class="md-nav__link">
+      <a href="../api/plankton/biobench.plankton/" class="md-nav__link">
         
   
   
@@ -1772,7 +1767,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../plankton/download/" class="md-nav__link">
+      <a href="../api/plankton/download/" class="md-nav__link">
         
   
   
@@ -1800,7 +1795,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../plantnet/biobench.plantnet/" class="md-nav__link">
+      <a href="../api/plantnet/biobench.plantnet/" class="md-nav__link">
         
   
   
@@ -1828,7 +1823,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../plantnet/download/" class="md-nav__link">
+      <a href="../api/plantnet/download/" class="md-nav__link">
         
   
   
@@ -1856,7 +1851,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../registry/" class="md-nav__link">
+      <a href="../api/registry/" class="md-nav__link">
         
   
   
@@ -1884,7 +1879,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../reporting/" class="md-nav__link">
+      <a href="../api/reporting/" class="md-nav__link">
         
   
   
@@ -1912,7 +1907,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../simpleshot/" class="md-nav__link">
+      <a href="../api/simpleshot/" class="md-nav__link">
         
   
   
@@ -1940,7 +1935,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../third_party_models/" class="md-nav__link">
+      <a href="../api/third_party_models/" class="md-nav__link">
         
   
   
@@ -1968,7 +1963,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../vjepa/" class="md-nav__link">
+      <a href="../api/vjepa/" class="md-nav__link">
         
   
   
@@ -1996,7 +1991,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../webssl/" class="md-nav__link">
+      <a href="../api/webssl/" class="md-nav__link">
         
   
   
@@ -2042,46 +2037,6 @@
   
 
 
-  <nav class="md-path" aria-label="Navigation" >
-    <ol class="md-path__list">
-      
-        
-  
-  
-    <li class="md-path__item">
-      <a href="../../.." class="md-path__link">
-        
-  <span class="md-ellipsis">
-    Home
-  </span>
-
-      </a>
-    </li>
-  
-
-      
-      
-        
-  
-  
-    
-    
-      <li class="md-path__item">
-        <a href="../../biobench/" class="md-path__link">
-          
-  <span class="md-ellipsis">
-    API
-  </span>
-
-        </a>
-      </li>
-    
-  
-
-      
-    </ol>
-  </nav>
-
               
               <article class="md-content__inner md-typeset">
                 
@@ -2089,176 +2044,91 @@
 
 
 
-  <h1>biobench.jobkit.executors</h1>
-
-<div class="doc doc-object doc-module">
-
-
-
-<a id="biobench.jobkit.executors"></a>
-    <div class="doc doc-contents first">
-
-
-
-
-
-
-
-
-
-
-<div class="doc doc-children">
-
-
-
-
-
-
-
-
-
-<div class="doc doc-object doc-class">
-
-
-
-<h2 id="biobench.jobkit.executors.SerialExecutor" class="doc doc-heading">
-              <code class="highlight language-python"><span class="n">SerialExecutor</span><span class="p">(</span><span class="n">folder</span><span class="p">)</span></code>
-
-<a href="#biobench.jobkit.executors.SerialExecutor" class="headerlink" title="Permanent link">&para;</a></h2>
-
-
-    <div class="doc doc-contents ">
-            <p class="doc doc-class-bases">
-              Bases: <code><span title="submitit.Executor">Executor</span></code></p>
-
-
-
-        <p>Execute submitit jobs <strong>sequentially in-process</strong> with no interactive debugger.</p>
+<h1 id="guide">Guide<a class="headerlink" href="#guide" title="Permanent link">&para;</a></h1>
+<p>BioBench aims to make it easy to benchmark many different models on a variety of biology-related computer vision tasks.</p>
+<p>Here's how to benchmark a new CLIP model (maybe you developed it?):</p>
+<ol>
+<li>Clone the biobench repo.</li>
+<li>Pick your benchmark tasks and download the data.</li>
+<li>Add your baseline models and your proposed model to a config <code>.toml</code> file.</li>
+<li>Launch one or more benchmark runners with <code>benchmark.py</code>.</li>
+<li>Summarize the results with <code>report.py</code>.</li>
+<li>Analyze your results with notebooks.</li>
+</ol>
+<p>Here are each of the steps in more detail.</p>
+<h2 id="download-benchmark-data">Download Benchmark Data<a class="headerlink" href="#download-benchmark-data" title="Permanent link">&para;</a></h2>
+<p>There are 10 tasks in BioBench:</p>
 <ul>
-<li>
-<p>One Python process, one GPU/CPU context: the function is called directly in the parent interpreter--exactly like DebugExecutor--but any un-caught exception is <em>immediately</em> re-raised instead of dropping into <code>pdb.post_mortem</code>.</p>
-</li>
-<li>
-<p>This lets a launcher loop handle failures programmatically (log, skip, retry, etc.) while preserving DebugExecutor's simple bookkeeping, stdout/stderr redirection, and environment capture.</p>
-</li>
-<li>
-<p>Contrast:
-    DebugExecutor  - in-process, blocks in pdb on error.
-    LocalExecutor  - spawns a child process per job, may run jobs concurrently depending on submitit version.
-    SerialExecutor - in-process, <strong>no pdb</strong>, always exactly one job running.</p>
-</li>
+<li>beluga</li>
+<li>ecdysis</li>
+<li>fishnet</li>
+<li>fungiclef</li>
+<li>herbarium19</li>
+<li>iwildcam</li>
+<li>kabr</li>
+<li>mammalnet</li>
+<li>plankton</li>
+<li>plantnet</li>
 </ul>
-<h4 id="biobench.jobkit.executors.SerialExecutor--usage">Usage<a class="headerlink" href="#biobench.jobkit.executors.SerialExecutor--usage" title="Permanent link">&para;</a></h4>
-<blockquote>
-<blockquote>
-<blockquote>
-<p>ex = SerialExecutor("logs")
-job = ex.submit(train_one, cfg)
-try:
-...     result = job.result()   # raises on failure, no (pdb) prompt
-... except Exception as err:
-...     handle(err, job)</p>
-</blockquote>
-</blockquote>
-</blockquote>
-<h4 id="biobench.jobkit.executors.SerialExecutor--notes">Notes<a class="headerlink" href="#biobench.jobkit.executors.SerialExecutor--notes" title="Permanent link">&para;</a></h4>
-<ul>
-<li>Inherits all parameter handling from DebugExecutor; only <code>job_class</code> is swapped to remove the post-mortem call.</li>
-<li>Suitable for deterministic, single-GPU jobs where you want clean failure handling without interactive prompts.</li>
-</ul>
-
-
-
-
-
-
-
-
-                  <details class="mkdocstrings-source">
-                    <summary>Source code in <code>src/biobench/jobkit/executors.py</code></summary>
-                    <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">79</span>
-<span class="normal">80</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">folder</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">):</span>
-    <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">folder</span><span class="p">)</span>
-</code></pre></div></td></tr></table></div>
-                  </details>
-
-
-
-<div class="doc doc-children">
-
-
-
-
-
-
-
-
-
-
-
-
-  </div>
-
-    </div>
-
-</div>
-
-<div class="doc doc-object doc-class">
-
-
-
-<h2 id="biobench.jobkit.executors.SerialJob" class="doc doc-heading">
-            <code>SerialJob</code>
-
-
-<a href="#biobench.jobkit.executors.SerialJob" class="headerlink" title="Permanent link">&para;</a></h2>
-
-
-    <div class="doc doc-contents ">
-            <p class="doc doc-class-bases">
-              Bases: <code><span title="submitit.DebugJob">DebugJob</span></code></p>
-
-
-
-        <p>DebugJob without the pdb step.</p>
-
-
-
-
-
-
-
-
-
-
-
-<div class="doc doc-children">
-
-
-
-
-
-
-
-
-
-
-
-
-  </div>
-
-    </div>
-
-</div>
-
-
-
-
-  </div>
-
-    </div>
-
-</div>
+<!-- @Claude, can you correct the capitalization and link to the API docs for each task. -->
+
+<p>Each of them is described in their respective docs, linked above. You can download them using the src/biobench/BENCHMARK/download.py script. If you plan to use NeWT (prior work):</p>
+<pre><code class="language-sh"># Remind yourself of the options
+uv run src/biobench/newt/download.py --help
+
+# Run the download
+uv run src/biobench/newt/download.py --dir &quot;$NFS/datasets/newt&quot; --images --labels
+</code></pre>
+<p>Most of the download scripts use a <code>--dir</code> arg to describe where to save the dataset.</p>
+<h2 id="configure-models">Configure Models<a class="headerlink" href="#configure-models" title="Permanent link">&para;</a></h2>
+<p>Once you have downloaded a dataset, you can configure your master config.</p>
+<pre><code class="language-toml">n_train = -1
+report_to = &quot;/local/scratch/$USER/experiments/biobench&quot;
+
+[data]
+# Benchmark
+beluga = &quot;/research/nfs_su_809/workspace/stevens.994/datasets/beluga&quot;
+ecdysis = &quot;/research/nfs_su_809/workspace/stevens.994/datasets/ecdysis&quot;
+fishnet = &quot;/research/nfs_su_809/workspace/stevens.994/datasets/fishnet&quot;
+fungiclef = &quot;/research/nfs_su_809/workspace/stevens.994/datasets/fungiclef&quot;
+herbarium19 = &quot;/research/nfs_su_809/workspace/stevens.994/datasets/herbarium19&quot;
+iwildcam = &quot;/research/nfs_su_809/workspace/stevens.994/datasets/iwildcam&quot;
+kabr = &quot;/research/nfs_su_809/workspace/stevens.994/datasets/kabr&quot;
+mammalnet = &quot;/research/nfs_su_809/workspace/stevens.994/datasets/mammalnet&quot;
+plankton = &quot;/research/nfs_su_809/workspace/stevens.994/datasets/plankton&quot;
+plantnet = &quot;/research/nfs_su_809/workspace/stevens.994/datasets/plantnet&quot;
+
+[[models]]
+org = &quot;open-clip&quot;
+ckpt = &quot;ViT-SO400M-16-SigLIP2-512/webli&quot;
+
+[[models]]
+org = &quot;open-clip&quot;
+ckpt = &quot;PE-Core-L-14-336/meta&quot;
+
+[[models]]
+org = &quot;open-clip&quot;
+ckpt = &quot;hf-hub:imageomics/bioclip-2&quot;
+
+[[models]]
+org = &quot;open-clip&quot;
+ckpt = &quot;hf-hub:imageomics/bioclip-2.5-vith14&quot;
+
+[[models]]
+org = &quot;dinov3&quot;
+ckpt = &quot;/research/nfs_su_809/workspace/stevens.994/models/dinov3/dinov3_vitl16_pretrain_lvd1689m-8aa4cbdd.pth&quot;
+
+##############
+# YOUR MODEL #
+##############
+
+[[models]]
+org = &quot;open-clip&quot;
+ckpt = &quot;hf-hub:imageomics/bioclip-2.5-vith14&quot;
+</code></pre>
+<h2 id="launch-runners">Launch Runners<a class="headerlink" href="#launch-runners" title="Permanent link">&para;</a></h2>
+<h2 id="report">Report<a class="headerlink" href="#report" title="Permanent link">&para;</a></h2>
+<h2 id="analyze-with-notebooks">Analyze with Notebooks<a class="headerlink" href="#analyze-with-notebooks" title="Permanent link">&para;</a></h2>
 
 
 
@@ -2296,7 +2166,7 @@ try:
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../biobench.jobkit/" class="md-footer__link md-footer__link--prev" aria-label="Previous: biobench.jobkit">
+          <a href=".." class="md-footer__link md-footer__link--prev" aria-label="Previous: Home">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -2306,20 +2176,20 @@ try:
                 Previous
               </span>
               <div class="md-ellipsis">
-                biobench.jobkit
+                Home
               </div>
             </div>
           </a>
         
         
           
-          <a href="../futures/" class="md-footer__link md-footer__link--next" aria-label="Next: biobench.jobkit.futures">
+          <a href="../api/biobench/" class="md-footer__link md-footer__link--next" aria-label="Next: biobench">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                biobench.jobkit.futures
+                biobench
               </div>
             </div>
             <div class="md-footer__button md-icon">
@@ -2372,12 +2242,12 @@ try:
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.tabs", "navigation.path", "navigation.indexes", "navigation.expand", "toc.follow", "toc.integrate", "navigation.top", "search.suggest", "search.highlight", "content.tabs.link", "content.code.annotation", "content.code.copy", "navigation.footer", "content.action.edit"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "navigation.path", "navigation.indexes", "navigation.expand", "toc.follow", "toc.integrate", "navigation.top", "search.suggest", "search.highlight", "content.tabs.link", "content.code.annotation", "content.code.copy", "navigation.footer", "content.action.edit"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
       
-        <script src="../../../javascripts/mathjax.js"></script>
+        <script src="../javascripts/mathjax.js"></script>
       
         <script src="https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js"></script>
       

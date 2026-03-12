@@ -1,7 +1,7 @@
 site_name: biobench
 docs_dir: src
 site_dir: api
-site_url: https://samuelstevens.me/biobench/api
+site_url: https://imageomics.github.io/biobench/api
 
 theme:
   name: material
@@ -30,10 +30,11 @@ extra_css:
 extra:
   social:
     - icon: fontawesome/brands/github
-      link: https://github.com/samuelstevens/biobench
+      link: https://github.com/Imageomics/biobench
 
 nav:
   - Home: index.md
+  - Guide: guide.md
   - API: api/
 
 plugins:

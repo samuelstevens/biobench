@@ -10,7 +10,7 @@ It aims to make it easy to:
 2. Add new tasks.
 3. Understand meaningful (or not) differences in model performance.
 
-Check out the [docs](https://samuelstevens.me/biobench/) for an introduction and the [preprint](https://arxiv.org/abs/2511.16315) for details on our methodology and results.
+Check out the [docs](https://imageomics.github.io/biobench/) for an introduction, the [guide](https://imageomics.github.io/biobench/api/guide/) for running benchmarks, and the [preprint](https://arxiv.org/abs/2511.16315) for details on our methodology and results.
 
 ## Getting Started
 
@@ -48,8 +48,8 @@ Download it wherever you want on your own filesystem.
 We at [Imageomics](https://imageomics.osu.edu) use this library for testing [BioCLIP](https://imageomics.github.io/bioclip) and other internal models  during development.
 Because of this, there are two main classes of tasks:
 
-1. Downstream applications. These are tasks like [KABR](https://samuelstevens.me/biobench/api/biobench/kabr) or [Beluga whale re-ID](https://samuelstevens.me/biobench/api/biobench/beluga). These tasks represent real problems that computer vision systems fail to solve today.
-2. Benchmarks. These are made-up tasks like [NeWT](https://samuelstevens.me/biobench/api/biobench/newt) that are artificial tasks, created to help us understand how useful a model might be in the real world for similar tasks.
+1. Downstream applications. These are tasks like [KABR](https://imageomics.github.io/biobench/api/biobench/kabr) or [Beluga whale re-ID](https://imageomics.github.io/biobench/api/biobench/beluga). These tasks represent real problems that computer vision systems fail to solve today.
+2. Benchmarks. These are made-up tasks like [NeWT](https://imageomics.github.io/biobench/api/biobench/newt) that are artificial tasks, created to help us understand how useful a model might be in the real world for similar tasks.
 
 
 ## Road Map

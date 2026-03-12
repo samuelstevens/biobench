@@ -13,8 +13,8 @@ authors:
     email: samuel.robert.stevens@gmail.com
   - given-names: Jianyang
     family-names: Gu
-repository-code: 'https://github.com/samuelstevens/biobench/'
-url: 'https://samuelstevens.me/biobench/'
+repository-code: 'https://github.com/Imageomics/biobench/'
+url: 'https://imageomics.github.io/biobench/'
 abstract: ' Computer vision benchmarks for evolutionary biology-related tasks. '
 keywords:
   - benchmarking

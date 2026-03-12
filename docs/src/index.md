@@ -20,6 +20,6 @@ uv run biobench/newt/download.py --dir ./newt
 ## Links
 
 - [Preprint](https://arxiv.org/abs/2511.16315)
-- [Leaderboard](https://samuelstevens.me/biobench/)
-- [GitHub](https://github.com/samuelstevens/biobench)
-- [Issues](https://github.com/samuelstevens/biobench/issues)
+- [Leaderboard](https://imageomics.github.io/biobench/)
+- [GitHub](https://github.com/Imageomics/biobench)
+- [Issues](https://github.com/Imageomics/biobench/issues)
