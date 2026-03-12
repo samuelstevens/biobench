@@ -48,20 +48,10 @@ Once you have downloaded a dataset, you can configure your master config.
 
 ```toml
 n_train = -1
-report_to = "/local/scratch/$USER/experiments/biobench"
+report_to = "$SCRATCH/$USER/biobench"
 
 [data]
-# Benchmark
-beluga = "/research/nfs_su_809/workspace/stevens.994/datasets/beluga"
-ecdysis = "/research/nfs_su_809/workspace/stevens.994/datasets/ecdysis"
-fishnet = "/research/nfs_su_809/workspace/stevens.994/datasets/fishnet"
-fungiclef = "/research/nfs_su_809/workspace/stevens.994/datasets/fungiclef"
-herbarium19 = "/research/nfs_su_809/workspace/stevens.994/datasets/herbarium19"
-iwildcam = "/research/nfs_su_809/workspace/stevens.994/datasets/iwildcam"
-kabr = "/research/nfs_su_809/workspace/stevens.994/datasets/kabr"
-mammalnet = "/research/nfs_su_809/workspace/stevens.994/datasets/mammalnet"
-plankton = "/research/nfs_su_809/workspace/stevens.994/datasets/plankton"
-plantnet = "/research/nfs_su_809/workspace/stevens.994/datasets/plantnet"
+newt = "$NFS/datasets/newt"
 
 [[models]]
 org = "open-clip"
@@ -91,6 +81,51 @@ ckpt = "/research/nfs_su_809/workspace/stevens.994/models/dinov3/dinov3_vitl16_p
 org = "open-clip"
 ckpt = "hf-hub:imageomics/bioclip-2.5-vith14"
 ```
+
+Here's what this means:
+
+```toml
+n_train = -1
+```
+
+Use all training samples. If you were interested in sample-efficient learning, you might set this to `n_train = 10` or similar.
+
+```toml
+report_to = "/$SCRATCH/$USER/biobench"
+```
+
+All results will be written to `/$SCRATCH/$USER/biobench/reports.sqlite`
+
+WARNING: You cannot write results to a SQLite file on an NFS drive. If you truly have exactly one runner in parallel, this is okay, but multiple parallel runners can corrupt SQLite files when it's on an NFS drive.
+
+<!-- @Claude: Can you make this into the correct markup for it to be a warning? -->
+
+```toml
+[data]
+newt = "$NFS/datasets/newt"
+```
+
+Reference the benchmarks that you want to run, and provide a path.
+
+```toml
+[[models]]
+org = "open-clip"
+ckpt = "ViT-SO400M-16-SigLIP2-512/webli"
+
+[[models]]
+org = "open-clip"
+ckpt = "PE-Core-L-14-336/meta"
+
+[[models]]
+org = "open-clip"
+ckpt = "hf-hub:imageomics/bioclip-2"
+
+[[models]]
+org = "dinov3"
+ckpt = "/PATH/TO/DINOv3/dinov3_vitl16_pretrain_lvd1689m-8aa4cbdd.pth"
+```
+
+The majority
 
 ## Launch Runners
 

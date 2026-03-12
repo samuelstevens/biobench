@@ -2083,20 +2083,10 @@ uv run src/biobench/newt/download.py --dir &quot;$NFS/datasets/newt&quot; --imag
 <h2 id="configure-models">Configure Models<a class="headerlink" href="#configure-models" title="Permanent link">&para;</a></h2>
 <p>Once you have downloaded a dataset, you can configure your master config.</p>
 <pre><code class="language-toml">n_train = -1
-report_to = &quot;/local/scratch/$USER/experiments/biobench&quot;
+report_to = &quot;$SCRATCH/$USER/biobench&quot;
 
 [data]
-# Benchmark
-beluga = &quot;/research/nfs_su_809/workspace/stevens.994/datasets/beluga&quot;
-ecdysis = &quot;/research/nfs_su_809/workspace/stevens.994/datasets/ecdysis&quot;
-fishnet = &quot;/research/nfs_su_809/workspace/stevens.994/datasets/fishnet&quot;
-fungiclef = &quot;/research/nfs_su_809/workspace/stevens.994/datasets/fungiclef&quot;
-herbarium19 = &quot;/research/nfs_su_809/workspace/stevens.994/datasets/herbarium19&quot;
-iwildcam = &quot;/research/nfs_su_809/workspace/stevens.994/datasets/iwildcam&quot;
-kabr = &quot;/research/nfs_su_809/workspace/stevens.994/datasets/kabr&quot;
-mammalnet = &quot;/research/nfs_su_809/workspace/stevens.994/datasets/mammalnet&quot;
-plankton = &quot;/research/nfs_su_809/workspace/stevens.994/datasets/plankton&quot;
-plantnet = &quot;/research/nfs_su_809/workspace/stevens.994/datasets/plantnet&quot;
+newt = &quot;$NFS/datasets/newt&quot;
 
 [[models]]
 org = &quot;open-clip&quot;
@@ -2126,6 +2116,37 @@ ckpt = &quot;/research/nfs_su_809/workspace/stevens.994/models/dinov3/dinov3_vit
 org = &quot;open-clip&quot;
 ckpt = &quot;hf-hub:imageomics/bioclip-2.5-vith14&quot;
 </code></pre>
+<p>Here's what this means:</p>
+<pre><code class="language-toml">n_train = -1
+</code></pre>
+<p>Use all training samples. If you were interested in sample-efficient learning, you might set this to <code>n_train = 10</code> or similar.</p>
+<pre><code class="language-toml">report_to = &quot;/$SCRATCH/$USER/biobench&quot;
+</code></pre>
+<p>All results will be written to <code>/$SCRATCH/$USER/biobench/reports.sqlite</code></p>
+<p>WARNING: You cannot write results to a SQLite file on an NFS drive. If you truly have exactly one runner in parallel, this is okay, but multiple parallel runners can corrupt SQLite files when it's on an NFS drive.</p>
+<!-- @Claude: Can you make this into the correct markup for it to be a warning? -->
+
+<pre><code class="language-toml">[data]
+newt = &quot;$NFS/datasets/newt&quot;
+</code></pre>
+<p>Reference the benchmarks that you want to run, and provide a path.</p>
+<pre><code class="language-toml">[[models]]
+org = &quot;open-clip&quot;
+ckpt = &quot;ViT-SO400M-16-SigLIP2-512/webli&quot;
+
+[[models]]
+org = &quot;open-clip&quot;
+ckpt = &quot;PE-Core-L-14-336/meta&quot;
+
+[[models]]
+org = &quot;open-clip&quot;
+ckpt = &quot;hf-hub:imageomics/bioclip-2&quot;
+
+[[models]]
+org = &quot;dinov3&quot;
+ckpt = &quot;/PATH/TO/DINOv3/dinov3_vitl16_pretrain_lvd1689m-8aa4cbdd.pth&quot;
+</code></pre>
+<p>The majority</p>
 <h2 id="launch-runners">Launch Runners<a class="headerlink" href="#launch-runners" title="Permanent link">&para;</a></h2>
 <h2 id="report">Report<a class="headerlink" href="#report" title="Permanent link">&para;</a></h2>
 <h2 id="analyze-with-notebooks">Analyze with Notebooks<a class="headerlink" href="#analyze-with-notebooks" title="Permanent link">&para;</a></h2>

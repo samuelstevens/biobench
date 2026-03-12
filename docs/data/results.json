@@ -1,8 +1,8 @@
 {
     "meta": {
         "schema": 1,
-        "generated": 1771023704565,
-        "git_commit": "cb2a39b3e2376b650c841730449d7ab95ea9c307",
+        "generated": 1773321622498,
+        "git_commit": "4831c6a04065350e8506376aadd51133e0eca670",
         "seed": 17,
         "alpha": 0.05,
         "n_bootstraps": 500
@@ -5353,6 +5353,14 @@
             "bootstrap_mean": 0.16965269002766084,
             "ci_low": 0.1452852739523114,
             "ci_high": 0.19289621655245565
+        },
+        {
+            "task": "fungiclef",
+            "model": "vit_pe_spatial_gigantic_patch14_448",
+            "mean": 0.25445368363153975,
+            "bootstrap_mean": 0.25474949399439645,
+            "ci_low": 0.23304191722113016,
+            "ci_high": 0.27550324087047473
         },
         {
             "task": "fungiclef",
