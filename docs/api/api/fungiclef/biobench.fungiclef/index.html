@@ -2105,14 +2105,14 @@
     <div class="doc doc-contents first">
 
         <p>FungiCLEF2023: classify fungal species using Danish Fungi preprocessed images.</p>
-<p>Citations:</p>
-<pre><code>@inproceedings{BohemianVRA2023,
-  title={FungiCLEF 2023 challenge evaluation},
-  author={BohemianVRA},
-  booktitle={ImageCLEF},
-  year={2023}
-}
-</code></pre>
+<p>Citations:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>@inproceedings{BohemianVRA2023,
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>  title={FungiCLEF 2023 challenge evaluation},
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>  author={BohemianVRA},
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>  booktitle={ImageCLEF},
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>  year={2023}
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>}
+</code></pre></div></p>
 
 
 
@@ -2225,65 +2225,65 @@
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/biobench/fungiclef/__init__.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">271</span>
-<span class="normal">272</span>
-<span class="normal">273</span>
-<span class="normal">274</span>
-<span class="normal">275</span>
-<span class="normal">276</span>
-<span class="normal">277</span>
-<span class="normal">278</span>
-<span class="normal">279</span>
-<span class="normal">280</span>
-<span class="normal">281</span>
-<span class="normal">282</span>
-<span class="normal">283</span>
-<span class="normal">284</span>
-<span class="normal">285</span>
-<span class="normal">286</span>
-<span class="normal">287</span>
-<span class="normal">288</span>
-<span class="normal">289</span>
-<span class="normal">290</span>
-<span class="normal">291</span>
-<span class="normal">292</span>
-<span class="normal">293</span>
-<span class="normal">294</span>
-<span class="normal">295</span>
-<span class="normal">296</span>
-<span class="normal">297</span>
-<span class="normal">298</span>
-<span class="normal">299</span>
-<span class="normal">300</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@beartype</span><span class="o">.</span><span class="n">beartype</span>
-<span class="k">def</span><span class="w"> </span><span class="nf">score</span><span class="p">(</span><span class="n">preds</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">reporting</span><span class="o">.</span><span class="n">Prediction</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Return the **User-Focused Loss** used in FungiCLEF:</span>
-<span class="sd">        user_loss = classification_error + PSC/ESC cost</span>
-
-<span class="sd">    Notes</span>
-<span class="sd">    -----</span>
-<span class="sd">    * `info[&#39;y_true&#39;]` and `info[&#39;y_pred&#39;]` are ints; unknown is -1.</span>
-<span class="sd">    * The helper in metrics.py already combines CE and PSC/ESC.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">y_true</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">fromiter</span><span class="p">(</span>
-        <span class="p">(</span><span class="o">-</span><span class="mi">1</span> <span class="k">if</span> <span class="n">p</span><span class="o">.</span><span class="n">info</span><span class="p">[</span><span class="s2">&quot;ood&quot;</span><span class="p">]</span> <span class="k">else</span> <span class="n">p</span><span class="o">.</span><span class="n">info</span><span class="p">[</span><span class="s2">&quot;y_true&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">preds</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span>
-    <span class="p">)</span>
-    <span class="n">y_pred</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">fromiter</span><span class="p">((</span><span class="n">p</span><span class="o">.</span><span class="n">info</span><span class="p">[</span><span class="s2">&quot;y_pred&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">preds</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">)</span>
-    <span class="n">user_loss</span> <span class="o">=</span> <span class="n">metrics</span><span class="o">.</span><span class="n">user_loss_score</span><span class="p">(</span><span class="n">y_true</span><span class="p">,</span> <span class="n">y_pred</span><span class="p">)</span>
-
-    <span class="n">n</span> <span class="o">=</span> <span class="n">y_true</span><span class="o">.</span><span class="n">size</span>
-    <span class="n">n_unknown</span> <span class="o">=</span> <span class="p">(</span><span class="n">y_true</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
-    <span class="n">n_poisonous</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">y_true</span><span class="p">,</span> <span class="n">metrics</span><span class="o">.</span><span class="n">POISONOUS_SPECIES</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
-
-    <span class="n">cost_unknown_mis</span> <span class="o">=</span> <span class="mf">10.0</span>
-    <span class="n">cost_psc</span> <span class="o">=</span> <span class="mf">100.0</span>
-    <span class="n">cost_esc</span> <span class="o">=</span> <span class="mf">1.0</span>
-
-    <span class="n">worst_ce</span> <span class="o">=</span> <span class="p">(</span><span class="n">cost_unknown_mis</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="n">n_unknown</span> <span class="o">/</span> <span class="n">n</span> <span class="o">+</span> <span class="mi">1</span>
-    <span class="n">worst_psc</span> <span class="o">=</span> <span class="p">(</span><span class="n">cost_psc</span> <span class="o">*</span> <span class="n">n_poisonous</span> <span class="o">+</span> <span class="n">cost_esc</span> <span class="o">*</span> <span class="p">(</span><span class="n">n</span> <span class="o">-</span> <span class="n">n_poisonous</span><span class="p">))</span> <span class="o">/</span> <span class="n">n</span>
-
-    <span class="n">score</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">-</span> <span class="n">user_loss</span> <span class="o">/</span> <span class="p">(</span><span class="n">worst_ce</span> <span class="o">+</span> <span class="n">worst_psc</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">score</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-271">271</a></span>
+<span class="normal"><a href="#__codelineno-0-272">272</a></span>
+<span class="normal"><a href="#__codelineno-0-273">273</a></span>
+<span class="normal"><a href="#__codelineno-0-274">274</a></span>
+<span class="normal"><a href="#__codelineno-0-275">275</a></span>
+<span class="normal"><a href="#__codelineno-0-276">276</a></span>
+<span class="normal"><a href="#__codelineno-0-277">277</a></span>
+<span class="normal"><a href="#__codelineno-0-278">278</a></span>
+<span class="normal"><a href="#__codelineno-0-279">279</a></span>
+<span class="normal"><a href="#__codelineno-0-280">280</a></span>
+<span class="normal"><a href="#__codelineno-0-281">281</a></span>
+<span class="normal"><a href="#__codelineno-0-282">282</a></span>
+<span class="normal"><a href="#__codelineno-0-283">283</a></span>
+<span class="normal"><a href="#__codelineno-0-284">284</a></span>
+<span class="normal"><a href="#__codelineno-0-285">285</a></span>
+<span class="normal"><a href="#__codelineno-0-286">286</a></span>
+<span class="normal"><a href="#__codelineno-0-287">287</a></span>
+<span class="normal"><a href="#__codelineno-0-288">288</a></span>
+<span class="normal"><a href="#__codelineno-0-289">289</a></span>
+<span class="normal"><a href="#__codelineno-0-290">290</a></span>
+<span class="normal"><a href="#__codelineno-0-291">291</a></span>
+<span class="normal"><a href="#__codelineno-0-292">292</a></span>
+<span class="normal"><a href="#__codelineno-0-293">293</a></span>
+<span class="normal"><a href="#__codelineno-0-294">294</a></span>
+<span class="normal"><a href="#__codelineno-0-295">295</a></span>
+<span class="normal"><a href="#__codelineno-0-296">296</a></span>
+<span class="normal"><a href="#__codelineno-0-297">297</a></span>
+<span class="normal"><a href="#__codelineno-0-298">298</a></span>
+<span class="normal"><a href="#__codelineno-0-299">299</a></span>
+<span class="normal"><a href="#__codelineno-0-300">300</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-271" name="__codelineno-0-271"></a><span class="nd">@beartype</span><span class="o">.</span><span class="n">beartype</span>
+<a id="__codelineno-0-272" name="__codelineno-0-272"></a><span class="k">def</span><span class="w"> </span><span class="nf">score</span><span class="p">(</span><span class="n">preds</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">reporting</span><span class="o">.</span><span class="n">Prediction</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<a id="__codelineno-0-273" name="__codelineno-0-273"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<a id="__codelineno-0-274" name="__codelineno-0-274"></a><span class="sd">    Return the **User-Focused Loss** used in FungiCLEF:</span>
+<a id="__codelineno-0-275" name="__codelineno-0-275"></a><span class="sd">        user_loss = classification_error + PSC/ESC cost</span>
+<a id="__codelineno-0-276" name="__codelineno-0-276"></a>
+<a id="__codelineno-0-277" name="__codelineno-0-277"></a><span class="sd">    Notes</span>
+<a id="__codelineno-0-278" name="__codelineno-0-278"></a><span class="sd">    -----</span>
+<a id="__codelineno-0-279" name="__codelineno-0-279"></a><span class="sd">    * `info[&#39;y_true&#39;]` and `info[&#39;y_pred&#39;]` are ints; unknown is -1.</span>
+<a id="__codelineno-0-280" name="__codelineno-0-280"></a><span class="sd">    * The helper in metrics.py already combines CE and PSC/ESC.</span>
+<a id="__codelineno-0-281" name="__codelineno-0-281"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-0-282" name="__codelineno-0-282"></a>    <span class="n">y_true</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">fromiter</span><span class="p">(</span>
+<a id="__codelineno-0-283" name="__codelineno-0-283"></a>        <span class="p">(</span><span class="o">-</span><span class="mi">1</span> <span class="k">if</span> <span class="n">p</span><span class="o">.</span><span class="n">info</span><span class="p">[</span><span class="s2">&quot;ood&quot;</span><span class="p">]</span> <span class="k">else</span> <span class="n">p</span><span class="o">.</span><span class="n">info</span><span class="p">[</span><span class="s2">&quot;y_true&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">preds</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span>
+<a id="__codelineno-0-284" name="__codelineno-0-284"></a>    <span class="p">)</span>
+<a id="__codelineno-0-285" name="__codelineno-0-285"></a>    <span class="n">y_pred</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">fromiter</span><span class="p">((</span><span class="n">p</span><span class="o">.</span><span class="n">info</span><span class="p">[</span><span class="s2">&quot;y_pred&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">preds</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">)</span>
+<a id="__codelineno-0-286" name="__codelineno-0-286"></a>    <span class="n">user_loss</span> <span class="o">=</span> <span class="n">metrics</span><span class="o">.</span><span class="n">user_loss_score</span><span class="p">(</span><span class="n">y_true</span><span class="p">,</span> <span class="n">y_pred</span><span class="p">)</span>
+<a id="__codelineno-0-287" name="__codelineno-0-287"></a>
+<a id="__codelineno-0-288" name="__codelineno-0-288"></a>    <span class="n">n</span> <span class="o">=</span> <span class="n">y_true</span><span class="o">.</span><span class="n">size</span>
+<a id="__codelineno-0-289" name="__codelineno-0-289"></a>    <span class="n">n_unknown</span> <span class="o">=</span> <span class="p">(</span><span class="n">y_true</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+<a id="__codelineno-0-290" name="__codelineno-0-290"></a>    <span class="n">n_poisonous</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">y_true</span><span class="p">,</span> <span class="n">metrics</span><span class="o">.</span><span class="n">POISONOUS_SPECIES</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+<a id="__codelineno-0-291" name="__codelineno-0-291"></a>
+<a id="__codelineno-0-292" name="__codelineno-0-292"></a>    <span class="n">cost_unknown_mis</span> <span class="o">=</span> <span class="mf">10.0</span>
+<a id="__codelineno-0-293" name="__codelineno-0-293"></a>    <span class="n">cost_psc</span> <span class="o">=</span> <span class="mf">100.0</span>
+<a id="__codelineno-0-294" name="__codelineno-0-294"></a>    <span class="n">cost_esc</span> <span class="o">=</span> <span class="mf">1.0</span>
+<a id="__codelineno-0-295" name="__codelineno-0-295"></a>
+<a id="__codelineno-0-296" name="__codelineno-0-296"></a>    <span class="n">worst_ce</span> <span class="o">=</span> <span class="p">(</span><span class="n">cost_unknown_mis</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="n">n_unknown</span> <span class="o">/</span> <span class="n">n</span> <span class="o">+</span> <span class="mi">1</span>
+<a id="__codelineno-0-297" name="__codelineno-0-297"></a>    <span class="n">worst_psc</span> <span class="o">=</span> <span class="p">(</span><span class="n">cost_psc</span> <span class="o">*</span> <span class="n">n_poisonous</span> <span class="o">+</span> <span class="n">cost_esc</span> <span class="o">*</span> <span class="p">(</span><span class="n">n</span> <span class="o">-</span> <span class="n">n_poisonous</span><span class="p">))</span> <span class="o">/</span> <span class="n">n</span>
+<a id="__codelineno-0-298" name="__codelineno-0-298"></a>
+<a id="__codelineno-0-299" name="__codelineno-0-299"></a>    <span class="n">score</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">-</span> <span class="n">user_loss</span> <span class="o">/</span> <span class="p">(</span><span class="n">worst_ce</span> <span class="o">+</span> <span class="n">worst_psc</span><span class="p">)</span>
+<a id="__codelineno-0-300" name="__codelineno-0-300"></a>    <span class="k">return</span> <span class="n">score</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>

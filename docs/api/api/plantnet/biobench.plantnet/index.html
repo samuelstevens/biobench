@@ -2157,31 +2157,31 @@ We fit a ridge classifier from scikit-learn to a backbone's embeddings and evalu
 
                   <details class="mkdocstrings-source">
                     <summary>Source code in <code>src/biobench/plantnet/__init__.py</code></summary>
-                    <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">104</span>
-<span class="normal">105</span>
-<span class="normal">106</span>
-<span class="normal">107</span>
-<span class="normal">108</span>
-<span class="normal">109</span>
-<span class="normal">110</span>
-<span class="normal">111</span>
-<span class="normal">112</span>
-<span class="normal">113</span>
-<span class="normal">114</span>
-<span class="normal">115</span>
-<span class="normal">116</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">root</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">transform</span><span class="p">):</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">transform</span> <span class="o">=</span> <span class="n">transform</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">samples</span> <span class="o">=</span> <span class="p">[]</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">root</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="n">root</span><span class="p">):</span>
-        <span class="n">msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;Path &#39;</span><span class="si">{</span><span class="n">root</span><span class="si">}</span><span class="s2">&#39; doesn&#39;t exist. Did you download the Pl@ntNet dataset? See the docstring at the top of this file for instructions. If you did download it, pass the path as --dataset-dir PATH&quot;</span>
-        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
-
-    <span class="k">for</span> <span class="n">dirpath</span><span class="p">,</span> <span class="n">dirnames</span><span class="p">,</span> <span class="n">filenames</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">walk</span><span class="p">(</span><span class="n">root</span><span class="p">):</span>
-        <span class="n">img_class</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">relpath</span><span class="p">(</span><span class="n">dirpath</span><span class="p">,</span> <span class="n">root</span><span class="p">)</span>
-        <span class="k">for</span> <span class="n">filename</span> <span class="ow">in</span> <span class="n">filenames</span><span class="p">:</span>
-            <span class="n">img_id</span> <span class="o">=</span> <span class="n">filename</span><span class="o">.</span><span class="n">removesuffix</span><span class="p">(</span><span class="s2">&quot;.jpg&quot;</span><span class="p">)</span>
-            <span class="n">img_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">dirpath</span><span class="p">,</span> <span class="n">filename</span><span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">samples</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">img_id</span><span class="p">,</span> <span class="n">img_path</span><span class="p">,</span> <span class="n">img_class</span><span class="p">))</span>
+                    <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-104">104</a></span>
+<span class="normal"><a href="#__codelineno-0-105">105</a></span>
+<span class="normal"><a href="#__codelineno-0-106">106</a></span>
+<span class="normal"><a href="#__codelineno-0-107">107</a></span>
+<span class="normal"><a href="#__codelineno-0-108">108</a></span>
+<span class="normal"><a href="#__codelineno-0-109">109</a></span>
+<span class="normal"><a href="#__codelineno-0-110">110</a></span>
+<span class="normal"><a href="#__codelineno-0-111">111</a></span>
+<span class="normal"><a href="#__codelineno-0-112">112</a></span>
+<span class="normal"><a href="#__codelineno-0-113">113</a></span>
+<span class="normal"><a href="#__codelineno-0-114">114</a></span>
+<span class="normal"><a href="#__codelineno-0-115">115</a></span>
+<span class="normal"><a href="#__codelineno-0-116">116</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-104" name="__codelineno-0-104"></a><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">root</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">transform</span><span class="p">):</span>
+<a id="__codelineno-0-105" name="__codelineno-0-105"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">transform</span> <span class="o">=</span> <span class="n">transform</span>
+<a id="__codelineno-0-106" name="__codelineno-0-106"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">samples</span> <span class="o">=</span> <span class="p">[]</span>
+<a id="__codelineno-0-107" name="__codelineno-0-107"></a>    <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">root</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="n">root</span><span class="p">):</span>
+<a id="__codelineno-0-108" name="__codelineno-0-108"></a>        <span class="n">msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;Path &#39;</span><span class="si">{</span><span class="n">root</span><span class="si">}</span><span class="s2">&#39; doesn&#39;t exist. Did you download the Pl@ntNet dataset? See the docstring at the top of this file for instructions. If you did download it, pass the path as --dataset-dir PATH&quot;</span>
+<a id="__codelineno-0-109" name="__codelineno-0-109"></a>        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+<a id="__codelineno-0-110" name="__codelineno-0-110"></a>
+<a id="__codelineno-0-111" name="__codelineno-0-111"></a>    <span class="k">for</span> <span class="n">dirpath</span><span class="p">,</span> <span class="n">dirnames</span><span class="p">,</span> <span class="n">filenames</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">walk</span><span class="p">(</span><span class="n">root</span><span class="p">):</span>
+<a id="__codelineno-0-112" name="__codelineno-0-112"></a>        <span class="n">img_class</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">relpath</span><span class="p">(</span><span class="n">dirpath</span><span class="p">,</span> <span class="n">root</span><span class="p">)</span>
+<a id="__codelineno-0-113" name="__codelineno-0-113"></a>        <span class="k">for</span> <span class="n">filename</span> <span class="ow">in</span> <span class="n">filenames</span><span class="p">:</span>
+<a id="__codelineno-0-114" name="__codelineno-0-114"></a>            <span class="n">img_id</span> <span class="o">=</span> <span class="n">filename</span><span class="o">.</span><span class="n">removesuffix</span><span class="p">(</span><span class="s2">&quot;.jpg&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-115" name="__codelineno-0-115"></a>            <span class="n">img_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">dirpath</span><span class="p">,</span> <span class="n">filename</span><span class="p">)</span>
+<a id="__codelineno-0-116" name="__codelineno-0-116"></a>            <span class="bp">self</span><span class="o">.</span><span class="n">samples</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">img_id</span><span class="p">,</span> <span class="n">img_path</span><span class="p">,</span> <span class="n">img_class</span><span class="p">))</span>
 </code></pre></div></td></tr></table></div>
                   </details>
 
@@ -2270,77 +2270,77 @@ We fit a ridge classifier from scikit-learn to a backbone's embeddings and evalu
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/biobench/plantnet/__init__.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">51</span>
-<span class="normal">52</span>
-<span class="normal">53</span>
-<span class="normal">54</span>
-<span class="normal">55</span>
-<span class="normal">56</span>
-<span class="normal">57</span>
-<span class="normal">58</span>
-<span class="normal">59</span>
-<span class="normal">60</span>
-<span class="normal">61</span>
-<span class="normal">62</span>
-<span class="normal">63</span>
-<span class="normal">64</span>
-<span class="normal">65</span>
-<span class="normal">66</span>
-<span class="normal">67</span>
-<span class="normal">68</span>
-<span class="normal">69</span>
-<span class="normal">70</span>
-<span class="normal">71</span>
-<span class="normal">72</span>
-<span class="normal">73</span>
-<span class="normal">74</span>
-<span class="normal">75</span>
-<span class="normal">76</span>
-<span class="normal">77</span>
-<span class="normal">78</span>
-<span class="normal">79</span>
-<span class="normal">80</span>
-<span class="normal">81</span>
-<span class="normal">82</span>
-<span class="normal">83</span>
-<span class="normal">84</span>
-<span class="normal">85</span>
-<span class="normal">86</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@beartype</span><span class="o">.</span><span class="n">beartype</span>
-<span class="k">def</span><span class="w"> </span><span class="nf">benchmark</span><span class="p">(</span><span class="n">cfg</span><span class="p">:</span> <span class="n">config</span><span class="o">.</span><span class="n">Experiment</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">reporting</span><span class="o">.</span><span class="n">Report</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Steps:</span>
-<span class="sd">    1. Get features for all images.</span>
-<span class="sd">    2. Select lambda using cross validation splits.</span>
-<span class="sd">    3. Report score on test data.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">backbone</span> <span class="o">=</span> <span class="n">registry</span><span class="o">.</span><span class="n">load_vision_backbone</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="p">)</span>
-
-    <span class="c1"># 1. Get features</span>
-    <span class="n">val_features</span> <span class="o">=</span> <span class="n">get_features</span><span class="p">(</span><span class="n">cfg</span><span class="p">,</span> <span class="n">backbone</span><span class="p">,</span> <span class="n">split</span><span class="o">=</span><span class="s2">&quot;val&quot;</span><span class="p">)</span>
-    <span class="n">train_features</span> <span class="o">=</span> <span class="n">get_features</span><span class="p">(</span><span class="n">cfg</span><span class="p">,</span> <span class="n">backbone</span><span class="p">,</span> <span class="n">split</span><span class="o">=</span><span class="s2">&quot;train&quot;</span><span class="p">)</span>
-    <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">empty_cache</span><span class="p">()</span>
-
-    <span class="n">encoder</span> <span class="o">=</span> <span class="n">sklearn</span><span class="o">.</span><span class="n">preprocessing</span><span class="o">.</span><span class="n">OrdinalEncoder</span><span class="p">()</span>
-    <span class="n">all_labels</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">((</span><span class="n">val_features</span><span class="o">.</span><span class="n">labels</span><span class="p">,</span> <span class="n">train_features</span><span class="o">.</span><span class="n">labels</span><span class="p">))</span>
-    <span class="n">encoder</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">all_labels</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
-
-    <span class="c1"># 2. Fit model.</span>
-    <span class="n">clf</span> <span class="o">=</span> <span class="n">init_clf</span><span class="p">(</span><span class="n">cfg</span><span class="p">)</span>
-    <span class="n">clf</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">train_features</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="n">train_features</span><span class="o">.</span><span class="n">y</span><span class="p">(</span><span class="n">encoder</span><span class="p">))</span>
-
-    <span class="n">true_labels</span> <span class="o">=</span> <span class="n">val_features</span><span class="o">.</span><span class="n">y</span><span class="p">(</span><span class="n">encoder</span><span class="p">)</span>
-    <span class="n">pred_labels</span> <span class="o">=</span> <span class="n">clf</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">val_features</span><span class="o">.</span><span class="n">x</span><span class="p">)</span>
-
-    <span class="n">preds</span> <span class="o">=</span> <span class="p">[</span>
-        <span class="n">reporting</span><span class="o">.</span><span class="n">Prediction</span><span class="p">(</span>
-            <span class="nb">str</span><span class="p">(</span><span class="n">img_id</span><span class="p">),</span>
-            <span class="nb">float</span><span class="p">(</span><span class="n">pred</span> <span class="o">==</span> <span class="n">true</span><span class="p">),</span>
-            <span class="p">{</span><span class="s2">&quot;y_pred&quot;</span><span class="p">:</span> <span class="n">pred</span><span class="o">.</span><span class="n">item</span><span class="p">(),</span> <span class="s2">&quot;y_true&quot;</span><span class="p">:</span> <span class="n">true</span><span class="o">.</span><span class="n">item</span><span class="p">()},</span>
-        <span class="p">)</span>
-        <span class="k">for</span> <span class="n">img_id</span><span class="p">,</span> <span class="n">pred</span><span class="p">,</span> <span class="n">true</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">val_features</span><span class="o">.</span><span class="n">ids</span><span class="p">,</span> <span class="n">pred_labels</span><span class="p">,</span> <span class="n">true_labels</span><span class="p">)</span>
-    <span class="p">]</span>
-
-    <span class="k">return</span> <span class="n">reporting</span><span class="o">.</span><span class="n">Report</span><span class="p">(</span><span class="s2">&quot;plantnet&quot;</span><span class="p">,</span> <span class="n">preds</span><span class="p">,</span> <span class="n">cfg</span><span class="p">)</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-51">51</a></span>
+<span class="normal"><a href="#__codelineno-0-52">52</a></span>
+<span class="normal"><a href="#__codelineno-0-53">53</a></span>
+<span class="normal"><a href="#__codelineno-0-54">54</a></span>
+<span class="normal"><a href="#__codelineno-0-55">55</a></span>
+<span class="normal"><a href="#__codelineno-0-56">56</a></span>
+<span class="normal"><a href="#__codelineno-0-57">57</a></span>
+<span class="normal"><a href="#__codelineno-0-58">58</a></span>
+<span class="normal"><a href="#__codelineno-0-59">59</a></span>
+<span class="normal"><a href="#__codelineno-0-60">60</a></span>
+<span class="normal"><a href="#__codelineno-0-61">61</a></span>
+<span class="normal"><a href="#__codelineno-0-62">62</a></span>
+<span class="normal"><a href="#__codelineno-0-63">63</a></span>
+<span class="normal"><a href="#__codelineno-0-64">64</a></span>
+<span class="normal"><a href="#__codelineno-0-65">65</a></span>
+<span class="normal"><a href="#__codelineno-0-66">66</a></span>
+<span class="normal"><a href="#__codelineno-0-67">67</a></span>
+<span class="normal"><a href="#__codelineno-0-68">68</a></span>
+<span class="normal"><a href="#__codelineno-0-69">69</a></span>
+<span class="normal"><a href="#__codelineno-0-70">70</a></span>
+<span class="normal"><a href="#__codelineno-0-71">71</a></span>
+<span class="normal"><a href="#__codelineno-0-72">72</a></span>
+<span class="normal"><a href="#__codelineno-0-73">73</a></span>
+<span class="normal"><a href="#__codelineno-0-74">74</a></span>
+<span class="normal"><a href="#__codelineno-0-75">75</a></span>
+<span class="normal"><a href="#__codelineno-0-76">76</a></span>
+<span class="normal"><a href="#__codelineno-0-77">77</a></span>
+<span class="normal"><a href="#__codelineno-0-78">78</a></span>
+<span class="normal"><a href="#__codelineno-0-79">79</a></span>
+<span class="normal"><a href="#__codelineno-0-80">80</a></span>
+<span class="normal"><a href="#__codelineno-0-81">81</a></span>
+<span class="normal"><a href="#__codelineno-0-82">82</a></span>
+<span class="normal"><a href="#__codelineno-0-83">83</a></span>
+<span class="normal"><a href="#__codelineno-0-84">84</a></span>
+<span class="normal"><a href="#__codelineno-0-85">85</a></span>
+<span class="normal"><a href="#__codelineno-0-86">86</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-51" name="__codelineno-0-51"></a><span class="nd">@beartype</span><span class="o">.</span><span class="n">beartype</span>
+<a id="__codelineno-0-52" name="__codelineno-0-52"></a><span class="k">def</span><span class="w"> </span><span class="nf">benchmark</span><span class="p">(</span><span class="n">cfg</span><span class="p">:</span> <span class="n">config</span><span class="o">.</span><span class="n">Experiment</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">reporting</span><span class="o">.</span><span class="n">Report</span><span class="p">:</span>
+<a id="__codelineno-0-53" name="__codelineno-0-53"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<a id="__codelineno-0-54" name="__codelineno-0-54"></a><span class="sd">    Steps:</span>
+<a id="__codelineno-0-55" name="__codelineno-0-55"></a><span class="sd">    1. Get features for all images.</span>
+<a id="__codelineno-0-56" name="__codelineno-0-56"></a><span class="sd">    2. Select lambda using cross validation splits.</span>
+<a id="__codelineno-0-57" name="__codelineno-0-57"></a><span class="sd">    3. Report score on test data.</span>
+<a id="__codelineno-0-58" name="__codelineno-0-58"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-0-59" name="__codelineno-0-59"></a>    <span class="n">backbone</span> <span class="o">=</span> <span class="n">registry</span><span class="o">.</span><span class="n">load_vision_backbone</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="p">)</span>
+<a id="__codelineno-0-60" name="__codelineno-0-60"></a>
+<a id="__codelineno-0-61" name="__codelineno-0-61"></a>    <span class="c1"># 1. Get features</span>
+<a id="__codelineno-0-62" name="__codelineno-0-62"></a>    <span class="n">val_features</span> <span class="o">=</span> <span class="n">get_features</span><span class="p">(</span><span class="n">cfg</span><span class="p">,</span> <span class="n">backbone</span><span class="p">,</span> <span class="n">split</span><span class="o">=</span><span class="s2">&quot;val&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-63" name="__codelineno-0-63"></a>    <span class="n">train_features</span> <span class="o">=</span> <span class="n">get_features</span><span class="p">(</span><span class="n">cfg</span><span class="p">,</span> <span class="n">backbone</span><span class="p">,</span> <span class="n">split</span><span class="o">=</span><span class="s2">&quot;train&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-64" name="__codelineno-0-64"></a>    <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">empty_cache</span><span class="p">()</span>
+<a id="__codelineno-0-65" name="__codelineno-0-65"></a>
+<a id="__codelineno-0-66" name="__codelineno-0-66"></a>    <span class="n">encoder</span> <span class="o">=</span> <span class="n">sklearn</span><span class="o">.</span><span class="n">preprocessing</span><span class="o">.</span><span class="n">OrdinalEncoder</span><span class="p">()</span>
+<a id="__codelineno-0-67" name="__codelineno-0-67"></a>    <span class="n">all_labels</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">((</span><span class="n">val_features</span><span class="o">.</span><span class="n">labels</span><span class="p">,</span> <span class="n">train_features</span><span class="o">.</span><span class="n">labels</span><span class="p">))</span>
+<a id="__codelineno-0-68" name="__codelineno-0-68"></a>    <span class="n">encoder</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">all_labels</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+<a id="__codelineno-0-69" name="__codelineno-0-69"></a>
+<a id="__codelineno-0-70" name="__codelineno-0-70"></a>    <span class="c1"># 2. Fit model.</span>
+<a id="__codelineno-0-71" name="__codelineno-0-71"></a>    <span class="n">clf</span> <span class="o">=</span> <span class="n">init_clf</span><span class="p">(</span><span class="n">cfg</span><span class="p">)</span>
+<a id="__codelineno-0-72" name="__codelineno-0-72"></a>    <span class="n">clf</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">train_features</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="n">train_features</span><span class="o">.</span><span class="n">y</span><span class="p">(</span><span class="n">encoder</span><span class="p">))</span>
+<a id="__codelineno-0-73" name="__codelineno-0-73"></a>
+<a id="__codelineno-0-74" name="__codelineno-0-74"></a>    <span class="n">true_labels</span> <span class="o">=</span> <span class="n">val_features</span><span class="o">.</span><span class="n">y</span><span class="p">(</span><span class="n">encoder</span><span class="p">)</span>
+<a id="__codelineno-0-75" name="__codelineno-0-75"></a>    <span class="n">pred_labels</span> <span class="o">=</span> <span class="n">clf</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">val_features</span><span class="o">.</span><span class="n">x</span><span class="p">)</span>
+<a id="__codelineno-0-76" name="__codelineno-0-76"></a>
+<a id="__codelineno-0-77" name="__codelineno-0-77"></a>    <span class="n">preds</span> <span class="o">=</span> <span class="p">[</span>
+<a id="__codelineno-0-78" name="__codelineno-0-78"></a>        <span class="n">reporting</span><span class="o">.</span><span class="n">Prediction</span><span class="p">(</span>
+<a id="__codelineno-0-79" name="__codelineno-0-79"></a>            <span class="nb">str</span><span class="p">(</span><span class="n">img_id</span><span class="p">),</span>
+<a id="__codelineno-0-80" name="__codelineno-0-80"></a>            <span class="nb">float</span><span class="p">(</span><span class="n">pred</span> <span class="o">==</span> <span class="n">true</span><span class="p">),</span>
+<a id="__codelineno-0-81" name="__codelineno-0-81"></a>            <span class="p">{</span><span class="s2">&quot;y_pred&quot;</span><span class="p">:</span> <span class="n">pred</span><span class="o">.</span><span class="n">item</span><span class="p">(),</span> <span class="s2">&quot;y_true&quot;</span><span class="p">:</span> <span class="n">true</span><span class="o">.</span><span class="n">item</span><span class="p">()},</span>
+<a id="__codelineno-0-82" name="__codelineno-0-82"></a>        <span class="p">)</span>
+<a id="__codelineno-0-83" name="__codelineno-0-83"></a>        <span class="k">for</span> <span class="n">img_id</span><span class="p">,</span> <span class="n">pred</span><span class="p">,</span> <span class="n">true</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">val_features</span><span class="o">.</span><span class="n">ids</span><span class="p">,</span> <span class="n">pred_labels</span><span class="p">,</span> <span class="n">true_labels</span><span class="p">)</span>
+<a id="__codelineno-0-84" name="__codelineno-0-84"></a>    <span class="p">]</span>
+<a id="__codelineno-0-85" name="__codelineno-0-85"></a>
+<a id="__codelineno-0-86" name="__codelineno-0-86"></a>    <span class="k">return</span> <span class="n">reporting</span><span class="o">.</span><span class="n">Report</span><span class="p">(</span><span class="s2">&quot;plantnet&quot;</span><span class="p">,</span> <span class="n">preds</span><span class="p">,</span> <span class="n">cfg</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>

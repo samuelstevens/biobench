@@ -48,8 +48,8 @@ Download it wherever you want on your own filesystem.
 We at [Imageomics](https://imageomics.osu.edu) use this library for testing [BioCLIP](https://imageomics.github.io/bioclip) and other internal models  during development.
 Because of this, there are two main classes of tasks:
 
-1. Downstream applications. These are tasks like [KABR](https://imageomics.github.io/biobench/api/biobench/kabr) or [Beluga whale re-ID](https://imageomics.github.io/biobench/api/biobench/beluga). These tasks represent real problems that computer vision systems fail to solve today.
-2. Benchmarks. These are made-up tasks like [NeWT](https://imageomics.github.io/biobench/api/biobench/newt) that are artificial tasks, created to help us understand how useful a model might be in the real world for similar tasks.
+1. Downstream applications. These are tasks like [KABR](https://imageomics.github.io/biobench/api/api/kabr/biobench.kabr) or [Beluga whale re-ID](https://imageomics.github.io/biobench/api/api/beluga/biobench.beluga). These tasks represent real problems that computer vision systems fail to solve today.
+2. Benchmarks. These are made-up tasks like [NeWT](https://imageomics.github.io/biobench/api/api/newt/biobench.newt) that are artificial tasks, created to help us understand how useful a model might be in the real world for similar tasks.
 
 
 ## Road Map

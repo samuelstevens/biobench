@@ -2071,113 +2071,125 @@
 <li><a class="autorefs autorefs-internal" href="../api/plantnet/biobench.plantnet/#biobench.plantnet"><code>biobench.plantnet</code></a></li>
 </ul>
 <p>Each of them is described in their respective docs, linked above. You can download them using the src/biobench/BENCHMARK/download.py script. If you plan to use NeWT (prior work):</p>
-<pre><code class="language-sh"># Remind yourself of the options
-uv run src/biobench/newt/download.py --help
-
-# Run the download
-uv run src/biobench/newt/download.py --dir &quot;$NFS/datasets/newt&quot; --images --labels
-</code></pre>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1"># Remind yourself of the options</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>uv<span class="w"> </span>run<span class="w"> </span>src/biobench/newt/download.py<span class="w"> </span>--help
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="c1"># Run the download</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>uv<span class="w"> </span>run<span class="w"> </span>src/biobench/newt/download.py<span class="w"> </span>--dir<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$NFS</span><span class="s2">/datasets/newt&quot;</span><span class="w"> </span>--images<span class="w"> </span>--labels
+</code></pre></div>
 <p>Most of the download scripts use a <code>--dir</code> arg to describe where to save the dataset.</p>
 <h2 id="configure-models">Configure Models<a class="headerlink" href="#configure-models" title="Permanent link">&para;</a></h2>
 <p>Once you have downloaded a dataset, you can configure your master config.</p>
-<pre><code class="language-toml">n_train = -1
-report_to = &quot;$SCRATCH/$USER/biobench&quot;
-
-[data]
-newt = &quot;$NFS/datasets/newt&quot;
-
-[[models]]
-org = &quot;open-clip&quot;
-ckpt = &quot;ViT-SO400M-16-SigLIP2-512/webli&quot;
-
-[[models]]
-org = &quot;open-clip&quot;
-ckpt = &quot;PE-Core-L-14-336/meta&quot;
-
-[[models]]
-org = &quot;open-clip&quot;
-ckpt = &quot;hf-hub:imageomics/bioclip-2&quot;
-
-[[models]]
-org = &quot;open-clip&quot;
-ckpt = &quot;hf-hub:imageomics/bioclip-2.5-vith14&quot;
-
-[[models]]
-org = &quot;dinov3&quot;
-ckpt = &quot;/research/nfs_su_809/workspace/stevens.994/models/dinov3/dinov3_vitl16_pretrain_lvd1689m-8aa4cbdd.pth&quot;
-
-##############
-# YOUR MODEL #
-##############
-
-[[models]]
-org = &quot;open-clip&quot;
-ckpt = &quot;hf-hub:imageomics/bioclip-2.5-vith14&quot;
-</code></pre>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="n">n_train</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">-1</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="n">report_to</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;$SCRATCH/$USER/biobench&quot;</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="k">[data]</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="n">newt</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;$NFS/datasets/newt&quot;</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="k">[[models]]</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="n">org</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;open-clip&quot;</span>
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="n">ckpt</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;ViT-SO400M-16-SigLIP2-512/webli&quot;</span>
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="k">[[models]]</span>
+<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="n">org</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;open-clip&quot;</span>
+<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="n">ckpt</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;PE-Core-L-14-336/meta&quot;</span>
+<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>
+<a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a><span class="k">[[models]]</span>
+<a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a><span class="n">org</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;open-clip&quot;</span>
+<a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a><span class="n">ckpt</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;hf-hub:imageomics/bioclip-2&quot;</span>
+<a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a>
+<a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a><span class="k">[[models]]</span>
+<a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a><span class="n">org</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;open-clip&quot;</span>
+<a id="__codelineno-1-21" name="__codelineno-1-21" href="#__codelineno-1-21"></a><span class="n">ckpt</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;hf-hub:imageomics/bioclip-2.5-vith14&quot;</span>
+<a id="__codelineno-1-22" name="__codelineno-1-22" href="#__codelineno-1-22"></a>
+<a id="__codelineno-1-23" name="__codelineno-1-23" href="#__codelineno-1-23"></a><span class="k">[[models]]</span>
+<a id="__codelineno-1-24" name="__codelineno-1-24" href="#__codelineno-1-24"></a><span class="n">org</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;dinov3&quot;</span>
+<a id="__codelineno-1-25" name="__codelineno-1-25" href="#__codelineno-1-25"></a><span class="n">ckpt</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/research/nfs_su_809/workspace/stevens.994/models/dinov3/dinov3_vitl16_pretrain_lvd1689m-8aa4cbdd.pth&quot;</span>
+<a id="__codelineno-1-26" name="__codelineno-1-26" href="#__codelineno-1-26"></a>
+<a id="__codelineno-1-27" name="__codelineno-1-27" href="#__codelineno-1-27"></a><span class="c1">##############</span>
+<a id="__codelineno-1-28" name="__codelineno-1-28" href="#__codelineno-1-28"></a><span class="c1"># YOUR MODEL #</span>
+<a id="__codelineno-1-29" name="__codelineno-1-29" href="#__codelineno-1-29"></a><span class="c1">##############</span>
+<a id="__codelineno-1-30" name="__codelineno-1-30" href="#__codelineno-1-30"></a>
+<a id="__codelineno-1-31" name="__codelineno-1-31" href="#__codelineno-1-31"></a><span class="k">[[models]]</span>
+<a id="__codelineno-1-32" name="__codelineno-1-32" href="#__codelineno-1-32"></a><span class="n">org</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;open-clip&quot;</span>
+<a id="__codelineno-1-33" name="__codelineno-1-33" href="#__codelineno-1-33"></a><span class="n">ckpt</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;hf-hub:imageomics/bioclip-2.5-vith14&quot;</span>
+</code></pre></div>
 <p>Here's what this means:</p>
-<pre><code class="language-toml">n_train = -1
-</code></pre>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">n_train</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">-1</span>
+</code></pre></div>
 <p>Use all training samples. If you were interested in sample-efficient learning, you might set this to <code>n_train = 10</code> or similar.</p>
-<pre><code class="language-toml">report_to = &quot;/$SCRATCH/$USER/biobench&quot;
-</code></pre>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="n">report_to</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/$SCRATCH/$USER/biobench&quot;</span>
+</code></pre></div>
 <p>All results will be written to <code>/$SCRATCH/$USER/biobench/reports.sqlite</code></p>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
 <p>You cannot write results to a SQLite file on an NFS drive. If you truly have exactly one runner in parallel, this is okay, but multiple parallel runners can corrupt SQLite files when it's on an NFS drive.</p>
 </div>
-<pre><code class="language-toml">[data]
-newt = &quot;$NFS/datasets/newt&quot;
-</code></pre>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">[data]</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="n">newt</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;$NFS/datasets/newt&quot;</span>
+</code></pre></div>
 <p>Reference the benchmarks that you want to run, and provide a path.</p>
-<pre><code class="language-toml">[[models]]
-org = &quot;open-clip&quot;
-ckpt = &quot;ViT-SO400M-16-SigLIP2-512/webli&quot;
-
-[[models]]
-org = &quot;open-clip&quot;
-ckpt = &quot;PE-Core-L-14-336/meta&quot;
-
-[[models]]
-org = &quot;open-clip&quot;
-ckpt = &quot;hf-hub:imageomics/bioclip-2&quot;
-
-[[models]]
-org = &quot;timm&quot;
-ckpt = &quot;convnext_tiny.in12k&quot;
-
-[[models]]
-org = &quot;dinov3&quot;
-ckpt = &quot;/PATH/TO/DINOv3/dinov3_vitl16_pretrain_lvd1689m-8aa4cbdd.pth&quot;
-</code></pre>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="k">[[models]]</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="n">org</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;open-clip&quot;</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="n">ckpt</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;ViT-SO400M-16-SigLIP2-512/webli&quot;</span>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="k">[[models]]</span>
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="n">org</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;open-clip&quot;</span>
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="n">ckpt</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;PE-Core-L-14-336/meta&quot;</span>
+<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>
+<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="k">[[models]]</span>
+<a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a><span class="n">org</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;open-clip&quot;</span>
+<a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a><span class="n">ckpt</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;hf-hub:imageomics/bioclip-2&quot;</span>
+<a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a>
+<a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a><span class="k">[[models]]</span>
+<a id="__codelineno-5-14" name="__codelineno-5-14" href="#__codelineno-5-14"></a><span class="n">org</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;timm&quot;</span>
+<a id="__codelineno-5-15" name="__codelineno-5-15" href="#__codelineno-5-15"></a><span class="n">ckpt</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;convnext_tiny.in12k&quot;</span>
+<a id="__codelineno-5-16" name="__codelineno-5-16" href="#__codelineno-5-16"></a>
+<a id="__codelineno-5-17" name="__codelineno-5-17" href="#__codelineno-5-17"></a><span class="k">[[models]]</span>
+<a id="__codelineno-5-18" name="__codelineno-5-18" href="#__codelineno-5-18"></a><span class="n">org</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;dinov3&quot;</span>
+<a id="__codelineno-5-19" name="__codelineno-5-19" href="#__codelineno-5-19"></a><span class="n">ckpt</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/PATH/TO/DINOv3/dinov3_vitl16_pretrain_lvd1689m-8aa4cbdd.pth&quot;</span>
+</code></pre></div>
 <p>These are your baseline models. Many of the strongest vision encoders are compatible with either <a href="https://github.com/huggingface/pytorch-image-models"><code>timm</code></a> or <a href="https://github.com/mlfoundations/open_clip"><code>open_clip</code></a> and can be trivially loaded via a <code>ckpt</code> slug.</p>
 <p>For instance, the BioCLIP 2 model references this snippet of code on the <a href="https://huggingface.co/imageomics/bioclip-2?library=open_clip">HuggingFace model page</a>:</p>
-<pre><code class="language-python">import open_clip
-
-model, preprocess_train, preprocess_val = open_clip.create_model_and_transforms('hf-hub:imageomics/bioclip-2')
-tokenizer = open_clip.get_tokenizer('hf-hub:imageomics/bioclip-2')
-</code></pre>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">open_clip</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="n">model</span><span class="p">,</span> <span class="n">preprocess_train</span><span class="p">,</span> <span class="n">preprocess_val</span> <span class="o">=</span> <span class="n">open_clip</span><span class="o">.</span><span class="n">create_model_and_transforms</span><span class="p">(</span><span class="s1">&#39;hf-hub:imageomics/bioclip-2&#39;</span><span class="p">)</span>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="n">tokenizer</span> <span class="o">=</span> <span class="n">open_clip</span><span class="o">.</span><span class="n">get_tokenizer</span><span class="p">(</span><span class="s1">&#39;hf-hub:imageomics/bioclip-2&#39;</span><span class="p">)</span>
+</code></pre></div>
 <p>You can pass <code>"hf-hub:imageomics/bioclip-2"</code> as the <code>ckpt</code> field.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>DINOv3 requires local checkpoints to be downloaded, because the weights are not publicly available without using a HF token of some kind.</p>
 </div>
-<pre><code class="language-toml">##############
-# YOUR MODEL #
-##############
-
-[[models]]
-org = &quot;open-clip&quot;
-ckpt = &quot;hf-hub:imageomics/bioclip-2.5-vith14&quot;
-</code></pre>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="c1">##############</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="c1"># YOUR MODEL #</span>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="c1">##############</span>
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>
+<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="k">[[models]]</span>
+<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="n">org</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;open-clip&quot;</span>
+<a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="n">ckpt</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;hf-hub:imageomics/bioclip-2.5-vith14&quot;</span>
+</code></pre></div>
 <p>Perhaps you are developing a new version of BioCLIP. If it's published on HuggingFace already, you can use the <code>hf-hub</code> trick as before.
 If not, the <code>open_clip</code> org also accepts local paths like <code>local:ViT-L-14//models/vit-l-14-tol200m-laion2b-replay-ep30.pt</code> (see the snippet in third_party_models.py under <code>elif ckpt.startswith("local:"):</code>).</p>
 <p>See the <a class="autorefs autorefs-internal" title="OpenClip(ckpt, drop_keys=None, **_)" href="../api/third_party_models/#biobench.third_party_models.OpenClip"><code>biobench.third_party_models.OpenClip</code></a> API docs for more details.</p>
 <p>If your model is not compatible with <code>timm</code> or <code>open_clip</code>, you can also add a new model class by subclassing <a class="autorefs autorefs-internal" title="VisionBackbone" href="../api/registry/#biobench.registry.VisionBackbone"><code>biobench.registry.VisionBackbone</code></a>. See the existing implementations in <a class="autorefs autorefs-internal" href="../api/aimv2/#biobench.aimv2"><code>biobench.aimv2</code></a>, <a class="autorefs autorefs-internal" href="../api/vjepa/#biobench.vjepa"><code>biobench.vjepa</code></a>, or <a class="autorefs autorefs-internal" href="../api/third_party_models/#biobench.third_party_models"><code>biobench.third_party_models</code></a> for examples.</p>
 <h2 id="launch-runners">Launch Runners<a class="headerlink" href="#launch-runners" title="Permanent link">&para;</a></h2>
 <p>Once your config is set up, you can launch one or more benchmark runner processes that will parse your config and run a sequence of benchmark tasks.
-Runners are cooperative and use a SQLite database to coordinate jobs. </p>
+Runners are cooperative and use a SQLite database to coordinate jobs. 
+I typically run something like:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="c1"># In my first shell</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="nv">CUDA_VISIBLE_DEVICES</span><span class="o">=</span><span class="m">0</span><span class="w"> </span>uv<span class="w"> </span>run<span class="w"> </span>benchmark.py<span class="w"> </span>--cfgs<span class="w"> </span>configs/my-config.toml
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="c1"># In a second shell, starting at least 10 or so seconds afterwards to avoid deadlocks.</span>
+<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="nv">CUDA_VISIBLE_DEVICES</span><span class="o">=</span><span class="m">1</span><span class="w"> </span>uv<span class="w"> </span>run<span class="w"> </span>benchmark.py<span class="w"> </span>--cfgs<span class="w"> </span>configs/my-config.toml
+</code></pre></div>
+<p>This runs two jobs on separate GPUs.
+They'll coordinate, and not re-run any already benchmarked model/task combinations.</p>
 <h2 id="report">Report<a class="headerlink" href="#report" title="Permanent link">&para;</a></h2>
+<p>After your jobs are done, you can run <code>uv run report.py --db $SCRATCH/$USER/biobench/reports.sqlite</code> which will do some statistical significance testing with bootstrapping to compute statistically significant improvements.</p>
+<p>This will produce <a href="https://github.com/Imageomics/biobench/blob/main/docs/data/results.json"><code>results.json</code></a>.</p>
 <h2 id="analyze-with-notebooks">Analyze with Notebooks<a class="headerlink" href="#analyze-with-notebooks" title="Permanent link">&para;</a></h2>
+<p>However, for intermediate analysis, I strongly recommend combining Python notebooks like <a href="https://jupyter.org/">JupyterLab</a> or <a href="https://marimo.io/">marimo</a> with the SQLite database via <a href="https://duckdb.org/">DuckDB</a> or <a href="https://pola.rs/">Polars</a> to make charts and tables as necessary.</p>
 
 
 

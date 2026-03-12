@@ -166,7 +166,25 @@ If your model is not compatible with `timm` or `open_clip`, you can also add a n
 
 Once your config is set up, you can launch one or more benchmark runner processes that will parse your config and run a sequence of benchmark tasks.
 Runners are cooperative and use a SQLite database to coordinate jobs. 
+I typically run something like:
+
+```sh
+# In my first shell
+CUDA_VISIBLE_DEVICES=0 uv run benchmark.py --cfgs configs/my-config.toml
+
+# In a second shell, starting at least 10 or so seconds afterwards to avoid deadlocks.
+CUDA_VISIBLE_DEVICES=1 uv run benchmark.py --cfgs configs/my-config.toml
+```
+
+This runs two jobs on separate GPUs.
+They'll coordinate, and not re-run any already benchmarked model/task combinations.
 
 ## Report
 
+After your jobs are done, you can run `uv run report.py --db $SCRATCH/$USER/biobench/reports.sqlite` which will do some statistical significance testing with bootstrapping to compute statistically significant improvements.
+
+This will produce [`results.json`](https://github.com/Imageomics/biobench/blob/main/docs/data/results.json).
+
 ## Analyze with Notebooks
+
+However, for intermediate analysis, I strongly recommend combining Python notebooks like [JupyterLab](https://jupyter.org/) or [marimo](https://marimo.io/) with the SQLite database via [DuckDB](https://duckdb.org/) or [Polars](https://pola.rs/) to make charts and tables as necessary.
